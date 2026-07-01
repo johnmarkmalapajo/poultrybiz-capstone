@@ -1,0 +1,59 @@
+.container {
+  height: 100vh;
+  width: 100vw;
+  background-color: #FFFDF6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.wcard {
+  text-align: center;
+  background: transparent;
+}
+
+.logo {
+  width: 350px;
+  margin-bottom: 1px;
+}
+
+.subtitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: #47321C;
+  margin-bottom: 2px;
+}
+
+.title {
+  font-size: 50px;
+  font-weight: 800;
+  color: #47321C;
+  margin: 2px 0;
+  letter-spacing: 1px;
+}
+
+.tagline {
+  font-size: 14px;
+  font-weight: 500;
+  color: #47321C;
+  margin-bottom: 45px;
+}
+
+.btn {
+  padding: 10px 50px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 2px solid #F6CF55;
+  border-radius: 30px;
+  background: #F6CF55;
+  color: #47321C;
+  cursor: pointer;
+  transition: 0.3s;
+}
+ 
+.btn:hover {
+  background-color: #47321C;
+  color: #fff;
+  border-color: #47321C;
+}

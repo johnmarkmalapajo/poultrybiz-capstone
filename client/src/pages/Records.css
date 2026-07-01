@@ -1,0 +1,296 @@
+/* Records.css — PoultryBriz (#E4AF1F gold, clean white cards) */
+
+/* ── Page shell ── */
+.records-page {
+  display: flex;
+  height: 100vh;
+  background: #f5f5f5;
+  font-family: 'Segoe UI', sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.records-content,
+.records-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 36px 40px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.sidebar { flex-shrink: 0; }
+
+/* ── Topbar ── */
+.records-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.records-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.records-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #E4AF1F;
+  border: none;
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+  color: #47321C;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s;
+}
+.records-hamburger:hover { background: #c8930c; }
+
+.records-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.records-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.records-search input {
+  padding: 10px 40px 10px 18px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  width: 240px;
+  max-width: 100%;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #333;
+}
+
+.records-search input:focus {
+  border-color: #E4AF1F;
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  font-size: 15px;
+  color: #888;
+  pointer-events: none;
+}
+
+/* ── Cards grid ── */
+.records-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+/* ── Individual card ── */
+.record-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 28px 24px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  animation: cardFadeIn 0.35s ease both;
+  position: relative;
+  overflow: hidden;
+}
+
+.record-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 5px;
+  height: 100%;
+  background: var(--card-color);
+  border-radius: 16px 0 0 16px;
+  transition: width 0.2s ease;
+}
+
+.record-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  border-color: var(--card-color);
+}
+
+.record-card:hover::before {
+  width: 8px;
+}
+
+/* ── Icon ── */
+.card-icon-wrap {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.record-card:hover .card-icon-wrap {
+  transform: scale(1.08);
+}
+
+.card-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+/* ── Text ── */
+.card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.2px;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* ── Arrow ── */
+.card-arrow {
+  font-size: 24px;
+  color: #ccc;
+  flex-shrink: 0;
+  transition: color 0.2s, transform 0.2s;
+  line-height: 1;
+}
+
+.record-card:hover .card-arrow {
+  color: var(--card-color);
+  transform: translateX(4px);
+}
+
+/* ── Sub-page placeholder ── */
+.subpage-placeholder {
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.back-btn {
+  align-self: flex-start;
+  background: none;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.back-btn:hover {
+  border-color: #E4AF1F;
+  color: #E4AF1F;
+}
+
+.subpage-content {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+
+.subpage-content h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.subpage-content p {
+  color: #888;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ── Animation ── */
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .records-content,
+  .records-main { padding: 28px 24px; gap: 24px; }
+  .records-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+}
+
+@media (max-width: 768px) {
+  .records-content,
+  .records-main { padding: 20px 16px; gap: 20px; }
+  .records-title { font-size: 22px; }
+  .records-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .records-hamburger { display: flex; }
+  .records-search { flex: 1; }
+  .records-search input { width: 100%; }
+
+  /* Sidebar — fully hidden; slides in when hamburger is tapped */
+  .records-page .sidebar {
+    width: 0;
+    padding: 0;
+    min-width: 0;
+    overflow: hidden;
+    border: none;
+  }
+  .records-page .sidebar.sidebar-open {
+    width: 240px;
+    padding: 14px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 480px) {
+  .records-content,
+  .records-main { padding: 16px 12px; gap: 16px; }
+  .records-title { font-size: 20px; }
+  .records-grid { grid-template-columns: 1fr; gap: 14px; }
+  .record-card { padding: 20px 16px; gap: 14px; }
+  .card-icon-wrap { width: 56px; height: 56px; }
+  .card-emoji { font-size: 26px; }
+  .records-topbar { gap: 12px; }
+}

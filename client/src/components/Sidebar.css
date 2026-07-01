@@ -1,0 +1,351 @@
+.sidebar {
+  width: 250px;
+  background: #E4AF1F;
+  color: white;
+  padding: 20px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.company {
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: -15px;
+  margin-left: 83px;
+}
+
+.sidebar h2 {
+  font-weight: 800;
+}
+
+.location {
+  font-size: 12px;
+  margin-top: -15px;
+  margin-bottom: 25px;
+  margin-left: 83px;
+  font-weight: bold;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  width: 100%;
+}
+
+.sidebar li {
+  padding: 8px 10px;
+  margin: 4px 0;
+  cursor: pointer;
+  font-weight: 550;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.menu-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #47321C;
+}
+
+.active {
+  background: #47321C;
+  color: white;
+  border-radius: 5px;
+}
+
+.active .menu-icon {
+  filter: brightness(0) invert(1);
+}
+
+.secondary {
+  color: #47321C;
+  border-radius: 5px;
+}
+
+.secondary .menu-icon {
+  color: #47321C;
+}
+
+.divider {
+  border-top: 1px solid #47321C;
+  margin: 16px 0 8px 0;
+  padding: 0;
+  display: block;
+}
+
+.user {
+  margin-top: 15px;
+  font-size: 12px;
+  background: white;
+  color: #47321C;
+  padding: 9px;
+  font-weight: 550;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-icon {
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+  margin-left: 15px;
+}
+
+.user-details p {
+  margin: 0 0 2px 0;
+  font-size: 12px;
+}
+
+.user-details span {
+  font-size: 10px;
+  color: #666;
+}
+
+.logo-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidelogo {
+  height: 72px;
+  width: auto;
+  border-radius: 8px;
+}
+
+/* ── Logout Modal ── */
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.logout-modal {
+  background: #FFFDF6;
+  border-radius: 12px;
+  padding: 32px 28px 24px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  font-family: 'Poppins', sans-serif;
+}
+
+.logout-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #47321C;
+  margin: 0 0 10px;
+  letter-spacing: 1px;
+}
+
+.logout-message {
+  font-size: 13px;
+  color: #47321C;
+  font-weight: 500;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-btn-cancel {
+  flex: 1;
+  padding: 10px 20px;
+  border: 2px solid #fff;
+  border-radius: 30px;
+  color: #47321C;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: 0.3s;
+  background: transparent;
+}
+
+.logout-btn-confirm {
+  flex: 1;
+  padding: 10px 20px;
+  border: 2px solid #F6CF55;
+  border-radius: 30px;
+  background: #F6CF55;
+  color: #47321C;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+/* =============================
+   HAMBURGER BUTTON
+   — shown on mobile, placed in Topbar
+============================= */
+
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid #e2e2e2;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #47321C;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.hamburger-btn:hover {
+  border-color: #E4AF1F;
+  background: #fdf3e3;
+}
+
+.sidebar-close-btn {
+  display: none;
+}
+
+/* Dark overlay — hidden by default */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 149;
+}
+
+/* =============================
+   MOBILE DRAWER (≤768px)
+   Covers phones AND small tablets
+============================= */
+
+@media (max-width: 768px) {
+
+  /* Show hamburger wherever it's placed */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Hide sidebar off-screen by default */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Slide in when open */
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Close (X) button inside the drawer */
+  .sidebar-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    color: #47321C;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 8px;
+    align-self: flex-end;
+  }
+
+  /* Show the dark overlay */
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+/* =============================
+   MOBILE SIDEBAR CONTENT SCALING
+============================= */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 240px;
+    padding: 14px;
+  }
+
+  .sidelogo {
+    height: 48px;
+  }
+
+  .sidebar h2 {
+    font-size: 16px;
+  }
+
+  .company {
+    font-size: 9px;
+    margin-left: 62px;
+    margin-bottom: -12px;
+  }
+
+  .location {
+    font-size: 9px;
+    margin-left: 62px;
+    margin-top: -10px;
+    margin-bottom: 16px;
+  }
+
+  .sidebar li {
+    padding: 6px 8px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .menu-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .user {
+    padding: 7px;
+    font-size: 11px;
+  }
+
+  .user-icon {
+    width: 28px;
+    height: 28px;
+    margin-left: 8px;
+  }
+
+  .user-details p {
+    font-size: 11px;
+  }
+
+  .user-details span {
+    font-size: 9px;
+  }
+}

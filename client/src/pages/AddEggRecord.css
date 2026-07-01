@@ -1,0 +1,529 @@
+/* AddEggRecord.css — same design as AddFlock / AddSalesRecord */
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&display=swap");
+
+:root {
+  --font-heading: "Poppins", sans-serif;
+  --font-body:    "Lato", sans-serif;
+
+  --fs-hint:  9px;
+  --fs-label: 11px;
+  --fs-base:  14px;
+  --fs-md:    23px;
+  --fs-lg:    37px;
+
+  --color-accent:      #E4AF1F;
+  --color-accent-dark: #c8930c;
+  --color-accent-glow: rgba(228, 175, 31, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* ========================
+   PAGE SHELL
+======================== */
+
+.aer-page {
+  display: flex;
+  min-height: 100vh;
+  background: #f4f4f2;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.aer-main {
+  flex: 1;
+  min-width: 0;
+  padding: 36px 44px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ========================
+   BREADCRUMB
+   (always visible; hamburger appears on mobile)
+======================== */
+
+.aer-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: #aaa;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.aer-breadcrumb-link {
+  cursor: pointer;
+  color: #aaa;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.aer-breadcrumb-link:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.aer-breadcrumb-current {
+  color: #2d2d2d;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Hamburger — hidden on desktop, visible on mobile */
+.aer-hamburger {
+  display: none;
+}
+
+/* ========================
+   HEADER
+======================== */
+
+.aer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.aer-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.aer-header p {
+  margin-top: 8px;
+  max-width: 640px;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #888;
+  line-height: 1.7;
+}
+
+/* ========================
+   BANNERS
+======================== */
+
+.aer-success-banner {
+  background: #eaf7f1;
+  border: 1px solid #2e9e6b;
+  color: #2e9e6b;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.aer-error-banner {
+  background: #fdf0f0;
+  border: 1px solid #d94f4f;
+  color: #d94f4f;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+}
+
+/* ========================
+   FORM CARD
+======================== */
+
+.aer-form-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  border: 1.5px solid #ebebeb;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ========================
+   SECTION HEADERS
+======================== */
+
+.aer-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.aer-section-header svg {
+  font-size: var(--fs-md);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.aer-section-header h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.aer-line {
+  flex: 1;
+  height: 1px;
+  background: #f0f0f0;
+  margin-left: 4px;
+}
+
+/* ========================
+   FORM GRID
+======================== */
+
+.aer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 28px;
+}
+
+/* Egg-count inputs — auto-fit so they stay even and wrap cleanly */
+.aer-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px 28px;
+}
+
+/* ========================
+   FORM GROUPS
+======================== */
+
+.aer-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aer-form-group label {
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #2d2d2d;
+}
+
+.req {
+  color: var(--color-accent);
+}
+
+.aer-form-group small {
+  font-family: var(--font-body);
+  font-size: var(--fs-hint);
+  color: #bbb;
+  line-height: 1.5;
+}
+
+/* ========================
+   INPUTS / SELECT
+======================== */
+
+.aer-form-group input,
+.aer-form-group select {
+  width: 100%;
+  box-sizing: border-box;
+  height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid #e2e2e2;
+  border-radius: var(--radius-sm);
+  background: #fafafa;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #2d2d2d;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.aer-form-group select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.aer-form-group input:focus,
+.aer-form-group select:focus {
+  border-color: var(--color-accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--color-accent-glow);
+}
+
+/* ========================
+   COMPUTED RESULT CARDS
+======================== */
+
+.aer-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.aer-result-card {
+  border: 1.5px solid #ececec;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  background: #fcfcfb;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aer-result-card h4 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #2d2d2d;
+}
+
+.aer-result-value {
+  font-family: var(--font-heading);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+
+.aer-result-value.green {
+  color: #2e9e6b;
+}
+
+.aer-result-card p {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-hint);
+  color: #aaa;
+  line-height: 1.5;
+}
+
+/* ========================
+   INFO BOX
+======================== */
+
+.aer-info-box {
+  background: #eef3fc;
+  border: 1px solid #d7e3f7;
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  box-sizing: border-box;
+}
+
+.aer-info-box p {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #5a6b86;
+  line-height: 1.6;
+}
+
+/* ========================
+   FORM ACTIONS
+======================== */
+
+.aer-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.aer-cancel-btn {
+  padding: 12px 24px;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.aer-cancel-btn:hover {
+  border-color: #bbb;
+  color: #333;
+}
+
+.aer-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.aer-save-btn:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
+}
+
+.aer-save-btn:disabled,
+.aer-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aer-save-btn svg {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ========================
+   RESPONSIVE — TABLET (≤1024px)
+======================== */
+
+@media (max-width: 1024px) {
+  .aer-main {
+    padding: 28px;
+  }
+
+  .aer-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================
+   RESPONSIVE — MOBILE (≤768px)
+   Hamburger appears, sidebar collapses
+======================== */
+
+@media (max-width: 768px) {
+  .aer-main {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  .aer-breadcrumb {
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  /* Hamburger button */
+  .aer-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    color: #47321C;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: background 0.2s;
+  }
+
+  .aer-hamburger:hover {
+    background: var(--color-accent-dark);
+  }
+
+  .aer-header h2 {
+    font-size: var(--fs-md);
+  }
+
+  .aer-form-card {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  .aer-count-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .aer-form-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .aer-cancel-btn,
+  .aer-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Sidebar — fully hidden; slides in when hamburger is tapped */
+  .aer-page .sidebar {
+    width: 0;
+    padding: 0;
+    min-width: 0;
+    overflow: hidden;
+    border: none;
+  }
+
+  .aer-page .sidebar.sidebar-open {
+    width: 240px;
+    padding: 14px;
+    overflow: visible;
+  }
+}
+
+/* ========================
+   RESPONSIVE — PHONE (≤480px)
+======================== */
+
+@media (max-width: 480px) {
+  .aer-main {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
+  .aer-breadcrumb {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .aer-form-card {
+    padding: 16px 12px;
+  }
+
+  .aer-count-grid {
+    grid-template-columns: 1fr;
+  }
+}

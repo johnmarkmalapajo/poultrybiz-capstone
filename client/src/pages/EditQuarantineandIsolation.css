@@ -1,0 +1,508 @@
+/* EditQuarantineIsolation.css — same design as AddFlock / AddSalesRecord */
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&display=swap");
+
+:root {
+  --font-heading: "Poppins", sans-serif;
+  --font-body:    "Lato", sans-serif;
+
+  --fs-hint:  9px;
+  --fs-label: 11px;
+  --fs-base:  14px;
+  --fs-md:    23px;
+  --fs-lg:    37px;
+
+  --color-accent:      #E4AF1F;
+  --color-accent-dark: #c8930c;
+  --color-accent-glow: rgba(228, 175, 31, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* ==========================
+   PAGE SHELL
+========================== */
+
+.eqi-page {
+  display: flex;
+  min-height: 100vh;
+  background: #f4f4f2;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.eqi-main {
+  flex: 1;
+  min-width: 0;
+  padding: 36px 44px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sidebar { flex-shrink: 0; }
+
+/* ==========================
+   BREADCRUMB
+========================== */
+
+.eqi-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: #aaa;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.eqi-bc-link {
+  cursor: pointer;
+  color: #aaa;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.eqi-bc-link:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.eqi-bc-sep { color: #ccc; flex-shrink: 0; }
+
+.eqi-bc-current {
+  color: #2d2d2d;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Hamburger — hidden on desktop, visible on mobile */
+.eqi-hamburger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .eqi-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    color: #47321C;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: background 0.2s;
+  }
+
+  .eqi-hamburger:hover {
+    background: var(--color-accent-dark);
+  }
+}
+
+/* ==========================
+   HEADER
+========================== */
+
+.eqi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.eqi-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.eqi-header p {
+  margin-top: 8px;
+  max-width: 640px;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #888;
+  line-height: 1.7;
+}
+
+/* ==========================
+   FORM CARD
+========================== */
+
+.eqi-form-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  border: 1.5px solid #ebebeb;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ==========================
+   SECTION HEADERS
+========================== */
+
+.eqi-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eqi-section-header svg {
+  font-size: var(--fs-md);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.eqi-section-header h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.eqi-line {
+  flex: 1;
+  height: 1px;
+  background: #f0f0f0;
+  margin-left: 4px;
+}
+
+/* ==========================
+   FORM GRID
+========================== */
+
+.eqi-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 28px;
+}
+
+/* ==========================
+   FORM GROUPS
+========================== */
+
+.eqi-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.eqi-form-group label {
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #2d2d2d;
+}
+
+.eqi-req { color: var(--color-accent); }
+
+.eqi-form-group small {
+  font-family: var(--font-body);
+  font-size: var(--fs-hint);
+  color: #bbb;
+  line-height: 1.5;
+}
+
+.eqi-char-count {
+  text-align: right;
+}
+
+.eqi-full-width {
+  grid-column: 1 / -1;
+}
+
+/* ==========================
+   INPUTS, SELECTS, TEXTAREA
+========================== */
+
+.eqi-form-group input,
+.eqi-form-group select,
+.eqi-form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid #e2e2e2;
+  border-radius: var(--radius-sm);
+  background: #fafafa;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #2d2d2d;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.eqi-form-group input,
+.eqi-form-group select {
+  height: 48px;
+  padding: 0 16px;
+}
+
+.eqi-form-group select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.eqi-form-group textarea {
+  padding: 14px 16px;
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.65;
+}
+
+.eqi-form-group input:focus,
+.eqi-form-group select:focus,
+.eqi-form-group textarea:focus {
+  border-color: var(--color-accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--color-accent-glow);
+}
+
+.eqi-form-group input::placeholder,
+.eqi-form-group textarea::placeholder { color: #bbb; }
+
+/* ==========================
+   FORM ACTIONS
+========================== */
+
+.eqi-form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+.eqi-req-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-hint);
+  color: #bbb;
+}
+
+.eqi-action-btns {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.eqi-cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 24px;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.eqi-cancel-btn:hover {
+  border-color: #bbb;
+  color: #333;
+}
+
+.eqi-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.eqi-save-btn:hover {
+  background: var(--color-accent-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
+}
+
+.eqi-cancel-btn svg,
+.eqi-save-btn svg {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ==========================
+   RESPONSIVE — TABLET (≤1024px)
+========================== */
+
+@media (max-width: 1024px) {
+  .eqi-main { padding: 28px; }
+
+  .eqi-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .eqi-full-width {
+    grid-column: auto;
+  }
+}
+
+/* ==========================
+   RESPONSIVE — MOBILE (≤768px)
+========================== */
+
+@media (max-width: 768px) {
+  .eqi-main {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  .eqi-breadcrumb {
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .eqi-header h2 {
+    font-size: var(--fs-md);
+  }
+
+  .eqi-form-card {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  .eqi-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .eqi-action-btns {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .eqi-cancel-btn,
+  .eqi-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Sidebar — fully hidden; slides in when hamburger is tapped */
+  .eqi-page .sidebar {
+    width: 0;
+    padding: 0;
+    min-width: 0;
+    overflow: hidden;
+    border: none;
+  }
+
+  .eqi-page .sidebar.sidebar-open {
+    width: 240px;
+    padding: 14px;
+    overflow: visible;
+  }
+}
+
+/* ==========================
+   RESPONSIVE — PHONE (≤480px)
+========================== */
+
+@media (max-width: 480px) {
+  .eqi-main {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
+  .eqi-breadcrumb {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .eqi-form-card {
+    padding: 16px 12px;
+  }
+}
+
+/* ── EXTRA: optional label, char row, status legend, half-width ── */
+.eqi-optional {
+  color: var(--text-muted, #a39e94);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.eqi-char-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.eqi-half { max-width: 480px; }
+@media (max-width: 640px) { .eqi-half { max-width: 100%; } }
+
+.eqi-status-legend {
+  background: #fafafa;
+  border: 1.5px solid var(--border, #e4e0d8);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.eqi-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body, "Lato", sans-serif);
+  font-size: 13px;
+  color: var(--text-second, #6b6457);
+  line-height: 1.5;
+}
+.eqi-legend-item strong { color: var(--text-primary, #1e1c18); }
+.eqi-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.eqi-dot.yellow { background: #E4AF1F; }
+.eqi-dot.green  { background: #2e9e6b; }
+.eqi-dot.red    { background: #d94f4f; }
