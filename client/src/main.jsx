@@ -1,3 +1,4 @@
+import "./index.css"
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -13,11 +14,12 @@ import SalesRecord from "./pages/SalesRecord.jsx"
 import AddSalesRecord from "./pages/AddSalesRecord.jsx"
 import EditSalesRecord from "./pages/EditSalesRecord.jsx"
 import PersonnelVisitors from './pages/PersonnelVisitors'
+import PersonnelManpower from './pages/PersonnelandManpower'
 import FlockProfile from './pages/FlockProfile.jsx'
 import AddFlock from './pages/AddFlock.jsx'
 import EditFlock from './pages/EditFlock.jsx'
 import EggRecord from "./pages/EggRecord";
-import AddEggRecord from "./pages/AddEggRecord"; 
+import AddEggRecord from "./pages/AddEggRecord";
 import EditEggRecord from "./pages/EditEggRecord";
 import HealthRecord from "./pages/HealthRecord";
 import AddHealthRecord from "./pages/AddHealthRecord";
@@ -45,6 +47,15 @@ import EditFeedConsumption from "./pages/EditFeedConsumption.jsx";
 import Equipment     from "./pages/Equipment.jsx";
 import AddEquipment  from "./pages/AddEquipment.jsx";
 import EditEquipment from "./pages/EditEquipment.jsx";
+import ViewPersonnel from "./pages/ViewPersonnel";
+import EditPersonnel from "./pages/EditPersonnel";
+import AddTask from "./pages/AddTask";
+import EditTask from "./pages/EditTask";
+import Visitors from "./pages/Visitors";
+import ViewVisitor from "./pages/ViewVisitor";
+import VisitorCheckIn from "./pages/VisitorCheckIn";
+import FarmerTodo from "./pages/FarmerTodo";
+import AdminTodo from "./pages/AdminTodo";
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
@@ -68,8 +79,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/sales-transactions/sales/add" element={<AddSalesRecord />} />
         <Route path="/sales-transactions/sales/edit/:id" element={<EditSalesRecord />} />
         <Route path="/personnel-visitors" element={<PersonnelVisitors />} />
-        <Route path="/personnel-visitors/personnel" element={<PersonnelVisitors />} />
-        <Route path="/personnel-visitors/visitors" element={<PersonnelVisitors />} />
+        <Route path="/personnel-visitors/personnel" element={<PersonnelManpower />} />
+        <Route path="/personnel-visitors/personnel/view/:id" element={<ViewPersonnel />} />
+        <Route path="/personnel-visitors/personnel/edit/:id" element={<EditPersonnel />} />
+        <Route path="/personnel-visitors/personnel/:id/tasks/add" element={<AddTask />} />
+        <Route path="/personnel-visitors/personnel/:id/tasks/edit/:taskId" element={<EditTask />} />
+        <Route path="/personnel-visitors/visitors" element={<Visitors />} />
+        <Route path="/personnel-visitors/visitors/view/:id" element={<ViewVisitor />} />
+        <Route path="/visitor/check-in" element={<VisitorCheckIn />} />
         <Route path="/records/egg" element={<EggRecord />} />
         <Route path="/records/egg/add" element={<AddEggRecord />} />
         <Route path="/records/egg/edit/:id" element={<EditEggRecord />} />
@@ -99,6 +116,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/inventory/equipment"          element={<Equipment />} />
         <Route path="/inventory/equipment/add"      element={<AddEquipment />} />
         <Route path="/inventory/equipment/edit/:id" element={<EditEquipment />} />
+        <Route path="/todo" element={<FarmerTodo />} />
+        <Route path="/admin/todo" element={<AdminTodo />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

@@ -4,7 +4,8 @@ import { FiInfo, FiActivity, FiFileText, FiSave, FiMenu } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./EditFeedInventory.css";
 
-const FEED_TYPES = ["Starter Feed", "Grower Feed", "Layer Feed", "Finisher Feed"];
+const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
+const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 
 export default function EditFeedInventory() {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ export default function EditFeedInventory() {
   const [form, setForm] = useState({
     date: "", feedType: "", quantityIn: "", quantityOut: "", notes: "",
   });
+
+  // Total consumed per feed type — drives Quantity Out automatically
+  const [consumedByType, setConsumedByType] = useState({});
 
   // Load the record set by the Edit button on the Feed Stock list
   useEffect(() => {
@@ -28,13 +32,56 @@ export default function EditFeedInventory() {
     }
   }, []);
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  // Fetch consumption totals per feed type
+  useEffect(() => {
+    const fetchConsumption = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${BASE_URL}/feed-consumption`, {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        const list = json.data || json.records || (Array.isArray(json) ? json : []);
+        const map = {};
+        list.forEach((c) => {
+          const t = c.feedType;
+          if (!t) return;
+          map[t] = (map[t] || 0) + (Number(c.quantityConsumed) || 0);
+        });
+        setConsumedByType(map);
+      } catch {
+        setConsumedByType({});
+      }
+    };
+    fetchConsumption();
+  }, []);
+
+  // Keep Quantity Out in sync with Feed Consumption for the current feed type
+  useEffect(() => {
+    if (form.feedType && consumedByType[form.feedType] != null) {
+      setForm((f) => ({ ...f, quantityOut: String(consumedByType[form.feedType]) }));
+    }
+  }, [consumedByType, form.feedType]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => {
+      if (name === "feedType") {
+        const out = consumedByType[value] != null ? String(consumedByType[value]) : f.quantityOut;
+        return { ...f, feedType: value, quantityOut: out };
+      }
+      return { ...f, [name]: value };
+    });
+  };
 
   const balance = (parseFloat(form.quantityIn) || 0) - (parseFloat(form.quantityOut) || 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const payload = { ...form, balance };
+    console.log("Feed inventory payload:", payload);
+    // Backend: persist the stock record. Quantity Out stays in sync with
+    // Feed Consumption, and Balance = Quantity In − Quantity Out.
     localStorage.removeItem("editFeedRecord");
     navigate("/inventory/feed-inventory");
   };
@@ -52,9 +99,9 @@ export default function EditFeedInventory() {
           </button>
           <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
           <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-inventory")}>FEED STOCK</span>
+          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-inventory")}>FEED INVENTORY</span>
           <span>›</span>
-          <span className="breadcrumb-current">EDIT FEED</span>
+          <span className="breadcrumb-current">EDIT FEEDS</span>
         </div>
 
         {/* Header */}
@@ -76,12 +123,12 @@ export default function EditFeedInventory() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label>Date *</label>
+              <label>Date Purchased <span className="req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} required />
             </div>
 
             <div className="form-group">
-              <label>Feed Type *</label>
+              <label>Feed Type <span className="req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
                 <option value="">Select feed type</option>
                 {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -89,7 +136,7 @@ export default function EditFeedInventory() {
             </div>
 
             <div className="form-group">
-              <label>Quantity In *</label>
+              <label>Quantity In <span className="req">*</span></label>
               <input
                 type="number" min="0" name="quantityIn"
                 value={form.quantityIn} onChange={handleChange}
@@ -98,12 +145,13 @@ export default function EditFeedInventory() {
             </div>
 
             <div className="form-group">
-              <label>Quantity Out *</label>
+              <label>Quantity Out <span className="req">*</span></label>
               <input
                 type="number" min="0" name="quantityOut"
-                value={form.quantityOut} onChange={handleChange}
-                placeholder="Enter quantity out (kg)" required
+                value={form.quantityOut} readOnly
+                placeholder="Auto from Feed Consumption"
               />
+              <small>Auto-updated from Feed Consumption records.</small>
             </div>
           </div>
 

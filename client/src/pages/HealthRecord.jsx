@@ -8,6 +8,8 @@ import {
 import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./HealthRecord.css";
 
+const HEALTH_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/health-records`;
+
 export default function HealthRecord() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -19,8 +21,22 @@ export default function HealthRecord() {
     params.get("tab") === "vaccination" ? "vaccination" : "diagnosis"
   );
 
-  const diagnosisRecords = [];
-  const vaccinationRecords = [];
+  const [allRecords, setAllRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(HEALTH_API)
+      .then((r) => r.json())
+      .then((d) => setAllRecords(Array.isArray(d) ? d : d.records || d.data || []))
+      .catch(() => setAllRecords([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // A record is vaccination-type by its recordType or presence of a vaccine/drug field
+  const isVaxRec = (r) =>
+    ["Vaccination", "Medication", "Vitamin Administration"].includes(r.recordType) || r.vaccineOrDrug != null;
+  const diagnosisRecords = allRecords.filter((r) => !isVaxRec(r));
+  const vaccinationRecords = allRecords.filter(isVaxRec);
 
   const totalTreatments = diagnosisRecords.length;
   const totalVaccinations = vaccinationRecords.length;
@@ -253,18 +269,24 @@ export default function HealthRecord() {
                 <tr>
                   <th>DATE</th>
                   <th>BATCH ID</th>
+                  <th>CAGE</th>
+                  <th>NUMBER OF BIRDS AFFECTED</th>
+                  <th>DISEASE / OBSERVATION</th>
                   <th>PRESUMPTIVE DIAGNOSIS</th>
                   <th>VET DIAGNOSIS</th>
                   <th>TREATMENT APPLIED</th>
                   <th>NUMBER MORTALITY</th>
+                  <th>NEXT SCHEDULE</th>
                   <th>REMARKS / FOLLOW-UP ACTION</th>
                   <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredDiagnosis.length === 0 ? (
+                {loading ? (
+                  <tr><td colSpan="12" className="hr-empty-state">Loading health records...</td></tr>
+                ) : filteredDiagnosis.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="hr-empty-state">
+                    <td colSpan="12" className="hr-empty-state">
                       <div className="hr-empty-content">
                         <FiMaximize />
                         <h3>No diagnosis records found</h3>
@@ -280,10 +302,14 @@ export default function HealthRecord() {
                     <tr key={r._id}>
                       <td>{r.date}</td>
                       <td><span className="hr-batch-badge">{r.batchId}</span></td>
-                      <td>{r.presumptiveDiagnosis}</td>
+                      <td>{r.cageId || "—"}</td>
+                      <td className="hr-center">{r.numberOfBirdsAffected ?? "—"}</td>
+                      <td>{r.symptomsObserved || "—"}</td>
+                      <td>{r.presumptiveDiagnosis || "—"}</td>
                       <td>{r.vetDiagnosis}</td>
                       <td>{r.treatmentApplied}</td>
                       <td className="hr-center">{r.numberMortality}</td>
+                      <td>{r.nextSchedule ? String(r.nextSchedule).slice(0, 10) : "—"}</td>
                       <td>{r.remarks}</td>
                       <td>
                         <div className="hr-actions">
@@ -312,20 +338,24 @@ export default function HealthRecord() {
                 <tr>
                   <th>DATE</th>
                   <th>BATCH ID</th>
-                  <th>NO. OF BIRDS</th>
+                  <th>CAGE</th>
+                  <th>NO. OF BIRDS ADMINISTERED</th>
                   <th>VACCINE / DRUG</th>
                   <th>TARGET AGE / STAGE</th>
-                  <th>ROUTE OF ADMIN</th>
+                  <th>ROUTE</th>
                   <th>DOSAGE & FREQUENCY</th>
                   <th>ADMINISTERED BY</th>
+                  <th>NEXT SCHEDULE</th>
                   <th>REMARKS</th>
                   <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredVaccination.length === 0 ? (
+                {loading ? (
+                  <tr><td colSpan="12" className="hr-empty-state">Loading health records...</td></tr>
+                ) : filteredVaccination.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="hr-empty-state">
+                    <td colSpan="12" className="hr-empty-state">
                       <div className="hr-empty-content">
                         <FiMaximize />
                         <h3>No vaccination records found</h3>
@@ -341,12 +371,14 @@ export default function HealthRecord() {
                     <tr key={r._id}>
                       <td>{r.date}</td>
                       <td><span className="hr-batch-badge">{r.batchId}</span></td>
-                      <td className="hr-center">{r.numberOfBirds}</td>
+                      <td>{r.cageId || "—"}</td>
+                      <td className="hr-center">{r.numberOfBirdsAdministered ?? r.numberOfBirds ?? "—"}</td>
                       <td>{r.vaccineOrDrug}</td>
-                      <td>{r.targetAge}</td>
+                      <td>{r.targetAge || "—"}</td>
                       <td>{r.routeOfAdmin}</td>
                       <td>{r.dosage}</td>
                       <td>{r.administeredBy}</td>
+                      <td>{r.nextSchedule ? String(r.nextSchedule).slice(0, 10) : "—"}</td>
                       <td>{r.remarks}</td>
                       <td>
                         <div className="hr-actions">

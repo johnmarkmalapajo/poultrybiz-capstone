@@ -5,13 +5,59 @@ import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./EditFeedConsumption.css";
 
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
-const FEED_TYPES = ["Starter Feed", "Grower Feed", "Layer Feed", "Finisher Feed"];
+const FEED_TYPES = ["Grower Feed", "Layer Feed"];
+
+// ── Feed transition rules by current age (weeks) ──
+function getFeedPlan(week) {
+  if (week == null || isNaN(week) || week < 17) return null;
+  if (week === 17) return { grower: 100, layer: 0, gPerHead: 75 };
+  if (week === 18) return { grower: 100, layer: 0, gPerHead: 85 };
+  if (week === 19) return { grower: 75, layer: 25, gPerHead: 90 };
+  if (week === 20) return { grower: 50, layer: 50, gPerHead: 95 };
+  if (week === 21) return { grower: 25, layer: 75, gPerHead: 100 };
+  if (week === 22) return { grower: 0, layer: 100, gPerHead: 105 };
+  return { grower: 0, layer: 100, gPerHead: 110 }; // week 23 onwards
+}
+function planLabel(p) {
+  if (!p) return "";
+  const parts = [];
+  if (p.grower) parts.push(`${p.grower}% Grower Feed`);
+  if (p.layer) parts.push(`${p.layer}% Layer Feed`);
+  return `${parts.join(" + ")} (${p.gPerHead} g/head/day)`;
+}
+function primaryFeed(p) {
+  if (!p) return "";
+  return p.layer > p.grower ? "Layer Feed" : "Grower Feed";
+}
+function getAgeWeeks(f) {
+  if (!f) return null;
+  const direct = f.currentAgeWeeks ?? f.ageWeeks ?? f.currentAge ?? f.ageInWeeks ?? f.age;
+  if (direct != null && direct !== "") return Math.floor(Number(direct));
+  const start = f.dateAcquired || f.startDate || f.hatchDate || f.dateOfArrival || f.acquisitionDate;
+  if (start) {
+    const ms = Date.now() - new Date(start).getTime();
+    if (!isNaN(ms)) return Math.max(0, Math.floor(ms / (7 * 24 * 60 * 60 * 1000)));
+  }
+  return null;
+}
+function getQuantity(f) {
+  if (!f) return null;
+  const q = f.currentQuantity ?? f.currentBirds ?? f.quantity ?? f.headCount ?? f.quantityPurchased ?? f.numberOfBirds ?? f.birdCount;
+  const n = Number(q);
+  return isNaN(n) || n <= 0 ? null : n;
+}
+function computeConsumedKg(qty, plan) {
+  if (!qty || !plan) return "";
+  return String(Math.round((qty * plan.gPerHead / 1000) * 100) / 100);
+}
 
 export default function EditFeedConsumption() {
   const navigate = useNavigate();
 
   // Batch IDs come from FlockProfile (only show once flocks exist)
   const [batches, setBatches] = useState([]);
+  const [flockList, setFlockList] = useState([]);
+  const [autoMeta, setAutoMeta] = useState({});
 
   const [form, setForm] = useState({
     date: "", batchId: "", feedType: "", quantityConsumed: "", notes: "",
@@ -28,8 +74,10 @@ export default function EditFeedConsumption() {
         const json = await res.json();
         const list = json.data || json.flocks || json.records || (Array.isArray(json) ? json : []);
         const ids = [...new Set(list.map((f) => f.batchId).filter(Boolean))];
+        setFlockList(list);
         setBatches(ids);
       } catch {
+        setFlockList([]);
         setBatches([]);
       }
     };
@@ -54,8 +102,36 @@ export default function EditFeedConsumption() {
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
+  // When a batch is selected: pull current age + quantity from the flock,
+  // auto-determine the feed transition, and auto-compute Quantity Consumed.
+  const handleBatchChange = (e) => {
+    const batchId = e.target.value;
+    const flock = flockList.find((f) => f.batchId === batchId);
+    const age = getAgeWeeks(flock);
+    const qty = getQuantity(flock);
+    const plan = getFeedPlan(age);
+    setAutoMeta({
+      currentAge: age,
+      currentQuantity: qty,
+      feedTransition: planLabel(plan),
+      gPerHeadPerDay: plan?.gPerHead ?? null,
+    });
+    setForm((f) => {
+      const next = { ...f, batchId };
+      if (plan && qty) {
+        next.feedType = primaryFeed(plan);
+        next.quantityConsumed = computeConsumedKg(qty, plan);
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const payload = { ...form, ...autoMeta };
+    console.log("Feed consumption payload:", payload);
+    // Backend: update the consumption record AND deduct payload.quantityConsumed
+    // from Feed Inventory (Quantity Out) for the matching feedType.
     localStorage.removeItem("editFeedConsumption");
     navigate("/inventory/feed-consumption");
   };
@@ -75,7 +151,7 @@ export default function EditFeedConsumption() {
           <span>›</span>
           <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-consumption")}>FEED CONSUMPTION</span>
           <span>›</span>
-          <span className="breadcrumb-current">EDIT CONSUMPTION</span>
+          <span className="breadcrumb-current">EDIT FEED CONSUMPTION</span>
         </div>
 
         {/* Header */}
@@ -97,20 +173,20 @@ export default function EditFeedConsumption() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label>Date *</label>
+              <label>Date <span className="req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} required />
             </div>
 
             <div className="form-group">
-              <label>Batch ID *</label>
-              <select name="batchId" value={form.batchId} onChange={handleChange} required>
+              <label>Batch ID <span className="req">*</span></label>
+              <select name="batchId" value={form.batchId} onChange={handleBatchChange} required>
                 <option value="">{batches.length ? "Select batch" : "No batches available"}</option>
                 {batches.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
 
             <div className="form-group">
-              <label>Feed Type *</label>
+              <label>Feed Type <span className="req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
                 <option value="">Select feed type</option>
                 {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -118,7 +194,7 @@ export default function EditFeedConsumption() {
             </div>
 
             <div className="form-group">
-              <label>Quantity Consumed *</label>
+              <label>Quantity Consumed <span className="req">*</span></label>
               <input
                 type="number" min="0" name="quantityConsumed"
                 value={form.quantityConsumed} onChange={handleChange}

@@ -27,22 +27,34 @@
 
 .add-feed-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f4f2;
   font-family: var(--font-body);
-  overflow-x: hidden;
+  overflow: hidden;
   max-width: 100%;
+}
+
+/* keep the sidebar fixed — it must not scroll with the form */
+.add-feed-page .sidebar {
+  flex-shrink: 0;
 }
 
 .add-feed-main {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
   padding: 36px 44px;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+
+/* stop children from collapsing so breadcrumb/sections stay put */
+.add-feed-main > * {
+  flex-shrink: 0;
 }
 
 /* ==========================
@@ -231,6 +243,11 @@
 
 .full-width {
   grid-column: 1 / -1;
+}
+
+/* required-field asterisk — gold, matches other modules */
+.req {
+  color: var(--color-accent);
 }
 
 /* ==========================

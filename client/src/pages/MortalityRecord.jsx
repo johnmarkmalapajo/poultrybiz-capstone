@@ -9,6 +9,8 @@ import Sidebar, { openSidebar } from "../components/Sidebar";
 import { useUser } from "../hooks/useUser";
 import "./MortalityRecord.css";
 
+const MORT_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/mortality-records`;
+
 export default function MortalityRecord() {
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
@@ -17,7 +19,16 @@ export default function MortalityRecord() {
   const [filters, setFilters] = useState({ causeOfDeath: "All", batchId: "All", date: "All" });
   const filterRef = useRef(null);
 
-  const records = [];
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(MORT_API)
+      .then((r) => r.json())
+      .then((d) => setRecords(Array.isArray(d) ? d : d.records || d.data || []))
+      .catch(() => setRecords([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const onClick = (e) => {
@@ -197,16 +208,22 @@ export default function MortalityRecord() {
               <tr>
                 <th>DATE</th>
                 <th>BATCH ID</th>
+                <th>CAGE</th>
                 <th>NUMBER OF MORTALITY</th>
                 <th>CAUSE OF DEATH</th>
+                <th>SUSPECTED DISEASE</th>
                 <th>REMARKS</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan="6" className="mr-empty-state">
+                  <td colSpan="8" className="mr-empty-state">Loading mortality records...</td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="mr-empty-state">
                     <div className="mr-empty-content">
                       <FiMaximize />
                       <h3>No mortality records found</h3>
@@ -225,8 +242,10 @@ export default function MortalityRecord() {
                   <tr key={r._id}>
                     <td>{r.date}</td>
                     <td><span className="mr-batch-badge">{r.batchId}</span></td>
+                    <td>{r.cageId || "—"}</td>
                     <td className="mr-mortality-count">{r.numberOfMortality}</td>
                     <td>{r.causeOfDeath}</td>
+                    <td>{r.suspectedDisease || "—"}</td>
                     <td>{r.remarks || "—"}</td>
                     <td>
                       <div className="mr-actions">

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiActivity, FiFileText, FiSave, FiMenu } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./AddFeedInventory.css";
 
-const FEED_TYPES = ["Starter Feed", "Grower Feed", "Layer Feed", "Finisher Feed"];
+const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
+const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 
 export default function AddFeedInventory() {
   const navigate = useNavigate();
@@ -13,14 +14,52 @@ export default function AddFeedInventory() {
     date: "", feedType: "", quantityIn: "", quantityOut: "", notes: "",
   });
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  // Total consumed per feed type — drives Quantity Out automatically
+  const [consumedByType, setConsumedByType] = useState({});
+
+  useEffect(() => {
+    const fetchConsumption = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${BASE_URL}/feed-consumption`, {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        const list = json.data || json.records || (Array.isArray(json) ? json : []);
+        const map = {};
+        list.forEach((c) => {
+          const t = c.feedType;
+          if (!t) return;
+          map[t] = (map[t] || 0) + (Number(c.quantityConsumed) || 0);
+        });
+        setConsumedByType(map);
+      } catch {
+        setConsumedByType({});
+      }
+    };
+    fetchConsumption();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => {
+      // Quantity Out auto-fills from Feed Consumption totals for the chosen feed type
+      if (name === "feedType") {
+        const out = consumedByType[value] != null ? String(consumedByType[value]) : "0";
+        return { ...f, feedType: value, quantityOut: out };
+      }
+      return { ...f, [name]: value };
+    });
+  };
 
   const balance = (parseFloat(form.quantityIn) || 0) - (parseFloat(form.quantityOut) || 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // API integration later
+    const payload = { ...form, balance };
+    console.log("Feed inventory payload:", payload);
+    // Backend: persist the stock record. Quantity Out stays in sync with
+    // Feed Consumption, and Balance = Quantity In − Quantity Out.
     navigate("/inventory/feed-inventory");
   };
 
@@ -37,9 +76,9 @@ export default function AddFeedInventory() {
           </button>
           <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
           <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-inventory")}>FEED STOCK</span>
+          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-inventory")}>FEED INVENTORY</span>
           <span>›</span>
-          <span className="breadcrumb-current">ADD FEED</span>
+          <span className="breadcrumb-current">ADD NEW FEEDS</span>
         </div>
 
         {/* Header */}
@@ -61,12 +100,12 @@ export default function AddFeedInventory() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label>Date *</label>
+              <label>Date Purchased <span className="req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} required />
             </div>
 
             <div className="form-group">
-              <label>Feed Type *</label>
+              <label>Feed Type <span className="req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
                 <option value="">Select feed type</option>
                 {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -74,7 +113,7 @@ export default function AddFeedInventory() {
             </div>
 
             <div className="form-group">
-              <label>Quantity In *</label>
+              <label>Quantity In <span className="req">*</span></label>
               <input
                 type="number" min="0" name="quantityIn"
                 value={form.quantityIn} onChange={handleChange}
@@ -83,12 +122,13 @@ export default function AddFeedInventory() {
             </div>
 
             <div className="form-group">
-              <label>Quantity Out *</label>
+              <label>Quantity Out <span className="req">*</span></label>
               <input
                 type="number" min="0" name="quantityOut"
-                value={form.quantityOut} onChange={handleChange}
-                placeholder="Enter quantity out (kg)" required
+                value={form.quantityOut} readOnly
+                placeholder="Auto from Feed Consumption"
               />
+              <small>Auto-updated from Feed Consumption records.</small>
             </div>
           </div>
 

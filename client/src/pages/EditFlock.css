@@ -23,20 +23,23 @@
 
 /* ==========================
    PAGE SHELL
+   Sidebar stays fixed; only .edit-flock-main scrolls
 ========================== */
 
 .edit-flock-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #f4f4f2;
   font-family: var(--font-body);
-  overflow-x: hidden;
   max-width: 100%;
 }
 
 .edit-flock-main {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
   padding: 36px 44px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -44,6 +47,15 @@
   flex-direction: column;
   gap: 28px;
 }
+
+/* Keep breadcrumb/header/cards at natural height so they don't collapse
+   when .edit-flock-main has a fixed height — main scrolls instead. */
+.edit-flock-main > * {
+  flex-shrink: 0;
+}
+
+.sidebar { flex-shrink: 0; }
+
 
 /* ==========================
    LOADING

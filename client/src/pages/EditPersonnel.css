@@ -1,4 +1,4 @@
-/* AddFlock.css */
+/* EditPersonnel.css */
 
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&display=swap");
 
@@ -23,23 +23,19 @@
 
 /* ==========================
    PAGE SHELL
+   Sidebar stays fixed; only .edit-personnel-main scrolls
 ========================== */
 
-.edit-feed-page {
+.edit-personnel-page {
   display: flex;
   height: 100vh;
+  overflow: hidden;
   background: #f4f4f2;
   font-family: var(--font-body);
-  overflow: hidden;
   max-width: 100%;
 }
 
-/* keep the sidebar fixed — it must not scroll with the form */
-.edit-feed-page .sidebar {
-  flex-shrink: 0;
-}
-
-.edit-feed-main {
+.edit-personnel-main {
   flex: 1;
   min-width: 0;
   height: 100vh;
@@ -52,21 +48,38 @@
   gap: 28px;
 }
 
-/* stop children from collapsing so breadcrumb/sections stay put */
-.edit-feed-main > * {
+/* Keep breadcrumb/header/cards at natural height so they don't collapse
+   when .edit-personnel-main has a fixed height — main scrolls instead. */
+.edit-personnel-main > * {
   flex-shrink: 0;
+}
+
+.sidebar { flex-shrink: 0; }
+
+
+/* ==========================
+   LOADING
+========================== */
+
+.edit-personnel-loading {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #aaa;
+  margin: 0;
 }
 
 /* ==========================
    BREADCRUMB
 ========================== */
 
-.edit-feed-breadcrumb {
+.edit-personnel-breadcrumb {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 40px;
   font-family: var(--font-heading);
-  font-size: var(--fs-label);
+  font-size: 11px;
+  line-height: 1;
   font-weight: 600;
   color: #aaa;
   letter-spacing: 0.08em;
@@ -77,19 +90,19 @@
   white-space: nowrap;
 }
 
-.edit-feed-breadcrumb .breadcrumb-link {
+.edit-personnel-breadcrumb .breadcrumb-link {
   cursor: pointer;
   color: #aaa;
   transition: color 0.2s;
   flex-shrink: 0;
 }
 
-.edit-feed-breadcrumb .breadcrumb-link:hover {
+.edit-personnel-breadcrumb .breadcrumb-link:hover {
   color: var(--color-accent);
   text-decoration: underline;
 }
 
-.edit-feed-breadcrumb .breadcrumb-current {
+.edit-personnel-breadcrumb .breadcrumb-current {
   color: #2d2d2d;
   font-weight: 800;
   overflow: hidden;
@@ -99,12 +112,12 @@
 }
 
 /* Hamburger — hidden on desktop, visible on mobile */
-.edit-feed-hamburger {
+.edit-personnel-hamburger {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .edit-feed-hamburger {
+  .edit-personnel-hamburger {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -121,7 +134,7 @@
     transition: background 0.2s;
   }
 
-  .edit-feed-hamburger:hover {
+  .edit-personnel-hamburger:hover {
     background: var(--color-accent-dark);
   }
 }
@@ -130,14 +143,14 @@
    HEADER
 ========================== */
 
-.edit-feed-header {
+.edit-personnel-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
 }
 
-.edit-feed-header h2 {
+.edit-personnel-header h2 {
   margin: 0;
   font-family: var(--font-heading);
   font-size: var(--fs-lg);
@@ -147,7 +160,7 @@
   letter-spacing: -0.5px;
 }
 
-.edit-feed-header p {
+.edit-personnel-header p {
   margin-top: 8px;
   max-width: 640px;
   font-family: var(--font-body);
@@ -160,7 +173,7 @@
    FORM CARD
 ========================== */
 
-.feed-form-card {
+.personnel-form-card {
   background: #fff;
   border-radius: var(--radius-lg);
   padding: 36px;
@@ -243,11 +256,6 @@
 
 .full-width {
   grid-column: 1 / -1;
-}
-
-/* required-field asterisk — gold, matches other modules */
-.req {
-  color: var(--color-accent);
 }
 
 /* ==========================
@@ -378,21 +386,21 @@
 ========================== */
 
 @media (max-width: 768px) {
-  .edit-feed-main {
+  .edit-personnel-main {
     padding: 20px 16px;
     gap: 20px;
   }
 
-  .edit-feed-breadcrumb {
+  .edit-personnel-breadcrumb {
     font-size: 10px;
     gap: 6px;
   }
 
-  .edit-feed-header h2 {
+  .edit-personnel-header h2 {
     font-size: var(--fs-md);
   }
 
-  .feed-form-card {
+  .personnel-form-card {
     padding: 20px 16px;
     gap: 20px;
   }
@@ -408,7 +416,7 @@
     justify-content: center;
   }
 
-  .edit-feed-page .sidebar {
+  .edit-personnel-page .sidebar {
     width: 0;
     padding: 0;
     min-width: 0;
@@ -416,7 +424,7 @@
     border: none;
   }
 
-  .edit-feed-page .sidebar.sidebar-open {
+  .edit-personnel-page .sidebar.sidebar-open {
     width: 240px;
     padding: 14px;
     overflow: visible;
@@ -428,17 +436,75 @@
 ========================== */
 
 @media (max-width: 480px) {
-  .edit-feed-main {
+  .edit-personnel-main {
     padding: 16px 12px;
     gap: 16px;
   }
 
-  .edit-feed-breadcrumb {
+  .edit-personnel-breadcrumb {
     font-size: 10px;
     gap: 4px;
   }
 
-  .feed-form-card {
+  .personnel-form-card {
     padding: 16px 12px;
   }
 }
+
+
+/* =============================
+   READ-ONLY PROFILE (synced from My Profile)
+============================= */
+.ep-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 4px 0 4px;
+}
+.ep-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--gold-light);
+}
+.ep-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold-light);
+  color: var(--gold-dark);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+.ep-avatar-note {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Subtle look for locked/synced fields */
+.ep-locked input {
+  background: #f4f2ee !important;
+  cursor: not-allowed;
+}
+.ep-lock-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--gold-light);
+  color: var(--gold-dark);
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Required asterisk — gold accent (matches design) */
+.req { color: var(--color-accent); }

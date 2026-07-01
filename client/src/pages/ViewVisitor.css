@@ -1,0 +1,92 @@
+/* ViewVisitor.css — matches ViewPersonnel design system */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
+
+:root {
+  --font-display: "Poppins", sans-serif;
+  --font-body: "Lato", sans-serif;
+  --text-sm: 11.07px; --text-base: 14px; --text-md: 17.81px; --text-lg: 22.65px;
+  --space-sm: 10px; --space-md: 16px; --space-lg: 26px; --space-xl: 42px;
+  --gold: #E4AF1F; --gold-dark: #c8930c; --gold-light: #fdf3e3; --gold-glow: rgba(228,175,31,0.14);
+  --icon-green: #2e9e6b; --icon-green-bg: #eaf7f1;
+  --icon-red: #d94f4f; --icon-red-bg: #fdf0f0;
+  --bg: #f7f6f3; --surface: #fff; --border: #e4e0d8;
+  --text-primary: #1e1c18; --text-second: #6b6457; --text-muted: #a39e94;
+}
+
+.vv-page { display: flex; height: 100vh; background: var(--bg); font-family: var(--font-body); color: var(--text-primary); overflow: hidden; }
+.vv-main, .vv-main *, .vv-main *::before, .vv-main *::after { box-sizing: border-box; }
+.vv-main { flex: 1; min-width: 0; padding: 36px calc(var(--space-xl) * 1.2); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-lg); }
+.sidebar { flex-shrink: 0; }
+
+/* Breadcrumb */
+.vv-breadcrumb {
+  display: flex; align-items: center; gap: 10px; min-height: 40px;
+  font-family: var(--font-display); font-size: 11px; line-height: 1; font-weight: 600;
+  color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
+  flex-wrap: nowrap; overflow: hidden; white-space: nowrap;
+}
+.vv-breadcrumb .breadcrumb-link { cursor: pointer; color: var(--text-muted); transition: color 0.2s; flex-shrink: 0; }
+.vv-breadcrumb .breadcrumb-link:hover { color: var(--gold); text-decoration: underline; }
+.vv-breadcrumb .breadcrumb-current { color: var(--text-primary); font-weight: 800; }
+.vv-hamburger { display: none; }
+
+/* Profile card */
+.vv-profile-card { display: flex; gap: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+.vv-avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--gold-light); color: var(--gold-dark); font-family: var(--font-display); font-weight: 800; font-size: 28px; }
+.vv-profile-body { flex: 1; min-width: 0; }
+.vv-profile-body h1 { margin: 0 0 14px; font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
+.vv-profile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 28px; }
+.vv-profile-grid p { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.vv-profile-grid p svg { color: var(--gold-dark); }
+.vv-profile-grid h4 { margin: 4px 0 0; font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; color: var(--text-primary); }
+
+/* Section title */
+.vv-section-title { font-family: var(--font-display); font-weight: 800; font-size: var(--text-md); color: var(--text-primary); }
+
+/* Tabs */
+.vv-tabs { display: flex; gap: 4px; border-bottom: 1.5px solid var(--border); }
+.vv-tabs button { background: none; border: none; padding: 10px 18px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1.5px; transition: color 0.2s; }
+.vv-tabs button:hover { color: var(--text-second); }
+.vv-tabs button.active { color: var(--gold-dark); border-bottom-color: var(--gold); }
+
+/* Table card — scrolls both ways with a sticky header (like ViewPersonnel) */
+.vv-table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.vv-table-wrapper { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.vv-table { width: 100%; min-width: 700px; border-collapse: collapse; }
+.vv-table thead th { position: sticky; top: 0; z-index: 2; background: var(--gold-light); text-align: left; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; color: #47321C; text-transform: uppercase; letter-spacing: 0.04em; padding: 14px 18px; box-shadow: inset 0 -2px 0 rgba(228,175,31,0.25); }
+.vv-table tbody td { padding: 14px 18px; font-size: var(--text-base); color: var(--text-second); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.vv-table tbody tr:last-child td { border-bottom: none; }
+.vv-table tbody tr:hover { background: #fffdf7; }
+.vv-link-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--gold); color: var(--gold-dark); border-radius: 8px; padding: 5px 14px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); cursor: pointer; transition: background 0.2s; }
+.vv-link-btn:hover { background: var(--gold-light); }
+.vv-empty { text-align: center; color: var(--text-muted); padding: 28px 18px; }
+.vv-table-footer { flex-shrink: 0; padding: 14px 18px; font-size: var(--text-sm); color: var(--text-muted); border-top: 1px solid var(--border); }
+
+/* Biosecurity modal (opens from View button) */
+.vv-bio-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.vv-bio-modal { background: var(--surface); border-radius: 18px; width: min(560px, 100%); max-height: 88vh; overflow-y: auto; box-shadow: 0 18px 50px rgba(0,0,0,0.25); }
+.vv-bio-modal * { box-sizing: border-box; }
+.vv-bio-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px; background: var(--gold-light); border-bottom: 1px solid rgba(228,175,31,0.25); border-radius: 18px 18px 0 0; position: sticky; top: 0; }
+.vv-bio-modal-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: var(--text-md); color: #47321C; }
+.vv-bio-modal-head p { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-second); }
+.vv-bio-close { background: none; border: none; cursor: pointer; color: #47321C; font-size: 20px; display: flex; }
+
+.vv-bio-grid { display: grid; grid-template-columns: 1fr; gap: 0; padding: 8px 0 12px; }
+.vv-bio-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+.vv-bio-row:last-child { border-bottom: none; }
+.vv-bio-q { font-size: var(--text-base); color: var(--text-second); }
+.vv-bio-text { font-family: var(--font-display); font-weight: 700; color: var(--text-primary); font-size: var(--text-base); }
+
+/* Yes/No badges */
+.vv-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); white-space: nowrap; }
+.vv-badge svg { font-size: 14px; }
+.vv-badge.yes { background: var(--icon-green-bg); color: var(--icon-green); }
+.vv-badge.no { background: var(--icon-red-bg); color: var(--icon-red); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .vv-main { padding: 20px 16px; }
+  .vv-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; }
+  .vv-profile-card { flex-direction: column; }
+  .vv-profile-grid { grid-template-columns: 1fr; }
+}
