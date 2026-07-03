@@ -106,13 +106,6 @@ export default function Visitors() {
           <span className="breadcrumb-current">VISITORS</span>
         </div>
 
-        {/* Header */}
-        <div className="vm-header">
-          <div>
-            <h1>Visitors Management</h1>
-            <p>Registered farm visitors and their visit logs.</p>
-          </div>
-        </div>
 
         {/* Stat cards */}
         <div className="vm-stats">

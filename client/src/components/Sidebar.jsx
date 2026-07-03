@@ -108,21 +108,27 @@ function Sidebar() {
             </li>
           )}
 
-          <li className="secondary">
-            <img src={todoIcon} alt="To Do" className="menu-icon" />
-            To Do
+          <li className={isActive("/todo") || isActive("/admin/todo") ? "active" : "secondary"}>
+            <Link to={canViewPersonnel ? "/admin/todo" : "/todo"} className="nav-link" onClick={closeMobile}>
+              <img src={todoIcon} alt="To Do" className="menu-icon" />
+              To Do
+            </Link>
           </li>
 
-          <li className="secondary">
-            <img src={notificationsIcon} alt="Notifications" className="menu-icon" />
-            Notifications
+          <li className={isActive("/notifications") ? "active" : "secondary"}>
+            <Link to="/notifications" className="nav-link" onClick={closeMobile}>
+              <img src={notificationsIcon} alt="Notifications" className="menu-icon" />
+              Notifications
+            </Link>
           </li>
 
           <li className="divider"></li>
 
-          <li className="secondary">
-            <img src={settingsIcon} alt="Settings" className="menu-icon" />
-            Settings
+          <li className={isActive("/settings") ? "active" : "secondary"}>
+            <Link to="/settings" className="nav-link" onClick={closeMobile}>
+              <img src={settingsIcon} alt="Settings" className="menu-icon" />
+              Settings
+            </Link>
           </li>
 
           <li className="secondary" onClick={() => setShowLogoutModal(true)} style={{ cursor: "pointer" }}>

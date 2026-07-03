@@ -1,229 +1,135 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  FiMenu, FiBell, FiCheck, FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiSearch,
-} from "react-icons/fi";
+import React, { useMemo, useState } from "react";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiPlus, FiSearch, FiList, FiClock, FiCheckCircle, FiAlertTriangle, FiTrash2 } from "react-icons/fi";
 import "./Todo.css";
 
-/* ── To Do store (inline · localStorage · same keys across To Do pages) ── */
-const K_PERSONAL = "pb_personal_todos";
-const K_NOTIFS = "pb_notifications";
-const _read = (k) => { try { return JSON.parse(localStorage.getItem(k) || "{}"); } catch { return {}; } };
-const _write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-const _uid = (p) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-const getCurrentUser = (fallback = null) => {
-  for (const key of ["pb_user", "user", "currentUser", "authUser"]) {
-    try {
-      const raw = localStorage.getItem(key); if (!raw) continue;
-      const u = JSON.parse(raw);
-      const name = u.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username;
-      const id = u._id || u.id || u.personnelId || u.userId || name;
-      const role = u.accountRole || u.role || u.userType || "";
-      if (name || id) return { id, name: name || "User", role };
-    } catch (e) { /* ignore */ }
-  }
-  return fallback;
-};
-const getPersonalTodos = (userId) => _read(K_PERSONAL)[userId] || [];
-const addPersonalTodo = (userId, todo) => {
-  const all = _read(K_PERSONAL);
-  const t = { _id: _uid("pt"), title: todo.title || "Untitled", description: todo.description || "", dueDate: todo.dueDate || "", priority: todo.priority || "Medium", done: false, completedAt: null, createdAt: new Date().toISOString() };
-  all[userId] = [t, ...(all[userId] || [])]; _write(K_PERSONAL, all); return t;
-};
-const updatePersonalTodo = (userId, todoId, patch) => {
-  const all = _read(K_PERSONAL); const t = (all[userId] || []).find((x) => x._id === todoId);
-  if (t) Object.assign(t, patch); _write(K_PERSONAL, all);
-};
-const togglePersonalTodo = (userId, todoId, done) =>
-  updatePersonalTodo(userId, todoId, { done, completedAt: done ? new Date().toISOString() : null });
-const deletePersonalTodo = (userId, todoId) => {
-  const all = _read(K_PERSONAL); all[userId] = (all[userId] || []).filter((x) => x._id !== todoId); _write(K_PERSONAL, all);
-};
-const getNotifications = (userId) => _read(K_NOTIFS)[userId] || [];
-const getUnreadCount = (userId) => getNotifications(userId).filter((n) => !n.read).length;
-const markNotificationsRead = (userId) => {
-  const all = _read(K_NOTIFS); all[userId] = (all[userId] || []).map((n) => ({ ...n, read: true })); _write(K_NOTIFS, all);
-};
-
-// Demo admin used when no logged-in user is found (replace once auth is wired)
-const DEMO_ADMIN = { id: "admin", name: "Engr. Maria Egginear", role: "Owner / Admin" };
-
-const prioClass = (p) => `todo-badge prio-${String(p || "medium").toLowerCase()}`;
-const fmtTime = (iso) => { try { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+const initialTasks = [
+  { id: 1, title: "Review Daily Egg Production", type: "Records", priority: "High", due: "Jul 3, 2026", status: "Pending" },
+  { id: 2, title: "Approve New User Accounts", type: "Users", priority: "Medium", due: "Jul 3, 2026", status: "Pending" },
+  { id: 3, title: "Prepare Weekly Sales Report", type: "Reports", priority: "Low", due: "Jul 4, 2026", status: "Completed" },
+  { id: 4, title: "Check Feed Inventory Summary", type: "Inventory", priority: "High", due: "Jul 3, 2026", status: "Overdue" },
+  { id: 5, title: "Review Visitor Logs", type: "Visitors", priority: "Medium", due: "Jul 5, 2026", status: "Pending" },
+  { id: 6, title: "Archive Old Records", type: "Archive", priority: "Low", due: "Jul 6, 2026", status: "Completed" },
+];
 
 export default function AdminTodo() {
-  const user = getCurrentUser(DEMO_ADMIN);
-  // Admin notifications live under the "admin" key (farmers notify "admin" on completion)
-  const adminId = "admin";
-  const todoId = user.id || "admin";
-
-  const [personal, setPersonal] = useState([]);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [tab, setTab] = useState("All");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All");
+  const [priority, setPriority] = useState("All");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [form, setForm] = useState({ title: "", type: "Records", priority: "Medium", due: "" });
 
-  const [notifs, setNotifs] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const bellRef = useRef(null);
+  const filtered = useMemo(() => tasks.filter((t) => {
+    if (tab !== "All" && t.status !== tab) return false;
+    if (status !== "All" && t.status !== status) return false;
+    if (priority !== "All" && t.priority !== priority) return false;
+    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }), [tasks, tab, status, priority, search]);
 
-  const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ title: "", description: "", dueDate: "", priority: "Medium" });
-
-  const refresh = () => {
-    setPersonal(getPersonalTodos(todoId));
-    setNotifs(getNotifications(adminId));
-    setUnread(getUnreadCount(adminId));
-  };
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
-
-  useEffect(() => {
-    const h = (e) => { if (bellRef.current && !bellRef.current.contains(e.target)) setNotifOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  const openNotifs = () => {
-    setNotifOpen((o) => !o);
-    if (!notifOpen) { markNotificationsRead(adminId); setUnread(0); }
+  const c = {
+    total: tasks.length,
+    pending: tasks.filter((t) => t.status === "Pending").length,
+    completed: tasks.filter((t) => t.status === "Completed").length,
+    overdue: tasks.filter((t) => t.status === "Overdue").length,
   };
 
-  const openAdd = () => { setForm({ title: "", description: "", dueDate: "", priority: "Medium" }); setModal({ mode: "add" }); };
-  const openEdit = (todo) => { setForm({ title: todo.title, description: todo.description, dueDate: todo.dueDate, priority: todo.priority }); setModal({ mode: "edit", todo }); };
-  const saveModal = () => {
+  const toggle = (id) => setTasks(tasks.map((t) => (t.id === id ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" } : t)));
+  const saveTask = () => {
     if (!form.title.trim()) return;
-    if (modal.mode === "add") addPersonalTodo(todoId, form);
-    else updatePersonalTodo(todoId, modal.todo._id, form);
-    setModal(null); refresh();
+    setTasks([{ id: Date.now(), ...form, status: "Pending" }, ...tasks]);
+    setForm({ title: "", type: "Records", priority: "Medium", due: "" });
+    setModalOpen(false);
   };
-  const removeTodo = (todo) => { if (window.confirm("Delete this reminder?")) { deletePersonalTodo(todoId, todo._id); refresh(); } };
-  const toggleP = (todo) => { togglePersonalTodo(todoId, todo._id, !todo.done); refresh(); };
-
-  const q = search.toLowerCase();
-  const view = personal.filter((t) => (t.title || "").toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q));
+  const deleteTask = () => {
+    if (!confirmDel) return;
+    setTasks(tasks.filter((t) => t.id !== confirmDel.id));
+    setConfirmDel(null);
+  };
 
   return (
     <div className="todo-page">
       <Sidebar />
       <main className="todo-main">
         <div className="todo-breadcrumb">
-          <button className="todo-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>
-          <span className="breadcrumb-current">MY TO DO</span>
-        </div>
-
-        <div className="todo-header">
-          <div>
-            <h1>My To Do</h1>
-            <p>Your personal reminders. (Not linked to Personnel assigned tasks.)</p>
-          </div>
-          <div className="todo-bell-wrap" ref={bellRef}>
-            <button className="todo-bell" onClick={openNotifs} aria-label="Notifications">
-              <FiBell />
-              {unread > 0 && <span className="todo-bell-badge">{unread}</span>}
-            </button>
-            {notifOpen && (
-              <div className="todo-notif-menu">
-                <div className="todo-notif-head">Notifications</div>
-                <div className="todo-notif-list">
-                  {notifs.length === 0 ? (
-                    <div className="todo-notif-empty">No notifications yet.</div>
-                  ) : notifs.map((n) => (
-                    <div key={n._id} className={`todo-notif-item ${n.read ? "" : "unread"}`}>
-                      {n.message}<small>{fmtTime(n.at)}</small>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <button className="todo-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
+          <span className="breadcrumb-current">TO DO</span>
         </div>
 
         <div className="todo-toolbar">
-          <div className="search-box">
-            <FiSearch />
-            <input type="text" placeholder="Search reminders..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <button className="todo-add-btn" onClick={openAdd}><FiPlus /> Add To Do</button>
-        </div>
-
-        <div className="todo-section-head">
-          <div>
-            <div className="todo-section-title"><FiUser /> Personal Reminders</div>
-            <div className="todo-section-sub">Only you can see these.</div>
+          <button className="todo-add-btn" onClick={() => setModalOpen(true)}><FiPlus /> New Task</button>
+          <div className="todo-toolbar-actions">
+            <div className="search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task..." /></div>
+            <select className="todo-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option>All</option><option>Pending</option><option>Completed</option><option>Overdue</option>
+            </select>
+            <select className="todo-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <option>All</option><option>High</option><option>Medium</option><option>Low</option>
+            </select>
           </div>
         </div>
 
-        <div className="todo-card">
-          <div className="todo-table-wrapper">
-            <table className="todo-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 56 }}>Done</th>
-                  <th>Task</th>
-                  <th>Description</th>
-                  <th>Due Date</th>
-                  <th>Priority</th>
-                  <th style={{ width: 96 }}>Actions</th>
+        <div className="todo-stats">
+          <div className="todo-stat-card"><div className="todo-stat-icon gold"><FiList /></div><div><h3>{c.total}</h3><p>Total Tasks</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon orange"><FiClock /></div><div><h3>{c.pending}</h3><p>Pending</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon green"><FiCheckCircle /></div><div><h3>{c.completed}</h3><p>Completed</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon red"><FiAlertTriangle /></div><div><h3>{c.overdue}</h3><p>Overdue</p></div></div>
+        </div>
+
+        <div className="todo-tabs">
+          {["All", "Pending", "Completed"].map((x) => (
+            <button key={x} className={`todo-tab ${tab === x ? "active" : ""}`} onClick={() => setTab(x)}>{x}</button>
+          ))}
+        </div>
+
+        <div className="todo-table-wrapper">
+          <table className="todo-table">
+            <thead>
+              <tr><th>Task</th><th>Type</th><th>Priority</th><th>Due Date</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && <tr className="todo-empty-row"><td colSpan={6}>No tasks found.</td></tr>}
+              {filtered.map((t) => (
+                <tr key={t.id}>
+                  <td><span className="todo-task-title">{t.title}</span></td>
+                  <td>{t.type}</td>
+                  <td><span className={`priority ${t.priority.toLowerCase()}`}>{t.priority}</span></td>
+                  <td>{t.due}</td>
+                  <td><span className={`status ${t.status.toLowerCase()}`}>{t.status}</span></td>
+                  <td><div className="todo-row-actions"><button className="todo-act-btn" onClick={() => toggle(t.id)}>{t.status === "Completed" ? "Undo" : "Complete"}</button><button className="todo-del-btn" onClick={() => setConfirmDel(t)} title="Delete"><FiTrash2 /></button></div></td>
                 </tr>
-              </thead>
-              <tbody>
-                {view.length === 0 ? (
-                  <tr><td colSpan="6" className="todo-empty">No reminders yet. Tap “Add To Do”.</td></tr>
-                ) : view.map((t) => (
-                  <tr key={t._id} className={t.done ? "is-done" : ""}>
-                    <td>
-                      <button className={`todo-check ${t.done ? "checked" : ""}`} onClick={() => toggleP(t)} aria-label="Mark done">
-                        {t.done && <FiCheck />}
-                      </button>
-                    </td>
-                    <td className="todo-task-title">{t.title}</td>
-                    <td>{t.description || "—"}</td>
-                    <td>{t.dueDate || "—"}</td>
-                    <td><span className={prioClass(t.priority)}>{t.priority}</span></td>
-                    <td>
-                      <div className="todo-row-actions">
-                        <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title="Edit"><FiEdit2 /></button>
-                        <button className="todo-icon-btn del" onClick={() => removeTodo(t)} title="Delete"><FiTrash2 /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="todo-card-footer">{view.filter((t) => t.done).length} of {view.length} completed</div>
+              ))}
+            </tbody>
+          </table>
         </div>
       </main>
 
-      {modal && (
-        <div className="todo-overlay" onClick={() => setModal(null)}>
+      {modalOpen && (
+        <div className="todo-overlay" onClick={() => setModalOpen(false)}>
           <div className="todo-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="todo-modal-head">
-              <h3>{modal.mode === "add" ? "Add Reminder" : "Edit Reminder"}</h3>
-              <button className="todo-modal-close" onClick={() => setModal(null)}><FiX /></button>
-            </div>
+            <div className="todo-modal-head"><h3>New Task</h3><button className="todo-modal-close" onClick={() => setModalOpen(false)}>✕</button></div>
             <div className="todo-modal-body">
-              <div className="todo-field">
-                <label>Task Title <span className="req">*</span></label>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g., Review feed inventory" />
-              </div>
-              <div className="todo-field">
-                <label>Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional details..." />
-              </div>
-              <div className="todo-field">
-                <label>Due Date</label>
-                <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-              </div>
-              <div className="todo-field">
-                <label>Priority</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                  <option>High</option><option>Medium</option><option>Low</option>
-                </select>
-              </div>
+              <div className="todo-field"><label>Task Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Review egg production" /></div>
+              <div className="todo-field"><label>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Records</option><option>Users</option><option>Reports</option><option>Inventory</option><option>Visitors</option><option>Archive</option></select></div>
+              <div className="todo-field"><label>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
+              <div className="todo-field"><label>Due Date</label><input value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} placeholder="e.g. Jul 5, 2026" /></div>
             </div>
-            <div className="todo-modal-foot">
-              <button className="todo-btn-cancel" onClick={() => setModal(null)}>Cancel</button>
-              <button className="todo-btn-save" onClick={saveModal}>{modal.mode === "add" ? "Add Reminder" : "Save Changes"}</button>
+            <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>Cancel</button><button className="todo-btn-save" onClick={saveTask}>Add Task</button></div>
+          </div>
+        </div>
+      )}
+
+      {confirmDel && (
+        <div className="todo-confirm-overlay" onClick={() => setConfirmDel(null)}>
+          <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="todo-confirm-title">Delete Task</h3>
+            <p className="todo-confirm-message">Are you sure you want to delete "{confirmDel.title}"? This action cannot be undone.</p>
+            <div className="todo-confirm-actions">
+              <button className="todo-confirm-cancel" onClick={() => setConfirmDel(null)}>Cancel</button>
+              <button className="todo-confirm-delete" onClick={deleteTask}>Delete</button>
             </div>
           </div>
         </div>

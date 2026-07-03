@@ -51,17 +51,17 @@
 
 /* Toolbar */
 .vm-toolbar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
-.search-box { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 0 14px; height: 42px; }
-.search-box svg { color: var(--text-muted); font-size: 18px; }
-.search-box input { flex: 1; border: none; outline: none; background: none; font-family: var(--font-body); font-size: var(--text-base); color: var(--text-primary); }
-.toolbar-btn-group { display: flex; gap: var(--space-sm); }
-.toolbar-btn {
+.vm-main .search-box { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 0 14px; height: 42px; }
+.vm-main .search-box svg { color: var(--text-muted); font-size: 18px; }
+.vm-main .search-box input { flex: 1; border: none; outline: none; background: none; font-family: var(--font-body); font-size: var(--text-base); color: var(--text-primary); }
+.vm-main .toolbar-btn-group { display: flex; gap: var(--space-sm); }
+.vm-main .toolbar-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px;
   background: var(--gold); color: #fff; border: none; border-radius: 10px;
   font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); cursor: pointer;
   transition: background 0.2s, transform 0.15s;
 }
-.toolbar-btn:hover { background: var(--gold-dark); transform: translateY(-1px); }
+.vm-main .toolbar-btn:hover { background: var(--gold-dark); transform: translateY(-1px); }
 
 /* Table — scrolls both ways with a sticky header (like the ViewPersonnel tables) */
 .vm-table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -78,20 +78,20 @@
 .vm-table tbody tr:hover { background: #fffdf7; }
 .vm-name { font-family: var(--font-display); font-weight: 700; color: var(--text-primary); }
 
-.action-buttons { display: flex; gap: 8px; }
-.action-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; transition: all 0.2s; }
-.action-btn.view { color: var(--icon-blue); }
-.action-btn.view:hover { background: var(--icon-blue-bg); border-color: var(--icon-blue); }
-.action-btn.archive { color: var(--icon-red); }
-.action-btn.archive:hover { background: var(--icon-red-bg); border-color: var(--icon-red); }
+.vm-main .action-buttons { display: flex; gap: 8px; }
+.vm-main .action-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; transition: all 0.2s; }
+.vm-main .action-btn.view { color: var(--icon-blue); }
+.vm-main .action-btn.view:hover { background: var(--icon-blue-bg); border-color: var(--icon-blue); }
+.vm-main .action-btn.archive { color: var(--icon-red); }
+.vm-main .action-btn.archive:hover { background: var(--icon-red-bg); border-color: var(--icon-red); }
 
 .vm-table-footer { flex-shrink: 0; padding: 14px 18px; font-size: var(--text-sm); color: var(--text-muted); border-top: 1px solid var(--border); }
 
-.empty-state { text-align: center; padding: 40px 18px; color: var(--text-muted); }
-.empty-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.empty-content svg { font-size: 38px; color: var(--gold); }
-.empty-content h3 { margin: 0; font-family: var(--font-display); color: var(--text-primary); }
-.empty-content p { margin: 0; max-width: 380px; }
+.vm-main .empty-state { text-align: center; padding: 40px 18px; color: var(--text-muted); }
+.vm-main .empty-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vm-main .empty-content svg { font-size: 38px; color: var(--gold); }
+.vm-main .empty-content h3 { margin: 0; font-family: var(--font-display); color: var(--text-primary); }
+.vm-main .empty-content p { margin: 0; max-width: 380px; }
 
 /* ── SHARED QR MODAL (same as Personnel) ── */
 .qr-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -112,12 +112,12 @@
 .qr-download-btn:hover { background: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(228,175,31,0.4); }
 
 /* Responsive */
-@media (max-width: 900px) { .vm-stats { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .vm-stats { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px) {
   .vm-main { padding: 20px 16px; }
   .vm-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; }
-  .search-box { width: 100%; }
-  .toolbar-btn-group { width: 100%; }
-  .toolbar-btn { flex: 1; justify-content: center; }
+  .vm-main .search-box { width: 100%; }
+  .vm-main .toolbar-btn-group { width: 100%; }
+  .vm-main .toolbar-btn { flex: 1; justify-content: center; }
   .qr-station-img { width: 200px; height: 200px; }
 }

@@ -56,6 +56,8 @@ import ViewVisitor from "./pages/ViewVisitor";
 import VisitorCheckIn from "./pages/VisitorCheckIn";
 import FarmerTodo from "./pages/FarmerTodo";
 import AdminTodo from "./pages/AdminTodo";
+import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
@@ -118,6 +120,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/inventory/equipment/edit/:id" element={<EditEquipment />} />
         <Route path="/todo" element={<FarmerTodo />} />
         <Route path="/admin/todo" element={<AdminTodo />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

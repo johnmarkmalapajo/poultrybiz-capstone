@@ -1,0 +1,399 @@
+/* Container block frame mapping */
+.profile-workspace-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Container bar para mapagtabi ang Breadcrumbs at Navigation tabs sa iisang hilera */
+.settings-top-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 40px; /* Distansya sa pagitan ng SYSTEM path at ng tab list links niyo */
+  border-bottom: 2px solid #E2E8F0;
+  padding-bottom: 14px;
+  width: 100%;
+  max-width: 1100px;
+  box-sizing: border-box;
+}
+
+/* Breadcrumb typography text specs alignment tracking */
+.settings-breadcrumb-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.breadcrumb-root { color: #A0AEC0; }
+.breadcrumb-arrow { color: #CBD5E0; font-size: 0.75rem; }
+.breadcrumb-current { color: #1a1a1a; }
+
+/* Wrapper para sa mga sub-navigation links tab row */
+.settings-inline-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.settings-nav-tab {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #718096;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.18s ease;
+}
+
+.settings-nav-tab:hover, .settings-nav-tab.active {
+  color: #e8a020; /* Sumusunod sa ginto/dilaw na farm core motif niyo */
+}
+
+/* Active line border stripe marker directly under focused category key link */
+.settings-nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -16px; /* Saktong lapat sa border separator ng action bar block header */
+  left: 0;
+  width: 100%;
+  height: 3.5px;
+  background-color: #e8a020;
+  border-radius: 4px;
+}
+
+/* Optional soft exit indicator link */
+.settings-tab-exit-link {
+  background: none;
+  border: none;
+  color: #A0AEC0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding-left: 12px;
+  border-left: 1px solid #E2E8F0;
+}
+.settings-tab-exit-link:hover { color: #E53E3E; }
+/* Master content split wrapper grid alignment mapping */
+.profile-layout-container {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1100px; /* Nililimitahan ang kabuuang lapad para hindi sumabog sa malalawak na monitor */
+}
+
+/* Left Card Panel layout frame styling blueprint */
+.profile-avatar-card {
+  background: #ffffff;
+  border: 1px solid #EAEAEA;
+  border-radius: 16px;
+  padding: 32px 24px;
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  text-align: center;
+}
+
+.avatar-frame-bubble {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  background: #F7FAFC;
+  border: 3px solid #e8a020;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.avatar-emoji-placeholder {
+  font-size: 3.5rem;
+}
+
+.avatar-change-camera-btn {
+  position: absolute;
+  bottom: 0;
+  right: 4px;
+  background: #ffffff;
+  border: 1px solid #CBD5E0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.profile-display-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #1A202C;
+  margin: 0 0 4px 0;
+}
+
+.profile-display-role {
+  font-size: 0.88rem;
+  color: #718096;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.profile-badge-status-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #EDF7F0;
+  color: #2F855A;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.status-dot-active {
+  width: 8px;
+  height: 8px;
+  background: #48BB78;
+  border-radius: 50%;
+}
+
+.profile-quick-meta-list {
+  width: 100%;
+  border-top: 1px solid #EDF2F7;
+  padding-top: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  font-size: 0.88rem;
+  color: #4A5568;
+}
+
+.profile-change-pw-action-btn {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  color: #4A5568;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-change-pw-action-btn:hover {
+  background: #F7FAFC;
+  border-color: #CBD5E0;
+}
+
+/* Right Side form container layouts tracking */
+.profile-form-data-card {
+  background: #ffffff;
+  border: 1px solid #EAEAEA;
+  border-radius: 16px;
+  padding: 32px;
+  flex: 1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.section-form-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #2D3748;
+  margin: 0 0 20px 0;
+  border-bottom: 2px solid #F7FAFC;
+  padding-bottom: 8px;
+}
+
+.form-inputs-dual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.input-field-block, .input-field-block-full {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-field-block-full {
+  margin-bottom: 16px;
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4A5568;
+}
+
+.required-mark {
+  color: #E53E3E;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  color: #2D3748;
+  box-sizing: border-box;
+  outline: none;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: #e8a020;
+}
+
+.disabled-input-view {
+  background-color: #F7FAFC;
+  color: #A0AEC0;
+  cursor: not-allowed;
+}
+
+/* Action button configurations layout footer */
+.profile-form-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  border-top: 1px solid #EDF2F7;
+  padding-top: 20px;
+}
+
+.btn-cancel-form {
+  background: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  color: #4A5568;
+  cursor: pointer;
+}
+
+.btn-save-form-changes {
+  background: #2D2219; /* Kulay tsokolate/kape base sa template theme niyo */
+  border: none;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-save-form-changes:hover {
+  background: #1A140F;
+}
+
+/* Responsiveness alignment check fallback nodes */
+@media (max-width: 900px) {
+  .profile-layout-container {
+    flex-direction: column;
+  }
+  .profile-avatar-card {
+    width: 100%;
+  }
+}
+
+/* Toggles wrapper alignment box tracking */
+.checkbox-toggle-wrapper-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background-color: #F8FAFC;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid #EDF2F7;
+}
+
+.toggle-label-desc-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-label-desc-block strong {
+  font-size: 0.92rem;
+  color: #2D3748;
+}
+
+.toggle-label-desc-block p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #718096;
+  line-height: 1.3;
+}
+
+/* Custom switch toggle container switch control element styles */
+.switch-control-node {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch-control-node input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider-round-bubble {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #CBD5E0;
+  transition: .25s;
+  border-radius: 24px;
+}
+
+.slider-round-bubble:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .25s;
+  border-radius: 50%;
+}
+
+input:checked + .slider-round-bubble {
+  background-color: #e8a020; /* dynamic theme follow-up accent color */
+}
+
+input:checked + .slider-round-bubble:before {
+  transform: translateX(20px);
+}
+
+/* Color codes adjustments for status badges */
+.inactive-pill {
+  background: #FFF5F5 !important;
+  color: #C53030 !important;
+}
+.inactive-pill .status-dot-active {
+  background: #E53E3E !important;
+}
