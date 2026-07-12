@@ -6,7 +6,7 @@ import "./AddTask.css";
 
 /* ── To Do store (inline · localStorage · same keys as the To Do pages) ── */
 const K_ASSIGNED = "pb_assigned_tasks";
-const K_NOTIFS = "pb_notifications";
+const K_NOTIFS = "pb_todo_notifs";
 const _read = (k) => { try { return JSON.parse(localStorage.getItem(k) || "{}"); } catch { return {}; } };
 const _write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 const _uid = (p) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -126,6 +126,11 @@ export default function AddTask() {
       },
       getCurrentUser({ name: "Engr. Maria Egginear" }).name
     );
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    assignTask(id, payload);
+    window.__pbSaving = false;
+
     navigate(`/personnel-visitors/personnel/view/${id}`);
   };
 
@@ -148,12 +153,6 @@ export default function AddTask() {
         </div>
 
         {/* Header */}
-        <div className="add-task-header">
-          <div>
-            <h2>Add Task</h2>
-            <p>Assign a new task to this personnel. The task will appear in their Tasks tab.</p>
-          </div>
-        </div>
 
         <form className="task-form-card" onSubmit={handleSubmit}>
 

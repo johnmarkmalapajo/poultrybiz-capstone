@@ -6,7 +6,9 @@ import {
   FiFileText, FiDollarSign, FiTag, FiList,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./ExpensesRecord.css";
+import { archiveRow } from "../archiveRow";
 
 const CATEGORY_OPTIONS = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -21,7 +23,16 @@ export default function ExpensesRecord() {
   const navigate = useNavigate();
 
   // Records come from the backend — empty until fetched.
-  const [records] = useState([]);
+  const [records, setRecords] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/expenses");
+        const data = await res.json();
+        setRecords(Array.isArray(data) ? data : data.records || data.data || []);
+      } catch { setRecords([]); }
+    })();
+  }, []);
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({ category: "All", date: "All", amount: "All" });
@@ -95,7 +106,7 @@ export default function ExpensesRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search expenses..."
+                placeholder="Search expense..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -174,7 +185,7 @@ export default function ExpensesRecord() {
                 )}
               </div>
 
-              <button className="er-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="expenses-record" title="Expenses Record" className="er-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -280,7 +291,7 @@ export default function ExpensesRecord() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="er-action-btn archive" title="Archive">
+                        <button className="er-action-btn archive" onClick={() => archiveRow({ module: "Expenses", moduleKey: "pb_expenses", record: r, name: r.category || r.description })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>

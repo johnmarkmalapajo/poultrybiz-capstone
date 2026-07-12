@@ -15,7 +15,9 @@ import {
   FiTrendingUp,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./EggRecord.css";
+import { archiveRow } from "../archiveRow";
 
 export default function EggRecord() {
   const navigate = useNavigate();
@@ -164,7 +166,7 @@ export default function EggRecord() {
                 )}
               </div>
 
-              <button className="egg-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filteredRecords} name="egg-record" title="Egg Record" className="egg-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -229,6 +231,7 @@ export default function EggRecord() {
               <tr>
                 <th>Date</th>
                 <th>Batch ID</th>
+                <th>Cage</th>
                 <th>Peewee</th>
                 <th>Small</th>
                 <th>Medium</th>
@@ -246,11 +249,11 @@ export default function EggRecord() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="13" className="egg-loading-cell">Loading egg records...</td>
+                  <td colSpan="14" className="egg-loading-cell">Loading egg records...</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="egg-empty-state">
+                  <td colSpan="14" className="egg-empty-state">
                     <div className="egg-empty-content">
                       <FiMaximize />
                       <h3>No egg records found</h3>
@@ -270,6 +273,7 @@ export default function EggRecord() {
                   <tr key={record._id}>
                     <td>{record.collectionDate}</td>
                     <td><span className="egg-badge">{record.batchId}</span></td>
+                    <td>{record.cageId}</td>
                     <td>{record.peewee}</td>
                     <td>{record.small}</td>
                     <td>{record.medium}</td>
@@ -289,7 +293,7 @@ export default function EggRecord() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="egg-action-btn archive" title="Archive">
+                        <button className="egg-action-btn archive" onClick={() => archiveRow({ module: "Egg Records", moduleKey: "pb_eggs", record: record, name: record.batchId || record.date })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>

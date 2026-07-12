@@ -27,7 +27,7 @@
 
 .amn-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f4f2;
   font-family: var(--font-body);
   overflow-x: hidden;
@@ -485,3 +485,16 @@
   color: var(--text-muted, #a39e94); background: #f5f5f5;
   border-left: 1.5px solid var(--border, #e4e0d8); flex-shrink: 0;
 }
+
+
+/* Required-field indicator — PoultryBiz gold, same as primary buttons */
+.req{color:#E4AF1F;font-weight:700;margin-left:2px}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.amn-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.amn-breadcrumb::-webkit-scrollbar{display:none}
+.amn-breadcrumb>*{flex-shrink:0}
+.amn-breadcrumb a,.amn-breadcrumb .breadcrumb-link,.amn-breadcrumb .crumb-link,.amn-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.amn-breadcrumb a:hover,.amn-breadcrumb .breadcrumb-link:hover,.amn-breadcrumb .crumb-link:hover,.amn-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.amn-breadcrumb .breadcrumb-current,.amn-breadcrumb .crumb-current,.amn-breadcrumb .active,.amn-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

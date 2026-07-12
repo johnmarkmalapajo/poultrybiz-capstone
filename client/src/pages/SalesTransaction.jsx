@@ -1,53 +1,27 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./SalesTransaction.css";
 
 const cards = [
-  {
-    id: "sales",
-    label: "Sales Record",
-    emoji: "💰",
-    description: "Track all sales and revenue transactions",
-    color: "#5aab6e",
-    bg: "#edf7f0",
-    path: "/sales-transactions/sales",
-  },
-  {
-    id: "expenses",
-    label: "Expenses Record",
-    emoji: "🧾",
-    description: "Monitor and log all farm expenses",
-    color: "#e05555",
-    bg: "#fdf0f0",
-    path: "/sales-transactions/expenses",
-  },
+  { id: "sales",    label: "Sales Record",    emoji: "💰", description: "Record egg sales and track revenue",        color: "#e8a020", bg: "#fff8ec", path: "/sales-transactions/sales" },
+  { id: "expenses", label: "Expenses Record", emoji: "🧾", description: "Log farm expenses and operating costs",     color: "#e05555", bg: "#fdf0f0", path: "/sales-transactions/expenses" },
 ];
 
-export default function SalesTransactions() {
+export default function SalesTransaction() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-
-  const filtered = cards.filter((c) =>
-    c.label.toLowerCase().includes(search.toLowerCase()) ||
-    c.description.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="st-page">
       <Sidebar />
       <div className="st-main">
-        <Topbar
-          searchValue={search}
-          onSearchChange={(e) => setSearch(e.target.value)}
-          searchPlaceholder="Search..."
-        />
-
-        <h2 className="st-title">SALES AND TRANSACTIONS</h2>
+        {/* Page header only — no breadcrumb, no search */}
+        <div className="st-topbar">
+          <button className="st-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
+          <h2 className="st-title">SALES &amp; TRANSACTIONS</h2>
+        </div>
 
         <div className="st-grid">
-          {filtered.map((card, i) => (
+          {cards.map((card, i) => (
             <button
               key={card.id}
               className="st-card"

@@ -75,14 +75,30 @@ export default function EditFeedInventory() {
   };
 
   const balance = (parseFloat(form.quantityIn) || 0) - (parseFloat(form.quantityOut) || 0);
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const payload = { ...form, balance };
     console.log("Feed inventory payload:", payload);
     // Backend: persist the stock record. Quantity Out stays in sync with
     // Feed Consumption, and Balance = Quantity In − Quantity Out.
     localStorage.removeItem("editFeedRecord");
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`/api/feed-inventory/${form._id || form.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate("/inventory/feed-inventory");
   };
 
@@ -105,12 +121,6 @@ export default function EditFeedInventory() {
         </div>
 
         {/* Header */}
-        <div className="edit-feed-header">
-          <div>
-            <h2>Edit Feed Stock</h2>
-            <p>Update the details of this feed stock record. The balance is recomputed automatically.</p>
-          </div>
-        </div>
 
         <form className="feed-form-card" onSubmit={handleSubmit}>
 
@@ -191,7 +201,7 @@ export default function EditFeedInventory() {
             <button type="button" className="cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
               Cancel
             </button>
-            <button type="submit" className="save-btn">
+            <button type="submit" disabled={saving} className="save-btn">
               <FiSave />
               Update Feed Record
             </button>

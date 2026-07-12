@@ -17,6 +17,7 @@ export default function EditMortalityRecord() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     date: "",
@@ -104,6 +105,7 @@ export default function EditMortalityRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
     if (numDead < 1) return setError("Enter at least 1 dead chicken.");
     if (isDuplicate) return setError("A mortality record already exists for this Batch + Cage + Date.");
@@ -111,12 +113,14 @@ export default function EditMortalityRecord() {
 
     try {
       const token = localStorage.getItem("token");
+      setSaving(true);
       await fetch(`${API}/mortality-records/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...formData, numberOfMortality: numDead, currentBirds, mortalityRate: Number(mortalityRate) }),
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint to your backend */
     }
     navigate("/records/mortality");
@@ -152,12 +156,6 @@ export default function EditMortalityRecord() {
         </div>
 
         {/* Header */}
-        <div className="emr-header">
-          <div>
-            <h2>Edit Mortality Record</h2>
-            <p>Update the details of this mortality record.</p>
-          </div>
-        </div>
 
         <form className="emr-form-card" onSubmit={handleSubmit}>
 
@@ -272,7 +270,7 @@ export default function EditMortalityRecord() {
               <button type="button" className="emr-cancel-btn" onClick={() => navigate("/records/mortality")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="emr-save-btn" disabled={isDuplicate || exceedsCage}>
+              <button type="submit" className="emr-save-btn" disabled={saving || isDuplicate || exceedsCage}>
                 <FiSave /> Update Record
               </button>
             </div>

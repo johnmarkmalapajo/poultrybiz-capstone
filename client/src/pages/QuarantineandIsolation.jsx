@@ -6,7 +6,9 @@ import {
   FiClipboard, FiCheckCircle, FiHeart, FiAlertCircle,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./QuarantineandIsolation.css";
+import { archiveRow } from "../archiveRow";
 
 const QUARANTINE_STATUS = ["Ongoing", "Cleared", "Released"];
 const ISOLATION_STATUS = ["In Isolation", "Recovered", "Deceased"];
@@ -23,8 +25,24 @@ export default function QuarantineIsolation() {
     params.get("tab") === "isolation" ? "isolation" : "quarantine"
   );
 
-  const quarantineRecords = [];
-  const isolationRecords = [];
+  // Load records from the store (mock API) — new records appear immediately
+  // after Add/Edit because this page refetches on mount.
+  const [allRecords, setAllRecords] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/quarantine-isolation");
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.records || data.data || [];
+        setAllRecords(list);
+      } catch {
+        setAllRecords([]);
+      }
+    })();
+  }, []);
+
+  const quarantineRecords = allRecords.filter((r) => r.recordType !== "Isolation");
+  const isolationRecords = allRecords.filter((r) => r.recordType === "Isolation");
 
   // close filter dropdown on outside click
   useEffect(() => {
@@ -205,7 +223,7 @@ export default function QuarantineIsolation() {
                 )}
               </div>
 
-              <button className="qi-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filteredQuarantine} name="quarantine-isolation" title="Quarantine Isolation" className="qi-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -331,7 +349,7 @@ export default function QuarantineIsolation() {
                             onClick={() => navigate(`/records/quarantine/edit/${r._id}?type=quarantine`)}>
                             <FiEdit2 />
                           </button>
-                          <button className="qi-btn-archive" title="Archive">
+                          <button className="qi-btn-archive" onClick={() => archiveRow({ module: "Quarantine & Isolation", moduleKey: "pb_isolation", record: r, name: r.cage || r.batchId })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>
@@ -384,7 +402,7 @@ export default function QuarantineIsolation() {
                             onClick={() => navigate(`/records/quarantine/edit/${r._id}?type=isolation`)}>
                             <FiEdit2 />
                           </button>
-                          <button className="qi-btn-archive" title="Archive">
+                          <button className="qi-btn-archive" onClick={() => archiveRow({ module: "Quarantine & Isolation", moduleKey: "pb_isolation", record: r, name: r.cage || r.batchId })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>

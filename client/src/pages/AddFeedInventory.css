@@ -442,3 +442,12 @@
     padding: 16px 12px;
   }
 }
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.add-feed-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.add-feed-breadcrumb::-webkit-scrollbar{display:none}
+.add-feed-breadcrumb>*{flex-shrink:0}
+.add-feed-breadcrumb a,.add-feed-breadcrumb .breadcrumb-link,.add-feed-breadcrumb .crumb-link,.add-feed-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.add-feed-breadcrumb a:hover,.add-feed-breadcrumb .breadcrumb-link:hover,.add-feed-breadcrumb .crumb-link:hover,.add-feed-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.add-feed-breadcrumb .breadcrumb-current,.add-feed-breadcrumb .crumb-current,.add-feed-breadcrumb .active,.add-feed-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

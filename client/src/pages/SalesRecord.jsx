@@ -6,7 +6,9 @@ import {
   FiTrendingUp, FiCalendar, FiMaximize, FiMenu,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
+import { activity } from "../activity";
 import "./SalesRecord.css";
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1"}/sales-records`;
@@ -17,7 +19,7 @@ function getToken() {
 
 export default function SalesRecord() {
   const navigate = useNavigate();
-  const { canEdit, canArchive } = useUser();
+  const { canEdit, canArchive, user } = useUser();
 
   const [records, setRecords] = useState([]);
   const [stats, setStats]     = useState({ totalSalesRecords: 0, totalRevenue: 0, totalTraysSold: 0, latestSaleDate: null });
@@ -36,8 +38,14 @@ export default function SalesRecord() {
       const res  = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
       const data = await res.json();
       if (data.success) {
-        setRecords(data.data);
-        setStats(data.stats);
+        const recs = Array.isArray(data.data) ? data.data : [];
+        setRecords(recs);
+        const base = { totalSalesRecords: 0, totalRevenue: 0, totalTraysSold: 0, latestSaleDate: null };
+        setStats(
+          data.stats && typeof data.stats === "object"
+            ? { ...base, ...data.stats }
+            : { ...base, totalSalesRecords: recs.length }
+        );
       } else {
         setError(data.message || "Failed to load records.");
       }
@@ -65,6 +73,24 @@ export default function SalesRecord() {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  // Archive immediately (no confirm): move to Archive page + remove from this table.
+  const handleArchive = async (r) => {
+    try {
+      activity.archived({
+        module: "Sales Records",
+        recordName: r.buyerName || r.customerName || r.customer || `${r.eggSize || "Sale"} ${r.dateOfSale || ""}`.trim(),
+        moduleKey: "pb_sales",
+        payload: r,
+        user: (user && (user.fullName || user.name)) || "Admin",
+      });
+      await fetch(`${API_BASE}/${r._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+    } catch { /* ignore */ }
+    fetchRecords(search);
+  };
 
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
   const eggSizeOptions = uniq(records.map((r) => r.eggSize));
@@ -168,7 +194,7 @@ export default function SalesRecord() {
                 )}
               </div>
 
-              <button className="sr-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="sales-record" title="Sales Record" className="sr-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -284,7 +310,7 @@ export default function SalesRecord() {
                             </button>
                           )}
                           {canArchive && (
-                            <button className="sr-action-btn archive" title="Archive">
+                            <button className="sr-action-btn archive" title="Archive" onClick={() => handleArchive(r)}>
                               <FiArchive />
                             </button>
                           )}

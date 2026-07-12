@@ -5,8 +5,10 @@ import {
   FiGrid, FiPackage, FiDollarSign, FiCheckCircle, FiMaximize, FiMenu,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import "./Equipment.css";
+import { archiveRow } from "../archiveRow";
 
 const CONDITION_OPTIONS = ["Good", "Fair", "Poor"];
 
@@ -14,7 +16,16 @@ export default function Equipment() {
   const navigate = useNavigate();
   const { canEdit, canArchive, canSeeFinancials } = useUser();
   const [search, setSearch] = useState("");
-  const [records] = useState([]);
+  const [records, setRecords] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/equipment");
+        const data = await res.json();
+        setRecords(Array.isArray(data) ? data : data.records || data.data || []);
+      } catch { setRecords([]); }
+    })();
+  }, []);
 
   // ── Filter (Expenses-style inline dropdown) ──
   const [showFilter, setShowFilter] = useState(false);
@@ -114,7 +125,7 @@ export default function Equipment() {
                 )}
               </div>
 
-              <button className="toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="equipment" title="Equipment & Tools" className="toolbar-btn" />
             </div>
           </div>
         </div>
@@ -239,7 +250,7 @@ export default function Equipment() {
                           </button>
                         )}
                         {canArchive && (
-                          <button className="action-btn archive" title="Archive">
+                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Equipment & Tools", moduleKey: "pb_equipment", record: r, name: r.name || r.equipmentName })} title="Archive">
                             <FiArchive />
                           </button>
                         )}

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import "./Sidebar.css"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import sidelogo from "../assets/sidelogo.jpg"
@@ -13,6 +13,7 @@ import logoutIcon from "../assets/logout.svg"
 import userMenuIcon from "../assets/user.svg"
 import userIcon from "../assets/donlogo.png"
 import { useUser } from "../hooks/useUser"
+import { getUnreadCount, subscribe as subscribeNotifs } from "../notifStore"
 import { FiX } from "react-icons/fi"
 
 // Global event-based approach — more reliable than reassigning a variable
@@ -26,6 +27,14 @@ function Sidebar() {
   const { user, canSeeFinancials, canViewPersonnel } = useUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unread, setUnread] = useState(getUnreadCount);
+
+  // Keep the notifications badge in sync (updates when items are marked read).
+  useEffect(() => {
+    const update = () => setUnread(getUnreadCount());
+    update();
+    return subscribeNotifs(update);
+  }, []);
 
   // Listen for the global open event
   useState(() => {
@@ -119,6 +128,29 @@ function Sidebar() {
             <Link to="/notifications" className="nav-link" onClick={closeMobile}>
               <img src={notificationsIcon} alt="Notifications" className="menu-icon" />
               Notifications
+              {unread > 0 && (
+                <span
+                  className="notif-badge"
+                  style={{
+                    marginLeft: "auto",
+                    background: "#d94f4f",
+                    color: "#fff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    fontFamily: "'Poppins', sans-serif",
+                    minWidth: "18px",
+                    height: "18px",
+                    borderRadius: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 5px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           </li>
 

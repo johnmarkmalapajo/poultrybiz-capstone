@@ -6,8 +6,10 @@ import {
   FiHeart, FiFileText, FiAlertCircle,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import "./MortalityRecord.css";
+import { archiveRow } from "../archiveRow";
 
 const MORT_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/mortality-records`;
 
@@ -154,7 +156,7 @@ export default function MortalityRecord() {
                 )}
               </div>
 
-              <button className="mr-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="mortality-record" title="Mortality Record" className="mr-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -259,7 +261,7 @@ export default function MortalityRecord() {
                           </button>
                         )}
                         {canArchive && (
-                          <button className="mr-btn-archive" title="Archive">
+                          <button className="mr-btn-archive" onClick={() => archiveRow({ module: "Mortality Records", moduleKey: "pb_mortality", record: r, name: r.batchId || r.date })} title="Archive">
                             <FiArchive />
                           </button>
                         )}

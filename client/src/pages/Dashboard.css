@@ -322,7 +322,13 @@
   .title { font-size: var(--text-md); }
   .dash-hamburger { display: flex; }
 
-  .cards.cards-row > * { flex: 0 0 160px; }
+  /* Both admin & farmer stat cards become a clean 2-column grid on mobile */
+  .cards,
+  .cards.cards-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cards.cards-row > * { flex: none; min-width: 0; }
 
   /* Sidebar — fully hidden; slides in when hamburger is tapped */
   .dashboard .sidebar {
@@ -343,12 +349,20 @@
 @media (max-width: 480px) {
   .main { padding: 14px 12px; gap: 14px; }
   .title { font-size: var(--text-md); }
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .cards.cards-row { gap: 10px; }
-  .cards.cards-row > * { flex: 0 0 150px; }
+  .cards,
+  .cards.cards-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .cards.cards-row > * { flex: none; min-width: 0; }
   .chart-card,
   .todo-card,
   .alert-card { padding: 16px; }
   .pie-wrap { flex-direction: column; align-items: stretch; }
   .line-wrap { flex-direction: column; }
 }
+
+/* See All link (To-Do + Alert cards) */
+.dash-see-all{display:inline-flex;align-items:center;gap:4px;margin-top:10px;background:none;border:none;color:#c8930c;font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;padding:4px 0;transition:color .2s}
+.dash-see-all:hover{color:#E4AF1F;text-decoration:underline}

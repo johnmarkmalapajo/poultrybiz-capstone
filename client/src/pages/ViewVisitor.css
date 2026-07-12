@@ -90,3 +90,17 @@
   .vv-profile-card { flex-direction: column; }
   .vv-profile-grid { grid-template-columns: 1fr; }
 }
+
+
+/* ===== Dialog standardization — matches Logout dialog design ===== */
+.vv-bio-overlay{position:fixed !important;inset:0 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;z-index:1000 !important;padding:20px}
+.vv-bio-modal{background:#FFFDF6 !important;border-radius:12px !important;box-shadow:0 8px 32px rgba(0,0,0,.18) !important;border:none !important}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.vv-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.vv-breadcrumb::-webkit-scrollbar{display:none}
+.vv-breadcrumb>*{flex-shrink:0}
+.vv-breadcrumb a,.vv-breadcrumb .breadcrumb-link,.vv-breadcrumb .crumb-link,.vv-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.vv-breadcrumb a:hover,.vv-breadcrumb .breadcrumb-link:hover,.vv-breadcrumb .crumb-link:hover,.vv-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.vv-breadcrumb .breadcrumb-current,.vv-breadcrumb .crumb-current,.vv-breadcrumb .active,.vv-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiUser, FiBriefcase, FiFileText, FiSave, FiMenu, FiLock } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import { getFarmerProfile } from "./FarmerProfile";
 import "./EditPersonnel.css";
 // ── Inline mock data (frontend fallback until the API is wired) ──
 const PERSONNEL = [
@@ -82,7 +83,8 @@ export default function EditPersonnel() {
   const { id } = useParams();
 
   // Read-only profile (synced from My Profile)
-  const [profileInfo, setProfileInfo] = useState({ fullName: "", contactNumber: "", image: "" });
+  const [profileInfo, setProfileInfo] = useState({ fullName: "", contactNumber: "", email: "", image: "" });
+  const [saving, setSaving] = useState(false);
   const [accountRole, setAccountRole] = useState("");
   const isAdmin = /owner|admin/i.test(accountRole);
 
@@ -104,12 +106,27 @@ export default function EditPersonnel() {
     const fetchRecord = async () => {
       const apply = (rec) => {
         if (!rec) return;
-        setAccountRole(getAccountRole(rec));
-        setProfileInfo({
+        const role = getAccountRole(rec);
+        setAccountRole(role);
+        let pInfo = {
           fullName: getName(rec),
           contactNumber: getContact(rec),
+          email: rec.profile?.email || rec.email || "",
           image: getImage(rec),
-        });
+        };
+        // Farmer-managed fields come from the Farmer's My Profile (always latest, read-only here)
+        if (/farmer/i.test(role)) {
+          try {
+            const fp = getFarmerProfile();
+            if (fp) pInfo = {
+              fullName: fp.fullName || pInfo.fullName,
+              contactNumber: fp.phone || pInfo.contactNumber,
+              email: fp.email || pInfo.email,
+              image: fp.avatar || pInfo.image,
+            };
+          } catch { /* ignore */ }
+        }
+        setProfileInfo(pInfo);
         setFormData((prev) => ({
           ...prev,
           position: rec.position || rec.jobTitle || "",
@@ -143,13 +160,27 @@ export default function EditPersonnel() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     // Only the editable (Admin-managed) fields are saved.
     // Full Name, Contact Number, Profile Picture stay synced from My Profile.
     const payload = isAdmin ? { position: formData.position } : { ...formData };
     console.log("Updated Personnel Data:", payload);
     // API integration later
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`${API_BASE}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate(`/personnel-visitors/personnel/view/${id}`);
   };
 
@@ -185,16 +216,6 @@ export default function EditPersonnel() {
         </div>
 
         {/* Header */}
-        <div className="edit-personnel-header">
-          <div>
-            <h2>Edit Personnel</h2>
-            <p>
-              {isAdmin
-                ? "Full Name, Contact Number, and Profile Picture are synced from this account's My Profile and cannot be edited here."
-                : "Update the personnel's employment details. Full Name, Contact Number, and Profile Picture are synced from the account's My Profile and cannot be edited here."}
-            </p>
-          </div>
-        </div>
 
         <form className="personnel-form-card" onSubmit={handleSubmit}>
 
@@ -227,6 +248,12 @@ export default function EditPersonnel() {
             <div className="form-group ep-locked">
               <label>Contact Number <span className="ep-lock-badge">Synced</span></label>
               <input type="text" value={profileInfo.contactNumber} disabled readOnly />
+              <small>Synced from My Profile</small>
+            </div>
+
+            <div className="form-group ep-locked">
+              <label>Email Address <span className="ep-lock-badge">Synced</span></label>
+              <input type="text" value={profileInfo.email} disabled readOnly />
               <small>Synced from My Profile</small>
             </div>
           </div>
@@ -323,7 +350,7 @@ export default function EditPersonnel() {
             <button type="button" className="cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
               Cancel
             </button>
-            <button type="submit" className="save-btn">
+            <button type="submit" disabled={saving} className="save-btn">
               <FiSave />
               Save Changes
             </button>

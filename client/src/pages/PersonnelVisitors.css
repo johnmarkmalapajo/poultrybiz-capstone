@@ -201,3 +201,13 @@
   .pv-card-icon-wrap { width: 56px; height: 56px; }
   .pv-card-emoji { font-size: 26px; }
 }
+
+
+/* ===== Overview page layout update (header + responsive cards only) ===== */
+.pv-title{font-family:'Poppins',sans-serif !important;font-size:clamp(22.65px, 1.2vw + 18px, 28.81px) !important;font-weight:800;line-height:1.618;margin:0 0 26px !important}
+.pv-breadcrumb{display:none !important}
+.pv-search{display:none !important}
+.pv-grid{display:grid !important;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)) !important;gap:24px !important;align-items:stretch !important}
+.pv-card{height:100% !important;box-sizing:border-box}
+@media (max-width:1024px){.pv-grid{grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) !important;gap:18px !important}}
+@media (max-width:640px){.pv-grid{grid-template-columns:1fr !important;gap:14px !important}}

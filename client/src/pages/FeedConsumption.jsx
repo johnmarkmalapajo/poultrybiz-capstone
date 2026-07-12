@@ -5,14 +5,28 @@ import {
   FiGrid, FiPackage, FiUsers, FiLayers, FiMaximize, FiMenu,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./FeedConsumption.css";
+import { archiveRow } from "../archiveRow";
 
-const FEED_TYPE_OPTIONS = ["Starter Feed", "Grower Feed", "Layer Feed", "Finisher Feed"];
+const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
+const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
 
 export default function FeedConsumption() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [records] = useState([]);
+  const [records, setRecords] = useState([]);
+
+  // Pull feed consumption records from the API
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch(`${BASE_URL}/feed-consumption`, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((j) => setRecords(j.data || j.records || (Array.isArray(j) ? j : [])))
+      .catch(() => setRecords([]));
+  }, []);
 
   // ── Filter (Expenses-style inline dropdown) ──
   const [showFilter, setShowFilter] = useState(false);
@@ -110,7 +124,7 @@ export default function FeedConsumption() {
                 )}
               </div>
 
-              <button className="toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="feed-consumption" title="Feed Consumption" className="toolbar-btn" />
             </div>
           </div>
         </div>
@@ -196,7 +210,7 @@ export default function FeedConsumption() {
                 </tr>
               ) : (
                 filtered.map((r) => (
-                  <tr key={r.id}>
+                  <tr key={r._id || r.id}>
                     <td>{r.date}</td>
                     <td>{r.batchId}</td>
                     <td>{r.feedType}</td>
@@ -209,12 +223,12 @@ export default function FeedConsumption() {
                           title="Edit"
                           onClick={() => {
                             localStorage.setItem("editFeedConsumption", JSON.stringify(r));
-                            navigate(`/inventory/feed-consumption/edit/${r.id}`);
+                            navigate(`/inventory/feed-consumption/edit/${r._id || r.id}`);
                           }}
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="action-btn archive" title="Archive">
+                        <button className="action-btn archive" onClick={() => archiveRow({ module: "Feed Consumption", moduleKey: "pb_feed_consumption", record: r, name: r.feedType || r.batchId })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>

@@ -14,6 +14,7 @@ export default function EditQuarantineIsolation() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     recordType: params.get("type") === "isolation" ? "Isolation" : "Quarantine",
@@ -103,6 +104,7 @@ export default function EditQuarantineIsolation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const payload = { ...formData };
     if (!isIsolation && formData.status === "Released") {
       payload.flockTransfer = {
@@ -128,12 +130,14 @@ export default function EditQuarantineIsolation() {
     }
     try {
       const token = localStorage.getItem("token");
+      setSaving(true);
       await fetch(`${API}/quarantine-records/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint to your backend */
     }
     navigate(backRoute);
@@ -171,12 +175,6 @@ export default function EditQuarantineIsolation() {
         </div>
 
         {/* Header */}
-        <div className="eqi-header">
-          <div>
-            <h2>Edit {isIsolation ? "Isolation" : "Quarantine"} Record</h2>
-            <p>Update the details for this {isIsolation ? "isolation" : "quarantine"} record.</p>
-          </div>
-        </div>
 
         <form className="eqi-form-card" onSubmit={handleSubmit}>
 
@@ -345,7 +343,7 @@ export default function EditQuarantineIsolation() {
               <button type="button" className="eqi-cancel-btn" onClick={() => navigate(backRoute)}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="eqi-save-btn">
+              <button type="submit" disabled={saving} className="eqi-save-btn">
                 <FiSave /> Update Record
               </button>
             </div>

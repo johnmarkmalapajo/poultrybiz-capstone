@@ -15,6 +15,7 @@ export default function EditExpense() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     date: "", category: "", amount: "", receipt: null, remarks: "",
@@ -72,6 +73,7 @@ export default function EditExpense() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     try {
       const token = localStorage.getItem("token");
       // Use FormData so the receipt file can be uploaded if changed
@@ -82,12 +84,14 @@ export default function EditExpense() {
       body.append("remarks", form.remarks);
       if (form.receipt) body.append("receipt", form.receipt);
 
+      setSaving(true);
       await fetch(`${API}/expense-records/${id}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
         body,
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint to your backend */
     }
     navigate("/sales-transactions/expenses");
@@ -127,12 +131,6 @@ export default function EditExpense() {
         </div>
 
         {/* Header */}
-        <div className="ee-header">
-          <div>
-            <h2>Edit Expense Record</h2>
-            <p>Update the category, amount, receipt, or notes for this expense.</p>
-          </div>
-        </div>
 
         <form className="ee-form-card" onSubmit={handleSubmit}>
 
@@ -232,7 +230,7 @@ export default function EditExpense() {
               <button type="button" className="ee-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="ee-save-btn">
+              <button type="submit" disabled={saving} className="ee-save-btn">
                 <FiSave /> Update Record
               </button>
             </div>

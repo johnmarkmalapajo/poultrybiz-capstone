@@ -9,6 +9,7 @@ import {
 } from "react-icons/fi";
 
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import batchStore from "../batchStore";
 import "./EditFlock.css";
 
 const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
@@ -39,35 +40,22 @@ export default function EditFlock() {
 
   const [loading, setLoading] = useState(true);
 
-  // ── Fetch this flock record ──
+  // ── Load this flock record from batchStore (localStorage) ──
   useEffect(() => {
-    const fetchRecord = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${FLOCKS_API}/${id}`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        const rec = json.record || json.data || json;
-        if (rec && (rec._id || rec.batchId)) {
-          setFormData((prev) => ({
-            ...prev,
-            ...rec,
-            dateAcquired: rec.dateAcquired ? String(rec.dateAcquired).slice(0, 10) : "",
-            totalMortality:
-              rec.totalMortality ??
-              (rec.quantityPurchased != null && rec.currentQuantity != null
-                ? Number(rec.quantityPurchased) - Number(rec.currentQuantity)
-                : 0),
-          }));
-        }
-      } catch {
-        // keep empty form if fetch fails
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecord();
+    const rec = batchStore.getBatch(id);
+    if (rec) {
+      setFormData((prev) => ({
+        ...prev,
+        ...rec,
+        dateAcquired: rec.dateAcquired ? String(rec.dateAcquired).slice(0, 10) : "",
+        totalMortality:
+          rec.totalMortality ??
+          (rec.quantityPurchased != null && rec.currentQuantity != null
+            ? Number(rec.quantityPurchased) - Number(rec.currentQuantity)
+            : 0),
+      }));
+    }
+    setLoading(false);
   }, [id]);
 
   const handleChange = (e) => {
@@ -87,10 +75,11 @@ export default function EditFlock() {
     const payload = {
       ...formData,
       currentQuantity: currentBirds,
+      totalMortality,
       mortalityRate: Number(mortalityRate),
     };
-    console.log("Updated Flock Data:", payload);
-    // API integration later
+    batchStore.updateBatch(id, payload);   // persist changes to localStorage
+    navigate("/records/flock");            // back to Flock Profile — updated row shows
   };
 
   if (loading) {
@@ -123,16 +112,6 @@ export default function EditFlock() {
         </div>
 
         {/* Header */}
-        <div className="edit-flock-header">
-          <div>
-            <h2>Edit Flock</h2>
-            <p>
-              Update the flock profile details. Changes will be reflected
-              across egg, mortality, health, quarantine, and manure records
-              linked to this batch.
-            </p>
-          </div>
-        </div>
 
         <form className="flock-form-card" onSubmit={handleSubmit}>
 
@@ -151,14 +130,14 @@ export default function EditFlock() {
             </div>
 
             <div className="form-group">
-              <label>Status *</label>
+              <label>Status <span className="req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
                 {FLOCK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
             <div className="form-group">
-              <label>Breed *</label>
+              <label>Breed <span className="req">*</span></label>
               <select name="breed" value={formData.breed} onChange={handleChange} required>
                 <option value="">Select Breed</option>
                 <option value="Hy-Line W-36">Hy-Line W-36</option>
@@ -170,7 +149,7 @@ export default function EditFlock() {
             </div>
 
             <div className="form-group">
-              <label>Source *</label>
+              <label>Source <span className="req">*</span></label>
               <input
                 type="text"
                 name="source"
@@ -182,7 +161,7 @@ export default function EditFlock() {
             </div>
 
             <div className="form-group">
-              <label>Date Acquired *</label>
+              <label>Date Acquired <span className="req">*</span></label>
               <input
                 type="date"
                 name="dateAcquired"
@@ -202,7 +181,7 @@ export default function EditFlock() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label>Purchase Quantity *</label>
+              <label>Purchase Quantity <span className="req">*</span></label>
               <input
                 type="number"
                 min="1"

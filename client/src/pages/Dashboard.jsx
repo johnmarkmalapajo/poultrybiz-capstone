@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   PieChart, Pie, Cell, Tooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer
@@ -24,6 +25,21 @@ const EMPTY = {
   alerts:     [],
 };
 
+// Always returns a fully-shaped dashboard object, even if the API sends
+// partial data, an array, null, or nothing — so the UI can never crash.
+function shapeData(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return EMPTY;
+  return {
+    ...EMPTY,
+    ...d,
+    flock:      { ...EMPTY.flock,      ...(d.flock      || {}) },
+    eggs:       { ...EMPTY.eggs,       ...(d.eggs       || {}) },
+    financials: { ...EMPTY.financials, ...(d.financials || {}) },
+    tasks:      Array.isArray(d.tasks)  ? d.tasks  : [],
+    alerts:     Array.isArray(d.alerts) ? d.alerts : [],
+  };
+}
+
 function Dashboard() {
   const [data, setData]       = useState(EMPTY);
   const [search, setSearch]   = useState("");
@@ -32,63 +48,65 @@ function Dashboard() {
   const [tasks, setTasks]     = useState([]);
 
   const { user, role, canSeeFinancials } = useUser();
+  const navigate = useNavigate();
+  const TODO_LIMIT = 5;
+  const ALERT_LIMIT = 4;
   const isNewUser = localStorage.getItem("isNewUser") === "true";
-// use full name directly in the header
 
-  // ── Cards with beautiful SVG icons ──
+  // ── Cards with beautiful SVG icons (all values guarded with ?. and ?? 0) ──
   const ALL_CARDS = [
     {
       title:     "Current Flock Size",
-      value:     data.flock.currentFlockSize,
+      value:     data.flock?.currentFlockSize ?? 0,
       icon:      Icons.flock,
       iconBg:    "#fff3e0",
       adminOnly: false,
     },
     {
       title:     "Sales Revenue",
-      value:     data.financials.salesRevenue,
+      value:     data.financials?.salesRevenue ?? 0,
       icon:      Icons.revenue,
       iconBg:    "#fff8e1",
       adminOnly: true,
     },
     {
       title:     "Total Eggs Today",
-      value:     data.eggs.totalEggsToday,
+      value:     data.eggs?.totalEggsToday ?? 0,
       icon:      Icons.eggs,
       iconBg:    "#fffde7",
       adminOnly: false,
     },
     {
       title:     "Total Expenses",
-      value:     data.financials.totalExpenses,
+      value:     data.financials?.totalExpenses ?? 0,
       icon:      Icons.expenses,
       iconBg:    "#fdecea",
       adminOnly: true,
     },
     {
       title:     "Entire Flock Productive Rate",
-      value:     data.flock.productiveRate,
+      value:     data.flock?.productiveRate ?? 0,
       icon:      Icons.productive,
       iconBg:    "#f3e5f5",
       adminOnly: false,
     },
     {
       title:     "Net Profit / Loss",
-      value:     data.financials.netProfitLoss,
+      value:     data.financials?.netProfitLoss ?? 0,
       icon:      Icons.profit,
       iconBg:    "#ede7f6",
       adminOnly: true,
     },
     {
       title:     "Mortality Rate (%)",
-      value:     data.flock.mortalityRate,
+      value:     data.flock?.mortalityRate ?? 0,
       icon:      Icons.mortality,
       iconBg:    "#e8f5e9",
       adminOnly: false,
     },
     {
       title:     "Feed Stock (kg)",
-      value:     data.feedStockKg,
+      value:     data.feedStockKg ?? 0,
       icon:      Icons.feed,
       iconBg:    "#fff8e1",
       adminOnly: false,
@@ -112,20 +130,36 @@ function Dashboard() {
         },
       });
       const json = await res.json();
-      if (json.success) {
-        setData(json.data);
-        setTasks(json.data.tasks || []);
+      if (json && json.success) {
+        const shaped = shapeData(json.data);
+        setData(shaped);
+        setTasks(shaped.tasks);
       } else {
-        setError("Failed to load dashboard data.");
+        setData(EMPTY);
+        setError("No dashboard data yet.");
       }
     } catch {
-      setError("Cannot connect to server. Make sure backend is running.");
+      setData(EMPTY);
+      setError("Cannot connect to server. Showing empty dashboard.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchDashboard(); }, []);
+  // Live sync — refetch whenever module data changes (add/edit/archive/restore/
+  // delete), on tab focus, or on cross-tab storage changes. No page reload needed.
+  useEffect(() => {
+    fetchDashboard();
+    const refresh = () => fetchDashboard();
+    window.addEventListener("pb_data_changed", refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("pb_data_changed", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   // ── Toggle task ──
   const toggleTask = async (id) => {
@@ -141,17 +175,19 @@ function Dashboard() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ isCompleted: !task.isCompleted }),
+        body: JSON.stringify({ isCompleted: !task?.isCompleted }),
       });
     } catch { /* silent */ }
   };
 
   const pieData = EGG_LABELS.map((name, i) => ({
     name,
-    value: parseFloat(data.eggs.sizeDistribution?.[EGG_KEYS[i]] || 0),
+    value: parseFloat(data.eggs?.sizeDistribution?.[EGG_KEYS[i]] || 0),
   }));
 
   const hasPieData = pieData.some((d) => d.value > 0);
+  const dailyTrend = data.eggs?.dailyTrend ?? [];
+  const alerts     = data.alerts ?? [];
 
   return (
     <div className="dashboard">
@@ -266,14 +302,14 @@ function Dashboard() {
                 <span className="chart-title">Daily Egg Harvest Trend</span>
                 <select className="chart-filter"><option>Last 7 days</option></select>
               </div>
-              {data.eggs.dailyTrend.length === 0 ? (
+              {dailyTrend.length === 0 ? (
                 <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
                   No egg harvest data yet.
                 </p>
               ) : (
                 <div className="line-wrap">
                   <ResponsiveContainer width="55%" height={160}>
-                    <LineChart data={data.eggs.dailyTrend}
+                    <LineChart data={dailyTrend}
                       margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
                       <XAxis dataKey="date" tick={{ fontSize: 9 }} />
@@ -285,7 +321,7 @@ function Dashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                   <div className="trend-table">
-                    {data.eggs.dailyTrend.map((row) => (
+                    {dailyTrend.map((row) => (
                       <div className="trend-row" key={row.date}>
                         <span className="trend-date">{row.date}</span>
                         <span className="trend-count">{row.count}</span>
@@ -307,7 +343,7 @@ function Dashboard() {
               </div>
               {tasks.length === 0 ? (
                 <p style={{ color: "#aaa", fontSize: "12px", padding: "8px 0" }}>No tasks yet.</p>
-              ) : tasks.map((t) => (
+              ) : tasks.slice(0, TODO_LIMIT).map((t) => (
                 <div className="todo-row" key={t._id}>
                   <input type="checkbox" checked={t.isCompleted}
                     onChange={() => toggleTask(t._id)} className="todo-check" />
@@ -317,18 +353,28 @@ function Dashboard() {
                   <span className={`todo-task ${t.isCompleted ? "done" : ""}`}>{t.task}</span>
                 </div>
               ))}
+              {tasks.length > TODO_LIMIT && (
+                <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/admin/todo")}>
+                  See All
+                </button>
+              )}
             </div>
 
             <div className="alert-card">
               <h3 className="alert-title">Alert</h3>
-              {data.alerts.length === 0 ? (
+              {alerts.length === 0 ? (
                 <p style={{ color: "#aaa", fontSize: "13px" }}>No alerts. All good! ✅</p>
-              ) : data.alerts.map((a, i) => (
+              ) : alerts.slice(0, ALERT_LIMIT).map((a, i) => (
                 <div className="alert-row" key={i}>
                   <span className="alert-icon">{a.type === "danger" ? "🔺" : "🔶"}</span>
                   <span className="alert-msg">{a.message}</span>
                 </div>
               ))}
+              {alerts.length > ALERT_LIMIT && (
+                <button className="dash-see-all" onClick={() => navigate("/notifications")}>
+                  See All
+                </button>
+              )}
             </div>
           </div>
         </div>

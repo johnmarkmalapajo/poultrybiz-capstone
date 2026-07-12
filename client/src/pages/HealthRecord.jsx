@@ -6,7 +6,9 @@ import {
   FiActivity, FiAlertCircle, FiClipboard, FiDroplet,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./HealthRecord.css";
+import { archiveRow } from "../archiveRow";
 
 const HEALTH_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/health-records`;
 
@@ -197,7 +199,7 @@ export default function HealthRecord() {
                 )}
               </div>
 
-              <button className="hr-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filteredDiagnosis} name="health-record" title="Health Record" className="hr-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -320,7 +322,7 @@ export default function HealthRecord() {
                           >
                             <FiEdit2 />
                           </button>
-                          <button className="hr-btn-archive" title="Archive">
+                          <button className="hr-btn-archive" onClick={() => archiveRow({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>
@@ -389,7 +391,7 @@ export default function HealthRecord() {
                           >
                             <FiEdit2 />
                           </button>
-                          <button className="hr-btn-archive" title="Archive">
+                          <button className="hr-btn-archive" onClick={() => archiveRow({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>

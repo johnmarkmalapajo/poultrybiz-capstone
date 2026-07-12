@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import { useUser } from "../hooks/useUser";
 import {
   FiSearch, FiBell, FiCheck, FiCheckCircle, FiTrash2, FiChevronRight,
   FiAlertTriangle, FiCalendar,
@@ -19,7 +20,7 @@ const CATEGORIES = {
   age:        { label: "Age Reminder",    icon: "📅", redirect: "/records/flock" },
   personnel:  { label: "Personnel",       icon: "👥", redirect: "/personnel-visitors/personnel" },
   visitor:    { label: "Visitor",         icon: "🚶", redirect: "/personnel-visitors/visitors" },
-  users:      { label: "Users and Roles", icon: "👤", redirect: "/dashboard" },
+  users:      { label: "Users and Roles", icon: "👤", redirect: "/users-roles" },
 };
 
 /* ── Mock notifications (replace with API data later) ── */
@@ -63,33 +64,89 @@ function fullDate(ts) {
 }
 const prioText = (p) => (p === "high" ? "🔴 High" : p === "medium" ? "🟡 Medium" : "🔵 Low");
 
+/* ── localStorage wiring: merges module-pushed notifications (pb_notifications)
+      written by Users & Roles, alerts, etc. Keeps the same design/shape. ── */
+const N_KEY = "pb_notifications";
+const readStore = () => { try { const a = JSON.parse(localStorage.getItem(N_KEY)); return Array.isArray(a) ? a : []; } catch { return []; } };
+const writeStore = (a) => { try { localStorage.setItem(N_KEY, JSON.stringify(a)); } catch { /* ignore */ } try { window.dispatchEvent(new Event("pb_notifs_changed")); } catch { /* ignore */ } };
+
+function normalize(n) {
+  if (n.type && n.dateTime && (n.category || n.description)) return n; // already full shape
+  const title = n.title || "";
+  const t = title.toLowerCase();
+  let category = "users";
+  if (/egg/.test(t)) category = "egg";
+  else if (/feed/.test(t)) category = "feed";
+  else if (/mortalit/.test(t)) category = "mortality";
+  else if (/health|diagnos|vaccin/.test(t)) category = "health";
+  else if (/visitor/.test(t)) category = "visitor";
+  else if (/personnel|task/.test(t)) category = "personnel";
+  else if (/isolat/.test(t)) category = "isolation";
+  else if (/quarantine/.test(t)) category = "quarantine";
+  else if (/sale/.test(t)) category = "sales";
+  return {
+    id: n.id || "n_" + Date.now() + "_" + Math.floor(Math.random() * 9999),
+    type: n.type === "reminder" ? "reminder" : "alert",
+    category,
+    priority: n.priority || "medium",
+    read: !!n.read,
+    dateTime: n.dateTime || (n.at ? Date.parse(n.at) : Date.now()),
+    title,
+    description: n.description || n.message || "",
+  };
+}
+
+function loadItems() {
+  // No demo/mock notifications — start empty; only real events populate this.
+  return readStore().map(normalize);
+}
+
 export default function Notifications() {
   const navigate = useNavigate();
-  const [items, setItems] = useState(SEED);
+  const { role } = useUser();
+  const [items, setItems] = useState(loadItems);
   const [tab, setTab] = useState("alert");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [readFilter, setReadFilter] = useState("all");
 
-  const unreadAlerts = items.filter((n) => n.type === "alert" && !n.read).length;
-  const unreadReminders = items.filter((n) => n.type === "reminder" && !n.read).length;
+  // pick up new notifications pushed by other pages (e.g. after Approve in Users & Roles)
+  useEffect(() => {
+    const refresh = () => setItems(readStore().map(normalize));
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", refresh);
+    return () => { window.removeEventListener("focus", refresh); window.removeEventListener("storage", refresh); };
+  }, []);
+
+  const persist = (next) => { writeStore(next); setItems(next); };
+
+  // #12 — Farmers only see operational notifications (no Sales, Expenses,
+  // Visitors, Personnel, User Management / admin notifications).
+  const FARMER_ALLOWED = ["egg", "feed", "health", "mortality", "quarantine", "isolation", "equipment", "age"];
+  const allowedItems = role === "Farmer" ? items.filter((n) => FARMER_ALLOWED.includes(n.category)) : items;
+
+  const unreadAlerts = allowedItems.filter((n) => n.type === "alert" && !n.read).length;
+  const unreadReminders = allowedItems.filter((n) => n.type === "reminder" && !n.read).length;
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items
+    return allowedItems
       .filter((n) => n.type === tab)
       .filter((n) => (categoryFilter === "all" ? true : n.category === categoryFilter))
       .filter((n) => (readFilter === "all" ? true : readFilter === "unread" ? !n.read : n.read))
       .filter((n) => (!q ? true : (n.title + " " + n.description).toLowerCase().includes(q)))
       .sort((a, b) => b.dateTime - a.dateTime);
-  }, [items, tab, search, categoryFilter, readFilter]);
+  }, [allowedItems, tab, search, categoryFilter, readFilter]);
 
-  const markRead = (id) => setItems((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  const markAllRead = () => setItems((p) => p.map((n) => (n.type === tab ? { ...n, read: true } : n)));
-  const remove = (id) => setItems((p) => p.filter((n) => n.id !== id));
+  const markRead = (id) => persist(items.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markAllRead = () =>
+    persist(items.map((n) =>
+      (n.type === tab && (role !== "Farmer" || FARMER_ALLOWED.includes(n.category)) ? { ...n, read: true } : n)
+    ));
+  const remove = (id) => persist(items.filter((n) => n.id !== id));
   const openNotif = (n) => { markRead(n.id); const r = CATEGORIES[n.category]?.redirect; if (r) navigate(r); };
 
-  const tabCategories = [...new Set(items.filter((n) => n.type === tab).map((n) => n.category))];
+  const tabCategories = [...new Set(allowedItems.filter((n) => n.type === tab).map((n) => n.category))];
 
   return (
     <div className="nt-page">
@@ -118,10 +175,6 @@ export default function Notifications() {
             <input placeholder="Search notifications..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="nt-filters">
-            <select className="nt-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="all">All categories</option>
-              {tabCategories.map((c) => (<option key={c} value={c}>{CATEGORIES[c].icon} {CATEGORIES[c].label}</option>))}
-            </select>
             <div className="nt-segment">
               {["all", "unread", "read"].map((r) => (
                 <button key={r} className={readFilter === r ? "active" : ""} onClick={() => setReadFilter(r)}>
@@ -132,6 +185,10 @@ export default function Notifications() {
             <button className="nt-markall" onClick={markAllRead} disabled={(tab === "alert" ? unreadAlerts : unreadReminders) === 0}>
               <FiCheckCircle /> Mark all as read
             </button>
+            <select className="nt-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="all">All categories</option>
+              {tabCategories.map((c) => (<option key={c} value={c}>{CATEGORIES[c].icon} {CATEGORIES[c].label}</option>))}
+            </select>
           </div>
         </div>
 

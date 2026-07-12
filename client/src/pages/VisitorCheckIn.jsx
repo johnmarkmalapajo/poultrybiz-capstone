@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { FiCheckCircle, FiUser, FiMapPin, FiBriefcase, FiPhone, FiCalendar, FiClipboard, FiTruck, FiShield } from "react-icons/fi";
-import { BsQrCodeScan } from "react-icons/bs";
 import "./VisitorCheckIn.css";
 
 const API_BASE = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/api/visitors`;
@@ -94,7 +93,7 @@ export default function VisitorCheckIn() {
       <form className="vc-card" onSubmit={submit}>
         {/* Brand */}
         <div className="vc-brand">
-          <div className="vc-logo"><BsQrCodeScan /></div>
+          <div className="vc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
           <div><h1>PoultryBiz</h1><p>Visitor Registration</p></div>
         </div>
 

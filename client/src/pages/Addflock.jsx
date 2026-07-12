@@ -1,24 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiInfo,
   FiPackage,
-  FiActivity,
   FiFileText,
   FiSave,
   FiMenu,
 } from "react-icons/fi";
 
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import batchStore from "../batchStore";
 import "./Addflock.css";
 
-// Days from a date string until today
-function computeAge(dateStr) {
+const FLOCK_STATUSES = ["Active", "Quarantined", "Completed", "Culled"];
+
+// Chickens arrive at 16 weeks; current age = 16 + weeks since arrival
+function computeAgeWeeks(dateStr) {
   if (!dateStr) return "";
   const start = new Date(dateStr);
   if (isNaN(start)) return "";
-  const days = Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
-  return `${days} days`;
+  const weeksElapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / (86400000 * 7)));
+  return `${16 + weeksElapsed} weeks`;
 }
 
 export default function AddFlock() {
@@ -30,6 +32,7 @@ export default function AddFlock() {
     source: "",
     dateAcquired: "",
     quantityPurchased: "",
+    status: "Active",
     notes: "",
   });
 
@@ -38,15 +41,39 @@ export default function AddFlock() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ── Auto-generate the next Batch ID (F-001, F-002, ...) ──
+  useEffect(() => {
+    const batches = batchStore.getBatches();
+    let max = 0;
+    batches.forEach((b) => {
+      const m = /^F-(\d+)$/.exec(b.batchId || "");
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    const next = `F-${String(max + 1).padStart(3, "0")}`;
+    setFormData((prev) => ({ ...prev, batchId: next }));
+  }, []);
+
+  // ── Read-only placeholders (computed later after backend integration) ──
+  const purchaseQty   = Number(formData.quantityPurchased) || 0;
+  const currentBirds  = purchaseQty;     // new flock: total mortality = 0
+  const mortalityRate = "0.00";          // 0% on creation
+  const ageDisplay    = computeAgeWeeks(formData.dateAcquired);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Flock Data:", formData);
-    // API integration later
+    if (!formData.batchId.trim()) { alert("Please enter a Batch ID."); return; }
+    const payload = {
+      ...formData,
+      batchId: formData.batchId.trim(),
+      quantityPurchased: purchaseQty,
+      currentQuantity: currentBirds,
+      totalMortality: 0,
+      mortalityRate: Number(mortalityRate),
+      status: formData.status || "Active",
+    };
+    batchStore.addBatch(payload);       // persist to localStorage (pb_batches)
+    navigate("/records/flock");         // back to Flock Profile — new row shows + stays
   };
-
-  // Auto-computed previews (mirror the Flock Profile table columns)
-  const currentQty = formData.quantityPurchased || "";
-  const ageDisplay = computeAge(formData.dateAcquired);
 
   return (
     <div className="add-flock-page">
@@ -59,35 +86,21 @@ export default function AddFlock() {
           <button className="add-flock-hamburger" onClick={openSidebar} aria-label="Open menu">
             <FiMenu />
           </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/records")}>
-            RECORDS
-          </span>
+          <span className="breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
           <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/records/flock")}>
-            FLOCK PROFILE
-          </span>
+          <span className="breadcrumb-link" onClick={() => navigate("/records/flock")}>FLOCK PROFILE</span>
           <span>›</span>
           <span className="breadcrumb-current">ADD NEW FLOCK</span>
         </div>
 
         {/* Header */}
-        <div className="add-flock-header">
-          <div>
-            <h2>Add New Flock</h2>
-            <p>
-              Create a new flock profile that will serve as the
-              central record for egg, mortality, health,
-              quarantine, and manure tracking.
-            </p>
-          </div>
-        </div>
 
         <form className="flock-form-card" onSubmit={handleSubmit}>
 
-          {/* FLOCK INFORMATION */}
+          {/* BATCH INFORMATION */}
           <div className="section-header">
             <FiInfo />
-            <h3>FLOCK INFORMATION</h3>
+            <h3>BATCH INFORMATION</h3>
             <div className="line"></div>
           </div>
 
@@ -102,27 +115,30 @@ export default function AddFlock() {
                 placeholder="Auto-generated"
                 disabled
               />
-              <small>Generated automatically after saving</small>
+              <small>Generated automatically</small>
             </div>
 
             <div className="form-group">
-              <label>Breed *</label>
-              <select
-                name="breed"
-                value={formData.breed}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Breed</option>
-                <option value="Dekalb White">Dekalb White</option>
-                <option value="Lohmann Brown">Lohmann Brown</option>
-                <option value="Hy-Line Brown">Hy-Line Brown</option>
-                <option value="Native Chicken">Native Chicken</option>
+              <label>Status <span className="req">*</span></label>
+              <select name="status" value={formData.status} onChange={handleChange} required>
+                {FLOCK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
             <div className="form-group">
-              <label>Source *</label>
+              <label>Breed <span className="req">*</span></label>
+              <select name="breed" value={formData.breed} onChange={handleChange} required>
+                <option value="">Select Breed</option>
+                <option value="Hy-Line W-36">Hy-Line W-36</option>
+                <option value="Lohmann LSL Lite">Lohmann LSL Lite</option>
+                <option value="Dekalb White">Dekalb White</option>
+                <option value="Shaver White">Shaver White</option>
+                <option value="Hendrix White">Hendrix White</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Source <span className="req">*</span></label>
               <input
                 type="text"
                 name="source"
@@ -134,7 +150,7 @@ export default function AddFlock() {
             </div>
 
             <div className="form-group">
-              <label>Date Acquired *</label>
+              <label>Date Acquired <span className="req">*</span></label>
               <input
                 type="date"
                 name="dateAcquired"
@@ -145,16 +161,16 @@ export default function AddFlock() {
             </div>
           </div>
 
-          {/* QUANTITY INFORMATION */}
+          {/* BIRD INFORMATION */}
           <div className="section-header">
             <FiPackage />
-            <h3>QUANTITY INFORMATION</h3>
+            <h3>BIRD INFORMATION</h3>
             <div className="line"></div>
           </div>
 
           <div className="form-grid">
             <div className="form-group">
-              <label>Purchase Qty *</label>
+              <label>Purchase Quantity <span className="req">*</span></label>
               <input
                 type="number"
                 min="1"
@@ -165,32 +181,23 @@ export default function AddFlock() {
                 required
               />
             </div>
-          </div>
 
-          {/* AUTO-COMPUTED — mirrors the Flock Profile table */}
-          <div className="section-header">
-            <FiActivity />
-            <h3>AUTO-COMPUTED</h3>
-            <div className="line"></div>
-          </div>
-
-          <div className="form-grid">
             <div className="form-group">
-              <label>Current Qty</label>
-              <input type="text" value={currentQty} placeholder="—" disabled />
-              <small>Starts equal to Purchase Qty; decreases with recorded mortality</small>
+              <label>Current Birds</label>
+              <input type="text" value={currentBirds || "—"} disabled readOnly />
+              <small>Purchase Qty − Total Mortality (auto-computed later)</small>
             </div>
 
             <div className="form-group">
               <label>Mortality Rate</label>
-              <input type="text" value="0%" disabled />
-              <small>(Purchased − Current) ÷ Purchased × 100</small>
+              <input type="text" value={`${mortalityRate}%`} disabled readOnly />
+              <small>(Total Mortality ÷ Purchase Qty) × 100</small>
             </div>
 
             <div className="form-group">
-              <label>Age</label>
-              <input type="text" value={ageDisplay} placeholder="—" disabled />
-              <small>Days counted from Date Acquired</small>
+              <label>Age (Days)</label>
+              <input type="text" value={ageDisplay || "—"} disabled readOnly />
+              <small>Starts at 16 weeks on arrival; auto-computed from Date Acquired</small>
             </div>
           </div>
 
@@ -202,7 +209,7 @@ export default function AddFlock() {
           </div>
 
           <div className="form-group full-width">
-            <label>Notes</label>
+            <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
             <textarea
               rows="6"
               name="notes"
@@ -214,11 +221,7 @@ export default function AddFlock() {
 
           {/* Actions */}
           <div className="form-actions">
-            <button
-              type="button"
-              className="cancel-btn"
-              onClick={() => navigate("/records/flock")}
-            >
+            <button type="button" className="cancel-btn" onClick={() => navigate("/records/flock")}>
               Cancel
             </button>
             <button type="submit" className="save-btn">

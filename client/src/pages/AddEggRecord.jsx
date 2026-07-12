@@ -153,12 +153,6 @@ export default function AddEggRecord() {
         </div>
 
         {/* Header */}
-        <div className="aer-header">
-          <div>
-            <h2>Add Egg Record</h2>
-            <p>Log a daily egg collection. Good Eggs, Total Eggs, Hen-Day %, and Production Status are computed automatically.</p>
-          </div>
-        </div>
 
         {/* Banners */}
         {success && <div className="aer-success-banner">{success}</div>}

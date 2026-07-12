@@ -92,12 +92,6 @@ export default function AddSalesRecord() {
           <span className="asr-breadcrumb-current">ADD SALES RECORD</span>
         </div>
 
-        <div className="asr-header">
-          <div>
-            <h2>Add Sales Record</h2>
-            <p>Fill in the details below to record egg sales transactions.</p>
-          </div>
-        </div>
 
         {success && <div className="asr-success-banner">{success}</div>}
         {error   && <div className="asr-error-banner">{error}</div>}

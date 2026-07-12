@@ -27,7 +27,7 @@
 
 .ee-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f4f2;
   font-family: var(--font-body);
   overflow-x: hidden;
@@ -670,3 +670,12 @@
   cursor: pointer;
 }
 .ee-view-link:hover { color: var(--color-accent, #E4AF1F); }
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.ee-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.ee-breadcrumb::-webkit-scrollbar{display:none}
+.ee-breadcrumb>*{flex-shrink:0}
+.ee-breadcrumb a,.ee-breadcrumb .breadcrumb-link,.ee-breadcrumb .crumb-link,.ee-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.ee-breadcrumb a:hover,.ee-breadcrumb .breadcrumb-link:hover,.ee-breadcrumb .crumb-link:hover,.ee-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.ee-breadcrumb .breadcrumb-current,.ee-breadcrumb .crumb-current,.ee-breadcrumb .active,.ee-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

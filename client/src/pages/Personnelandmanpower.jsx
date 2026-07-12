@@ -7,52 +7,36 @@ import {
 import { BsQrCode } from "react-icons/bs";
 import { MdPeople, MdPerson, MdPersonOff, MdPersonAdd } from "react-icons/md";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import { getFarmerProfile } from "./FarmerProfile";
+import { exportCsvTable, exportExcel, exportPdf } from "../exportTable";
 import "./PersonnelandManpower.css";
+import { archiveRow } from "../archiveRow";
+
+// Overlay the Farmer's own My Profile (pic/name/contact/email) onto their
+// Personnel record — these fields are managed by the Farmer, read-only here.
+const syncFarmerProfile = (list) => {
+  let fp;
+  try { fp = getFarmerProfile(); } catch { return list; }
+  if (!fp) return list;
+  let matched = false;
+  const overlay = (r) => ({
+    ...r,
+    profile: { ...(r.profile || {}), fullName: fp.fullName, contactNumber: fp.phone, email: fp.email, image: fp.avatar },
+  });
+  let out = list.map((r) => {
+    const p = r.profile || {};
+    if (!matched && (p.email === fp.email || p.fullName === fp.fullName)) { matched = true; return overlay(r); }
+    return r;
+  });
+  if (!matched) {
+    out = out.map((r) => {
+      if (!matched && /farmer/i.test(r.accountRole || r.role || "")) { matched = true; return overlay(r); }
+      return r;
+    });
+  }
+  return out;
+};
 // ── Inline mock data (frontend fallback until the API is wired) ──
-const MOCK_PERSONNEL = [
-  {
-    _id: "o1", accountRole: "Owner / Admin", status: "Active",
-    position: "Owner / Admin", shiftHours: "—", dateHired: "—",
-    assignedWork: "", remarks: "",
-    profile: { fullName: "Engr. Maria Egginear", contactNumber: "0917 000 1111", image: "" },
-  },
-  {
-    _id: "f1", accountRole: "Farmer", position: "Farm Worker",
-    dateHired: "2023-01-10", shiftHours: "6:00 AM - 3:00 PM", status: "Active",
-    assignedWork: "Morning feeding · Cage 1-4 cleaning", remarks: "Hardworking and trustworthy.",
-    profile: { fullName: "Juan Dela Cruz", contactNumber: "0917 123 4567", image: "" },
-  },
-  {
-    _id: "f2", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-02-15", shiftHours: "7:00 AM - 4:00 PM", status: "Active",
-    assignedWork: "Vaccination round (Flock B-002)", remarks: "Skilled in poultry care.",
-    profile: { fullName: "Maria Santos", contactNumber: "0917 234 5678", image: "" },
-  },
-  {
-    _id: "f3", accountRole: "Farmer", position: "Maintenance Worker",
-    dateHired: "2023-03-01", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "Water line + equipment check", remarks: "Handles equipment maintenance.",
-    profile: { fullName: "Pedro Reyes", contactNumber: "0917 345 6789", image: "" },
-  },
-  {
-    _id: "f4", accountRole: "Farmer", position: "Inventory Clerk",
-    dateHired: "2023-03-20", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "", remarks: "Organized and detail-oriented.",
-    profile: { fullName: "Ana Garcia", contactNumber: "0917 456 7890", image: "" },
-  },
-  {
-    _id: "f5", accountRole: "Farmer", position: "Farm Hand",
-    dateHired: "2023-04-05", shiftHours: "6:00 AM - 3:00 PM", status: "On Leave",
-    assignedWork: "", remarks: "On medical leave until further notice.",
-    profile: { fullName: "Mark Villanueva", contactNumber: "0917 567 8901", image: "" },
-  },
-  {
-    _id: "f6", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-06-12", shiftHours: "7:00 AM - 4:00 PM", status: "Inactive",
-    assignedWork: "", remarks: "Resigned last May 30, 2024.",
-    profile: { fullName: "Grace Lagon", contactNumber: "0917 678 9012", image: "" },
-  },
-];
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/personnel`;
 const STATUS_OPTIONS = ["Active", "Inactive", "On Leave"];
@@ -128,9 +112,9 @@ export default function PersonnelManpower() {
         });
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.records || data.data || [];
-        setRecords(list.length ? list : MOCK_PERSONNEL);
+        setRecords(syncFarmerProfile(list));
       } catch {
-        setRecords(MOCK_PERSONNEL);
+        setRecords(syncFarmerProfile([]));
       } finally {
         setLoading(false);
       }
@@ -171,8 +155,9 @@ export default function PersonnelManpower() {
   const inactiveCount = farmerAll.filter((r) => getStatus(r) === "Inactive").length;
   const onLeaveCount = farmerAll.filter((r) => getStatus(r) === "On Leave").length;
 
-  // ── Export current view to CSV ──
-  const exportCSV = () => {
+  const [exportOpen, setExportOpen] = useState(false);
+  // ── Export current view (CSV / Excel / PDF) ──
+  const getExportData = () => {
     const isOwnerTab = activeTab === "owner";
     const rows = isOwnerTab ? owners : farmers;
     const headers = isOwnerTab
@@ -183,15 +168,15 @@ export default function PersonnelManpower() {
         ? [getName(r), getContact(r), getAccountRole(r) || "Owner", getStatus(r)]
         : [getName(r), getContact(r), getPosition(r), getHired(r), getShift(r), getStatus(r), getAssignedWork(r) || "—", getRemarks(r)]
     );
-    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = [headers, ...data].map((row) => row.map(esc).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `personnel-${isOwnerTab ? "owner-admin" : "farmers"}-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const name = `personnel-${isOwnerTab ? "owner-admin" : "farmers"}`;
+    return { headers, data, name };
+  };
+  const doExport = (kind) => {
+    const { headers, data, name } = getExportData();
+    if (kind === "excel") exportExcel(name, headers, data);
+    else if (kind === "pdf") exportPdf(name, headers, data, "Personnel & Manpower");
+    else exportCsvTable(name, headers, data);
+    setExportOpen(false);
   };
 
   // ── QR Attendance: ONE shared station QR. Scanning it opens the public
@@ -266,7 +251,38 @@ export default function PersonnelManpower() {
               </div>
 
               <button className="toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
-              <button className="toolbar-btn" onClick={exportCSV}><FiDownload /> Export</button>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <button className="toolbar-btn" onClick={() => setExportOpen((o) => !o)}>
+                  <FiDownload /> Export ▾
+                </button>
+                {exportOpen && (
+                  <>
+                    <div onClick={() => setExportOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 41,
+                      background: "#fff", border: "1px solid #e4e0d8", borderRadius: 12,
+                      boxShadow: "0 8px 26px rgba(0,0,0,0.12)", overflow: "hidden", minWidth: 180,
+                      fontFamily: "Poppins, sans-serif",
+                    }}>
+                      {[
+                        { k: "excel", label: "Excel (.xls)", ico: "📊" },
+                        { k: "pdf", label: "PDF", ico: "📄" },
+                        { k: "csv", label: "CSV", ico: "🗒️" },
+                      ].map((opt) => (
+                        <button key={opt.k} onClick={() => doExport(opt.k)} style={{
+                          display: "flex", alignItems: "center", gap: 10, width: "100%",
+                          padding: "11px 16px", border: "none", background: "none", cursor: "pointer",
+                          fontFamily: "Poppins, sans-serif", fontSize: 13, fontWeight: 600, color: "#47321C", textAlign: "left",
+                        }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#fdf3e3")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+                          <span>{opt.ico}</span> {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -427,7 +443,7 @@ export default function PersonnelManpower() {
                       <td>
                         <div className="action-buttons">
                           <button className="action-btn view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
-                          <button className="action-btn archive" title="Archive"><FiArchive /></button>
+                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
                         </div>
                       </td>
                     </tr>
@@ -457,9 +473,10 @@ export default function PersonnelManpower() {
             </div>
 
             <p className="qr-modal-sub">
-              The Owner/Admin generates <strong>one shared QR code</strong>. <strong>All personnel scan
-              this same QR</strong> to check in (one-to-many). Scanning opens the check-in page where
-              their name and time-stamp appear, then they Check In — saved to their Attendance tab.
+              The Owner/Admin generates <strong>one shared QR code</strong> for the entire farm. <strong>All
+              personnel scan this same QR</strong> to check in (one-to-many). Scanning opens the check-in
+              page — if they're logged in, their attendance is <strong>recorded automatically</strong>;
+              if not, they log in first and check-in continues automatically.
             </p>
 
             <div className="qr-station">

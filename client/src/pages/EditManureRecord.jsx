@@ -10,6 +10,7 @@ export default function EditManureRecord() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     date: "",
@@ -53,8 +54,10 @@ export default function EditManureRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     try {
       const token = localStorage.getItem("token");
+      setSaving(true);
       await fetch(`${API}/manure-records/${id}`, {
         method: "PUT",
         headers: {
@@ -64,6 +67,7 @@ export default function EditManureRecord() {
         body: JSON.stringify(formData),
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint to your backend */
     }
     navigate("/records/manure");
@@ -99,12 +103,6 @@ export default function EditManureRecord() {
         </div>
 
         {/* Header */}
-        <div className="emn-header">
-          <div>
-            <h2>Edit Manure Record</h2>
-            <p>Update the details of this manure collection record.</p>
-          </div>
-        </div>
 
         <form className="emn-form-card" onSubmit={handleSubmit}>
 
@@ -202,7 +200,7 @@ export default function EditManureRecord() {
               <button type="button" className="emn-cancel-btn" onClick={() => navigate("/records/manure")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="emn-save-btn">
+              <button type="submit" disabled={saving} className="emn-save-btn">
                 <FiSave /> Update Record
               </button>
             </div>

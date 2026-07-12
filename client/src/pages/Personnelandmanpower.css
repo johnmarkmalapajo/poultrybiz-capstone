@@ -1192,3 +1192,41 @@
 @media (max-width: 540px) {
   .qr-station-img { width: 200px; height: 200px; }
 }
+
+
+/* ===== Batch A: page-level vertical scroll; table scrolls HORIZONTALLY only (no independent vertical scroll) — matches User & Roles ===== */
+.pm-page .table-wrapper { flex: none !important; min-height: 0 !important; max-height: none !important; overflow-x: auto !important; overflow-y: hidden !important; }
+
+
+/* ===== Responsive Layout Improvements (stat cards / toolbar / breadcrumb) ===== */
+.stats-grid{display:flex !important;flex-wrap:wrap !important;gap:16px !important;width:100% !important;}
+.stats-grid>*{flex:1 1 170px !important;min-width:150px !important;max-width:none !important;width:auto !important;box-sizing:border-box;}
+@media (max-width:768px){.stats-grid{gap:10px !important;}.stats-grid>*{flex:1 1 42% !important;min-width:130px !important;}}
+@media (max-width:360px){.stats-grid>*{flex:1 1 100% !important;min-width:0 !important;}}
+@media (max-width:768px){
+  .pm-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
+  .pm-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
+  .search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
+  .toolbar-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
+  .toolbar-btn-group>*{width:100% !important;min-width:0 !important;}
+  .toolbar-btn-group button{width:100% !important;justify-content:center !important;box-sizing:border-box;}
+  .pm-filter-wrap{width:100% !important;}
+  .pm-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
+}
+.pm-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
+.pm-breadcrumb::-webkit-scrollbar{display:none;}
+.pm-breadcrumb>*{flex-shrink:0;}
+
+
+/* ===== Dialog standardization — matches Logout dialog design ===== */
+.qr-overlay{position:fixed !important;inset:0 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;z-index:1000 !important;padding:20px}
+.qr-modal{background:#FFFDF6 !important;border-radius:12px !important;box-shadow:0 8px 32px rgba(0,0,0,.18) !important;border:none !important}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.pm-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.pm-breadcrumb::-webkit-scrollbar{display:none}
+.pm-breadcrumb>*{flex-shrink:0}
+.pm-breadcrumb a,.pm-breadcrumb .breadcrumb-link,.pm-breadcrumb .crumb-link,.pm-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.pm-breadcrumb a:hover,.pm-breadcrumb .breadcrumb-link:hover,.pm-breadcrumb .crumb-link:hover,.pm-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.pm-breadcrumb .breadcrumb-current,.pm-breadcrumb .crumb-current,.pm-breadcrumb .active,.pm-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

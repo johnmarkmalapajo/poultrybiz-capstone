@@ -5,7 +5,9 @@ import {
   FiGrid, FiArrowDown, FiArrowUp, FiBox, FiMaximize, FiMenu,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./FeedInventory.css";
+import { archiveRow } from "../archiveRow";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
@@ -159,7 +161,7 @@ export default function FeedInventory() {
                 )}
               </div>
 
-              <button className="toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="feed-inventory" title="Feed Inventory" className="toolbar-btn" />
             </div>
           </div>
         </div>
@@ -281,7 +283,7 @@ export default function FeedInventory() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="action-btn archive" title="Archive">
+                        <button className="action-btn archive" onClick={() => archiveRow({ module: "Feed Inventory", moduleKey: "pb_feed_inventory", record: r, name: r.feedType || r.name })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>

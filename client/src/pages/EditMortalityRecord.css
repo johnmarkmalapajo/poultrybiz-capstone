@@ -23,26 +23,35 @@
 
 /* ==========================
    PAGE SHELL
+   Sidebar stays fixed; only .emr-main scrolls
 ========================== */
 
 .emr-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #f4f4f2;
   font-family: var(--font-body);
-  overflow-x: hidden;
   max-width: 100%;
 }
 
 .emr-main {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
   padding: 36px 44px;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+
+/* Keep breadcrumb/header/cards at natural height so they don't collapse
+   when .emr-main has a fixed height — main scrolls instead. */
+.emr-main > * {
+  flex-shrink: 0;
 }
 
 .sidebar { flex-shrink: 0; }
@@ -363,6 +372,12 @@
   box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
 }
 
+.emr-save-btn:disabled,
+.emr-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .emr-cancel-btn svg,
 .emr-save-btn svg {
   font-size: 16px;
@@ -460,3 +475,15 @@
     padding: 16px 12px;
   }
 }
+
+/* Required-field indicator — PoultryBiz gold, same as primary buttons */
+.req{color:#E4AF1F;font-weight:700;margin-left:2px}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.emr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.emr-breadcrumb::-webkit-scrollbar{display:none}
+.emr-breadcrumb>*{flex-shrink:0}
+.emr-breadcrumb a,.emr-breadcrumb .breadcrumb-link,.emr-breadcrumb .crumb-link,.emr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.emr-breadcrumb a:hover,.emr-breadcrumb .breadcrumb-link:hover,.emr-breadcrumb .crumb-link:hover,.emr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.emr-breadcrumb .breadcrumb-current,.emr-breadcrumb .crumb-current,.emr-breadcrumb .active,.emr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

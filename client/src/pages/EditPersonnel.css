@@ -508,3 +508,12 @@
 
 /* Required asterisk — gold accent (matches design) */
 .req { color: var(--color-accent); }
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.edit-personnel-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.edit-personnel-breadcrumb::-webkit-scrollbar{display:none}
+.edit-personnel-breadcrumb>*{flex-shrink:0}
+.edit-personnel-breadcrumb a,.edit-personnel-breadcrumb .breadcrumb-link,.edit-personnel-breadcrumb .crumb-link,.edit-personnel-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.edit-personnel-breadcrumb a:hover,.edit-personnel-breadcrumb .breadcrumb-link:hover,.edit-personnel-breadcrumb .crumb-link:hover,.edit-personnel-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.edit-personnel-breadcrumb .breadcrumb-current,.edit-personnel-breadcrumb .crumb-current,.edit-personnel-breadcrumb .active,.edit-personnel-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

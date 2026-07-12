@@ -82,9 +82,12 @@ export default function AddQuarantineIsolation() {
       breed: flock?.breed ?? prev.breed,
     }));
   };
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const payload = { ...formData };
     // When a quarantine batch is Released, its connected fields transfer to the Flock Profile
     if (!isIsolation && formData.status === "Released") {
@@ -112,6 +115,19 @@ export default function AddQuarantineIsolation() {
     }
     console.log("Quarantine/Isolation payload:", payload);
     // API integration here later (backend creates/activates the Flock from flockTransfer)
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`/api/quarantine-isolation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate(backRoute);
   };
 
@@ -134,14 +150,6 @@ export default function AddQuarantineIsolation() {
         </div>
 
         {/* Header */}
-        <div className="aqi-header">
-          <div>
-            <h2>Add {isIsolation ? "Isolation" : "Quarantine"} Record</h2>
-            <p>{isIsolation
-              ? "Log a symptomatic bird placed in isolation, including its cage, batch, status, and symptoms."
-              : "Log a newly arrived batch under quarantine, including source, breed, head count, and vitamins given."}</p>
-          </div>
-        </div>
 
         <form className="aqi-form-card" onSubmit={handleSubmit}>
 
@@ -308,7 +316,7 @@ export default function AddQuarantineIsolation() {
               <button type="button" className="aqi-cancel-btn" onClick={() => navigate(backRoute)}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="aqi-save-btn">
+              <button type="submit" disabled={saving} className="aqi-save-btn">
                 <FiSave /> Save Record
               </button>
             </div>

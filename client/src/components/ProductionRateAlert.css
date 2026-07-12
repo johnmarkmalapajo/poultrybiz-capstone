@@ -1,0 +1,129 @@
+/* ── Production Rate Alert (drop-in for Dashboard Summary) ── */
+.pra-card {
+  --pra-color: #2e9e6b;
+  --pra-bg: #eaf7f1;
+  --pra-border: rgba(46, 158, 107, 0.35);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e4e0d8);
+  border-left: 4px solid var(--pra-color);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: var(--font-body, "Lato", sans-serif);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+/* tone variants */
+.pra-green   { --pra-color: #2e9e6b; --pra-bg: #eaf7f1; }
+.pra-yellow  { --pra-color: #c8930c; --pra-bg: #fdf3e3; }
+.pra-red     { --pra-color: #d94f4f; --pra-bg: #fdf0f0; }
+.pra-darkred { --pra-color: #a31515; --pra-bg: #fbe3e3; }
+
+/* header */
+.pra-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pra-title { display: flex; align-items: center; gap: 9px; }
+.pra-title h3 {
+  margin: 0;
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #1e1c18);
+}
+.pra-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--pra-color);
+  box-shadow: 0 0 0 4px var(--pra-bg);
+  flex-shrink: 0;
+}
+
+.pra-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--pra-bg);
+  color: var(--pra-color);
+  white-space: nowrap;
+}
+.pra-badge svg { font-size: 13px; }
+
+/* rate */
+.pra-rate-row { display: flex; align-items: baseline; gap: 14px; }
+.pra-rate-value {
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--pra-color);
+}
+.pra-rate-value span { font-size: 20px; margin-left: 2px; }
+.pra-rate-meta { display: flex; flex-direction: column; gap: 2px; }
+.pra-rate-label {
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-size: 12px; font-weight: 700;
+  color: var(--text-second, #6b6457);
+}
+.pra-rate-sub {
+  font-size: 11px;
+  color: var(--text-muted, #a39e94);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* progress bar */
+.pra-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 20px;
+  background: var(--pra-bg);
+  overflow: hidden;
+}
+.pra-bar-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: var(--pra-color);
+  transition: width 0.5s ease, background 0.25s;
+}
+
+/* message */
+.pra-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: var(--pra-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.pra-message-icon { color: var(--pra-color); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.pra-message p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #1e1c18);
+}
+
+/* footer */
+.pra-updated {
+  font-size: 11px;
+  color: var(--text-muted, #a39e94);
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .pra-rate-value { font-size: 32px; }
+  .pra-card { padding: 16px; }
+}

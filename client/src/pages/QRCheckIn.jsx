@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiClock, FiCalendar, FiLogIn, FiAlertCircle } from "react-icons/fi";
-import { BsQrCodeScan } from "react-icons/bs";
 import "./QRCheckIn.css";
 
 const initials = (name) =>
@@ -28,15 +28,23 @@ const getLoggedInUser = () => {
   return null;
 };
 
-// Demo fallback so the page is testable before auth/backend is wired.
-// Remove this once real login populates localStorage.
-const DEMO_USER = { id: "f1", name: "Juan Dela Cruz", role: "Farm Worker" };
+const RETURN_PATH = "/attendance/check-in";
 
 export default function QRCheckIn() {
+  const navigate = useNavigate();
   const [now, setNow] = useState(new Date());
   const [done, setDone] = useState(null); // { name, time, date }
 
-  const user = getLoggedInUser() || DEMO_USER;
+  const user = getLoggedInUser(); // no demo fallback — identity must come from a real login
+
+  // ── Login-gate: if nobody is logged in on this device, send them to login
+  //    first, then bring them back here to check in. ──
+  useEffect(() => {
+    if (!user) {
+      try { localStorage.setItem("pb_post_login_redirect", RETURN_PATH); } catch (e) { /* ignore */ }
+      navigate(`/login?redirect=${encodeURIComponent(RETURN_PATH)}`, { replace: true });
+    }
+  }, [user, navigate]);
 
   // Live clock
   useEffect(() => {
@@ -61,17 +69,55 @@ export default function QRCheckIn() {
       const all = JSON.parse(localStorage.getItem("pb_attendance") || "{}");
       all[user.id] = [entry, ...(all[user.id] || [])];
       localStorage.setItem("pb_attendance", JSON.stringify(all));
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch (e) { /* ignore */ }
     } catch (e) { /* ignore */ }
     setDone({ name: user.name, time, date });
   };
 
+  // ── AUTO check-in on scan ──
+  // Logged in + QR scanned = attendance is recorded automatically (no button).
+  // If they already checked in today, show that record instead of duplicating.
+  useEffect(() => {
+    if (!user || done) return;
+    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    let existing = null;
+    try {
+      const all = JSON.parse(localStorage.getItem("pb_attendance") || "{}");
+      existing = (all[user.id] || []).find((e) => e.date === today) || null;
+    } catch (e) { /* ignore */ }
+    if (existing) {
+      setDone({ name: user.name, time: existing.timeIn || existing.timestamp, date: existing.date, already: true });
+    } else {
+      checkIn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user && user.id]);
+
   return (
     <div className="qc-page">
+      {!user ? (
+        <div className="qc-card">
+          <div className="qc-header">
+            <div className="qc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
+            <div className="qc-brand"><h1>PoultryBiz</h1><p>Attendance Check-In</p></div>
+          </div>
+          <div className="qc-notice">
+            <FiAlertCircle />
+            <div>
+              <strong>Login required</strong>
+              <p>Please log in to your account first to check in. You'll be identified from your account and time-stamped automatically.</p>
+            </div>
+          </div>
+          <button className="qc-btn" onClick={() => navigate(`/login?redirect=${encodeURIComponent(RETURN_PATH)}`)}>
+            <FiLogIn /> Log In to Check In
+          </button>
+        </div>
+      ) : (
       <div className="qc-card">
 
         {/* Brand header */}
         <div className="qc-brand">
-          <div className="qc-logo"><BsQrCodeScan /></div>
+          <div className="qc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
           <div>
             <h1>PoultryBiz</h1>
             <p>Attendance Check-In</p>
@@ -97,11 +143,7 @@ export default function QRCheckIn() {
                   </div>
                 </div>
 
-                <button className="qc-btn" onClick={checkIn}>
-                  <FiLogIn /> Check In
-                </button>
-
-                <p className="qc-hint">You're identified from your account. Your check-in is time-stamped automatically.</p>
+                <p className="qc-hint">Recording your attendance…</p>
               </>
             ) : (
               <div className="qc-notice">
@@ -113,7 +155,7 @@ export default function QRCheckIn() {
         ) : (
           <div className="qc-success">
             <div className="qc-success-icon"><FiCheckCircle /></div>
-            <h2>You're Checked In!</h2>
+            <h2>{done.already ? "Already Checked In Today" : "You're Checked In!"}</h2>
             <div className="qc-success-name">{done.name}</div>
             <div className="qc-success-meta">
               <span><FiClock /> {done.time}</span>
@@ -123,6 +165,7 @@ export default function QRCheckIn() {
         )}
 
       </div>
+      )}
     </div>
   );
 }

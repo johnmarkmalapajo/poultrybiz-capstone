@@ -6,7 +6,9 @@ import {
 import { BsQrCode } from "react-icons/bs";
 import { MdGroups, MdHowToReg, MdEventNote } from "react-icons/md";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./Visitors.css";
+import { archiveRow } from "../archiveRow";
 
 const API_BASE = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/api/visitors`;
 
@@ -106,6 +108,22 @@ export default function Visitors() {
           <span className="breadcrumb-current">VISITORS</span>
         </div>
 
+        {/* Toolbar (before stats — like Personnel) */}
+        <div className="vm-toolbar">
+          <div className="search-box">
+            <FiSearch />
+            <input
+              type="text"
+              placeholder="Search visitors by name, affiliation, address..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="toolbar-btn-group">
+            <button className="toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
+            <ExportMenu rows={visitors} name="visitors" title="Visitors Log" className="toolbar-btn" />
+          </div>
+        </div>
 
         {/* Stat cards */}
         <div className="vm-stats">
@@ -120,23 +138,6 @@ export default function Visitors() {
           <div className="vm-stat">
             <span className="vm-stat-icon blue"><MdHowToReg /></span>
             <div><h2>{visitsToday}</h2><h4>Visits Today</h4></div>
-          </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="vm-toolbar">
-          <div className="search-box">
-            <FiSearch />
-            <input
-              type="text"
-              placeholder="Search visitors by name, affiliation, address..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="toolbar-btn-group">
-            <button className="toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
-            <button className="toolbar-btn" onClick={exportCSV}><FiDownload /> Export</button>
           </div>
         </div>
 
@@ -176,7 +177,7 @@ export default function Visitors() {
                       <td>
                         <div className="action-buttons">
                           <button className="action-btn view" title="View" onClick={() => navigate(`/personnel-visitors/visitors/view/${getId(r)}`)}><FiEye /></button>
-                          <button className="action-btn archive" title="Archive"><FiArchive /></button>
+                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Visitors", moduleKey: "pb_visitors", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
                         </div>
                       </td>
                     </tr>

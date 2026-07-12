@@ -7,6 +7,9 @@ import {
 } from "react-icons/fi";
 import { FaQrcode } from "react-icons/fa";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
+import batchStore from "../batchStore";
+import { activity } from "../activity";
 import "./Flockprofile.css";
 
 // Chickens arrive at 16 weeks; current age = 16 + weeks since arrival
@@ -48,6 +51,7 @@ const computeFlock = (f) => {
 };
 
 const BREEDS = ["Hy-Line W-36", "Lohmann LSL Lite", "Dekalb White", "Shaver White", "Hendrix White"];
+const STATUSES = ["Active", "Quarantined", "Completed", "Culled"];
 const AGE_RANGES = [
   { label: "All", value: "All" },
   { label: "16–20 weeks", value: "16-20" },
@@ -69,11 +73,12 @@ export default function FlockProfile() {
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({
-    breed: "All", source: "All", status: "All", dateAcquired: "All", ageRange: "All",
+    breed: "All", status: "All", dateAcquired: "All", ageRange: "All",
   });
   const filterRef = useRef(null);
   const [qrFlock, setQrFlock] = useState(null); // QR Summary modal target
-  const flocks = [];
+  const [, forceRefresh] = useState(0);          // bump to re-read after delete
+  const flocks = batchStore.getBatches();
 
   useEffect(() => {
     const onClick = (e) => {
@@ -85,12 +90,10 @@ export default function FlockProfile() {
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   const clearFilters = () =>
-    setFilters({ breed: "All", source: "All", status: "All", dateAcquired: "All", ageRange: "All" });
+    setFilters({ breed: "All", status: "All", dateAcquired: "All", ageRange: "All" });
   const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
 
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
-  const statusOptions = uniq(flocks.map((r) => r.status));
-  const sourceOptions = uniq(flocks.map((r) => r.source));
 
   const inAgeRange = (ageW, range) => {
     if (range === "All" || ageW == null) return range === "All";
@@ -104,7 +107,6 @@ export default function FlockProfile() {
       (r.batchId?.toLowerCase().includes(search.toLowerCase()) ||
         r.breed?.toLowerCase().includes(search.toLowerCase())) &&
       (filters.breed === "All" || r.breed === filters.breed) &&
-      (filters.source === "All" || r.source === filters.source) &&
       (filters.status === "All" || r.status === filters.status) &&
       (filters.ageRange === "All" || inAgeRange(ageW, filters.ageRange))
     );
@@ -114,13 +116,103 @@ export default function FlockProfile() {
     const st = statusStyle(status);
     return (
       <span style={{
-        display: "inline-flex", alignItems: "center", gap: "5px",
-        background: st.bg, color: st.color, padding: "3px 10px",
+        display: "inline-flex", alignItems: "center",
+        background: st.bg, color: st.color, padding: "3px 12px",
         borderRadius: "999px", fontWeight: 600, fontSize: "12px", whiteSpace: "nowrap",
       }}>
-        {st.dot} {status || "—"}
+        {status || "—"}
       </span>
     );
+  };
+
+  // ── Live stats computed from the actual flock records ──
+  const stats = (() => {
+    const n = flocks.length;
+    let birds = 0, mrSum = 0, ageDaysSum = 0;
+    flocks.forEach((f) => {
+      const { cb, mr, ageW } = computeFlock(f);
+      birds += cb;
+      mrSum += mr;
+      ageDaysSum += (ageW || 0) * 7;
+    });
+    return {
+      total: n,
+      birds,
+      avgMortality: n ? mrSum / n : 0,
+      avgAge: n ? Math.round(ageDaysSum / n) : 0,
+    };
+  })();
+
+  // Archive a flock immediately (no confirmation) — it moves to the Archive
+  // page; permanent delete exists only inside Archive.
+  const handleArchive = (flock) => {
+    activity.archived({
+      module: "Flock Profile",
+      recordName: flock.batchId || "Flock",
+      moduleKey: "pb_batches",
+      payload: flock,
+      user: "Admin",
+    });
+    batchStore.deleteBatch(flock.batchId || flock._id);
+    forceRefresh((n) => n + 1);
+  };
+
+  // Download a print-ready QR image: Batch ID on top + QR code below,
+  // centered on a clean white card (for labeling poultry cages).
+  const downloadQR = async (batchId) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(`${window.location.origin}/batch-summary/${batchId}`)}`;
+    try {
+      // Fetch as blob so the canvas stays untainted (same-origin object URL)
+      const res = await fetch(qrUrl);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      await new Promise((ok, err) => { img.onload = ok; img.onerror = err; img.src = objUrl; });
+
+      // ── Layout (golden-ratio-inspired spacing, PoultryBiz identity) ──
+      const W = 720, QR = 520;
+      const TOP_BAR = 10;      // gold accent bar
+      const HEAD_H = 150;      // Batch ID area
+      const GAP_BOTTOM = 42;   // space below QR
+      const BRAND_H = 48;      // small brand footer
+      const H = HEAD_H + QR + GAP_BOTTOM + BRAND_H;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // White card
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+      // Gold top bar
+      ctx.fillStyle = "#E4AF1F";
+      ctx.fillRect(0, 0, W, TOP_BAR);
+
+      // Batch ID — Poppins bold, brown, centered
+      ctx.fillStyle = "#47321C";
+      ctx.font = "700 56px Poppins, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(batchId, W / 2, TOP_BAR + (HEAD_H - TOP_BAR) / 2 + 4);
+
+      // QR code — centered directly below the Batch ID
+      ctx.drawImage(img, (W - QR) / 2, HEAD_H, QR, QR);
+      URL.revokeObjectURL(objUrl);
+
+      // Small brand footer
+      ctx.fillStyle = "#a39e94";
+      ctx.font = "600 22px Poppins, Arial, sans-serif";
+      ctx.fillText("PoultryBiz", W / 2, HEAD_H + QR + GAP_BOTTOM + BRAND_H / 2 - 10);
+
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `QR-${batchId}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      window.open(qrUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   return (
@@ -179,20 +271,11 @@ export default function FlockProfile() {
                     </div>
 
                     <div className="flock-filter-group">
-                      <label className="flock-filter-label">Source</label>
-                      <select className="flock-filter-select" value={filters.source}
-                        onChange={(e) => handleFilterChange("source", e.target.value)}>
-                        <option value="All">All Sources</option>
-                        {sourceOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="flock-filter-group">
                       <label className="flock-filter-label">Status</label>
                       <select className="flock-filter-select" value={filters.status}
                         onChange={(e) => handleFilterChange("status", e.target.value)}>
                         <option value="All">All Statuses</option>
-                        {statusOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        {STATUSES.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </div>
 
@@ -207,7 +290,7 @@ export default function FlockProfile() {
                 )}
               </div>
 
-              <button className="toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filtered} name="flock-profiles" title="Flock Profiles" className="toolbar-btn" />
             </div>
           </div>
         </div>
@@ -228,19 +311,19 @@ export default function FlockProfile() {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon gold"><FiGrid /></div>
-            <div><h3>0</h3><p>Total Flock Records</p><span>All Time</span></div>
+            <div><h3>{stats.total}</h3><p>Total Flock Records</p><span>All Time</span></div>
           </div>
           <div className="stat-card">
             <div className="stat-icon green"><FiUsers /></div>
-            <div><h3>0</h3><p>Total Current Birds</p><span>All Records</span></div>
+            <div><h3>{stats.birds.toLocaleString()}</h3><p>Total Current Birds</p><span>All Records</span></div>
           </div>
           <div className="stat-card">
             <div className="stat-icon red"><FiHeart /></div>
-            <div><h3>0%</h3><p>Average Mortality Rate</p><span>All Records</span></div>
+            <div><h3>{stats.avgMortality.toFixed(1)}%</h3><p>Average Mortality Rate</p><span>All Records</span></div>
           </div>
           <div className="stat-card">
             <div className="stat-icon blue"><FiCalendar /></div>
-            <div><h3>0</h3><p>Average Age (Days)</p><span>All Records</span></div>
+            <div><h3>{stats.avgAge}</h3><p>Average Age (Days)</p><span>All Records</span></div>
           </div>
         </div>
 
@@ -279,7 +362,7 @@ export default function FlockProfile() {
                 filtered.map((flock) => {
                   const { cb, mr } = computeFlock(flock);
                   return (
-                    <tr key={flock._id}>
+                    <tr key={flock._id || flock.batchId}>
                       <td>{flock.batchId}</td>
                       <td>{flock.breed}</td>
                       <td>{flock.source}</td>
@@ -292,14 +375,14 @@ export default function FlockProfile() {
                       <td>
                         <div className="action-buttons">
                           <button className="action-btn edit" title="Edit"
-                            onClick={() => navigate(`/records/flock/edit/${flock._id}`)}>
+                            onClick={() => navigate(`/records/flock/edit/${flock._id || flock.batchId}`)}>
                             <FiEdit2 />
                           </button>
                           <button className="action-btn edit" title="View / Generate QR Code"
                             onClick={() => setQrFlock(flock)}>
                             <FaQrcode />
                           </button>
-                          <button className="action-btn archive" title="Archive">
+                          <button className="action-btn archive" title="Archive" onClick={() => handleArchive(flock)}>
                             <FiArchive />
                           </button>
                         </div>
@@ -343,7 +426,7 @@ export default function FlockProfile() {
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <FaQrcode style={{ color: "#c8930c", fontSize: "20px" }} />
                 <h3 style={{ margin: 0, fontFamily: "Poppins, sans-serif", color: "#47321C", fontSize: "17px" }}>
-                  Batch QR Summary
+                  Batch QR Code
                 </h3>
               </div>
               <button onClick={() => setQrFlock(null)}
@@ -352,100 +435,24 @@ export default function FlockProfile() {
               </button>
             </div>
 
-            <div style={{ padding: "22px" }}>
-              {/* QR placeholder + Batch Information */}
-              <div style={{ display: "flex", gap: "22px", flexWrap: "wrap", marginBottom: "22px" }}>
-                <div style={{
-                  width: "140px", height: "140px", borderRadius: "12px",
-                  border: "2px dashed #e4af1f", display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center", color: "#c8930c",
-                  background: "#fffdf7", flexShrink: 0,
-                }}>
-                  <FaQrcode style={{ fontSize: "52px" }} />
-                  <small style={{ marginTop: "6px", fontSize: "11px" }}>QR Placeholder</small>
-                </div>
-
-                <div style={{ flex: 1, minWidth: "260px" }}>
-                  {(() => {
-                    const { cb, mr } = computeFlock(qrFlock);
-                    const st = statusStyle(qrFlock.status);
-                    const rows = [
-                      ["Batch ID", qrFlock.batchId || "—"],
-                      ["Breed", qrFlock.breed || "—"],
-                      ["Source", qrFlock.source || "—"],
-                      ["Date Acquired", qrFlock.dateAcquired || "—"],
-                      ["Purchase Quantity", qrFlock.quantityPurchased ?? "—"],
-                      ["Current Birds", cb],
-                      ["Age", computeAgeWeeks(qrFlock.dateAcquired) || "—"],
-                      ["Overall Production Rate", "—"],
-                      ["Overall Mortality Rate", `${typeof mr === "number" ? mr.toFixed(2) : mr}%`],
-                    ];
-                    return (
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                        <tbody>
-                          {rows.map(([k, v]) => (
-                            <tr key={k}>
-                              <td style={{ padding: "5px 8px", color: "#6b6457", fontWeight: 600, whiteSpace: "nowrap" }}>{k}</td>
-                              <td style={{ padding: "5px 8px", color: "#1e1c18" }}>{v}</td>
-                            </tr>
-                          ))}
-                          <tr>
-                            <td style={{ padding: "5px 8px", color: "#6b6457", fontWeight: 600 }}>Current Status</td>
-                            <td style={{ padding: "5px 8px" }}>
-                              <span style={{
-                                display: "inline-flex", alignItems: "center", gap: "5px",
-                                background: st.bg, color: st.color, padding: "3px 10px",
-                                borderRadius: "999px", fontWeight: 600, fontSize: "12px",
-                              }}>
-                                {st.dot} {qrFlock.status || "—"}
-                              </span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    );
-                  })()}
-                </div>
+            <div style={{ padding: "30px 22px", textAlign: "center" }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(`${window.location.origin}/batch-summary/${qrFlock.batchId}`)}`}
+                alt={`QR code for ${qrFlock.batchId}`}
+                style={{ width: "220px", height: "220px", borderRadius: "14px", border: "1px solid #e4e0d8", padding: "12px", background: "#fff" }}
+              />
+              <div style={{ marginTop: "14px", fontFamily: "Poppins, sans-serif", fontWeight: 700, color: "#47321C", fontSize: "16px" }}>
+                {qrFlock.batchId}
               </div>
-
-              {/* Cage Performance Summary (mock) */}
-              <h4 style={{ margin: "0 0 10px", fontFamily: "Poppins, sans-serif", color: "#47321C", fontSize: "14px" }}>
-                Cage Performance Summary
-              </h4>
-              <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: "10px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "480px" }}>
-                  <thead>
-                    <tr style={{ background: "#fdf3e3", color: "#47321C" }}>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Cage</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Current Birds</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Today's Eggs</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Hen-Day %</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Health Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {MOCK_CAGES.map((c) => (
-                      <tr key={c.cage} style={{ borderTop: "1px solid #f0f0f0" }}>
-                        <td style={{ padding: "10px" }}>{c.cage}</td>
-                        <td style={{ padding: "10px" }}>{c.birds}</td>
-                        <td style={{ padding: "10px" }}>{c.eggs}</td>
-                        <td style={{ padding: "10px" }}>{c.henDay}</td>
-                        <td style={{ padding: "10px" }}>
-                          <span style={{
-                            background: c.health === "Healthy" ? "#eaf7f1" : "#fdf0e6",
-                            color: c.health === "Healthy" ? "#2e9e6b" : "#e07b39",
-                            padding: "3px 10px", borderRadius: "999px", fontWeight: 600, fontSize: "12px",
-                          }}>{c.health}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <p style={{ marginTop: "14px", fontSize: "12px", color: "#a39e94" }}>
-                Preview only — cage performance will be pulled from Egg, Health, Mortality, and Isolation records after backend integration.
+              <p style={{ margin: "6px 0 22px", fontSize: "12px", color: "#a39e94" }}>
+                Scan this QR code with a mobile device to open this batch's summary.
               </p>
+              <button
+                onClick={() => downloadQR(qrFlock.batchId)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#E4AF1F", color: "#fff", border: "none", borderRadius: "10px", padding: "11px 26px", fontFamily: "Poppins, sans-serif", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}
+              >
+                <FiDownload /> Download
+              </button>
             </div>
           </div>
         </div>

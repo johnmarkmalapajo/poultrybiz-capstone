@@ -448,3 +448,15 @@
     padding: 16px 12px;
   }
 }
+
+/* Required-field indicator — PoultryBiz gold, same as primary buttons */
+.req{color:#E4AF1F;font-weight:700;margin-left:2px}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.edit-flock-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.edit-flock-breadcrumb::-webkit-scrollbar{display:none}
+.edit-flock-breadcrumb>*{flex-shrink:0}
+.edit-flock-breadcrumb a,.edit-flock-breadcrumb .breadcrumb-link,.edit-flock-breadcrumb .crumb-link,.edit-flock-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.edit-flock-breadcrumb a:hover,.edit-flock-breadcrumb .breadcrumb-link:hover,.edit-flock-breadcrumb .crumb-link:hover,.edit-flock-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.edit-flock-breadcrumb .breadcrumb-current,.edit-flock-breadcrumb .crumb-current,.edit-flock-breadcrumb .active,.edit-flock-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

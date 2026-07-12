@@ -6,7 +6,9 @@ import {
   FiPackage, FiTrash2, FiClipboard, FiLayers,
 } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
+import ExportMenu from "../components/ExportMenu";
 import "./ManureandWasteRecord.css";
+import { archiveRow } from "../archiveRow";
 
 export default function ManureWasteRecord() {
   const navigate = useNavigate();
@@ -19,8 +21,19 @@ export default function ManureWasteRecord() {
   const [filters, setFilters] = useState({ category: "All", date: "All" });
   const filterRef = useRef(null);
 
-  const manureRecords = [];
-  const wasteRecords = [];
+  // Load records (mock API) and split per tab by recordType.
+  const [allRecords, setAllRecords] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/waste-records");
+        const data = await res.json();
+        setAllRecords(Array.isArray(data) ? data : data.records || data.data || []);
+      } catch { setAllRecords([]); }
+    })();
+  }, []);
+  const manureRecords = allRecords.filter((r) => r.recordType !== "Waste");
+  const wasteRecords = allRecords.filter((r) => r.recordType === "Waste");
 
   useEffect(() => {
     const onClick = (e) => {
@@ -157,7 +170,7 @@ export default function ManureWasteRecord() {
                 )}
               </div>
 
-              <button className="mwr-toolbar-btn"><FiDownload /> Export</button>
+              <ExportMenu rows={filteredManure} name="manure-waste-record" title="Manure Waste Record" className="mwr-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -281,7 +294,7 @@ export default function ManureWasteRecord() {
                           >
                             <FiEdit2 />
                           </button>
-                          <button className="mwr-btn-archive" title="Archive">
+                          <button className="mwr-btn-archive" onClick={() => archiveRow({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>
@@ -339,7 +352,7 @@ export default function ManureWasteRecord() {
                           >
                             <FiEdit2 />
                           </button>
-                          <button className="mwr-btn-archive" title="Archive">
+                          <button className="mwr-btn-archive" onClick={() => archiveRow({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title="Archive">
                             <FiArchive />
                           </button>
                         </div>

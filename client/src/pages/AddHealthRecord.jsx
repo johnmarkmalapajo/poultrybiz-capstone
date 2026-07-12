@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiSave, FiX, FiMenu, FiActivity, FiDroplet, FiFileText, FiAlertTriangle } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
-import "./EditHealthRecord.css";
+import "./AddHealthRecord.css";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
 const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
 const HEALTH_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/health-records`;
 
@@ -41,62 +40,49 @@ const PRESUMPTIVE_DIAGNOSES = [
 const CAGES = Array.from({ length: 12 }, (_, i) => `C-${String(i + 1).padStart(2, "0")}`);
 const flockCages = (f) => f.assignedCages || (f.cageId ? [f.cageId] : []);
 
-export default function EditHealthRecord() {
+export default function AddHealthRecord() {
   const navigate = useNavigate();
-  const { id } = useParams();
   const [params] = useSearchParams();
-  const [isVax, setIsVax] = useState(params.get("type") === "vaccination");
-  const [loading, setLoading] = useState(true);
+  const isVax = params.get("type") === "vaccination";
 
   const [diagnosisData, setDiagnosisData] = useState({
     recordType: "Veterinary Treatment",
-    date: "", batchId: "", cageId: "",
-    numberOfBirdsAffected: "", symptomsObserved: "", symptomsObservedOther: "",
-    disease: "None", diseaseOther: "",
-    presumptiveDiagnosis: "", presumptiveDiagnosisOther: "", vetDiagnosis: "", treatmentApplied: "",
-    numberMortality: "", nextSchedule: "", remarks: "",
+    date: "",
+    batchId: "",
+    cageId: "",
+    numberOfBirdsAffected: "",
+    symptomsObserved: "",
+    symptomsObservedOther: "",
+    disease: "None",
+    diseaseOther: "",
+    presumptiveDiagnosis: "",
+    presumptiveDiagnosisOther: "",
+    vetDiagnosis: "",
+    treatmentApplied: "",
+    numberMortality: "",
+    nextSchedule: "",
+    remarks: "",
   });
 
   const [vaccinationData, setVaccinationData] = useState({
     recordType: "Vaccination",
-    date: "", batchId: "", cageId: "",
-    numberOfBirdsAdministered: "", vaccineOrDrug: "", targetAge: "",
-    routeOfAdmin: "", dosage: "", administeredBy: "",
-    nextSchedule: "", remarks: "",
+    date: "",
+    batchId: "",
+    cageId: "",
+    numberOfBirdsAdministered: "",
+    vaccineOrDrug: "",
+    targetAge: "",
+    routeOfAdmin: "",
+    dosage: "",
+    administeredBy: "",
+    nextSchedule: "",
+    remarks: "",
   });
 
   const [flocks, setFlocks] = useState([]);
   const [healthRecords, setHealthRecords] = useState([]);
   const [error, setError] = useState("");
 
-  // ── Fetch this record ──
-  useEffect(() => {
-    const fetchRecord = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API}/health-records/${id}`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        const rec = json.record || json.data || json;
-        const vax = rec.recordType
-          ? ["Vaccination", "Medication", "Vitamin Administration"].includes(rec.recordType) || rec.vaccineOrDrug != null
-          : params.get("type") === "vaccination";
-        setIsVax(vax);
-        if (vax) setVaccinationData((prev) => ({ ...prev, ...rec }));
-        else setDiagnosisData((prev) => ({ ...prev, ...rec }));
-      } catch {
-        // keep form
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecord();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  // ── Flocks + health records ──
   useEffect(() => {
     fetch(FLOCKS_API).then((r) => r.json())
       .then((d) => setFlocks(Array.isArray(d) ? d : d.records || d.flocks || []))
@@ -119,19 +105,25 @@ export default function EditHealthRecord() {
     setError("");
   };
 
+  // ── Validation helpers ──
   const isDuplicate =
     data.batchId && data.cageId && data.date &&
     healthRecords.some(
-      (r) => r._id !== id && r.batchId === data.batchId && r.cageId === data.cageId &&
+      (r) => r.batchId === data.batchId && r.cageId === data.cageId &&
         r.recordType === data.recordType && r.date === data.date
     );
-  const scheduleInvalid = data.nextSchedule && data.date && String(data.nextSchedule).slice(0,10) < String(data.date).slice(0,10);
+  const scheduleInvalid = data.nextSchedule && data.date && data.nextSchedule < data.date;
   const diseaseRecorded = !isVax && !!diagnosisData.presumptiveDiagnosis;
+  const [saving, setSaving] = useState(false);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isDuplicate) return setError("A record already exists for this Batch + Cage + Record Type + Date.");
-    if (scheduleInvalid) return setError("Next Schedule cannot be earlier than the record Date.");
+    if (saving) return;
+    if (isDuplicate)
+      return setError("A record already exists for this Batch + Cage + Record Type + Date.");
+    if (scheduleInvalid)
+      return setError("Next Schedule cannot be earlier than the record Date.");
 
     const payload = isVax
       ? { ...vaccinationData }
@@ -140,46 +132,53 @@ export default function EditHealthRecord() {
           symptomsObserved: diagnosisData.symptomsObserved === "Others" ? diagnosisData.symptomsObservedOther : diagnosisData.symptomsObserved,
           presumptiveDiagnosis: diagnosisData.presumptiveDiagnosis === "Others" ? diagnosisData.presumptiveDiagnosisOther : diagnosisData.presumptiveDiagnosis,
         };
+    console.log("Health payload:", payload);
+    // API integration later
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
     try {
-      const token = localStorage.getItem("token");
-      await fetch(`${API}/health-records/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      setSaving(true);
+      await fetch(`${HEALTH_API}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     } catch {
-      /* silent — adjust endpoint */
-    }
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`);
   };
 
-  const d = (v) => (v ? String(v).slice(0, 10) : "");
-
+  // shared field blocks
   const RecordTypeField = (
-    <div className="ehr-form-group">
-      <label>Record Type <span className="ehr-req">*</span></label>
+    <div className={isVax ? "ahr-form-group" : "ahr-form-group"}>
+      <label>Record Type <span className="ahr-req">*</span></label>
       <select name="recordType" value={data.recordType} onChange={handleChange} required>
         {RECORD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
       </select>
     </div>
   );
+
   const CageField = (
-    <div className="ehr-form-group">
-      <label>Cage <span className="ehr-req">*</span></label>
+    <div className="ahr-form-group">
+      <label>Cage <span className="ahr-req">*</span></label>
       <select name="cageId" value={data.cageId} onChange={handleChange} required>
         <option value="">Select Cage</option>
-        {data.cageId && !cageOptions.includes(data.cageId) && <option value={data.cageId}>{data.cageId}</option>}
         {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
       </select>
+      <small>Select a cage (C-01 to C-12).</small>
     </div>
   );
+
   const NextScheduleField = (
-    <div className="ehr-form-group">
+    <div className="ahr-form-group">
       <label>Next Schedule</label>
-      <input type="date" name="nextSchedule" value={d(data.nextSchedule)} min={d(data.date) || undefined} onChange={handleChange} />
+      <input type="date" name="nextSchedule" value={data.nextSchedule} min={data.date || undefined} onChange={handleChange} />
       {scheduleInvalid && <small style={{ color: "#c0392b" }}>Cannot be earlier than the record date.</small>}
     </div>
   );
+
   const Banners = (
     <>
       {error && (
@@ -201,208 +200,201 @@ export default function EditHealthRecord() {
     </>
   );
 
-  if (loading) {
-    return (
-      <div className="ehr-page">
-        <Sidebar />
-        <div className="ehr-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="ehr-page">
+    <div className="ahr-page">
       <Sidebar />
 
-      <div className="ehr-main">
+      <div className="ahr-main">
 
         {/* Breadcrumb */}
-        <div className="ehr-breadcrumb">
-          <button className="ehr-hamburger" onClick={openSidebar} aria-label="Open menu">
+        <div className="ahr-breadcrumb">
+          <button className="ahr-hamburger" onClick={openSidebar} aria-label="Open menu">
             <FiMenu />
           </button>
-          <span className="ehr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="ehr-bc-sep">›</span>
-          <span className="ehr-bc-link" onClick={() => navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`)}>HEALTH RECORD</span>
-          <span className="ehr-bc-sep">›</span>
-          <span className="ehr-bc-current">{isVax ? "EDIT MEDICATION/VACCINATION" : "EDIT DIAGNOSIS"}</span>
+          <span className="ahr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
+          <span className="ahr-bc-sep">›</span>
+          <span className="ahr-bc-link" onClick={() => navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`)}>HEALTH RECORD</span>
+          <span className="ahr-bc-sep">›</span>
+          <span className="ahr-bc-current">{isVax ? "ADD MEDICATION/VACCINATION" : "ADD DIAGNOSIS"}</span>
         </div>
 
         {/* Header */}
-        <div className="ehr-header">
-          <div>
-            <h2>{isVax ? "Edit Medication/Vaccination Record" : "Edit Diagnosis Record"}</h2>
-            <p>{isVax ? "Update the details of this vaccination or medication record." : "Update the details of this health diagnosis record."}</p>
-          </div>
-        </div>
 
         {!isVax ? (
           /* ============ DIAGNOSIS FORM ============ */
-          <form className="ehr-form-card" onSubmit={handleSubmit}>
+          <form className="ahr-form-card" onSubmit={handleSubmit}>
             {Banners}
 
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiActivity />
               <h3>Diagnosis Information</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-grid">
-              <div className="ehr-form-group">
-                <label>Date <span className="ehr-req">*</span></label>
-                <input type="date" name="date" value={d(diagnosisData.date)} onChange={handleChange} required />
+            <div className="ahr-form-grid">
+              <div className="ahr-form-group">
+                <label>Date <span className="ahr-req">*</span></label>
+                <input type="date" name="date" value={diagnosisData.date} onChange={handleChange} required />
               </div>
 
-              <div className="ehr-form-group">
-                <label>Batch ID <span className="ehr-req">*</span></label>
+              <div className="ahr-form-group">
+                <label>Batch ID <span className="ahr-req">*</span></label>
                 <select name="batchId" value={diagnosisData.batchId} onChange={handleChange} required>
                   <option value="">Select batch ID</option>
-                  {diagnosisData.batchId && !batchOptions.includes(diagnosisData.batchId) && <option value={diagnosisData.batchId}>{diagnosisData.batchId}</option>}
                   {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
 
               {CageField}
 
-              <div className="ehr-form-group">
-                <label>Number of Birds Affected <span className="ehr-req">*</span></label>
-                <input type="number" min="0" name="numberOfBirdsAffected" value={diagnosisData.numberOfBirdsAffected} onChange={handleChange} placeholder="Enter number of birds" required />
+              <div className="ahr-form-group">
+                <label>Number of Birds Affected <span className="ahr-req">*</span></label>
+                <input type="number" min="0" name="numberOfBirdsAffected"
+                  value={diagnosisData.numberOfBirdsAffected} onChange={handleChange}
+                  placeholder="Enter number of birds" required />
               </div>
 
-              <div className="ehr-form-group">
-                <label>Disease / Observation <span className="ehr-req">*</span></label>
-                <select name="symptomsObserved" value={diagnosisData.symptomsObserved} onChange={handleChange} required>
+              <div className="ahr-form-group">
+                <label>Disease / Observation <span className="ahr-req">*</span></label>
+                <select name="symptomsObserved" value={diagnosisData.symptomsObserved}
+                  onChange={handleChange} required>
                   <option value="">Select observation</option>
-                  {diagnosisData.symptomsObserved && !OBSERVATIONS.includes(diagnosisData.symptomsObserved) && diagnosisData.symptomsObserved !== "Others" && <option value={diagnosisData.symptomsObserved}>{diagnosisData.symptomsObserved}</option>}
                   {OBSERVATIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                   <option value="Others">Others (specify)</option>
                 </select>
               </div>
 
               {diagnosisData.symptomsObserved === "Others" && (
-                <div className="ehr-form-group">
-                  <label>Specify Disease / Observation <span className="ehr-req">*</span></label>
-                  <input type="text" name="symptomsObservedOther" value={diagnosisData.symptomsObservedOther} onChange={handleChange} placeholder="Enter custom observation" required />
+                <div className="ahr-form-group">
+                  <label>Specify Disease / Observation <span className="ahr-req">*</span></label>
+                  <input type="text" name="symptomsObservedOther" value={diagnosisData.symptomsObservedOther}
+                    onChange={handleChange} placeholder="Enter custom observation" required />
                 </div>
               )}
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Presumptive Diagnosis</label>
-                <select name="presumptiveDiagnosis" value={diagnosisData.presumptiveDiagnosis} onChange={handleChange}>
+                <select name="presumptiveDiagnosis" value={diagnosisData.presumptiveDiagnosis}
+                  onChange={handleChange}>
                   <option value="">Select presumptive diagnosis</option>
-                  {diagnosisData.presumptiveDiagnosis && !PRESUMPTIVE_DIAGNOSES.includes(diagnosisData.presumptiveDiagnosis) && diagnosisData.presumptiveDiagnosis !== "Others" && <option value={diagnosisData.presumptiveDiagnosis}>{diagnosisData.presumptiveDiagnosis}</option>}
                   {PRESUMPTIVE_DIAGNOSES.map((dx) => <option key={dx} value={dx}>{dx}</option>)}
                   <option value="Others">Others (specify)</option>
                 </select>
               </div>
 
               {diagnosisData.presumptiveDiagnosis === "Others" && (
-                <div className="ehr-form-group">
-                  <label>Specify Presumptive Diagnosis <span className="ehr-req">*</span></label>
-                  <input type="text" name="presumptiveDiagnosisOther" value={diagnosisData.presumptiveDiagnosisOther} onChange={handleChange} placeholder="Enter custom diagnosis" required />
+                <div className="ahr-form-group">
+                  <label>Specify Presumptive Diagnosis <span className="ahr-req">*</span></label>
+                  <input type="text" name="presumptiveDiagnosisOther" value={diagnosisData.presumptiveDiagnosisOther}
+                    onChange={handleChange} placeholder="Enter custom diagnosis" required />
                 </div>
               )}
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Vet Diagnosis</label>
-                <input type="text" name="vetDiagnosis" value={diagnosisData.vetDiagnosis} onChange={handleChange} placeholder="Enter vet diagnosis" />
+                <input type="text" name="vetDiagnosis" value={diagnosisData.vetDiagnosis}
+                  onChange={handleChange} placeholder="Enter vet diagnosis" />
               </div>
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Treatment Applied</label>
-                <input type="text" name="treatmentApplied" value={diagnosisData.treatmentApplied} onChange={handleChange} placeholder="Enter treatment applied" />
+                <input type="text" name="treatmentApplied" value={diagnosisData.treatmentApplied}
+                  onChange={handleChange} placeholder="Enter treatment applied" />
               </div>
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Number Mortality</label>
-                <input type="number" min="0" name="numberMortality" value={diagnosisData.numberMortality} onChange={handleChange} placeholder="Enter number of mortality" />
+                <input type="number" min="0" name="numberMortality" value={diagnosisData.numberMortality}
+                  onChange={handleChange} placeholder="Enter number of mortality" />
               </div>
 
               {NextScheduleField}
             </div>
 
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiFileText />
               <h3>Additional Information</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-group ehr-full-width">
+            <div className="ahr-form-group ahr-full-width">
               <label>Remarks / Follow-up Action</label>
-              <textarea name="remarks" value={diagnosisData.remarks} onChange={handleChange} placeholder="Enter remarks or follow-up action..." maxLength={500} />
-              <small className="ehr-char-count">{(diagnosisData.remarks || "").length} / 500</small>
+              <textarea name="remarks" value={diagnosisData.remarks} onChange={handleChange}
+                placeholder="Enter remarks or follow-up action..." maxLength={500} />
+              <small className="ahr-char-count">{diagnosisData.remarks.length} / 500</small>
             </div>
 
-            <div className="ehr-form-actions">
-              <p className="ehr-req-note">Fields with * are required.</p>
-              <div className="ehr-action-btns">
-                <button type="button" className="ehr-cancel-btn" onClick={() => navigate(`/records/health?tab=diagnosis`)}>
+            <div className="ahr-form-actions">
+              <p className="ahr-req-note">Fields with * are required.</p>
+              <div className="ahr-action-btns">
+                <button type="button" className="ahr-cancel-btn" onClick={() => navigate(`/records/health?tab=diagnosis`)}>
                   <FiX /> Cancel
                 </button>
-                <button type="submit" className="ehr-save-btn" disabled={isDuplicate || scheduleInvalid}>
-                  <FiSave /> Update Record
+                <button type="submit" className="ahr-save-btn" disabled={isDuplicate || scheduleInvalid} disabled={saving}>
+                  <FiSave /> Save Record
                 </button>
               </div>
             </div>
           </form>
         ) : (
           /* ============ MEDICATION / VACCINATION FORM ============ */
-          <form className="ehr-form-card" onSubmit={handleSubmit}>
+          <form className="ahr-form-card" onSubmit={handleSubmit}>
             {Banners}
 
             {/* BATCH INFORMATION */}
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiDroplet />
               <h3>Batch Information</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-grid">
+            <div className="ahr-form-grid">
               {RecordTypeField}
 
-              <div className="ehr-form-group">
-                <label>Batch <span className="ehr-req">*</span></label>
+              <div className="ahr-form-group">
+                <label>Batch <span className="ahr-req">*</span></label>
                 <select name="batchId" value={vaccinationData.batchId} onChange={handleChange} required>
                   <option value="">Select batch ID</option>
-                  {vaccinationData.batchId && !batchOptions.includes(vaccinationData.batchId) && <option value={vaccinationData.batchId}>{vaccinationData.batchId}</option>}
                   {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
 
               {CageField}
 
-              <div className="ehr-form-group">
-                <label>Date <span className="ehr-req">*</span></label>
-                <input type="date" name="date" value={d(vaccinationData.date)} onChange={handleChange} required />
+              <div className="ahr-form-group">
+                <label>Date <span className="ahr-req">*</span></label>
+                <input type="date" name="date" value={vaccinationData.date} onChange={handleChange} required />
               </div>
             </div>
 
             {/* TREATMENT INFORMATION */}
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiActivity />
               <h3>Treatment Information</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-grid">
-              <div className="ehr-form-group">
-                <label>No. of Birds Administered <span className="ehr-req">*</span></label>
-                <input type="number" min="0" name="numberOfBirdsAdministered" value={vaccinationData.numberOfBirdsAdministered} onChange={handleChange} placeholder="Enter number of birds administered" required />
+            <div className="ahr-form-grid">
+              <div className="ahr-form-group">
+                <label>No. of Birds Administered <span className="ahr-req">*</span></label>
+                <input type="number" min="0" name="numberOfBirdsAdministered"
+                  value={vaccinationData.numberOfBirdsAdministered} onChange={handleChange}
+                  placeholder="Enter number of birds administered" required />
               </div>
 
-              <div className="ehr-form-group">
-                <label>Vaccine / Drug <span className="ehr-req">*</span></label>
-                <input type="text" name="vaccineOrDrug" value={vaccinationData.vaccineOrDrug} onChange={handleChange} placeholder="Enter vaccine or drug name" required />
+              <div className="ahr-form-group">
+                <label>Vaccine / Drug <span className="ahr-req">*</span></label>
+                <input type="text" name="vaccineOrDrug" value={vaccinationData.vaccineOrDrug}
+                  onChange={handleChange} placeholder="Enter vaccine or drug name" required />
               </div>
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Target Age / Stage</label>
-                <input type="text" name="targetAge" value={vaccinationData.targetAge} onChange={handleChange} placeholder="Enter target age or stage" />
+                <input type="text" name="targetAge" value={vaccinationData.targetAge}
+                  onChange={handleChange} placeholder="Enter target age or stage" />
               </div>
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Route</label>
                 <select name="routeOfAdmin" value={vaccinationData.routeOfAdmin} onChange={handleChange}>
                   <option value="">Select route</option>
@@ -415,49 +407,52 @@ export default function EditHealthRecord() {
                 </select>
               </div>
 
-              <div className="ehr-form-group">
+              <div className="ahr-form-group">
                 <label>Dosage &amp; Frequency</label>
-                <input type="text" name="dosage" value={vaccinationData.dosage} onChange={handleChange} placeholder="Enter dosage and frequency" />
+                <input type="text" name="dosage" value={vaccinationData.dosage}
+                  onChange={handleChange} placeholder="Enter dosage and frequency" />
               </div>
 
-              <div className="ehr-form-group">
-                <label>Administered By (Staff/Vet) <span className="ehr-req">*</span></label>
-                <input type="text" name="administeredBy" value={vaccinationData.administeredBy} onChange={handleChange} placeholder="Enter staff or vet name" required />
+              <div className="ahr-form-group">
+                <label>Administered By (Staff/Vet) <span className="ahr-req">*</span></label>
+                <input type="text" name="administeredBy" value={vaccinationData.administeredBy}
+                  onChange={handleChange} placeholder="Enter staff or vet name" required />
               </div>
             </div>
 
             {/* SCHEDULING */}
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiActivity />
               <h3>Scheduling</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-grid">
+            <div className="ahr-form-grid">
               {NextScheduleField}
             </div>
 
             {/* ADDITIONAL INFORMATION */}
-            <div className="ehr-section-header">
+            <div className="ahr-section-header">
               <FiFileText />
               <h3>Additional Information</h3>
-              <div className="ehr-line" />
+              <div className="ahr-line" />
             </div>
 
-            <div className="ehr-form-group ehr-full-width">
+            <div className="ahr-form-group ahr-full-width">
               <label>Remarks</label>
-              <textarea name="remarks" value={vaccinationData.remarks} onChange={handleChange} placeholder="Enter remarks, aftereffects, or reactions..." maxLength={500} />
-              <small className="ehr-char-count">{(vaccinationData.remarks || "").length} / 500</small>
+              <textarea name="remarks" value={vaccinationData.remarks} onChange={handleChange}
+                placeholder="Enter remarks, aftereffects, or reactions..." maxLength={500} />
+              <small className="ahr-char-count">{vaccinationData.remarks.length} / 500</small>
             </div>
 
-            <div className="ehr-form-actions">
-              <p className="ehr-req-note">Fields with * are required.</p>
-              <div className="ehr-action-btns">
-                <button type="button" className="ehr-cancel-btn" onClick={() => navigate(`/records/health?tab=vaccination`)}>
+            <div className="ahr-form-actions">
+              <p className="ahr-req-note">Fields with * are required.</p>
+              <div className="ahr-action-btns">
+                <button type="button" className="ahr-cancel-btn" onClick={() => navigate(`/records/health?tab=vaccination`)}>
                   <FiX /> Cancel
                 </button>
-                <button type="submit" className="ehr-save-btn" disabled={isDuplicate || scheduleInvalid}>
-                  <FiSave /> Update Record
+                <button type="submit" className="ahr-save-btn" disabled={isDuplicate || scheduleInvalid}>
+                  <FiSave /> Save Record
                 </button>
               </div>
             </div>

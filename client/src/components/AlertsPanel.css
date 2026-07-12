@@ -1,0 +1,80 @@
+/* AlertsPanel.css — matches PoultryBriz gold/brown system. src/components/AlertsPanel.css */
+
+.alerts-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e4e0d8);
+  border-radius: 16px;
+  padding: 18px 20px;
+  font-family: var(--font-body, "Lato", sans-serif);
+}
+
+.alerts-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.alerts-header svg { color: var(--gold, #E4AF1F); font-size: 18px; }
+.alerts-header h3 {
+  margin: 0;
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #1e1c18);
+}
+.alerts-count {
+  margin-left: auto;
+  background: var(--gold, #E4AF1F);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+
+.alerts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 0;
+  color: var(--text-muted, #a39e94);
+}
+.alerts-empty svg { font-size: 26px; color: #2e9e6b; }
+.alerts-empty p { margin: 0; font-size: 13px; }
+
+.alerts-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.alert-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e4e0d8);
+  background: #fff;
+}
+.alert-icon {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 9px;
+  font-size: 16px;
+}
+.alert-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.alert-title {
+  font-family: var(--font-head, "Poppins", sans-serif);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-primary, #1e1c18);
+}
+.alert-message { font-size: 12.5px; color: var(--text-second, #6b6457); line-height: 1.4; }
+
+/* Severity colors */
+.alert-critical { border-left: 4px solid #d94f4f; }
+.alert-critical .alert-icon { background: #fdf0f0; color: #d94f4f; }
+
+.alert-warning { border-left: 4px solid #E4AF1F; }
+.alert-warning .alert-icon { background: var(--gold-light, #fdf3e3); color: #c8930c; }
+
+.alert-info { border-left: 4px solid #3a7bd5; }
+.alert-info .alert-icon { background: #eef3fc; color: #3a7bd5; }

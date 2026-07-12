@@ -56,6 +56,7 @@ export default function EditFeedConsumption() {
 
   // Batch IDs come from FlockProfile (only show once flocks exist)
   const [batches, setBatches] = useState([]);
+  const [saving, setSaving] = useState(false);
   const [flockList, setFlockList] = useState([]);
   const [autoMeta, setAutoMeta] = useState({});
 
@@ -126,13 +127,27 @@ export default function EditFeedConsumption() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const payload = { ...form, ...autoMeta };
     console.log("Feed consumption payload:", payload);
     // Backend: update the consumption record AND deduct payload.quantityConsumed
     // from Feed Inventory (Quantity Out) for the matching feedType.
     localStorage.removeItem("editFeedConsumption");
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`/api/feed-consumption/${form._id || form.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate("/inventory/feed-consumption");
   };
 
@@ -155,12 +170,6 @@ export default function EditFeedConsumption() {
         </div>
 
         {/* Header */}
-        <div className="edit-fc-header">
-          <div>
-            <h2>Edit Feed Consumption</h2>
-            <p>Update the details of this feed consumption record.</p>
-          </div>
-        </div>
 
         <form className="fc-form-card" onSubmit={handleSubmit}>
 
@@ -224,7 +233,7 @@ export default function EditFeedConsumption() {
             <button type="button" className="cancel-btn" onClick={() => navigate("/inventory/feed-consumption")}>
               Cancel
             </button>
-            <button type="submit" className="save-btn">
+            <button type="submit" disabled={saving} className="save-btn">
               <FiSave />
               Update Record
             </button>

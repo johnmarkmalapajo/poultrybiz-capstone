@@ -21,9 +21,25 @@ export default function AddWasteRecord() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`/api/waste-records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, recordType: "Waste" }),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate("/records/manure?tab=waste");
   };
 
@@ -46,12 +62,6 @@ export default function AddWasteRecord() {
         </div>
 
         {/* Header */}
-        <div className="awr-header">
-          <div>
-            <h2>Add Waste Record</h2>
-            <p>Log farm waste generated, including the type, quantity, and how it was disposed of.</p>
-          </div>
-        </div>
 
         <form className="awr-form-card" onSubmit={handleSubmit}>
 
@@ -138,7 +148,7 @@ export default function AddWasteRecord() {
               <button type="button" className="awr-cancel-btn" onClick={() => navigate("/records/manure?tab=waste")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="awr-save-btn">
+              <button type="submit" disabled={saving} className="awr-save-btn">
                 <FiSave /> Save Record
               </button>
             </div>

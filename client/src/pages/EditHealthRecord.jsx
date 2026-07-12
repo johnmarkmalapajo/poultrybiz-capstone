@@ -46,6 +46,7 @@ export default function EditHealthRecord() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const [isVax, setIsVax] = useState(params.get("type") === "vaccination");
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [diagnosisData, setDiagnosisData] = useState({
@@ -130,6 +131,7 @@ export default function EditHealthRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (isDuplicate) return setError("A record already exists for this Batch + Cage + Record Type + Date.");
     if (scheduleInvalid) return setError("Next Schedule cannot be earlier than the record Date.");
 
@@ -142,12 +144,14 @@ export default function EditHealthRecord() {
         };
     try {
       const token = localStorage.getItem("token");
+      setSaving(true);
       await fetch(`${API}/health-records/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint */
     }
     navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`);
@@ -231,12 +235,6 @@ export default function EditHealthRecord() {
         </div>
 
         {/* Header */}
-        <div className="ehr-header">
-          <div>
-            <h2>{isVax ? "Edit Medication/Vaccination Record" : "Edit Diagnosis Record"}</h2>
-            <p>{isVax ? "Update the details of this vaccination or medication record." : "Update the details of this health diagnosis record."}</p>
-          </div>
-        </div>
 
         {!isVax ? (
           /* ============ DIAGNOSIS FORM ============ */
@@ -341,7 +339,7 @@ export default function EditHealthRecord() {
                 <button type="button" className="ehr-cancel-btn" onClick={() => navigate(`/records/health?tab=diagnosis`)}>
                   <FiX /> Cancel
                 </button>
-                <button type="submit" className="ehr-save-btn" disabled={isDuplicate || scheduleInvalid}>
+                <button type="submit" className="ehr-save-btn" disabled={saving || isDuplicate || scheduleInvalid}>
                   <FiSave /> Update Record
                 </button>
               </div>
@@ -456,7 +454,7 @@ export default function EditHealthRecord() {
                 <button type="button" className="ehr-cancel-btn" onClick={() => navigate(`/records/health?tab=vaccination`)}>
                   <FiX /> Cancel
                 </button>
-                <button type="submit" className="ehr-save-btn" disabled={isDuplicate || scheduleInvalid}>
+                <button type="submit" className="ehr-save-btn" disabled={saving || isDuplicate || scheduleInvalid}>
                   <FiSave /> Update Record
                 </button>
               </div>

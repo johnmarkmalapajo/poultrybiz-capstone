@@ -57,11 +57,11 @@
 .vm-main .toolbar-btn-group { display: flex; gap: var(--space-sm); }
 .vm-main .toolbar-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px;
-  background: var(--gold); color: #fff; border: none; border-radius: 10px;
-  font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  background: var(--surface); color: var(--text-second); border: 1.5px solid var(--border); border-radius: 10px;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer;
+  white-space: nowrap; transition: border-color 0.2s, color 0.2s;
 }
-.vm-main .toolbar-btn:hover { background: var(--gold-dark); transform: translateY(-1px); }
+.vm-main .toolbar-btn:hover { border-color: var(--gold); color: var(--gold); }
 
 /* Table — scrolls both ways with a sticky header (like the ViewPersonnel tables) */
 .vm-table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -113,6 +113,13 @@
 
 /* Responsive */
 @media (max-width: 900px) { .vm-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* Tablet + mobile (portrait): table scrolls horizontally, whole page scrolls
+   vertically, so the "Showing entries" footer is never cut off */
+@media (max-width: 1024px) {
+  .vm-table-card { flex: none; display: block; }
+  .vm-table-wrapper { flex: none; overflow-x: auto; overflow-y: hidden; max-height: none; }
+}
 @media (max-width: 768px) {
   .vm-main { padding: 20px 16px; }
   .vm-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; }
@@ -121,3 +128,39 @@
   .vm-main .toolbar-btn { flex: 1; justify-content: center; }
   .qr-station-img { width: 200px; height: 200px; }
 }
+
+
+/* ===== Batch A: page-level vertical scroll; table scrolls HORIZONTALLY only (no independent vertical scroll) — matches User & Roles ===== */
+.vm-table-wrapper { flex: none !important; min-height: 0 !important; max-height: none !important; overflow-x: auto !important; overflow-y: hidden !important; }
+
+
+/* ===== Responsive Layout Improvements (stat cards / toolbar / breadcrumb) ===== */
+.vm-stats{display:flex !important;flex-wrap:wrap !important;gap:16px !important;width:100% !important;}
+.vm-stats>*{flex:1 1 170px !important;min-width:150px !important;max-width:none !important;width:auto !important;box-sizing:border-box;}
+@media (max-width:768px){.vm-stats{gap:10px !important;}.vm-stats>*{flex:1 1 42% !important;min-width:130px !important;}}
+@media (max-width:360px){.vm-stats>*{flex:1 1 100% !important;min-width:0 !important;}}
+@media (max-width:768px){
+  .vm-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
+  .vm-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
+  .search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
+  .toolbar-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
+  .toolbar-btn-group>*{width:100% !important;min-width:0 !important;}
+  .toolbar-btn-group button{width:100% !important;justify-content:center !important;box-sizing:border-box;}
+}
+.vm-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
+.vm-breadcrumb::-webkit-scrollbar{display:none;}
+.vm-breadcrumb>*{flex-shrink:0;}
+
+
+/* ===== Dialog standardization — matches Logout dialog design ===== */
+.qr-overlay{position:fixed !important;inset:0 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;z-index:1000 !important;padding:20px}
+.qr-modal{background:#FFFDF6 !important;border-radius:12px !important;box-shadow:0 8px 32px rgba(0,0,0,.18) !important;border:none !important}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.vm-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.vm-breadcrumb::-webkit-scrollbar{display:none}
+.vm-breadcrumb>*{flex-shrink:0}
+.vm-breadcrumb a,.vm-breadcrumb .breadcrumb-link,.vm-breadcrumb .crumb-link,.vm-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.vm-breadcrumb a:hover,.vm-breadcrumb .breadcrumb-link:hover,.vm-breadcrumb .crumb-link:hover,.vm-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.vm-breadcrumb .breadcrumb-current,.vm-breadcrumb .crumb-current,.vm-breadcrumb .active,.vm-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

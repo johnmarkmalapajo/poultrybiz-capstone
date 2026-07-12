@@ -1,5 +1,7 @@
 /* Records.css — PoultryBriz (#E4AF1F gold, clean white cards) */
 
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
+
 /* ── Page shell ── */
 .records-page {
   display: flex;
@@ -60,9 +62,10 @@
 .records-hamburger:hover { background: #c8930c; }
 
 .records-title {
+  font-family: "Poppins", sans-serif;
   font-size: 26px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   color: #1a1a1a;
   margin: 0;
 }
@@ -294,3 +297,16 @@
   .card-emoji { font-size: 26px; }
   .records-topbar { gap: 12px; }
 }
+
+
+/* ===== Overview page layout update (header + responsive cards only) ===== */
+/* Header: Poppins, responsive golden-ratio scale (22.65px → 28.81px) */
+.records-title{font-family:'Poppins',sans-serif !important;font-size:clamp(22.65px, 1.2vw + 18px, 28.81px) !important;font-weight:800;line-height:1.618;margin:0 !important}
+/* Overview pages: header + cards ONLY — no breadcrumb, no search bar */
+.records-search{display:none !important}
+.records-breadcrumb{display:none !important}
+/* Cards: auto-fit fills the row (no empty tracks), equal heights, balanced */
+.records-grid{display:grid !important;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)) !important;gap:24px !important;align-items:stretch !important}
+.record-card{height:100% !important;box-sizing:border-box}
+@media (max-width:1024px){.records-grid{grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) !important;gap:18px !important}}
+@media (max-width:640px){.records-grid{grid-template-columns:1fr !important;gap:14px !important}}

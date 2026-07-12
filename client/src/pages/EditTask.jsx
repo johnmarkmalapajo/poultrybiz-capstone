@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiMenu } from "react-icons/fi";
 import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./EditTask.css";
+import { updateAssignedTask } from "../todoStore";
 // ── Inline mock data (frontend fallback until the API is wired) ──
 const PERSONNEL = [
   {
@@ -126,6 +127,11 @@ export default function EditTask() {
     const payload = { ...formData, _id: taskId, personnelId: id, assignedTo: personName };
     console.log("Updated Task:", payload);
     // Backend: update this task
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    updateAssignedTask(id, taskId, payload);
+    window.__pbSaving = false;
+
     navigate(`/personnel-visitors/personnel/view/${id}`);
   };
 
@@ -159,12 +165,6 @@ export default function EditTask() {
         </div>
 
         {/* Header */}
-        <div className="edit-task-header">
-          <div>
-            <h2>Edit Task</h2>
-            <p>Update this task's details. Changes will reflect in the personnel's Tasks tab.</p>
-          </div>
-        </div>
 
         <form className="task-form-card" onSubmit={handleSubmit}>
 

@@ -1,109 +1,98 @@
-import React, { useState } from 'react';
+import { useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar"; 
-import SettingsProfile from "./SettingsProfile";
-import SettingsLogs from "./SettingsLogs";
-import SettingsArchive from "./SettingsArchive";
-// 1. I-IMPORT ANG BAGONG COMPONENT (Siguraduhing naka-create na itong file na ito sa directory mo)
-import SettingsUsersRoles from "./SettingsUsersRoles"; 
-import './Settings.css';   
+import "./Records.css";                 // reuse the EXACT Records styling
+import "./Settings.css";                // embedded sub-module responsive tweaks
+import Profile from "./Profile";         // role-based (Admin/Farmer)
+import UsersRoles from "./UsersRoles";
+import AuditLogs from "./AuditLogs";
+import Archive from "./Archive";
 
-const Settings = () => {
-  const [viewMode, setViewMode] = useState('menu'); 
-  const [searchQuery, setSearchQuery] = useState('');
+const cards = [
+  {
+    id: "profile",
+    label: "My Profile",
+    emoji: "👤",
+    description: "Update your name, contact, and profile photo",
+    color: "#e8a020",
+    bg: "#fff8ec",
+  },
+  {
+    id: "users-roles",
+    label: "Users & Roles",
+    emoji: "👥",
+    description: "Manage accounts, approvals, and access permissions",
+    color: "#a855f7",
+    bg: "#f3e8ff",
+  },
+  {
+    id: "audit-logs",
+    label: "Audit Logs",
+    emoji: "📋",
+    description: "Monitor activity history and system changes",
+    color: "#5aab6e",
+    bg: "#edf7f0",
+  },
+  {
+    id: "archive",
+    label: "Archive",
+    emoji: "🗂️",
+    description: "View and restore archived records",
+    color: "#4a90d9",
+    bg: "#eef4fc",
+  },
+];
 
-  // 2. PINALAWAK NA MODULES ARRAY KASAMA ANG USERS & ROLES CARD
-  const modules = [
-    { id: 'profile', emoji: '👤', label: 'My Profile', description: 'Track personal account parameters, data scopes and roles', color: '#e8a020', bg: '#fff8ec' },
-    { id: 'users-roles', emoji: '👥', label: 'Users & Roles', description: 'Manage employee system access levels, account provisioning and team permissions', color: '#a855f7', bg: '#f3e8ff' }, // Magandang Kulay: Purple Palette
-    { id: 'audit-logs', emoji: '📋', label: 'Audit Logs', description: 'Monitor transaction histories, user modifications, and operational logs', color: '#5aab6e', bg: '#edf7f0' },
-    { id: 'archive', emoji: '🗂️', label: 'Archive', description: 'View hidden structural parameters, records storage and recovery files', color: '#4a90d9', bg: '#eef4fc' }
-  ];
+export default function Settings() {
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const filteredModules = modules.filter(m => 
-    m.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // View is driven by the URL (?view=archive). Clicking "Settings" in the
+  // sidebar navigates to /settings (no query) → always back to the cards,
+  // no matter which sub-page you're on.
+  const VALID = ["profile", "users-roles", "audit-logs", "archive"];
+  const raw = searchParams.get("view");
+  const viewMode = VALID.includes(raw) ? raw : "menu";
 
-  // Helper function para sa Breadcrumbs Title allocation
-  const getBreadcrumbTitle = () => {
-    switch(viewMode) {
-      case 'profile': return 'MY PROFILE';
-      case 'users-roles': return 'USERS & ROLES';
-      case 'audit-logs': return 'AUDIT LOGS';
-      case 'archive': return 'ARCHIVE';
-      default: return 'SUB-MODULE';
-    }
-  };
+  const openCard = (id) => setSearchParams({ view: id });
+  const backToMenu = () => setSearchParams({});
+
 
   return (
-    <div className="inv-page">
+    <div className="records-page">
       <Sidebar />
-      
-      <div className="settings-main">
-        {/* ================= TOPBAR CONTROL ================= */}
-        {viewMode === 'menu' && (
-          <Topbar
-            searchValue={searchQuery}
-            onSearchChange={(e) => setSearchQuery(e.target.value)}
-            searchPlaceholder="Search..."
-          />
-        )}
+      <div className="records-main">
+        {viewMode === "menu" ? (
+          <>
+            <h2 className="records-title">SETTINGS</h2>
 
-        {/* ================= FIXED BREADCRUMBS BAR (Lalabas lang kapag pumasok sa sub-module) ================= */}
-        {viewMode !== 'menu' && (
-          <div className="settings-top-action-bar" style={{ marginTop: '24px' }}>
-            <div className="settings-breadcrumb-header">
-              <span className="breadcrumb-root">SYSTEM</span>
-              <span className="breadcrumb-arrow">❯</span>
-              <span className="breadcrumb-current">
-                {/* 3. GINAMITAN NATIN NG CLEANER LOGIC PARA SA MULTIPLE SUB-PAGES */}
-                {getBreadcrumbTitle()}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* ================= CONDITION 1: MENU CARD GRID (Default Settings Menu View) ================= */}
-        {viewMode === 'menu' && (
-          <div style={{ marginTop: '40px' }}> 
-            <h2 className="inv-title">SETTINGS</h2>
-            <div className="settings-grid">
-              {filteredModules.map((card, i) => (
+            <div className="records-grid">
+              {cards.map((card, i) => (
                 <button
                   key={card.id}
-                  className="settings-card-node"
+                  className="record-card"
                   style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
-                  onClick={() => setViewMode(card.id)}
+                  onClick={() => openCard(card.id)}
                 >
-                  <div className="settings-icon-wrap"><span className="settings-emoji">{card.emoji}</span></div>
-                  <div className="settings-body-wrap">
-                    <span className="settings-label-text">{card.label}</span>
-                    <span className="settings-desc-text">{card.description}</span>
+                  <div className="card-icon-wrap">
+                    <span className="card-emoji">{card.emoji}</span>
                   </div>
-                  <span className="settings-arrow-icon">›</span>
+                  <div className="card-body">
+                    <span className="card-label">{card.label}</span>
+                    <span className="card-desc">{card.description}</span>
+                  </div>
+                  <span className="card-arrow">›</span>
                 </button>
               ))}
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            {viewMode === "profile"     && <Profile    embedded onBack={backToMenu} />}
+            {viewMode === "users-roles" && <UsersRoles embedded onBack={backToMenu} />}
+            {viewMode === "audit-logs"  && <AuditLogs  embedded onBack={backToMenu} />}
+            {viewMode === "archive"     && <Archive    embedded onBack={backToMenu} />}
+          </>
         )}
-
-        {/* ================= CONDITION 2: SUB-MODULE LAYOUT CONTENT IF ACTIVE ================= */}
-        {viewMode !== 'menu' && (
-          <div className="settings-content-body-injector" style={{ marginTop: '24px' }}>
-            {viewMode === 'profile' && <SettingsProfile onBack={() => setViewMode('menu')} />}
-            
-            {/* 4. INJECT ANG BAGONG COMPONENT PARA SA USERS & ROLES MANIPULATION */}
-            {viewMode === 'users-roles' && <SettingsUsersRoles onBack={() => setViewMode('menu')} />}
-            
-            {viewMode === 'audit-logs' && <SettingsLogs onBack={() => setViewMode('menu')} />}
-            {viewMode === 'archive' && <SettingsArchive onBack={() => setViewMode('menu')} />}
-          </div>
-        )}
-
       </div>
     </div>
   );
-};
-
-export default Settings;
+}

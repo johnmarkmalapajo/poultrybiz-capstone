@@ -27,7 +27,7 @@
 
 .esr-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f4f2;
   font-family: var(--font-body);
   overflow-x: hidden;
@@ -594,3 +594,12 @@
     padding: 16px 12px;
   }
 }
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.esr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.esr-breadcrumb::-webkit-scrollbar{display:none}
+.esr-breadcrumb>*{flex-shrink:0}
+.esr-breadcrumb a,.esr-breadcrumb .breadcrumb-link,.esr-breadcrumb .crumb-link,.esr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.esr-breadcrumb a:hover,.esr-breadcrumb .breadcrumb-link:hover,.esr-breadcrumb .crumb-link:hover,.esr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.esr-breadcrumb .breadcrumb-current,.esr-breadcrumb .crumb-current,.esr-breadcrumb .active,.esr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

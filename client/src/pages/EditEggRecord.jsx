@@ -188,12 +188,6 @@ export default function EditEggRecord() {
         </div>
 
         {/* Header */}
-        <div className="eer-header">
-          <div>
-            <h2>Edit Egg Record</h2>
-            <p>Update this egg collection. Good Eggs, Total Eggs, Hen-Day %, and Production Status are computed automatically.</p>
-          </div>
-        </div>
 
         {/* Banners */}
         {success && <div className="eer-success-banner">{success}</div>}

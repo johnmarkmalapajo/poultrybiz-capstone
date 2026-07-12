@@ -10,6 +10,7 @@ export default function EditWasteRecord() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     date: "",
@@ -52,8 +53,10 @@ export default function EditWasteRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     try {
       const token = localStorage.getItem("token");
+      setSaving(true);
       await fetch(`${API}/waste-records/${id}`, {
         method: "PUT",
         headers: {
@@ -63,6 +66,7 @@ export default function EditWasteRecord() {
         body: JSON.stringify(formData),
       });
     } catch {
+      setSaving(false);
       /* silent — adjust endpoint to your backend */
     }
     navigate("/records/manure?tab=waste");
@@ -98,12 +102,6 @@ export default function EditWasteRecord() {
         </div>
 
         {/* Header */}
-        <div className="ewr-header">
-          <div>
-            <h2>Edit Waste Record</h2>
-            <p>Update the details of this farm waste record.</p>
-          </div>
-        </div>
 
         <form className="ewr-form-card" onSubmit={handleSubmit}>
 
@@ -195,7 +193,7 @@ export default function EditWasteRecord() {
               <button type="button" className="ewr-cancel-btn" onClick={() => navigate("/records/manure?tab=waste")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="ewr-save-btn">
+              <button type="submit" disabled={saving} className="ewr-save-btn">
                 <FiSave /> Update Record
               </button>
             </div>

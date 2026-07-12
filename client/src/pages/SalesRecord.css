@@ -882,3 +882,36 @@
   .sr-btn-group .sr-filter-wrap > .sr-toolbar-btn { width: 100%; justify-content: center; }
   .sr-filter-dropdown { left: 0; right: auto; min-width: 0; width: calc(100vw - 32px); max-width: 360px; }
 }
+
+
+/* ===== Batch A: page-level vertical scroll; table scrolls HORIZONTALLY only (no independent vertical scroll) — matches User & Roles ===== */
+.sr-table-wrapper { flex: none !important; min-height: 0 !important; max-height: none !important; overflow-x: auto !important; overflow-y: hidden !important; }
+
+
+/* ===== Responsive Layout Improvements (stat cards / toolbar / breadcrumb) ===== */
+.sr-stats-grid{display:flex !important;flex-wrap:wrap !important;gap:16px !important;width:100% !important;}
+.sr-stats-grid>*{flex:1 1 170px !important;min-width:150px !important;max-width:none !important;width:auto !important;box-sizing:border-box;}
+@media (max-width:768px){.sr-stats-grid{gap:10px !important;}.sr-stats-grid>*{flex:1 1 42% !important;min-width:130px !important;}}
+@media (max-width:360px){.sr-stats-grid>*{flex:1 1 100% !important;min-width:0 !important;}}
+@media (max-width:768px){
+  .sr-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
+  .sr-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
+  .sr-search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
+  .sr-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
+  .sr-btn-group>*{width:100% !important;min-width:0 !important;}
+  .sr-btn-group button{width:100% !important;justify-content:center !important;box-sizing:border-box;}
+  .sr-filter-wrap{width:100% !important;}
+  .sr-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
+}
+.sr-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
+.sr-breadcrumb::-webkit-scrollbar{display:none;}
+.sr-breadcrumb>*{flex-shrink:0;}
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.sr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.sr-breadcrumb::-webkit-scrollbar{display:none}
+.sr-breadcrumb>*{flex-shrink:0}
+.sr-breadcrumb a,.sr-breadcrumb .breadcrumb-link,.sr-breadcrumb .crumb-link,.sr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.sr-breadcrumb a:hover,.sr-breadcrumb .breadcrumb-link:hover,.sr-breadcrumb .crumb-link:hover,.sr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.sr-breadcrumb .breadcrumb-current,.sr-breadcrumb .crumb-current,.sr-breadcrumb .active,.sr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

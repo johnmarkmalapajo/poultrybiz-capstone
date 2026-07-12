@@ -53,13 +53,29 @@ export default function AddFeedInventory() {
   };
 
   const balance = (parseFloat(form.quantityIn) || 0) - (parseFloat(form.quantityOut) || 0);
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const payload = { ...form, balance };
     console.log("Feed inventory payload:", payload);
     // Backend: persist the stock record. Quantity Out stays in sync with
     // Feed Consumption, and Balance = Quantity In − Quantity Out.
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    try {
+      setSaving(true);
+      await fetch(`/api/feed-inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
+    finally { window.__pbSaving = false; }
+
     navigate("/inventory/feed-inventory");
   };
 
@@ -82,12 +98,6 @@ export default function AddFeedInventory() {
         </div>
 
         {/* Header */}
-        <div className="add-feed-header">
-          <div>
-            <h2>Add Feed Stock</h2>
-            <p>Record incoming and outgoing feed stock. The balance is computed automatically from Quantity In and Quantity Out.</p>
-          </div>
-        </div>
 
         <form className="feed-form-card" onSubmit={handleSubmit}>
 
@@ -168,7 +178,7 @@ export default function AddFeedInventory() {
             <button type="button" className="cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
               Cancel
             </button>
-            <button type="submit" className="save-btn">
+            <button type="submit" disabled={saving} className="save-btn">
               <FiSave />
               Save Feed Record
             </button>

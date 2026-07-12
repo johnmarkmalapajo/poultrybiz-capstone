@@ -550,3 +550,12 @@
   }
 
 }
+
+
+/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
+.aer-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.aer-breadcrumb::-webkit-scrollbar{display:none}
+.aer-breadcrumb>*{flex-shrink:0}
+.aer-breadcrumb a,.aer-breadcrumb .breadcrumb-link,.aer-breadcrumb .crumb-link,.aer-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
+.aer-breadcrumb a:hover,.aer-breadcrumb .breadcrumb-link:hover,.aer-breadcrumb .crumb-link:hover,.aer-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
+.aer-breadcrumb .breadcrumb-current,.aer-breadcrumb .crumb-current,.aer-breadcrumb .active,.aer-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

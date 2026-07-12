@@ -1,4 +1,5 @@
 import "./index.css"
+import "./mockApi"          // frontend mock backend — makes Add/Edit persist (no live backend needed)
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -58,6 +59,12 @@ import FarmerTodo from "./pages/FarmerTodo";
 import AdminTodo from "./pages/AdminTodo";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
+import BatchSummary from "./pages/BatchSummary";
+import Archive from "./pages/Archive";
+import AuditLogs from "./pages/AuditLogs";
+import UsersRoles from "./pages/UsersRoles";
+import QRCheckIn from "./pages/QRCheckIn";
+import Profile from "./pages/Profile";
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
@@ -122,6 +129,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/admin/todo" element={<AdminTodo />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/batch-summary/:batchId" element={<BatchSummary />} />
+
+        {/* Newly added routes (standalone pages -- one sidebar each) */}
+        <Route path="/settings/archive" element={<Archive />} />
+        <Route path="/audit-logs" element={<AuditLogs />} />
+        <Route path="/users-roles" element={<UsersRoles />} />
+        <Route path="/attendance/check-in" element={<QRCheckIn />} />
+        <Route path="/profile" element={<Profile />} />
+
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
