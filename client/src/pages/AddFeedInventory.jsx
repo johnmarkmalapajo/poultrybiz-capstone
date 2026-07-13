@@ -60,7 +60,6 @@ export default function AddFeedInventory() {
     e.preventDefault();
     if (saving) return;
     const payload = { ...form, balance };
-    console.log("Feed inventory payload:", payload);
     // Backend: persist the stock record. Quantity Out stays in sync with
     // Feed Consumption, and Balance = Quantity In − Quantity Out.
     if (window.__pbSaving) return;  // prevent duplicate submissions

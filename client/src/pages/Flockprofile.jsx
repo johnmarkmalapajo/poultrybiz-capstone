@@ -10,7 +10,7 @@ import Sidebar, { openSidebar } from "../components/Sidebar";
 import ExportMenu from "../components/ExportMenu";
 import batchStore from "../batchStore";
 import { activity } from "../activity";
-import "./Flockprofile.css";
+import "./FlockProfile.css";
 
 // Chickens arrive at 16 weeks; current age = 16 + weeks since arrival
 function computeAgeWeeks(dateStr) {
@@ -73,7 +73,7 @@ export default function FlockProfile() {
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({
-    breed: "All", status: "All", dateAcquired: "All", ageRange: "All",
+    breed: "All", status: "All", dateFrom: "", dateTo: "", ageRange: "All",
   });
   const filterRef = useRef(null);
   const [qrFlock, setQrFlock] = useState(null); // QR Summary modal target
@@ -90,8 +90,8 @@ export default function FlockProfile() {
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   const clearFilters = () =>
-    setFilters({ breed: "All", status: "All", dateAcquired: "All", ageRange: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+    setFilters({ breed: "All", status: "All", dateFrom: "", dateTo: "", ageRange: "All" });
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => v && v !== "All").length;
 
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
 
@@ -108,6 +108,8 @@ export default function FlockProfile() {
         r.breed?.toLowerCase().includes(search.toLowerCase())) &&
       (filters.breed === "All" || r.breed === filters.breed) &&
       (filters.status === "All" || r.status === filters.status) &&
+      (!filters.dateFrom || r.dateAcquired >= filters.dateFrom) &&
+      (!filters.dateTo || r.dateAcquired <= filters.dateTo) &&
       (filters.ageRange === "All" || inAgeRange(ageW, filters.ageRange))
     );
   });
@@ -170,7 +172,7 @@ export default function FlockProfile() {
       await new Promise((ok, err) => { img.onload = ok; img.onerror = err; img.src = objUrl; });
 
       // ── Layout (golden-ratio-inspired spacing, PoultryBiz identity) ──
-      const W = 720, QR = 520;
+      const W = 620, QR = 520;
       const TOP_BAR = 10;      // gold accent bar
       const HEAD_H = 150;      // Batch ID area
       const GAP_BOTTOM = 42;   // space below QR
@@ -237,7 +239,7 @@ export default function FlockProfile() {
           </button>
 
           <div className="toolbar-actions">
-            <div className="search-box">
+            <div className="flock-search-box">
               <FiSearch />
               <input
                 type="text"
@@ -280,6 +282,17 @@ export default function FlockProfile() {
                     </div>
 
                     <div className="flock-filter-group">
+                      <label className="flock-filter-label">Date Acquired Range</label>
+                      <div className="flock-filter-date-range">
+                        <input type="date" className="flock-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="flock-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                      </div>
+                    </div>
+
+                    <div className="flock-filter-group">
                       <label className="flock-filter-label">Age Range</label>
                       <select className="flock-filter-select" value={filters.ageRange}
                         onChange={(e) => handleFilterChange("ageRange", e.target.value)}>
@@ -298,10 +311,10 @@ export default function FlockProfile() {
         {activeFilterCount > 0 && (
           <div className="flock-active-filters">
             {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
+              value && value !== "All" ? (
                 <span key={key} className="flock-active-filter-tag">
-                  {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {key === "dateFrom" ? "From" : key === "dateTo" ? "To" : key.charAt(0).toUpperCase() + key.slice(1)}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
               ) : null
             )}
@@ -413,7 +426,7 @@ export default function FlockProfile() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: "14px", width: "min(760px, 100%)",
+              background: "#fff", borderRadius: "14px", width: "min(360px, 92vw)",
               maxHeight: "88vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
             }}
           >
@@ -435,18 +448,22 @@ export default function FlockProfile() {
               </button>
             </div>
 
-            <div style={{ padding: "30px 22px", textAlign: "center" }}>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(`${window.location.origin}/batch-summary/${qrFlock.batchId}`)}`}
-                alt={`QR code for ${qrFlock.batchId}`}
-                style={{ width: "220px", height: "220px", borderRadius: "14px", border: "1px solid #e4e0d8", padding: "12px", background: "#fff" }}
-              />
+            <div style={{ padding: "26px 22px", textAlign: "center" }}>
+              <div>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`${window.location.origin}/batch-summary/${qrFlock.batchId}`)}`}
+                  alt={`QR code for ${qrFlock.batchId}`}
+                  style={{ width: "220px", height: "220px", borderRadius: "12px", border: "1px solid #e4e0d8", padding: "10px", background: "#fff" }}
+                />
+              </div>
+
               <div style={{ marginTop: "14px", fontFamily: "Poppins, sans-serif", fontWeight: 700, color: "#47321C", fontSize: "16px" }}>
                 {qrFlock.batchId}
               </div>
-              <p style={{ margin: "6px 0 22px", fontSize: "12px", color: "#a39e94" }}>
+              <p style={{ margin: "6px 0 20px", fontSize: "12px", color: "#a39e94" }}>
                 Scan this QR code with a mobile device to open this batch's summary.
               </p>
+
               <button
                 onClick={() => downloadQR(qrFlock.batchId)}
                 style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#E4AF1F", color: "#fff", border: "none", borderRadius: "10px", padding: "11px 26px", fontFamily: "Poppins, sans-serif", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}

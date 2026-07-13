@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Lato:wght@400;700&display=swap");
 .pf-page{--font-display:"Poppins",sans-serif;--font-body:"Lato",sans-serif;--gold:#E4AF1F;--gold-dark:#c8930c;--gold-light:#fdf3e3;--brown:#47321C;--green:#2e9e6b;--red:#d94f4f;--red-bg:#fdf0f0;--bg:#f7f6f3;--surface:#fff;--muted-bg:#f5f4f2;--border:#e4e0d8;--text-primary:#1e1c18;--text-second:#6b6457;--text-muted:#a39e94;display:flex;height:100vh;overflow:hidden;background:var(--bg);font-family:var(--font-body);color:var(--text-primary)}
-.pf-page *{box-sizing:border-box}
+.pf-page *, .pf-embedded *{box-sizing:border-box}
+.pf-page .sidebar, .pf-page .sidebar *{box-sizing:content-box}
 .pf-page .sidebar{flex-shrink:0}
 .pf-main{flex:1;min-width:0;padding:30px 40px 40px;overflow-y:auto}
 .pf-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
@@ -112,3 +113,14 @@
 .pf-crumb a,.pf-crumb .breadcrumb-link,.pf-crumb .crumb-link,.pf-crumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
 .pf-crumb a:hover,.pf-crumb .breadcrumb-link:hover,.pf-crumb .crumb-link:hover,.pf-crumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
 .pf-crumb .breadcrumb-current,.pf-crumb .crumb-current,.pf-crumb .active,.pf-crumb>span:last-child{color:#c8930c !important;font-weight:800 !important}
+
+/* ===== Embedded mode (inside Settings) — avoid double-padding =====
+   Settings.jsx's own .records-main wrapper already supplies the standard
+   16px/12px padding; when Profile is embedded there, zero out pf-main's
+   own padding so it doesn't stack on top (matches how Archive/AuditLogs/
+   UsersRoles already behave via .flock-embedded .flock-main{padding:0}). */
+.pf-embedded .pf-main{padding:0;height:auto;overflow:visible}
+
+/* ===== App-wide main padding standard (top:16px, left/right:12px) =====
+   Standalone /profile route only — embedded mode above is zeroed instead. */
+.pf-page .pf-main{padding-top:16px !important;padding-left:12px !important;padding-right:12px !important}

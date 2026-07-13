@@ -72,3 +72,10 @@
 .settings-back{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1.5px solid var(--border,#e4e0d8);color:var(--brown,#47321C);font-family:'Poppins',sans-serif;font-weight:600;font-size:13px;padding:8px 16px;border-radius:30px;cursor:pointer;margin-bottom:18px;transition:.18s}
 .settings-back svg{font-size:15px}
 .settings-back:hover{border-color:var(--gold,#E4AF1F);color:var(--gold-dark,#c8930c);background:var(--gold-light,#fdf3e3)}
+
+/* Persistent mobile hamburger row for the whole Settings flow (menu +
+   embedded sub-pages: Profile, Users & Roles, Audit Logs, Archive) */
+.settings-mobile-bar{display:none}
+@media (max-width:768px){
+  .settings-mobile-bar{display:block;margin-bottom:12px}
+}

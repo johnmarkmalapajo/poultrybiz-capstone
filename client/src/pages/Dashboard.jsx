@@ -5,7 +5,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from "recharts";
 import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
 import Card, { Icons } from "../components/Card";
 import { useUser } from "../hooks/useUser";
 import "./Dashboard.css";
@@ -42,7 +41,6 @@ function shapeData(d) {
 
 function Dashboard() {
   const [data, setData]       = useState(EMPTY);
-  const [search, setSearch]   = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [tasks, setTasks]     = useState([]);
@@ -180,25 +178,44 @@ function Dashboard() {
     } catch { /* silent */ }
   };
 
+  // ── Chart range filters: Today / This Week / This Month ──
+  const [pieRange, setPieRange] = useState("month");
+  const [trendRange, setTrendRange] = useState("week");
+
+  const filterByRange = (trend, range) => {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    if (range === "today") return trend.filter((t) => t.date === todayISO);
+    if (range === "week") {
+      const floor = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+      return trend.filter((t) => t.date >= floor);
+    }
+    return trend.filter((t) => t.date.startsWith(todayISO.slice(0, 7))); // this calendar month
+  };
+
+  const allTrend = data.eggs?.dailyTrend ?? [];
+  const dailyTrend = filterByRange(allTrend, trendRange);
+
+  // Pie: size distribution computed for the selected range (falls back to the
+  // endpoint's month distribution when per-day sizes aren't available)
+  const pieSlice = filterByRange(allTrend, pieRange);
+  const rangeSizes = {}; let rangeTotal = 0;
+  pieSlice.forEach((t) => {
+    for (const [k, v] of Object.entries(t.sizes || {})) { rangeSizes[k] = (rangeSizes[k] || 0) + v; rangeTotal += v; }
+  });
   const pieData = EGG_LABELS.map((name, i) => ({
     name,
-    value: parseFloat(data.eggs?.sizeDistribution?.[EGG_KEYS[i]] || 0),
+    value: rangeTotal > 0
+      ? +(((rangeSizes[EGG_KEYS[i]] || 0) / rangeTotal) * 100).toFixed(1)
+      : parseFloat(data.eggs?.sizeDistribution?.[EGG_KEYS[i]] || 0),
   }));
 
   const hasPieData = pieData.some((d) => d.value > 0);
-  const dailyTrend = data.eggs?.dailyTrend ?? [];
   const alerts     = data.alerts ?? [];
 
   return (
     <div className="dashboard">
       <Sidebar />
       <div className="main">
-        <Topbar
-          searchValue={search}
-          onSearchChange={(e) => setSearch(e.target.value)}
-          searchPlaceholder="Search..."
-        />
-
         <div className="dash-header">
           <div>
             <h2 className="title">
@@ -267,11 +284,15 @@ function Dashboard() {
             <div className="chart-card">
               <div className="chart-header">
                 <span className="chart-title">Latest Egg Size Distribution</span>
-                <select className="chart-filter"><option>This month</option></select>
+                <select className="chart-filter" value={pieRange} onChange={(e) => setPieRange(e.target.value)}>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
               </div>
               {!hasPieData ? (
                 <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
-                  No egg data this month yet.
+                  No egg data for this period yet.
                 </p>
               ) : (
                 <div className="pie-wrap">
@@ -300,11 +321,15 @@ function Dashboard() {
             <div className="chart-card">
               <div className="chart-header">
                 <span className="chart-title">Daily Egg Harvest Trend</span>
-                <select className="chart-filter"><option>Last 7 days</option></select>
+                <select className="chart-filter" value={trendRange} onChange={(e) => setTrendRange(e.target.value)}>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
               </div>
               {dailyTrend.length === 0 ? (
                 <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
-                  No egg harvest data yet.
+                  No egg harvest data for this period yet.
                 </p>
               ) : (
                 <div className="line-wrap">

@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
+import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./Records.css";                 // reuse the EXACT Records styling
 import "./Settings.css";                // embedded sub-module responsive tweaks
 import Profile from "./Profile";         // role-based (Admin/Farmer)
@@ -60,6 +60,14 @@ export default function Settings() {
     <div className="records-page">
       <Sidebar />
       <div className="records-main">
+        {/* Persistent mobile hamburger — visible whether on the Settings
+            cards or inside an embedded sub-page (Archive/AuditLogs/etc.
+            render without their own Sidebar when embedded, so this is the
+            only way to open the sidebar on mobile throughout Settings). */}
+        <div className="settings-mobile-bar">
+          <button className="records-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
+        </div>
+
         {viewMode === "menu" ? (
           <>
             <h2 className="records-title">SETTINGS</h2>

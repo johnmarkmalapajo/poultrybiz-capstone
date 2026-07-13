@@ -118,7 +118,6 @@ export default function AddFeedConsumption() {
     e.preventDefault();
     if (saving) return;
     const payload = { ...form, ...autoMeta };
-    console.log("Feed consumption payload:", payload);
     // Backend: create the consumption record AND deduct payload.quantityConsumed
     // from Feed Inventory (Quantity Out) for the matching feedType.
     if (window.__pbSaving) return;  // prevent duplicate submissions

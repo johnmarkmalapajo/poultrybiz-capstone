@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import Sidebar, { openSidebar } from "../components/Sidebar";
 import "./PersonnelVisitors.css";
 
 const cards = [
@@ -27,27 +25,20 @@ const cards = [
 
 export default function PersonnelVisitors() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
 
-  const filtered = cards.filter((c) =>
-    c.label.toLowerCase().includes(search.toLowerCase()) ||
-    c.description.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="pv-page">
       <Sidebar />
       <div className="pv-main">
-        <Topbar
-          searchValue={search}
-          onSearchChange={(e) => setSearch(e.target.value)}
-          searchPlaceholder="Search..."
-        />
-
-        <h2 className="pv-title">PERSONNEL AND VISITORS</h2>
+        {/* Page header only — no breadcrumb, no search */}
+        <div className="pv-topbar">
+          <button className="pv-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
+          <h2 className="pv-title">PERSONNEL AND VISITORS</h2>
+        </div>
 
         <div className="pv-grid">
-          {filtered.map((card, i) => (
+          {cards.map((card, i) => (
             <button
               key={card.id}
               className="pv-card"

@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
 .ur-page,.ur-embedded{--purple:#8257c4;--purple-bg:#f1ebfb;--font-display:"Poppins",sans-serif;--font-body:"Lato",sans-serif;--gold:#E4AF1F;--gold-dark:#c8930c;--gold-light:#fdf3e3;--brown:#47321C;--green:#2e9e6b;--green-bg:#eaf7f1;--red:#d94f4f;--red-bg:#fdf0f0;--blue:#3a7bd5;--blue-bg:#eef3fc;--orange:#e0892f;--orange-bg:#fdf2e6;--bg:#f7f6f3;--surface:#fff;--border:#e4e0d8;--text-primary:#1e1c18;--text-second:#6b6457;--text-muted:#a39e94;display:flex;height:100vh;overflow:hidden;background:var(--bg);font-family:var(--font-body);color:var(--text-primary)}
-.ur-page *{box-sizing:border-box}
+.flock-page *, .flock-embedded *{box-sizing:border-box}
+.flock-page .sidebar, .flock-page .sidebar *{box-sizing:content-box}
 .ur-page .sidebar{flex-shrink:0}
 .ur-main{flex:1;min-width:0;padding:34px 40px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
 .ur-head{display:flex;align-items:flex-start;gap:14px}
@@ -109,3 +110,13 @@
 .ur-mb-cancel:hover{border-color:#47321C !important}
 .ur-mb-confirm{flex:1 !important;padding:10px 20px !important;border:2px solid #E4AF1F !important;border-radius:30px !important;background:#E4AF1F !important;color:#47321C !important;font-size:13px !important;font-weight:700 !important;font-family:'Poppins',sans-serif !important;cursor:pointer;transition:.3s}
 .ur-mb-confirm:hover{background:#c8930c !important;border-color:#c8930c !important;color:#fff !important}
+
+/* ur-search-box — self-contained (Archive/AuditLogs/UsersRoles reuse FlockProfile.css
+   for shared vars/layout but need their OWN scoped search-box rule so it
+   never collides with any other page's search box). */
+.ur-search-box{display:flex;align-items:center;gap:var(--space-xs);background:var(--surface);border:1.5px solid var(--border);border-radius:10px;height:42px;padding:0 var(--space-md);min-width:0;box-sizing:border-box;transition:border-color .2s, box-shadow .2s}
+.ur-search-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-glow)}
+.ur-search-box svg{color:var(--text-muted);font-size:var(--text-md);flex-shrink:0}
+.ur-search-box input{border:none;outline:none;background:transparent;font-family:var(--font-body);font-size:var(--text-base);color:var(--text-primary);min-width:0;width:100%}
+.ur-search-box input::placeholder{color:var(--text-muted)}
+@media (max-width:768px){.ur-search-box{width:100%}}

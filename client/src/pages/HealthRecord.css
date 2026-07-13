@@ -611,3 +611,18 @@
 .hr-breadcrumb a,.hr-breadcrumb .breadcrumb-link,.hr-breadcrumb .crumb-link,.hr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
 .hr-breadcrumb a:hover,.hr-breadcrumb .breadcrumb-link:hover,.hr-breadcrumb .crumb-link:hover,.hr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
 .hr-breadcrumb .breadcrumb-current,.hr-breadcrumb .crumb-current,.hr-breadcrumb .active,.hr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}
+
+
+/* ===== Search box exact match to Flock Profile reference ===== */
+.hr-search-box{height:42px !important;padding:0 var(--space-md) !important;gap:var(--space-xs) !important;min-width:0 !important;box-sizing:border-box}
+@media (max-width:768px){.hr-search-box{width:100% !important}}
+
+
+/* ===== Top padding alignment fix (match List/View top padding to Add/Edit's 16px) ===== */
+.hr-main{padding-top:16px !important}
+
+/* ===== Date range filter (From – To) inside the Filter dropdown ===== */
+.hr-filter-date-range{display:flex;align-items:center;gap:8px}
+.hr-filter-date-range input[type="date"]{flex:1;min-width:0;cursor:pointer}
+.hr-filter-date-range span{font-size:11.5px;color:var(--text-muted,#a39e94);flex-shrink:0}
+@media (max-width:480px){.hr-filter-date-range{flex-direction:column;align-items:stretch;gap:6px}.hr-filter-date-range span{text-align:center}}
