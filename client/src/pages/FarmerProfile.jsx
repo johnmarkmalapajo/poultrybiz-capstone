@@ -19,7 +19,6 @@ const DEFAULT_PROFILE = {
   phone: "0912 345 6789",
   avatar: "", // base64 data URL; empty → placeholder
   // read-only (managed by Owner/Admin in Personnel module):
-  username: "juandelacruz",
   position: "Farmer",
   status: "Active", // Active | Inactive | On Leave
   dateJoined: "January 10, 2024",
@@ -38,9 +37,9 @@ function writeProfile(p) {
 export function getFarmerProfile() { return readProfile(); }
 
 const STATUS_STYLE = {
-  "Active":   { bg: "#eaf7f1", color: "#2e9e6b", dot: "🟢" },
-  "Inactive": { bg: "#f0efec", color: "#7a7469", dot: "⚪" },
-  "On Leave": { bg: "#fdf2e6", color: "#e0892f", dot: "🟠" },
+  "Active":   { bg: "#eaf7f1", color: "#2e9e6b"},
+  "Inactive": { bg: "#f0efec", color: "#7a7469" },
+  "On Leave": { bg: "#fdf2e6", color: "#e0892f"},
 };
 
 /* ─────────────────────────────────────────────────────────────
@@ -164,23 +163,16 @@ export default function FarmerProfile({ embedded = false, onBack }) {
                 <label className="pf-label">Contact Number</label>
                 <input className="pf-input" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0912 345 6789" />
               </div>
-              <div className="pf-field">
-                <label className="pf-label">Username</label>
-                <input className="pf-input readonly" value={saved.username} readOnly tabIndex={-1} />
-                <span className="pf-readonly-note">Read-only</span>
-              </div>
 
               <div className="pf-field">
                 <label className="pf-label">Position</label>
                 <input className="pf-input readonly" value={saved.position} readOnly tabIndex={-1} />
-                <span className="pf-readonly-note">Managed by Admin</span>
               </div>
               <div className="pf-field">
                 <label className="pf-label">Account Status</label>
                 <span className="pf-status-pill" style={{ background: st.bg, color: st.color }}>
                   {st.dot} {saved.status}
                 </span>
-                <span className="pf-readonly-note">Only Owner/Admin can change this</span>
               </div>
 
               <div className="pf-field">

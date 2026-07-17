@@ -105,7 +105,7 @@ export default function Visitors() {
           <button className="vm-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>
           <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
           <span>›</span>
-          <span className="breadcrumb-current">VISITORS</span>
+          <span className="breadcrumb-current">VISITOR'S LOG</span>
         </div>
 
         {/* Toolbar (before stats — like Personnel) */}

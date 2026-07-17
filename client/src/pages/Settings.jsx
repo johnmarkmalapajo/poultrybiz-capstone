@@ -1,13 +1,14 @@
 import { useSearchParams } from "react-router-dom";
 import Sidebar, { openSidebar } from "../components/Sidebar";
-import "./Records.css";                 // reuse the EXACT Records styling
-import "./Settings.css";                // embedded sub-module responsive tweaks
-import Profile from "./Profile";         // role-based (Admin/Farmer)
+import "./Records.css";
+import "./Settings.css";
+import Profile from "./Profile";
 import UsersRoles from "./UsersRoles";
 import AuditLogs from "./AuditLogs";
 import Archive from "./Archive";
+import { useUser } from "../hooks/useUser";
 
-const cards = [
+const ALL_CARDS = [
   {
     id: "profile",
     label: "My Profile",
@@ -15,6 +16,7 @@ const cards = [
     description: "Update your name, contact, and profile photo",
     color: "#e8a020",
     bg: "#fff8ec",
+    adminOnly: false,
   },
   {
     id: "users-roles",
@@ -23,6 +25,7 @@ const cards = [
     description: "Manage accounts, approvals, and access permissions",
     color: "#a855f7",
     bg: "#f3e8ff",
+    adminOnly: true,
   },
   {
     id: "audit-logs",
@@ -31,6 +34,7 @@ const cards = [
     description: "Monitor activity history and system changes",
     color: "#5aab6e",
     bg: "#edf7f0",
+    adminOnly: true,
   },
   {
     id: "archive",
@@ -39,31 +43,28 @@ const cards = [
     description: "View and restore archived records",
     color: "#4a90d9",
     bg: "#eef4fc",
+    adminOnly: true,
   },
 ];
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { role } = useUser();
+  const isAdmin = role === "Admin";
 
-  // View is driven by the URL (?view=archive). Clicking "Settings" in the
-  // sidebar navigates to /settings (no query) → always back to the cards,
-  // no matter which sub-page you're on.
-  const VALID = ["profile", "users-roles", "audit-logs", "archive"];
+  const cards = ALL_CARDS.filter((card) => !card.adminOnly || isAdmin);
+  const VALID = cards.map((c) => c.id); // farmer's valid set excludes admin-only views
+
   const raw = searchParams.get("view");
   const viewMode = VALID.includes(raw) ? raw : "menu";
 
   const openCard = (id) => setSearchParams({ view: id });
   const backToMenu = () => setSearchParams({});
 
-
   return (
     <div className="records-page">
       <Sidebar />
       <div className="records-main">
-        {/* Persistent mobile hamburger — visible whether on the Settings
-            cards or inside an embedded sub-page (Archive/AuditLogs/etc.
-            render without their own Sidebar when embedded, so this is the
-            only way to open the sidebar on mobile throughout Settings). */}
         <div className="settings-mobile-bar">
           <button className="records-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
         </div>
@@ -95,9 +96,9 @@ export default function Settings() {
         ) : (
           <>
             {viewMode === "profile"     && <Profile    embedded onBack={backToMenu} />}
-            {viewMode === "users-roles" && <UsersRoles embedded onBack={backToMenu} />}
-            {viewMode === "audit-logs"  && <AuditLogs  embedded onBack={backToMenu} />}
-            {viewMode === "archive"     && <Archive    embedded onBack={backToMenu} />}
+            {viewMode === "users-roles" && isAdmin && <UsersRoles embedded onBack={backToMenu} />}
+            {viewMode === "audit-logs"  && isAdmin && <AuditLogs  embedded onBack={backToMenu} />}
+            {viewMode === "archive"     && isAdmin && <Archive    embedded onBack={backToMenu} />}
           </>
         )}
       </div>

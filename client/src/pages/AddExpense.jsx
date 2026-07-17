@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiFileText, FiUpload, FiInfo } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiFileText, FiUpload, FiInfo } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddExpense.css";
+
+// mockApi.js intercepts any fetch to "/api/..." — the URL below matches its
+// resource-detection regex (/api/(v#/)?RESOURCE) so it gets routed to the
+// "expenses" bucket in localStorage (see RESOURCE_KEYS -> "pb_expenses").
+const API_BASE = "/api/v1/expenses";
 
 const CATEGORIES = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -35,51 +40,70 @@ export default function AddExpense() {
     setPreview("");
   };
   const [saving, setSaving] = useState(false);
-
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    // API integration here later (use FormData to send the receipt file)
+    setError("");
+    setSuccess("");
     if (window.__pbSaving) return;  // prevent duplicate submissions
     window.__pbSaving = true;
     try {
       setSaving(true);
-      await fetch(`/api/expenses`, {
+
+      // mockApi.js only understands a JSON string body (it does
+      // JSON.parse(init.body)) — it can't read a File's contents, so we
+      // just keep the receipt's filename as a plain string field instead
+      // of sending FormData/multipart.
+      const payload = {
+        date: form.date,
+        category: form.category,
+        amount: Number(form.amount),
+        remarks: form.remarks,
+        receipt: form.receipt ? form.receipt.name : null,
+      };
+
+      const res = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
 
-    navigate("/sales-transactions/expenses");
+      const data = await res.json().catch(() => ({}));
+
+      // mockApi's POST handler returns the raw saved record (no "success"
+      // field) — so the real signal of success is the HTTP status (res.ok),
+      // not data.success.
+      if (res.ok) {
+        setSuccess("Expense record saved successfully!");
+        setForm({ date: "", category: "", amount: "", receipt: null, remarks: "" });
+        setPreview("");
+        setTimeout(() => navigate("/sales-transactions/expenses"), 1000);
+      } else {
+        setError(data?.message || `Failed to save record (status ${res.status}).`);
+      }
+    } catch (err) {
+      console.error("AddExpense submit error:", err);
+      setError("Cannot connect to server. Please try again.");
+    } finally {
+      setSaving(false);
+      window.__pbSaving = false;
+    }
   };
 
   return (
-    <div className="ae-page">
-      <Sidebar />
-
-      <div className="ae-main">
-
-        {/* Breadcrumb */}
-        <div className="ae-breadcrumb">
-          <button className="ae-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="ae-breadcrumb-link" onClick={() => navigate("/sales-transactions")}>
-            SALES &amp; TRANSACTIONS
-          </span>
-          <span>›</span>
-          <span className="ae-breadcrumb-link" onClick={() => navigate("/sales-transactions/expenses")}>
-            EXPENSES RECORD
-          </span>
-          <span>›</span>
-          <span className="ae-breadcrumb-current">ADD EXPENSE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "EXPENSES RECORD", path: "/sales-transactions/expenses" },
+        { label: "ADD EXPENSE" },
+      ]}
+    >
+        {success && <div className="ae-success-banner">{success}</div>}
+        {error   && <div className="ae-error-banner">{error}</div>}
 
         <form className="ae-form-card" onSubmit={handleSubmit}>
 
@@ -165,17 +189,17 @@ export default function AddExpense() {
           <div className="ae-form-actions">
             <p className="ae-required-note">Fields with * are required.</p>
             <div className="ae-action-btns">
-              <button type="button" className="ae-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")}>
+              <button type="button" className="ae-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")} disabled={saving}>
                 <FiX /> Cancel
               </button>
               <button type="submit" disabled={saving} className="ae-save-btn">
-                <FiSave /> Save Record
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

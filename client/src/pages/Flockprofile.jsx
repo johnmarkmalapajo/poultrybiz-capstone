@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
   FiEdit2, FiArchive, FiGrid, FiUsers, FiHeart,
-  FiCalendar, FiMaximize, FiMenu, FiX,
+  FiCalendar, FiMaximize, FiX,
 } from "react-icons/fi";
 import { FaQrcode } from "react-icons/fa";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import batchStore from "../batchStore";
 import { activity } from "../activity";
-import "./FlockProfile.css";
+import "./Flockprofile.css";
 
 // Chickens arrive at 16 weeks; current age = 16 + weeks since arrival
 function computeAgeWeeks(dateStr) {
@@ -60,14 +60,6 @@ const AGE_RANGES = [
   { label: "41+ weeks",   value: "41-999" },
 ];
 
-// Mock cage performance for the QR Summary preview (future backend data)
-const MOCK_CAGES = [
-  { cage: "Cage 1", birds: 4, eggs: 4, henDay: "100%",   health: "Healthy" },
-  { cage: "Cage 2", birds: 4, eggs: 3, henDay: "75%",    health: "Healthy" },
-  { cage: "Cage 3", birds: 3, eggs: 2, henDay: "66.67%", health: "Under Treatment" },
-  { cage: "Cage 4", birds: 4, eggs: 4, henDay: "100%",   health: "Healthy" },
-];
-
 export default function FlockProfile() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -92,8 +84,6 @@ export default function FlockProfile() {
   const clearFilters = () =>
     setFilters({ breed: "All", status: "All", dateFrom: "", dateTo: "", ageRange: "All" });
   const activeFilterCount = Object.entries(filters).filter(([k, v]) => v && v !== "All").length;
-
-  const uniq = (vals) => [...new Set(vals.filter(Boolean))];
 
   const inAgeRange = (ageW, range) => {
     if (range === "All" || ageW == null) return range === "All";
@@ -218,84 +208,85 @@ export default function FlockProfile() {
   };
 
   return (
-    <div className="flock-page">
-      <Sidebar />
-
-      <div className="flock-main">
-
-        <div className="flock-breadcrumb">
-          <button className="flock-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "FLOCK PROFILE" },
+      ]}
+    >
+        {/* Toolbar */}
+        <div className="fp-toolbar">
+          <button className="fp-add-btn" onClick={() => navigate("/records/flock/add")}>
+            <FiPlus /> Add New Flock
           </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">FLOCK PROFILE</span>
-        </div>
-
-        <div className="flock-toolbar">
-          <button className="add-flock-btn" onClick={() => navigate("/records/flock/add")}>
-            <FiPlus />
-            Add New Flock
-          </button>
-
-          <div className="toolbar-actions">
-            <div className="flock-search-box">
+          <div className="fp-toolbar-right">
+            <div className="fp-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search Flock..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-
-            <div className="toolbar-btn-group">
-              <div className="flock-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+            <div className="fp-btn-group">
+              <div className="fp-filter-wrap" ref={filterRef}>
+                <button className="fp-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="flock-filter-count">{activeFilterCount}</span>}
+                  {activeFilterCount > 0 && <span className="fp-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
-                  <div className="flock-filter-dropdown">
-                    <div className="flock-filter-dropdown-header">
+                  <div className="fp-filter-dropdown">
+                    <div className="fp-filter-dropdown-header">
                       <span>Filter Flocks</span>
-                      <button className="flock-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="fp-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Breed</label>
-                      <select className="flock-filter-select" value={filters.breed}
-                        onChange={(e) => handleFilterChange("breed", e.target.value)}>
+                    <div className="fp-filter-group">
+                      <label className="fp-filter-label">Breed</label>
+                      <select
+                        className="fp-filter-select"
+                        value={filters.breed}
+                        onChange={(e) => handleFilterChange("breed", e.target.value)}
+                      >
                         <option value="All">All Breeds</option>
                         {BREEDS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </div>
 
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Status</label>
-                      <select className="flock-filter-select" value={filters.status}
-                        onChange={(e) => handleFilterChange("status", e.target.value)}>
+                    <div className="fp-filter-group">
+                      <label className="fp-filter-label">Status</label>
+                      <select
+                        className="fp-filter-select"
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange("status", e.target.value)}
+                      >
                         <option value="All">All Statuses</option>
                         {STATUSES.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </div>
 
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Date Acquired Range</label>
-                      <div className="flock-filter-date-range">
-                        <input type="date" className="flock-filter-select" value={filters.dateFrom}
+                    <div className="fp-filter-group">
+                      <label className="fp-filter-label">Date Acquired Range</label>
+                      <div className="fp-filter-date-range">
+                        <input type="date" className="fp-filter-select" value={filters.dateFrom}
                           onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
                         <span>to</span>
-                        <input type="date" className="flock-filter-select" value={filters.dateTo}
+                        <input type="date" className="fp-filter-select" value={filters.dateTo}
                           onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
                     </div>
 
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Age Range</label>
-                      <select className="flock-filter-select" value={filters.ageRange}
-                        onChange={(e) => handleFilterChange("ageRange", e.target.value)}>
+                    <div className="fp-filter-group">
+                      <label className="fp-filter-label">Age Range</label>
+                      <select
+                        className="fp-filter-select"
+                        value={filters.ageRange}
+                        onChange={(e) => handleFilterChange("ageRange", e.target.value)}
+                      >
                         {AGE_RANGES.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                       </select>
                     </div>
@@ -303,16 +294,17 @@ export default function FlockProfile() {
                 )}
               </div>
 
-              <ExportMenu rows={filtered} name="flock-profiles" title="Flock Profiles" className="toolbar-btn" />
+              <ExportMenu rows={filtered} name="flock-profiles" title="Flock Profiles" className="fp-toolbar-btn" />
             </div>
           </div>
         </div>
 
+        {/* Active filter tags */}
         {activeFilterCount > 0 && (
-          <div className="flock-active-filters">
+          <div className="fp-active-filters">
             {Object.entries(filters).map(([key, value]) =>
               value && value !== "All" ? (
-                <span key={key} className="flock-active-filter-tag">
+                <span key={key} className="fp-active-filter-tag">
                   {key === "dateFrom" ? "From" : key === "dateTo" ? "To" : key.charAt(0).toUpperCase() + key.slice(1)}: {value}
                   <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
@@ -321,52 +313,69 @@ export default function FlockProfile() {
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiGrid /></div>
-            <div><h3>{stats.total}</h3><p>Total Flock Records</p><span>All Time</span></div>
+        {/* Stat Cards */}
+        <div className="fp-stats-grid">
+          <div className="fp-stat-card">
+            <div className="fp-stat-icon gold"><FiGrid /></div>
+            <div>
+              <h3>{stats.total}</h3>
+              <p>Total Flock Records</p>
+              <span>All Time</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon green"><FiUsers /></div>
-            <div><h3>{stats.birds.toLocaleString()}</h3><p>Total Current Birds</p><span>All Records</span></div>
+          <div className="fp-stat-card">
+            <div className="fp-stat-icon green"><FiUsers /></div>
+            <div>
+              <h3>{stats.birds.toLocaleString()}</h3>
+              <p>Total Current Birds</p>
+              <span>All Records</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon red"><FiHeart /></div>
-            <div><h3>{stats.avgMortality.toFixed(1)}%</h3><p>Average Mortality Rate</p><span>All Records</span></div>
+          <div className="fp-stat-card">
+            <div className="fp-stat-icon red"><FiHeart /></div>
+            <div>
+              <h3>{stats.avgMortality.toFixed(1)}%</h3>
+              <p>Average Mortality Rate</p>
+              <span>All Records</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiCalendar /></div>
-            <div><h3>{stats.avgAge}</h3><p>Average Age (Days)</p><span>All Records</span></div>
+          <div className="fp-stat-card">
+            <div className="fp-stat-icon blue"><FiCalendar /></div>
+            <div>
+              <h3>{stats.avgAge}</h3>
+              <p>Average Age (Days)</p>
+              <span>All Records</span>
+            </div>
           </div>
         </div>
 
-        <div className="table-wrapper">
-          <table className="flock-table">
+        {/* Table */}
+        <div className="fp-table-wrapper">
+          <table className="fp-table">
             <thead>
               <tr>
-                <th>Batch ID</th>
-                <th>Breed</th>
-                <th>Source</th>
-                <th>Date Acquired</th>
-                <th>Purchase Qty</th>
-                <th>Current Birds</th>
-                <th>Mortality Rate</th>
-                <th>Age</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>BATCH ID</th>
+                <th>BREED</th>
+                <th>SOURCE</th>
+                <th>DATE ACQUIRED</th>
+                <th>PURCHASE QTY</th>
+                <th>CURRENT BIRDS</th>
+                <th>MORTALITY RATE</th>
+                <th>AGE</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan="10" className="fp-empty-state">
+                    <div className="fp-empty-content">
                       <FiMaximize />
                       <h3>No flock records found</h3>
                       <p>Click Add New Flock to create your first flock profile.</p>
-                      <button className="empty-add-btn" onClick={() => navigate("/records/flock/add")}>
-                        <FiPlus />
-                        Add New Flock
+                      <button className="fp-empty-add-btn" onClick={() => navigate("/records/flock/add")}>
+                        <FiPlus /> Add New Flock
                       </button>
                     </div>
                   </td>
@@ -376,7 +385,7 @@ export default function FlockProfile() {
                   const { cb, mr } = computeFlock(flock);
                   return (
                     <tr key={flock._id || flock.batchId}>
-                      <td>{flock.batchId}</td>
+                      <td><span className="fp-batch-badge">{flock.batchId}</span></td>
                       <td>{flock.breed}</td>
                       <td>{flock.source}</td>
                       <td>{flock.dateAcquired}</td>
@@ -386,16 +395,16 @@ export default function FlockProfile() {
                       <td>{computeAgeWeeks(flock.dateAcquired) || "—"}</td>
                       <td><StatusBadge status={flock.status} /></td>
                       <td>
-                        <div className="action-buttons">
-                          <button className="action-btn edit" title="Edit"
+                        <div className="fp-actions">
+                          <button className="fp-btn-edit" title="Edit"
                             onClick={() => navigate(`/records/flock/edit/${flock._id || flock.batchId}`)}>
                             <FiEdit2 />
                           </button>
-                          <button className="action-btn edit" title="View / Generate QR Code"
+                          <button className="fp-btn-edit" title="View / Generate QR Code"
                             onClick={() => setQrFlock(flock)}>
                             <FaQrcode />
                           </button>
-                          <button className="action-btn archive" title="Archive" onClick={() => handleArchive(flock)}>
+                          <button className="fp-btn-archive" title="Archive" onClick={() => handleArchive(flock)}>
                             <FiArchive />
                           </button>
                         </div>
@@ -406,13 +415,10 @@ export default function FlockProfile() {
               )}
             </tbody>
           </table>
-
-          <div className="table-footer">
+          <div className="fp-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
-
-      </div>
 
       {/* ── Batch QR Summary (frontend placeholder modal) ── */}
       {qrFlock && (
@@ -474,6 +480,6 @@ export default function FlockProfile() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

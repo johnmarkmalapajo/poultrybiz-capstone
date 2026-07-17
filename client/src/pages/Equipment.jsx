@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload, FiEdit2, FiArchive,
-  FiGrid, FiPackage, FiDollarSign, FiCheckCircle, FiMaximize, FiMenu,
+  FiPlus, FiSearch, FiFilter, FiEdit2, FiArchive,
+  FiGrid, FiPackage, FiDollarSign, FiCheckCircle, FiMaximize,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import "./Equipment.css";
@@ -14,7 +14,8 @@ const CONDITION_OPTIONS = ["Good", "Fair", "Poor"];
 
 export default function Equipment() {
   const navigate = useNavigate();
-  const { canEdit, canArchive, canSeeFinancials } = useUser();
+  const { canEdit, canArchive, canSeeFinancials, role } = useUser();
+  const isAdmin = role === "Admin";
   const [search, setSearch] = useState("");
   const [records, setRecords] = useState([]);
   useEffect(() => {
@@ -62,41 +63,36 @@ export default function Equipment() {
   const peso = (n) => `₱${Number(n || 0).toLocaleString()}`;
 
   return (
-    <div className="eq-page">
-      <Sidebar />
-
-      <div className="eq-main">
-
-        <div className="eq-breadcrumb">
-          <button className="eq-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-current">EQUIPMENT &amp; TOOLS RECORD</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "INVENTORY", path: "/inventory" },
+        { label: "EQUIPMENT & TOOLS RECORD" },
+      ]}
+    >
 
         <div className="eq-toolbar">
-          <button className="add-eq-btn" onClick={() => navigate("/inventory/equipment/add")}>
+          <button className="eq-add-btn" onClick={() => navigate("/inventory/equipment/add")}>
             <FiPlus />
             Add Equipment
           </button>
 
-          <div className="toolbar-actions">
-            <div className="search-box">
+          <div className="eq-toolbar-right">
+            <div className="eq-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search equipment..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
-            <div className="toolbar-btn-group">
+            <div className="eq-btn-group">
               {/* Filter — inline dropdown (Expenses-style) */}
               <div className="eq-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="eq-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="eq-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -125,7 +121,7 @@ export default function Equipment() {
                 )}
               </div>
 
-              <ExportMenu rows={filtered} name="equipment" title="Equipment & Tools" className="toolbar-btn" />
+              <ExportMenu rows={filtered} name="equipment" title="Equipment & Tools" className="eq-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -144,9 +140,9 @@ export default function Equipment() {
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiGrid /></div>
+        <div className="eq-stats-grid">
+          <div className="eq-stat-card">
+            <div className="eq-stat-icon gold"><FiGrid /></div>
             <div>
               <h3>{totalItems}</h3>
               <p>Total Items</p>
@@ -154,8 +150,8 @@ export default function Equipment() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiPackage /></div>
+          <div className="eq-stat-card">
+            <div className="eq-stat-icon blue"><FiPackage /></div>
             <div>
               <h3>{totalQuantity}</h3>
               <p>Total Quantity</p>
@@ -164,8 +160,8 @@ export default function Equipment() {
           </div>
 
           {canSeeFinancials && (
-            <div className="stat-card">
-              <div className="stat-icon green"><FiDollarSign /></div>
+            <div className="eq-stat-card">
+              <div className="eq-stat-icon green"><FiDollarSign /></div>
               <div>
                 <h3>{peso(totalValue)}</h3>
                 <p>Total Value</p>
@@ -174,8 +170,8 @@ export default function Equipment() {
             </div>
           )}
 
-          <div className="stat-card">
-            <div className="stat-icon green"><FiCheckCircle /></div>
+          <div className="eq-stat-card">
+            <div className="eq-stat-icon green"><FiCheckCircle /></div>
             <div>
               <h3>{goodCondition}</h3>
               <p>Good Condition</p>
@@ -184,7 +180,7 @@ export default function Equipment() {
           </div>
         </div>
 
-        <div className="table-wrapper">
+        <div className="eq-table-wrapper">
           <table className="eq-table">
             <thead>
               <tr>
@@ -197,7 +193,7 @@ export default function Equipment() {
                 <th>Condition</th>
                 <th>Location/Storage</th>
                 <th>Custodian/Assigned To</th>
-                <th>Date Acquired</th>
+                {isAdmin && <th>Date Acquired</th>}
                 {canSeeFinancials && <th>Acquisition Cost</th>}
                 <th>Remarks</th>
                 <th>Actions</th>
@@ -206,12 +202,12 @@ export default function Equipment() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={canSeeFinancials ? 13 : 12} className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan={10 + (isAdmin ? 1 : 0) + (canSeeFinancials ? 1 : 0)} className="eq-empty-state">
+                    <div className="eq-empty-content">
                       <FiMaximize />
                       <h3>No equipment records found</h3>
                       <p>Click Add Equipment to record your first item.</p>
-                      <button className="empty-add-btn" onClick={() => navigate("/inventory/equipment/add")}>
+                      <button className="eq-empty-add-btn" onClick={() => navigate("/inventory/equipment/add")}>
                         <FiPlus />
                         Add Equipment
                       </button>
@@ -232,14 +228,14 @@ export default function Equipment() {
                     </td>
                     <td>{r.location}</td>
                     <td>{r.custodian}</td>
-                    <td>{r.dateAcquired}</td>
+                    {isAdmin && <td>{r.dateAcquired}</td>}
                     {canSeeFinancials && <td>{peso(r.cost)}</td>}
                     <td>{r.remarks}</td>
                     <td>
-                      <div className="action-buttons">
+                      <div className="eq-actions">
                         {canEdit && (
                           <button
-                            className="action-btn edit"
+                            className="eq-btn-edit"
                             title="Edit"
                             onClick={() => {
                               localStorage.setItem("editEquipment", JSON.stringify(r));
@@ -250,7 +246,7 @@ export default function Equipment() {
                           </button>
                         )}
                         {canArchive && (
-                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Equipment & Tools", moduleKey: "pb_equipment", record: r, name: r.name || r.equipmentName })} title="Archive">
+                          <button className="eq-btn-archive" onClick={() => archiveRow({ module: "Equipment & Tools", moduleKey: "pb_equipment", record: r, name: r.name || r.equipmentName })} title="Archive">
                             <FiArchive />
                           </button>
                         )}
@@ -262,12 +258,11 @@ export default function Equipment() {
             </tbody>
           </table>
 
-          <div className="table-footer">
+          <div className="eq-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

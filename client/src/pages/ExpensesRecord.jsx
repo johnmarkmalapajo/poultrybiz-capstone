@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMenu, FiMaximize,
+  FiEdit2, FiArchive, FiMaximize,
   FiFileText, FiDollarSign, FiTag, FiList,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
-import "./ExpensesRecord.css";
 import { archiveRow } from "../archiveRow";
+import "./ExpensesRecord.css";
+
+const API_BASE = "/api/v1/expenses";
 
 const CATEGORY_OPTIONS = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -22,17 +24,48 @@ const formatPeso = (n) =>
 export default function ExpensesRecord() {
   const navigate = useNavigate();
 
-  // Records come from the backend — empty until fetched.
   const [records, setRecords] = useState([]);
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/expenses");
-        const data = await res.json();
-        setRecords(Array.isArray(data) ? data : data.records || data.data || []);
-      } catch { setRecords([]); }
-    })();
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+
+  const fetchRecords = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(API_BASE);
+      const data = await res.json().catch(() => ([]));
+
+      if (res.ok) {
+        // mockApi.js returns an array that also carries .records/.data —
+        // handle both a plain array and a wrapped shape safely.
+        const list = Array.isArray(data) ? data : (data.records || data.data || []);
+        setRecords(list);
+      } else {
+        setError(data?.message || "Failed to load records.");
+        setRecords([]);
+      }
+    } catch (err) {
+      console.error("[ExpensesRecord] fetch error:", err);
+      setError("Cannot connect to server. Please try again.");
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Load once on mount, then re-fetch whenever ANY page writes to the
+  // mock store (mockApi.js dispatches "pb_data_changed" on every save),
+  // plus on tab focus as a safety net.
+  useEffect(() => {
+    fetchRecords();
+    window.addEventListener("pb_data_changed", fetchRecords);
+    window.addEventListener("focus", fetchRecords);
+    return () => {
+      window.removeEventListener("pb_data_changed", fetchRecords);
+      window.removeEventListener("focus", fetchRecords);
+    };
+  }, [fetchRecords]);
+
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({ category: "All", date: "All", amount: "All" });
@@ -66,6 +99,7 @@ export default function ExpensesRecord() {
 
   const filtered = records.filter((r) => {
     const matchSearch =
+      !search ||
       r.category?.toLowerCase().includes(search.toLowerCase()) ||
       r.remarks?.toLowerCase().includes(search.toLowerCase());
     const matchCategory = filters.category === "All" || r.category === filters.category;
@@ -77,24 +111,23 @@ export default function ExpensesRecord() {
   const totalAmount = records.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const categoriesUsed = new Set(records.map((r) => r.category).filter(Boolean)).size;
 
+  const handleArchive = async (r) => {
+    try {
+      archiveRow({ module: "Expenses", moduleKey: "pb_expenses", record: r, name: r.category || r.description });
+      await fetch(`${API_BASE}/${r._id || r.id}`, { method: "DELETE" });
+    } catch { /* ignore */ }
+    fetchRecords();
+  };
+
   return (
-    <div className="er-page">
-      <Sidebar />
-
-      <div className="er-main">
-
-        {/* Breadcrumb */}
-        <div className="er-breadcrumb">
-          <button className="er-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/sales-transactions")}>
-            SALES &amp; TRANSACTIONS
-          </span>
-          <span>›</span>
-          <span className="breadcrumb-current">EXPENSES RECORD</span>
-        </div>
-
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "EXPENSES RECORD" },
+      ]}
+    >
         {/* Toolbar */}
         <div className="er-toolbar">
           <button className="er-add-btn" onClick={() => navigate("/sales-transactions/expenses/add")}>
@@ -240,74 +273,76 @@ export default function ExpensesRecord() {
           </div>
         </div>
 
+        {/* Error banner */}
+        {error && <div className="er-error-banner" style={{ display: "block" }}>{error}</div>}
+
         {/* Table */}
         <div className="er-table-wrapper">
-          <table className="er-table">
-            <thead>
-              <tr>
-                <th>Expense Date</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Receipt</th>
-                <th>Remarks</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
+          {loading ? (
+            <div className="er-loading">Loading expense records...</div>
+          ) : (
+            <table className="er-table">
+              <thead>
                 <tr>
-                  <td colSpan="6" className="er-empty-state">
-                    <div className="er-empty-content">
-                      <FiMaximize />
-                      <h3>No expense records found</h3>
-                      <p>Click Add Expense to log your first farm expense.</p>
-                      <button
-                        className="er-empty-add-btn"
-                        onClick={() => navigate("/sales-transactions/expenses/add")}
-                      >
-                        <FiPlus /> Add Expense
-                      </button>
-                    </div>
-                  </td>
+                  <th>Expense Date</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Receipt</th>
+                  <th>Remarks</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r._id || r.id}>
-                    <td>{r.date}</td>
-                    <td>{r.category}</td>
-                    <td className="er-amount">{formatPeso(r.amount)}</td>
-                    <td>
-                      {r.receipt
-                        ? <a href={r.receipt} className="er-view-link" target="_blank" rel="noreferrer">View</a>
-                        : "—"}
-                    </td>
-                    <td>{r.remarks || "—"}</td>
-                    <td>
-                      <div className="er-action-buttons">
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="er-empty-state">
+                      <div className="er-empty-content">
+                        <FiMaximize />
+                        <h3>No expense records found</h3>
+                        <p>Click Add Expense to log your first farm expense.</p>
                         <button
-                          className="er-action-btn edit"
-                          title="Edit"
-                          onClick={() => navigate(`/sales-transactions/expenses/edit/${r._id || r.id}`)}
+                          className="er-empty-add-btn"
+                          onClick={() => navigate("/sales-transactions/expenses/add")}
                         >
-                          <FiEdit2 />
-                        </button>
-                        <button className="er-action-btn archive" onClick={() => archiveRow({ module: "Expenses", moduleKey: "pb_expenses", record: r, name: r.category || r.description })} title="Archive">
-                          <FiArchive />
+                          <FiPlus /> Add Expense
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filtered.map((r) => (
+                    <tr key={r._id || r.id}>
+                      <td>{r.date}</td>
+                      <td>{r.category}</td>
+                      <td className="er-amount">{formatPeso(r.amount)}</td>
+                      <td>{r.receipt || "—"}</td>
+                      <td>{r.remarks || "—"}</td>
+                      <td>
+                        <div className="er-action-buttons">
+                          <button
+                            className="er-action-btn edit"
+                            title="Edit"
+                            onClick={() => navigate(`/sales-transactions/expenses/edit/${r._id || r.id}`)}
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button className="er-action-btn archive" onClick={() => handleArchive(r)} title="Archive">
+                            <FiArchive />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
 
           <div className="er-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

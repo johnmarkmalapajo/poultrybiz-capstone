@@ -4,17 +4,15 @@ import {
   FiPlus,
   FiSearch,
   FiFilter,
-  FiDownload,
   FiEdit2,
   FiArchive,
-  FiMenu,
   FiMaximize,
   FiLayers,
   FiCheckCircle,
   FiAlertTriangle,
   FiTrendingUp,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./EggRecord.css";
 import { archiveRow } from "../archiveRow";
@@ -83,26 +81,18 @@ export default function EggRecord() {
   );
 
   return (
-    <div className="egg-page">
-      <Sidebar />
-
-      <div className="egg-main">
-
-        {/* Breadcrumb */}
-        <div className="egg-breadcrumb">
-          <button className="egg-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">EGG RECORD</span>
-        </div>
-
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "EGG RECORD" },
+      ]}
+    >
         {/* Toolbar */}
         <div className="egg-toolbar">
           <button className="add-egg-btn" onClick={() => navigate("/records/egg/add")}>
-            <FiPlus />
-            Add Egg Record
+            <FiPlus /> Add Egg Record
           </button>
 
           <div className="egg-toolbar-actions">
@@ -110,7 +100,7 @@ export default function EggRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search egg record..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -229,27 +219,27 @@ export default function EggRecord() {
           <table className="egg-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Batch ID</th>
-                <th>Cage</th>
-                <th>Peewee</th>
-                <th>Small</th>
-                <th>Medium</th>
-                <th>Large</th>
-                <th>Extra Large</th>
-                <th>Jumbo</th>
-                <th>Cracked Eggs</th>
-                <th>Good Eggs</th>
-                <th>Total Eggs</th>
-                <th>Hen-Day %</th>
-                <th>Actions</th>
+                <th>DATE</th>
+                <th>BATCH ID</th>
+                <th>CAGE</th>
+                <th>PEEWEE</th>
+                <th>SMALL</th>
+                <th>MEDIUM</th>
+                <th>LARGE</th>
+                <th>EXTRA LARGE</th>
+                <th>JUMBO</th>
+                <th>CRACKED EGGS</th>
+                <th>GOOD EGGS</th>
+                <th>TOTAL EGGS</th>
+                <th>HEN-DAY %</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="14" className="egg-loading-cell">Loading egg records...</td>
+                  <td colSpan="14" className="egg-empty-state">Loading egg records...</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
@@ -262,8 +252,7 @@ export default function EggRecord() {
                         className="egg-empty-add-btn"
                         onClick={() => navigate("/records/egg/add")}
                       >
-                        <FiPlus />
-                        Add Egg Record
+                        <FiPlus /> Add Egg Record
                       </button>
                     </div>
                   </td>
@@ -309,7 +298,6 @@ export default function EggRecord() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

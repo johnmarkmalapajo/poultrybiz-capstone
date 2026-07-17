@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddMortalityRecord.css";
 
 const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
@@ -100,7 +100,6 @@ export default function AddMortalityRecord() {
       currentBirds,
       mortalityRate: Number(mortalityRate),
     };
-    console.log("Mortality payload:", payload);
     // API integration here later
     if (window.__pbSaving) return;  // prevent duplicate submissions
     window.__pbSaving = true;
@@ -119,23 +118,14 @@ export default function AddMortalityRecord() {
   };
 
   return (
-    <div className="amr-page">
-      <Sidebar />
-
-      <div className="amr-main">
-
-        {/* Breadcrumb */}
-        <div className="amr-breadcrumb">
-          <button className="amr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="amr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="amr-bc-sep">›</span>
-          <span className="amr-bc-link" onClick={() => navigate("/records/mortality")}>MORTALITY RECORD</span>
-          <span className="amr-bc-sep">›</span>
-          <span className="amr-bc-current">ADD MORTALITY</span>
-        </div>
-
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MORTALITY RECORD", path: "/records/mortality" },
+        { label: "ADD MORTALITY" },
+      ]}
+    >
         {/* Header */}
 
         <form className="amr-form-card" onSubmit={handleSubmit}>
@@ -254,7 +244,6 @@ export default function AddMortalityRecord() {
 
         </form>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

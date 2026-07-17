@@ -5,10 +5,9 @@ import {
   FiPackage,
   FiFileText,
   FiSave,
-  FiMenu,
+  FiX,
 } from "react-icons/fi";
-
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import batchStore from "../batchStore";
 import "./Addflock.css";
 
@@ -76,36 +75,25 @@ export default function AddFlock() {
   };
 
   return (
-    <div className="add-flock-page">
-      <Sidebar />
-
-      <div className="add-flock-main">
-
-        {/* Breadcrumb */}
-        <div className="add-flock-breadcrumb">
-          <button className="add-flock-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/records/flock")}>FLOCK PROFILE</span>
-          <span>›</span>
-          <span className="breadcrumb-current">ADD NEW FLOCK</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="flock-form-card" onSubmit={handleSubmit}>
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "FLOCK PROFILE", path: "/records/flock" },
+        { label: "ADD NEW FLOCK" },
+      ]}
+    >
+        <form className="af-form-card" onSubmit={handleSubmit}>
 
           {/* BATCH INFORMATION */}
-          <div className="section-header">
+          <div className="af-section-header">
             <FiInfo />
-            <h3>BATCH INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Batch Information</h3>
+            <div className="af-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
+          <div className="af-form-grid">
+            <div className="af-form-group">
               <label>Batch ID</label>
               <input
                 type="text"
@@ -118,15 +106,15 @@ export default function AddFlock() {
               <small>Generated automatically</small>
             </div>
 
-            <div className="form-group">
-              <label>Status <span className="req">*</span></label>
+            <div className="af-form-group">
+              <label>Status <span className="af-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
                 {FLOCK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Breed <span className="req">*</span></label>
+            <div className="af-form-group">
+              <label>Breed <span className="af-req">*</span></label>
               <select name="breed" value={formData.breed} onChange={handleChange} required>
                 <option value="">Select Breed</option>
                 <option value="Hy-Line W-36">Hy-Line W-36</option>
@@ -137,8 +125,8 @@ export default function AddFlock() {
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Source <span className="req">*</span></label>
+            <div className="af-form-group">
+              <label>Source <span className="af-req">*</span></label>
               <input
                 type="text"
                 name="source"
@@ -149,8 +137,8 @@ export default function AddFlock() {
               />
             </div>
 
-            <div className="form-group">
-              <label>Date Acquired <span className="req">*</span></label>
+            <div className="af-form-group">
+              <label>Date Acquired <span className="af-req">*</span></label>
               <input
                 type="date"
                 name="dateAcquired"
@@ -162,15 +150,15 @@ export default function AddFlock() {
           </div>
 
           {/* BIRD INFORMATION */}
-          <div className="section-header">
+          <div className="af-section-header">
             <FiPackage />
-            <h3>BIRD INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Bird Information</h3>
+            <div className="af-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Purchase Quantity <span className="req">*</span></label>
+          <div className="af-form-grid">
+            <div className="af-form-group">
+              <label>Purchase Quantity <span className="af-req">*</span></label>
               <input
                 type="number"
                 min="1"
@@ -182,19 +170,19 @@ export default function AddFlock() {
               />
             </div>
 
-            <div className="form-group">
+            <div className="af-form-group">
               <label>Current Birds</label>
               <input type="text" value={currentBirds || "—"} disabled readOnly />
               <small>Purchase Qty − Total Mortality (auto-computed later)</small>
             </div>
 
-            <div className="form-group">
+            <div className="af-form-group">
               <label>Mortality Rate</label>
               <input type="text" value={`${mortalityRate}%`} disabled readOnly />
               <small>(Total Mortality ÷ Purchase Qty) × 100</small>
             </div>
 
-            <div className="form-group">
+            <div className="af-form-group">
               <label>Age (Days)</label>
               <input type="text" value={ageDisplay || "—"} disabled readOnly />
               <small>Starts at 16 weeks on arrival; auto-computed from Date Acquired</small>
@@ -202,13 +190,13 @@ export default function AddFlock() {
           </div>
 
           {/* ADDITIONAL INFORMATION */}
-          <div className="section-header">
+          <div className="af-section-header">
             <FiFileText />
-            <h3>ADDITIONAL INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Additional Information</h3>
+            <div className="af-line" />
           </div>
 
-          <div className="form-group full-width">
+          <div className="af-form-group af-full-width">
             <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
             <textarea
               rows="6"
@@ -220,17 +208,18 @@ export default function AddFlock() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate("/records/flock")}>
-              Cancel
-            </button>
-            <button type="submit" className="save-btn">
-              <FiSave />
-              Save Flock Record
-            </button>
+          <div className="af-form-actions">
+            <p className="af-req-note">Fields with * are required.</p>
+            <div className="af-action-btns">
+              <button type="button" className="af-cancel-btn" onClick={() => navigate("/records/flock")}>
+                <FiX /> Cancel
+              </button>
+              <button type="submit" className="af-save-btn">
+                <FiSave /> Save Flock Record
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

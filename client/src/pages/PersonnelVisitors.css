@@ -1,66 +1,20 @@
-/* PersonnelVisitors.css — PoultryBriz */
+/* PersonnelVisitors.css — PoultryBiz (same card design as Records / SalesTransaction) */
 
-.pv-page {
-  display: flex;
-  height: 100vh;
-  background: #f5f5f5;
-  font-family: 'Segoe UI', sans-serif;
-  overflow-x: hidden;
-  max-width: 100%;
+/* ── Page shell ── */
+/* Shell, breadcrumb, and hamburger now come from the shared PageLayout component. */
+
+/* ── Animation ── */
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.pv-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  padding: 36px 40px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-
-.sidebar { flex-shrink: 0; }
-
-/* ── Topbar (title + hamburger) ── */
-.pv-topbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.pv-hamburger {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: #E4AF1F;
-  border: none;
-  border-radius: 8px;
-  width: 38px;
-  height: 38px;
-  font-size: 18px;
-  color: #47321C;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transition: background 0.2s;
-}
-.pv-hamburger:hover { background: #c8930c; }
-
-.pv-title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #1a1a1a;
-  margin: 0;
-}
-
-/* ── Cards grid ── */
+/* ── Card grid ── */
 .pv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 24px;
+  align-items: stretch;
 }
 
 /* ── Card ── */
@@ -79,6 +33,8 @@
   animation: cardFadeIn 0.35s ease both;
   position: relative;
   overflow: hidden;
+  height: 100% !important;
+  box-sizing: border-box;
 }
 
 .pv-card::before {
@@ -98,9 +54,7 @@
   border-color: var(--card-color);
 }
 
-.pv-card:hover::before {
-  width: 8px;
-}
+.pv-card:hover::before { width: 8px; }
 
 /* ── Icon wrap ── */
 .pv-card-icon-wrap {
@@ -115,14 +69,9 @@
   transition: transform 0.2s ease;
 }
 
-.pv-card:hover .pv-card-icon-wrap {
-  transform: scale(1.08);
-}
+.pv-card:hover .pv-card-icon-wrap { transform: scale(1.08); }
 
-.pv-card-emoji {
-  font-size: 32px;
-  line-height: 1;
-}
+.pv-card-emoji { font-size: 32px; line-height: 1; }
 
 /* ── Card body ── */
 .pv-card-body {
@@ -133,18 +82,8 @@
   gap: 4px;
 }
 
-.pv-card-label {
-  font-size: 17px;
-  font-weight: 700;
-  color: #1a1a1a;
-  letter-spacing: 0.2px;
-}
-
-.pv-card-desc {
-  font-size: 13px;
-  color: #888;
-  line-height: 1.4;
-}
+.pv-card-label { font-size: 17px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.2px; }
+.pv-card-desc { font-size: 13px; color: #888; line-height: 1.4; }
 
 /* ── Arrow ── */
 .pv-card-arrow {
@@ -155,59 +94,22 @@
   line-height: 1;
 }
 
-.pv-card:hover .pv-card-arrow {
-  color: var(--card-color);
-  transform: translateX(4px);
-}
+.pv-card:hover .pv-card-arrow { color: var(--card-color); transform: translateX(4px); }
 
-/* ── Animation ── */
-@keyframes cardFadeIn {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* ── Equal-size 3-column card grid (matches Records / SalesTransaction) ── */
+.pv-grid{display:grid !important;grid-template-columns:repeat(3, 1fr) !important;grid-auto-rows:1fr;gap:24px !important;align-items:stretch !important}
+.pv-card{height:100% !important;box-sizing:border-box}
+@media (max-width:1024px){.pv-grid{grid-template-columns:repeat(2, 1fr) !important;gap:18px !important}}
+@media (max-width:640px){.pv-grid{grid-template-columns:1fr !important;gap:14px !important}}
 
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .pv-main { padding: 28px 24px; gap: 24px; }
-  .pv-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
-}
-
-@media (max-width: 768px) {
-  .pv-main { padding: 20px 16px; gap: 20px; }
-  .pv-title { font-size: 22px; }
-  .pv-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-  .pv-hamburger { display: flex; }
-
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .pv-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-  .pv-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
-}
-
+/* ── Responsive cards ── */
 @media (max-width: 480px) {
-  .pv-main { padding: 16px 12px; gap: 16px; }
-  .pv-title { font-size: 20px; }
-  .pv-grid { grid-template-columns: 1fr; gap: 14px; }
   .pv-card { padding: 20px 16px; gap: 14px; }
   .pv-card-icon-wrap { width: 56px; height: 56px; }
   .pv-card-emoji { font-size: 26px; }
 }
 
-
-/* ===== Overview page layout update (header + responsive cards only) ===== */
-.pv-title{font-family:'Poppins',sans-serif !important;font-size:clamp(22.65px, 1.2vw + 18px, 28.81px) !important;font-weight:800;line-height:1.618;margin:0 0 26px !important}
-.pv-breadcrumb{display:none !important}
-.pv-search{display:none !important}
-.pv-grid{display:grid !important;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)) !important;gap:24px !important;align-items:stretch !important}
-.pv-card{height:100% !important;box-sizing:border-box}
-@media (max-width:1024px){.pv-grid{grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) !important;gap:18px !important}}
-@media (max-width:640px){.pv-grid{grid-template-columns:1fr !important;gap:14px !important}}
+/* ── Font matching (same as Records / SalesTransaction) ── */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
+.pv-card-label{font-family:'Poppins',sans-serif !important}
+.pv-card-desc{font-family:'Lato',sans-serif !important;line-height:1.618 !important}

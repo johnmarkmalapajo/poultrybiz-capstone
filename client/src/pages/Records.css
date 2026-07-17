@@ -1,18 +1,22 @@
-/* Records.css — PoultryBriz (#E4AF1F gold, clean white cards) */
+/* Records.css — PoultryBiz (cards identical to SalesTransaction)
+   Records.jsx uses the shared PageLayout (breadcrumb) — it does NOT render
+   the shell/topbar classes below. */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
+/* ================================================================
+   LEGACY SHELL — used ONLY by Settings.jsx, which imports this file
+   and renders .records-page / .records-main / .records-hamburger /
+   .records-title itself. Delete when Settings migrates to PageLayout.
+   ================================================================ */
 
-/* ── Page shell ── */
 .records-page {
   display: flex;
   height: 100vh;
   background: #f5f5f5;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'Lato', 'Segoe UI', sans-serif;
   overflow-x: hidden;
   max-width: 100%;
 }
 
-.records-content,
 .records-main {
   flex: 1;
   min-width: 0;
@@ -27,20 +31,11 @@
 
 .sidebar { flex-shrink: 0; }
 
-/* ── Topbar ── */
+/* ── Topbar (title + hamburger) ── */
 .records-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.records-topbar-left {
-  display: flex;
-  align-items: center;
   gap: 14px;
-  min-width: 0;
 }
 
 .records-hamburger {
@@ -62,43 +57,11 @@
 .records-hamburger:hover { background: #c8930c; }
 
 .records-title {
-  font-family: "Poppins", sans-serif;
   font-size: 26px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   color: #1a1a1a;
   margin: 0;
-}
-
-.records-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.records-search input {
-  padding: 10px 40px 10px 18px;
-  border: 1.5px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  width: 240px;
-  max-width: 100%;
-  background: #fff;
-  outline: none;
-  transition: border-color 0.2s;
-  color: #333;
-}
-
-.records-search input:focus {
-  border-color: #E4AF1F;
-}
-
-.search-icon {
-  position: absolute;
-  right: 12px;
-  font-size: 15px;
-  color: #888;
-  pointer-events: none;
 }
 
 /* ── Cards grid ── */
@@ -108,7 +71,7 @@
   gap: 24px;
 }
 
-/* ── Individual card ── */
+/* ── Card ── */
 .record-card {
   display: flex;
   align-items: center;
@@ -143,11 +106,8 @@
   border-color: var(--card-color);
 }
 
-.record-card:hover::before {
-  width: 8px;
-}
+.record-card:hover::before { width: 8px; }
 
-/* ── Icon ── */
 .card-icon-wrap {
   flex-shrink: 0;
   width: 68px;
@@ -160,16 +120,10 @@
   transition: transform 0.2s ease;
 }
 
-.record-card:hover .card-icon-wrap {
-  transform: scale(1.08);
-}
+.record-card:hover .card-icon-wrap { transform: scale(1.08); }
 
-.card-emoji {
-  font-size: 32px;
-  line-height: 1;
-}
+.card-emoji { font-size: 32px; line-height: 1; }
 
-/* ── Text ── */
 .card-body {
   flex: 1;
   min-width: 0;
@@ -191,7 +145,6 @@
   line-height: 1.4;
 }
 
-/* ── Arrow ── */
 .card-arrow {
   font-size: 24px;
   color: #ccc;
@@ -205,52 +158,6 @@
   transform: translateX(4px);
 }
 
-/* ── Sub-page placeholder ── */
-.subpage-placeholder {
-  padding: 36px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.back-btn {
-  align-self: flex-start;
-  background: none;
-  border: 1.5px solid #ddd;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 14px;
-  cursor: pointer;
-  color: #555;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.back-btn:hover {
-  border-color: #E4AF1F;
-  color: #E4AF1F;
-}
-
-.subpage-content {
-  background: #fff;
-  border-radius: 16px;
-  padding: 40px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-}
-
-.subpage-content h2 {
-  margin: 0 0 12px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.subpage-content p {
-  color: #888;
-  font-size: 14px;
-  margin: 0;
-}
-
-/* ── Animation ── */
 @keyframes cardFadeIn {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -258,21 +165,13 @@
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
-  .records-content,
   .records-main { padding: 28px 24px; gap: 24px; }
-  .records-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
 }
 
 @media (max-width: 768px) {
-  .records-content,
   .records-main { padding: 20px 16px; gap: 20px; }
-  .records-title { font-size: 22px; }
-  .records-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   .records-hamburger { display: flex; }
-  .records-search { flex: 1; }
-  .records-search input { width: 100%; }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
   .records-page .sidebar {
     width: 0;
     padding: 0;
@@ -288,25 +187,17 @@
 }
 
 @media (max-width: 480px) {
-  .records-content,
   .records-main { padding: 16px 12px; gap: 16px; }
-  .records-title { font-size: 20px; }
-  .records-grid { grid-template-columns: 1fr; gap: 14px; }
   .record-card { padding: 20px 16px; gap: 14px; }
   .card-icon-wrap { width: 56px; height: 56px; }
   .card-emoji { font-size: 26px; }
-  .records-topbar { gap: 12px; }
 }
 
-
 /* ===== Overview page layout update (header + responsive cards only) ===== */
-/* Header: Poppins, responsive golden-ratio scale (22.65px → 28.81px) */
 .records-title{font-family:'Poppins',sans-serif !important;font-size:clamp(22.65px, 1.2vw + 18px, 28.81px) !important;font-weight:800;line-height:1.618;margin:0 !important}
-/* Overview pages: header + cards ONLY — no breadcrumb, no search bar */
-.records-search{display:none !important}
-.records-breadcrumb{display:none !important}
-/* Cards: auto-fit fills the row (no empty tracks), equal heights, balanced */
-.records-grid{display:grid !important;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)) !important;gap:24px !important;align-items:stretch !important}
+.card-label{font-family:'Poppins',sans-serif !important}
+.card-desc{font-family:'Lato',sans-serif !important;line-height:1.618 !important}
+.records-grid{display:grid !important;grid-template-columns:repeat(3, 1fr) !important;grid-auto-rows:1fr;gap:24px !important;align-items:stretch !important}
 .record-card{height:100% !important;box-sizing:border-box}
-@media (max-width:1024px){.records-grid{grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) !important;gap:18px !important}}
+@media (max-width:1024px){.records-grid{grid-template-columns:repeat(2, 1fr) !important;gap:18px !important}}
 @media (max-width:640px){.records-grid{grid-template-columns:1fr !important;gap:14px !important}}

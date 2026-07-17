@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditMortalityRecord.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
@@ -128,33 +128,28 @@ export default function EditMortalityRecord() {
 
   if (loading) {
     return (
-      <div className="emr-page">
-        <Sidebar />
-        <div className="emr-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "MORTALITY RECORD", path: "/records/mortality" },
+          { label: "EDIT MORTALITY" },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="emr-page">
-      <Sidebar />
-
-      <div className="emr-main">
-
-        {/* Breadcrumb */}
-        <div className="emr-breadcrumb">
-          <button className="emr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="emr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="emr-bc-sep">›</span>
-          <span className="emr-bc-link" onClick={() => navigate("/records/mortality")}>MORTALITY RECORD</span>
-          <span className="emr-bc-sep">›</span>
-          <span className="emr-bc-current">EDIT MORTALITY</span>
-        </div>
-
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MORTALITY RECORD", path: "/records/mortality" },
+        { label: "EDIT MORTALITY" },
+      ]}
+    >
         {/* Header */}
 
         <form className="emr-form-card" onSubmit={handleSubmit}>
@@ -278,7 +273,6 @@ export default function EditMortalityRecord() {
 
         </form>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -1,60 +1,5 @@
-/* SalesTransaction.css — PoultryBiz */
-
-.st-page {
-  display: flex;
-  height: 100vh;
-  background: #f5f5f5;
-  font-family: 'Lato', 'Segoe UI', sans-serif;
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-.st-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  padding: 36px 40px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-
-.sidebar { flex-shrink: 0; }
-
-/* ── Topbar (title + hamburger) ── */
-.st-topbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.st-hamburger {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: #E4AF1F;
-  border: none;
-  border-radius: 8px;
-  width: 38px;
-  height: 38px;
-  font-size: 18px;
-  color: #47321C;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transition: background 0.2s;
-}
-.st-hamburger:hover { background: #c8930c; }
-
-.st-title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #1a1a1a;
-  margin: 0;
-}
+/* ── Page shell ── */
+/* Shell, breadcrumb, and hamburger now come from the shared PageLayout component. */
 
 /* ── Cards grid ── */
 .st-grid {
@@ -157,39 +102,24 @@
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
-  .st-main { padding: 28px 24px; gap: 24px; }
 }
 
 @media (max-width: 768px) {
-  .st-main { padding: 20px 16px; gap: 20px; }
-  .st-hamburger { display: flex; }
-
-  .st-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-  .st-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 @media (max-width: 480px) {
-  .st-main { padding: 16px 12px; gap: 16px; }
   .st-card { padding: 20px 16px; gap: 14px; }
   .st-card-icon-wrap { width: 56px; height: 56px; }
   .st-card-emoji { font-size: 26px; }
 }
 
 /* ===== Overview page layout update (header + responsive cards only) ===== */
-.st-title{font-family:'Poppins',sans-serif !important;font-size:clamp(22.65px, 1.2vw + 18px, 28.81px) !important;font-weight:800;line-height:1.618;margin:0 !important}
+/* ── Equal-size 3-column card grid (matches Records hub) ── */
+.st-grid{display:grid !important;grid-template-columns:repeat(3, 1fr) !important;grid-auto-rows:1fr;gap:24px !important;align-items:stretch !important}
+.st-card{height:100% !important;box-sizing:border-box}
+@media (max-width:1024px){.st-grid{grid-template-columns:repeat(2, 1fr) !important;gap:18px !important}}
+@media (max-width:640px){.st-grid{grid-template-columns:1fr !important;gap:14px !important}}
+
+/* ── Font (matches Records hub) ── */
 .st-card-label{font-family:'Poppins',sans-serif !important}
 .st-card-desc{font-family:'Lato',sans-serif !important;line-height:1.618 !important}
-.st-grid{display:grid !important;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)) !important;gap:24px !important;align-items:stretch !important}
-.st-card{height:100% !important;box-sizing:border-box}
-@media (max-width:1024px){.st-grid{grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) !important;gap:18px !important}}
-@media (max-width:640px){.st-grid{grid-template-columns:1fr !important;gap:14px !important}}

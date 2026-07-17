@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMenu, FiMaximize,
+  FiPlus, FiSearch, FiFilter,
+  FiEdit2, FiArchive, FiMaximize,
   FiPackage, FiTrash2, FiClipboard, FiLayers,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./ManureandWasteRecord.css";
 import { archiveRow } from "../archiveRow";
@@ -18,7 +18,7 @@ export default function ManureWasteRecord() {
   );
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ category: "All", date: "All" });
+  const [filters, setFilters] = useState({ category: "All", dateFrom: "", dateTo: "" });
   const filterRef = useRef(null);
 
   // Load records (mock API) and split per tab by recordType.
@@ -44,21 +44,23 @@ export default function ManureWasteRecord() {
   }, []);
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ category: "All", date: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+  const clearFilters = () => setFilters({ category: "All", dateFrom: "", dateTo: "" });
+  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
 
   const filteredManure = manureRecords.filter((r) =>
     (r.batchId?.toLowerCase().includes(search.toLowerCase()) ||
       r.methodOfHandling?.toLowerCase().includes(search.toLowerCase())) &&
     (filters.category === "All" || r.methodOfHandling === filters.category) &&
-    (filters.date === "All" || r.date === filters.date)
+    (!filters.dateFrom || (r.date || "") >= filters.dateFrom) &&
+    (!filters.dateTo || (r.date || "") <= filters.dateTo)
   );
 
   const filteredWaste = wasteRecords.filter((r) =>
     (r.wasteType?.toLowerCase().includes(search.toLowerCase()) ||
       r.disposalMethod?.toLowerCase().includes(search.toLowerCase())) &&
     (filters.category === "All" || r.wasteType === filters.category) &&
-    (filters.date === "All" || r.date === filters.date)
+    (!filters.dateFrom || (r.date || "") >= filters.dateFrom) &&
+    (!filters.dateTo || (r.date || "") <= filters.dateTo)
   );
 
   const handleTabChange = (tab) => {
@@ -76,7 +78,6 @@ export default function ManureWasteRecord() {
   const categoryOptions = isManure
     ? uniq(manureRecords.map((r) => r.methodOfHandling))
     : uniq(wasteRecords.map((r) => r.wasteType));
-  const dateOptions = uniq((isManure ? manureRecords : wasteRecords).map((r) => r.date));
 
   // ── Combined stats (manure + waste) ──
   const totalManure = manureRecords.length;
@@ -86,20 +87,14 @@ export default function ManureWasteRecord() {
   );
 
   return (
-    <div className="mwr-page">
-      <Sidebar />
-
-      <div className="mwr-main">
-
-        {/* Breadcrumb */}
-        <div className="mwr-breadcrumb">
-          <button className="mwr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="mwr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="mwr-bc-current">MANURE AND WASTE RECORD</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MANURE AND WASTE RECORD" },
+      ]}
+    >
 
         {/* Toolbar */}
         <div className="mwr-toolbar">
@@ -114,7 +109,7 @@ export default function ManureWasteRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder={isManure ? "Search manure record..." : "Search waste record..."}
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -148,24 +143,16 @@ export default function ManureWasteRecord() {
                       </select>
                     </div>
 
-                    {dateOptions.length > 0 && (
-                      <div className="mwr-filter-group">
-                        <label className="mwr-filter-label">Date</label>
-                        <div className="mwr-filter-options">
-                          <button
-                            className={`mwr-filter-option ${filters.date === "All" ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("date", "All")}
-                          >All</button>
-                          {dateOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              className={`mwr-filter-option ${filters.date === opt ? "selected" : ""}`}
-                              onClick={() => handleFilterChange("date", opt)}
-                            >{opt}</button>
-                          ))}
-                        </div>
+                    <div className="mwr-filter-group">
+                      <label className="mwr-filter-label">Date Range</label>
+                      <div className="mwr-filter-date-range">
+                        <input type="date" className="mwr-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="mwr-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -179,10 +166,10 @@ export default function ManureWasteRecord() {
         {activeFilterCount > 0 && (
           <div className="mwr-active-filters">
             {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
+              value && value !== "All" ? (
                 <span key={key} className="mwr-active-filter-tag">
-                  {(key === "category" ? categoryLabel : "Date")}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {(key === "category" ? categoryLabel : key === "dateFrom" ? "From" : "To")}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
               ) : null
             )}
@@ -369,7 +356,6 @@ export default function ManureWasteRecord() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

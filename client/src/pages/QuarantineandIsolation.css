@@ -21,64 +21,8 @@
   --font-body:   "Lato", sans-serif;
 }
 
-/* ── PAGE SHELL ── */
-.qi-page {
-  display: flex;
-  height: 100vh;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-
-.qi-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* ── BREADCRUMB ── */
-.qi-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-}
-.qi-bc-link {
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-.qi-bc-link:hover { color: var(--gold); }
-.qi-bc-current { color: var(--text-primary); font-weight: 800; }
-
-.qi-hamburger {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: var(--gold);
-  border: none;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.qi-hamburger:hover { background: var(--gold-dark); }
-@media (max-width: 768px) { .qi-hamburger { display: flex; } }
+/* ── PAGE SHELL / BREADCRUMB ── */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
 /* ── TOOLBAR ── */
 .qi-toolbar {
@@ -94,6 +38,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 22px;
+  height: 42px !important;
+  box-sizing: border-box;
   background: var(--gold);
   color: #fff;
   border: none;
@@ -132,11 +78,13 @@
 .qi-search-box {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
-  padding: 9px 14px;
+  padding: 0 16px;
+  height: 42px !important;
+  box-sizing: border-box;
   min-width: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -157,6 +105,8 @@
   align-items: center;
   gap: 6px;
   padding: 9px 16px;
+  height: 42px !important;
+  box-sizing: border-box;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
@@ -368,6 +318,7 @@
 .qi-status-ongoing   { background: var(--icon-blue-bg);  color: var(--icon-blue); }
 .qi-status-cleared   { background: var(--icon-green-bg); color: var(--icon-green); }
 .qi-status-released  { background: var(--gold-light);    color: var(--gold-dark); }
+.qi-status-active    { background: var(--icon-green-bg); color: var(--icon-green); }
 
 /* ── ACTION BUTTONS (Edit + Archive) ── */
 .qi-actions { display: flex; gap: 6px; align-items: center; }
@@ -425,18 +376,14 @@
 }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 1280px) { .qi-main { padding: 24px 32px; } }
 
 @media (max-width: 1024px) {
-  .qi-main { padding: 20px; }
   .qi-toolbar { flex-direction: column; align-items: stretch; }
   .qi-toolbar-right { flex-wrap: wrap; flex: 1; justify-content: flex-end; }
   .qi-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .qi-main { padding: 14px; gap: 16px; }
-  .qi-breadcrumb { font-size: 10px; }
   .qi-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .qi-add-btn { justify-content: center; width: 100%; }
 
@@ -455,24 +402,9 @@
 
   .qi-table th, .qi-table td { padding: 10px 12px; font-size: 12px; }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .qi-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-  .qi-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 @media (max-width: 480px) {
-  .qi-main { padding: 12px; gap: 12px; }
-  .qi-breadcrumb { font-size: 10px; }
   .qi-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .qi-section-label { padding: 14px 16px; }
   .qi-section-icon { width: 38px; height: 38px; font-size: 18px; }
@@ -647,7 +579,6 @@
 @media (max-width:360px){.qi-stats-grid>*{flex:1 1 100% !important;min-width:0 !important;}}
 @media (max-width:768px){
   .qi-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
-  .qi-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
   .qi-search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
   .qi-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
   .qi-btn-group>*{width:100% !important;min-width:0 !important;}
@@ -655,15 +586,10 @@
   .qi-filter-wrap{width:100% !important;}
   .qi-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
 }
-.qi-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
-.qi-breadcrumb::-webkit-scrollbar{display:none;}
-.qi-breadcrumb>*{flex-shrink:0;}
 
 
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.qi-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.qi-breadcrumb::-webkit-scrollbar{display:none}
-.qi-breadcrumb>*{flex-shrink:0}
-.qi-breadcrumb a,.qi-breadcrumb .breadcrumb-link,.qi-breadcrumb .crumb-link,.qi-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.qi-breadcrumb a:hover,.qi-breadcrumb .breadcrumb-link:hover,.qi-breadcrumb .crumb-link:hover,.qi-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.qi-breadcrumb .breadcrumb-current,.qi-breadcrumb .crumb-current,.qi-breadcrumb .active,.qi-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}
+/* ── Date range filter (From – To) inside the Filter dropdown — matches MortalityRecord ── */
+.qi-filter-date-range{display:flex;align-items:center;gap:8px}
+.qi-filter-date-range input[type="date"]{flex:1;min-width:0;cursor:pointer}
+.qi-filter-date-range span{font-size:11.5px;color:var(--text-muted,#a39e94);flex-shrink:0}
+@media (max-width:480px){.qi-filter-date-range{flex-direction:column;align-items:stretch;gap:6px}.qi-filter-date-range span{text-align:center}}

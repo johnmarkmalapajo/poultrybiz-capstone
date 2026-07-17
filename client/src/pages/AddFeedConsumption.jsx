@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiInfo, FiFileText, FiSave, FiMenu } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiInfo, FiFileText, FiSave, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddFeedConsumption.css";
 
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
@@ -137,58 +137,41 @@ export default function AddFeedConsumption() {
   };
 
   return (
-    <div className="add-fc-page">
-      <Sidebar />
+    <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "INVENTORY", path: "/inventory" }, { label: "FEED CONSUMPTION", path: "/inventory/feed-consumption" }, { label: "ADD FEED CONSUMPTION" }]}>
 
-      <div className="add-fc-main">
-
-        {/* Breadcrumb */}
-        <div className="add-fc-breadcrumb">
-          <button className="add-fc-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-consumption")}>FEED CONSUMPTION</span>
-          <span>›</span>
-          <span className="breadcrumb-current">ADD FEED CONSUMPTION</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="fc-form-card" onSubmit={handleSubmit}>
+        <form className="afc-form-card" onSubmit={handleSubmit}>
 
           {/* CONSUMPTION DETAILS */}
-          <div className="section-header">
+          <div className="afc-section-header">
             <FiInfo />
             <h3>CONSUMPTION DETAILS</h3>
-            <div className="line"></div>
+            <div className="afc-line"></div>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Date <span className="req">*</span></label>
+          <div className="afc-form-grid">
+            <div className="afc-form-group">
+              <label>Date <span className="afc-req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} required />
             </div>
 
-            <div className="form-group">
-              <label>Batch ID <span className="req">*</span></label>
+            <div className="afc-form-group">
+              <label>Batch ID <span className="afc-req">*</span></label>
               <select name="batchId" value={form.batchId} onChange={handleBatchChange} required>
                 <option value="">{batches.length ? "Select batch" : "No batches available"}</option>
                 {batches.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Feed Type <span className="req">*</span></label>
+            <div className="afc-form-group">
+              <label>Feed Type <span className="afc-req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
                 <option value="">Select feed type</option>
                 {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Quantity Consumed <span className="req">*</span></label>
+            <div className="afc-form-group">
+              <label>Quantity Consumed <span className="afc-req">*</span></label>
               <input
                 type="number" min="0" name="quantityConsumed"
                 value={form.quantityConsumed} onChange={handleChange}
@@ -198,13 +181,13 @@ export default function AddFeedConsumption() {
           </div>
 
           {/* ADDITIONAL INFORMATION */}
-          <div className="section-header">
+          <div className="afc-section-header">
             <FiFileText />
             <h3>ADDITIONAL INFORMATION</h3>
-            <div className="line"></div>
+            <div className="afc-line"></div>
           </div>
 
-          <div className="form-group full-width">
+          <div className="afc-form-group afc-full-width">
             <label>Notes</label>
             <textarea
               rows="6" name="notes" value={form.notes} onChange={handleChange}
@@ -214,17 +197,17 @@ export default function AddFeedConsumption() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate("/inventory/feed-consumption")}>
+          <div className="afc-form-actions">
+            <button type="button" className="afc-cancel-btn" onClick={() => navigate("/inventory/feed-consumption")}>
               Cancel
             </button>
-            <button type="submit" disabled={saving} className="save-btn">
+            <button type="submit" disabled={saving} className="afc-save-btn">
               <FiSave />
               Save Record
             </button>
           </div>
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

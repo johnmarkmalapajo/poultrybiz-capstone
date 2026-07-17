@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload, FiEdit2, FiArchive,
-  FiGrid, FiArrowDown, FiArrowUp, FiBox, FiMaximize, FiMenu,
+  FiPlus, FiSearch, FiFilter, FiEdit2, FiArchive,
+  FiGrid, FiArrowDown, FiArrowUp, FiBox, FiMaximize,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./FeedInventory.css";
 import { archiveRow } from "../archiveRow";
@@ -98,41 +98,36 @@ export default function FeedInventory() {
     .map(([t]) => t);
 
   return (
-    <div className="fi-page">
-      <Sidebar />
-
-      <div className="fi-main">
-
-        <div className="fi-breadcrumb">
-          <button className="fi-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-current">FEED INVENTORY</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "INVENTORY", path: "/inventory" },
+        { label: "FEED INVENTORY" },
+      ]}
+    >
 
         <div className="fi-toolbar">
-          <button className="add-fi-btn" onClick={() => navigate("/inventory/feed-inventory/add")}>
+          <button className="fi-add-btn" onClick={() => navigate("/inventory/feed-inventory/add")}>
             <FiPlus />
             Add New Feeds
           </button>
 
-          <div className="toolbar-actions">
-            <div className="search-box">
+          <div className="fi-toolbar-right">
+            <div className="fi-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search feed stock..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
-            <div className="toolbar-btn-group">
+            <div className="fi-btn-group">
               {/* Filter — inline dropdown (Expenses-style) */}
               <div className="fi-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="fi-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="fi-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -161,7 +156,7 @@ export default function FeedInventory() {
                 )}
               </div>
 
-              <ExportMenu rows={filtered} name="feed-inventory" title="Feed Inventory" className="toolbar-btn" />
+              <ExportMenu rows={filtered} name="feed-inventory" title="Feed Inventory" className="fi-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -196,9 +191,9 @@ export default function FeedInventory() {
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiGrid /></div>
+        <div className="fi-stats-grid">
+          <div className="fi-stat-card">
+            <div className="fi-stat-icon gold"><FiGrid /></div>
             <div>
               <h3>{totalRecords}</h3>
               <p>Total Records</p>
@@ -206,8 +201,8 @@ export default function FeedInventory() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon green"><FiArrowDown /></div>
+          <div className="fi-stat-card">
+            <div className="fi-stat-icon green"><FiArrowDown /></div>
             <div>
               <h3>{totalIn} kg</h3>
               <p>Total Quantity In</p>
@@ -215,8 +210,8 @@ export default function FeedInventory() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon red"><FiArrowUp /></div>
+          <div className="fi-stat-card">
+            <div className="fi-stat-icon red"><FiArrowUp /></div>
             <div>
               <h3>{totalOut} kg</h3>
               <p>Total Quantity Out</p>
@@ -224,8 +219,8 @@ export default function FeedInventory() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiBox /></div>
+          <div className="fi-stat-card">
+            <div className="fi-stat-icon blue"><FiBox /></div>
             <div>
               <h3>{balance} kg</h3>
               <p>Current Balance</p>
@@ -234,7 +229,7 @@ export default function FeedInventory() {
           </div>
         </div>
 
-        <div className="table-wrapper">
+        <div className="fi-table-wrapper">
           <table className="fi-table">
             <thead>
               <tr>
@@ -250,12 +245,12 @@ export default function FeedInventory() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan="7" className="fi-empty-state">
+                    <div className="fi-empty-content">
                       <FiMaximize />
                       <h3>No feed stock records found</h3>
                       <p>Click Add New Feeds to record your first transaction.</p>
-                      <button className="empty-add-btn" onClick={() => navigate("/inventory/feed-inventory/add")}>
+                      <button className="fi-empty-add-btn" onClick={() => navigate("/inventory/feed-inventory/add")}>
                         <FiPlus />
                         Add New Feeds
                       </button>
@@ -272,9 +267,9 @@ export default function FeedInventory() {
                     <td><strong>{r.balance} kg</strong></td>
                     <td>{r.notes}</td>
                     <td>
-                      <div className="action-buttons">
+                      <div className="fi-actions">
                         <button
-                          className="action-btn edit"
+                          className="fi-btn-edit"
                           title="Edit"
                           onClick={() => {
                             localStorage.setItem("editFeedRecord", JSON.stringify(r));
@@ -283,7 +278,7 @@ export default function FeedInventory() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="action-btn archive" onClick={() => archiveRow({ module: "Feed Inventory", moduleKey: "pb_feed_inventory", record: r, name: r.feedType || r.name })} title="Archive">
+                        <button className="fi-btn-archive" onClick={() => archiveRow({ module: "Feed Inventory", moduleKey: "pb_feed_inventory", record: r, name: r.feedType || r.name })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>
@@ -294,12 +289,11 @@ export default function FeedInventory() {
             </tbody>
           </table>
 
-          <div className="table-footer">
+          <div className="fi-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

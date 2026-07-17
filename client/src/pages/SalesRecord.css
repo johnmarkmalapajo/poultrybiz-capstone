@@ -52,92 +52,7 @@
 /* =============================
    PAGE SHELL
 ============================= */
-
-.sr-page {
-  display: flex;
-  height: 100vh;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-
-.sr-main {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-xl) calc(var(--space-xl) * 1.2);
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-/* =============================
-   BREADCRUMB
-============================= */
-
-.sr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  -webkit-user-select: none;
-  flex-wrap: wrap;
-}
-
-.sr-breadcrumb .breadcrumb-link {
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-
-.sr-breadcrumb .breadcrumb-link:hover {
-  color: var(--gold);
-  text-decoration: underline;
-}
-
-.sr-breadcrumb .breadcrumb-current {
-  color: var(--text-primary);
-  font-weight: 800;
-}
-
-/* =============================
-   HAMBURGER — mobile only
-============================= */
-
-.sr-hamburger {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .sr-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--gold);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
-
-  .sr-hamburger:hover {
-    background: var(--gold-dark);
-  }
-}
+/* .sr-page / .sr-main now come from the shared PageLayout component. */
 
 /* =============================
    TOOLBAR
@@ -532,13 +447,7 @@
 }
 
 .sr-error-banner {
-  background: var(--icon-red-bg);
-  border: 1px solid var(--icon-red);
-  color: var(--icon-red);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: 10px;
-  font-family: var(--font-body);
-  font-size: var(--text-base);
+  display: none;
 }
 
 /* =============================
@@ -556,10 +465,6 @@
 ============================= */
 
 @media (max-width: 1024px) {
-  .sr-main {
-    padding: var(--space-lg);
-  }
-
   .sr-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -584,15 +489,6 @@
 ============================= */
 
 @media (max-width: 768px) {
-  .sr-main {
-    padding: var(--space-md);
-    gap: var(--space-md);
-  }
-
-  .sr-breadcrumb {
-    font-size: 10px;
-  }
-
   .sr-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -662,16 +558,6 @@
 ============================= */
 
 @media (max-width: 480px) {
-  .sr-breadcrumb {
-    font-size: 10px;
-  }
-
-  .sr-main {
-    padding: var(--space-sm);
-    gap: var(--space-sm);
-    width: 100%;
-  }
-
   .sr-stat-icon {
     width: 42px;
     height: 42px;
@@ -721,20 +607,7 @@
   }
 }
 
-/* =============================
-   ERROR BANNER — hidden (cosmetic)
-============================= */
-
-.sr-error-banner {
-  display: none;
-}
-
 /* ── Sticky table header (stays while rows scroll) ── */
-.sr-table-wrapper {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
 .sr-table-wrapper thead th {
   position: sticky;
   top: 0;
@@ -883,12 +756,10 @@
   .sr-filter-dropdown { left: 0; right: auto; min-width: 0; width: calc(100vw - 32px); max-width: 360px; }
 }
 
-
 /* ===== Batch A: page-level vertical scroll; table scrolls HORIZONTALLY only (no independent vertical scroll) — matches User & Roles ===== */
 .sr-table-wrapper { flex: none !important; min-height: 0 !important; max-height: none !important; overflow-x: auto !important; overflow-y: hidden !important; }
 
-
-/* ===== Responsive Layout Improvements (stat cards / toolbar / breadcrumb) ===== */
+/* ===== Responsive Layout Improvements (stat cards / toolbar) ===== */
 .sr-stats-grid{display:flex !important;flex-wrap:wrap !important;gap:16px !important;width:100% !important;}
 .sr-stats-grid>*{flex:1 1 170px !important;min-width:150px !important;max-width:none !important;width:auto !important;box-sizing:border-box;}
 @media (max-width:768px){.sr-stats-grid{gap:10px !important;}.sr-stats-grid>*{flex:1 1 42% !important;min-width:130px !important;}}
@@ -903,15 +774,3 @@
   .sr-filter-wrap{width:100% !important;}
   .sr-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
 }
-.sr-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
-.sr-breadcrumb::-webkit-scrollbar{display:none;}
-.sr-breadcrumb>*{flex-shrink:0;}
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.sr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.sr-breadcrumb::-webkit-scrollbar{display:none}
-.sr-breadcrumb>*{flex-shrink:0}
-.sr-breadcrumb a,.sr-breadcrumb .breadcrumb-link,.sr-breadcrumb .crumb-link,.sr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.sr-breadcrumb a:hover,.sr-breadcrumb .breadcrumb-link:hover,.sr-breadcrumb .crumb-link:hover,.sr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.sr-breadcrumb .breadcrumb-current,.sr-breadcrumb .crumb-current,.sr-breadcrumb .active,.sr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

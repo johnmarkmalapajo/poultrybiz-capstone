@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMenu, FiMaximize, FiShield,
+  FiPlus, FiSearch, FiFilter,
+  FiEdit2, FiArchive, FiMaximize, FiShield,
   FiClipboard, FiCheckCircle, FiHeart, FiAlertCircle,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./QuarantineandIsolation.css";
 import { archiveRow } from "../archiveRow";
@@ -19,7 +19,7 @@ export default function QuarantineIsolation() {
 
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ status: "All", batchId: "All", date: "All" });
+  const [filters, setFilters] = useState({ status: "All", batchId: "All", dateFrom: "", dateTo: "" });
   const filterRef = useRef(null);
   const [activeTab, setActiveTab] = useState(
     params.get("tab") === "isolation" ? "isolation" : "quarantine"
@@ -56,14 +56,14 @@ export default function QuarantineIsolation() {
   const isQuarantine = activeTab === "quarantine";
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ status: "All", batchId: "All", date: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+  const clearFilters = () => setFilters({ status: "All", batchId: "All", dateFrom: "", dateTo: "" });
+  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
 
   // switching tabs resets the filter (columns differ per table)
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSearch("");
-    setFilters({ status: "All", batchId: "All", date: "All" });
+    setFilters({ status: "All", batchId: "All", dateFrom: "", dateTo: "" });
     setShowFilter(false);
   };
 
@@ -73,7 +73,6 @@ export default function QuarantineIsolation() {
   const statusOptions = isQuarantine ? QUARANTINE_STATUS : ISOLATION_STATUS;
   const batchOptions = uniq(activeSource.map((r) => r.batchId));
   const dateLabel = isQuarantine ? "Date Acquired" : "Date Isolated";
-  const dateOptions = uniq(activeSource.map((r) => (isQuarantine ? r.dateAcquired : r.dateIsolated)));
 
   const filteredQuarantine = quarantineRecords.filter((r) =>
     (r.batchId?.toLowerCase().includes(search.toLowerCase()) ||
@@ -81,7 +80,8 @@ export default function QuarantineIsolation() {
       r.status?.toLowerCase().includes(search.toLowerCase())) &&
     (filters.status === "All" || r.status === filters.status) &&
     (filters.batchId === "All" || r.batchId === filters.batchId) &&
-    (filters.date === "All" || r.dateAcquired === filters.date)
+    (!filters.dateFrom || (r.dateAcquired || "") >= filters.dateFrom) &&
+    (!filters.dateTo || (r.dateAcquired || "") <= filters.dateTo)
   );
 
   const filteredIsolation = isolationRecords.filter((r) =>
@@ -91,7 +91,8 @@ export default function QuarantineIsolation() {
       r.currentStatus?.toLowerCase().includes(search.toLowerCase())) &&
     (filters.status === "All" || r.currentStatus === filters.status) &&
     (filters.batchId === "All" || r.batchId === filters.batchId) &&
-    (filters.date === "All" || r.dateIsolated === filters.date)
+    (!filters.dateFrom || (r.dateIsolated || "") >= filters.dateFrom) &&
+    (!filters.dateTo || (r.dateIsolated || "") <= filters.dateTo)
   );
 
   const statusClass = (status) => {
@@ -102,6 +103,7 @@ export default function QuarantineIsolation() {
     if (s.includes("ongoing")) return "qi-status qi-status-ongoing";
     if (s.includes("clear"))   return "qi-status qi-status-cleared";
     if (s.includes("release")) return "qi-status qi-status-released";
+    if (s.includes("active"))  return "qi-status qi-status-active";
     return "qi-status";
   };
 
@@ -126,20 +128,14 @@ export default function QuarantineIsolation() {
   const addLabel = isQuarantine ? "Add Quarantine Record" : "Add Isolation Record";
 
   return (
-    <div className="qi-page">
-      <Sidebar />
-
-      <div className="qi-main">
-
-        {/* Breadcrumb */}
-        <div className="qi-breadcrumb">
-          <button className="qi-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="qi-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="qi-bc-current">QUARANTINE AND ISOLATION</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "QUARANTINE AND ISOLATION" },
+      ]}
+    >
 
         {/* Toolbar */}
         <div className="qi-toolbar">
@@ -151,7 +147,7 @@ export default function QuarantineIsolation() {
               <FiSearch />
               <input
                 type="text"
-                placeholder={isQuarantine ? "Search quarantine record..." : "Search isolation record..."}
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -172,19 +168,16 @@ export default function QuarantineIsolation() {
 
                     <div className="qi-filter-group">
                       <label className="qi-filter-label">{isQuarantine ? "Status" : "Current Status"}</label>
-                      <div className="qi-filter-options">
-                        <button
-                          className={`qi-filter-option ${filters.status === "All" ? "selected" : ""}`}
-                          onClick={() => handleFilterChange("status", "All")}
-                        >All</button>
+                      <select
+                        className="qi-filter-select"
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange("status", e.target.value)}
+                      >
+                        <option value="All">All Statuses</option>
                         {statusOptions.map((opt) => (
-                          <button
-                            key={opt}
-                            className={`qi-filter-option ${filters.status === opt ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("status", opt)}
-                          >{opt}</button>
+                          <option key={opt} value={opt}>{opt}</option>
                         ))}
-                      </div>
+                      </select>
                     </div>
 
                     <div className="qi-filter-group">
@@ -201,24 +194,16 @@ export default function QuarantineIsolation() {
                       </select>
                     </div>
 
-                    {dateOptions.length > 0 && (
-                      <div className="qi-filter-group">
-                        <label className="qi-filter-label">{dateLabel}</label>
-                        <div className="qi-filter-options">
-                          <button
-                            className={`qi-filter-option ${filters.date === "All" ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("date", "All")}
-                          >All</button>
-                          {dateOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              className={`qi-filter-option ${filters.date === opt ? "selected" : ""}`}
-                              onClick={() => handleFilterChange("date", opt)}
-                            >{opt}</button>
-                          ))}
-                        </div>
+                    <div className="qi-filter-group">
+                      <label className="qi-filter-label">{dateLabel} Range</label>
+                      <div className="qi-filter-date-range">
+                        <input type="date" className="qi-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="qi-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -232,10 +217,10 @@ export default function QuarantineIsolation() {
         {activeFilterCount > 0 && (
           <div className="qi-active-filters">
             {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
+              value && value !== "All" ? (
                 <span key={key} className="qi-active-filter-tag">
-                  {(key === "batchId" ? "Batch ID" : key === "date" ? dateLabel : key === "status" ? (isQuarantine ? "Status" : "Current Status") : key)}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {(key === "batchId" ? "Batch ID" : key === "dateFrom" ? "From" : key === "dateTo" ? "To" : isQuarantine ? "Status" : "Current Status")}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
               ) : null
             )}
@@ -419,7 +404,6 @@ export default function QuarantineIsolation() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

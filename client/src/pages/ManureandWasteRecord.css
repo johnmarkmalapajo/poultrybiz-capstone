@@ -21,53 +21,8 @@
   --font-body:   "Lato", sans-serif;
 }
 
-/* ── PAGE ── */
-.mwr-page {
-  display: flex;
-  height: 100vh;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-
-.mwr-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* ── BREADCRUMB ── */
-.mwr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-}
-.mwr-bc-link { cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
-.mwr-bc-link:hover { color: var(--gold); }
-.mwr-bc-current { color: var(--text-primary); font-weight: 800; }
-
-.mwr-hamburger {
-  display: none;
-  align-items: center; justify-content: center;
-  background: var(--gold); border: none; border-radius: 8px;
-  width: 36px; height: 36px; font-size: 18px; color: #fff;
-  cursor: pointer; transition: background 0.2s;
-}
-.mwr-hamburger:hover { background: var(--gold-dark); }
-@media (max-width: 768px) { .mwr-hamburger { display: flex; } }
+/* ── PAGE SHELL / BREADCRUMB ── */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
 /* ── TOOLBAR ── */
 .mwr-toolbar {
@@ -83,6 +38,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 22px;
+  height: 42px !important;
+  box-sizing: border-box;
   background: var(--gold);
   color: #fff;
   border: none;
@@ -121,11 +78,13 @@
 .mwr-search-box {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
-  padding: 9px 14px;
+  padding: 0 16px;
+  height: 42px !important;
+  box-sizing: border-box;
   min-width: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -146,6 +105,8 @@
   align-items: center;
   gap: 6px;
   padding: 9px 16px;
+  height: 42px !important;
+  box-sizing: border-box;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
@@ -353,18 +314,14 @@
 }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 1280px) { .mwr-main { padding: 24px 32px; } }
 
 @media (max-width: 1024px) {
-  .mwr-main { padding: 20px; }
   .mwr-toolbar { flex-direction: column; align-items: stretch; }
   .mwr-toolbar-right { flex-wrap: wrap; flex: 1; justify-content: flex-end; }
   .mwr-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .mwr-main { padding: 14px; gap: 14px; }
-  .mwr-breadcrumb { font-size: 10px; }
   .mwr-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .mwr-add-btn { justify-content: center; width: 100%; }
 
@@ -381,17 +338,9 @@
   .mwr-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .mwr-table th, .mwr-table td { padding: 10px 12px; font-size: 12px; }
 
-  .mwr-page .sidebar {
-    width: 0; padding: 0; min-width: 0; overflow: hidden; border: none;
-  }
-  .mwr-page .sidebar.sidebar-open {
-    width: 240px; padding: 14px; overflow: visible;
-  }
 }
 
 @media (max-width: 480px) {
-  .mwr-main { padding: 12px; gap: 12px; }
-  .mwr-breadcrumb { font-size: 10px; }
   .mwr-tab { padding: 9px 14px; font-size: 12px; }
   .mwr-table { min-width: 820px; }
   .mwr-table th, .mwr-table td { padding: 8px 10px; font-size: 11px; }
@@ -564,7 +513,6 @@
 @media (max-width:360px){.mwr-stats-grid>*{flex:1 1 100% !important;min-width:0 !important;}}
 @media (max-width:768px){
   .mwr-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
-  .mwr-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
   .mwr-search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
   .mwr-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
   .mwr-btn-group>*{width:100% !important;min-width:0 !important;}
@@ -572,15 +520,10 @@
   .mwr-filter-wrap{width:100% !important;}
   .mwr-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
 }
-.mwr-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
-.mwr-breadcrumb::-webkit-scrollbar{display:none;}
-.mwr-breadcrumb>*{flex-shrink:0;}
 
 
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.mwr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.mwr-breadcrumb::-webkit-scrollbar{display:none}
-.mwr-breadcrumb>*{flex-shrink:0}
-.mwr-breadcrumb a,.mwr-breadcrumb .breadcrumb-link,.mwr-breadcrumb .crumb-link,.mwr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.mwr-breadcrumb a:hover,.mwr-breadcrumb .breadcrumb-link:hover,.mwr-breadcrumb .crumb-link:hover,.mwr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.mwr-breadcrumb .breadcrumb-current,.mwr-breadcrumb .crumb-current,.mwr-breadcrumb .active,.mwr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}
+/* ── Date range filter (From – To) inside the Filter dropdown — matches MortalityRecord ── */
+.mwr-filter-date-range{display:flex;align-items:center;gap:8px}
+.mwr-filter-date-range input[type="date"]{flex:1;min-width:0;cursor:pointer}
+.mwr-filter-date-range span{font-size:11.5px;color:var(--text-muted,#a39e94);flex-shrink:0}
+@media (max-width:480px){.mwr-filter-date-range{flex-direction:column;align-items:stretch;gap:6px}.mwr-filter-date-range span{text-align:center}}

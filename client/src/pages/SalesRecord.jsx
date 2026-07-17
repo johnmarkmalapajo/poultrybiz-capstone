@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
   FiEdit2, FiArchive, FiDollarSign, FiShoppingCart,
-  FiTrendingUp, FiCalendar, FiMaximize, FiMenu,
+  FiTrendingUp, FiCalendar, FiMaximize,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import { activity } from "../activity";
@@ -109,24 +109,32 @@ export default function SalesRecord() {
   const formatPeso  = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatTrays = (n) => Number(n || 0).toLocaleString("en-PH");
 
+  // Auto-generated display ID (SL-000001, SL-000002, ...) — like Batch ID.
+  // Computed from the FULL records list (not the filtered view) so the
+  // numbering stays stable and sequential regardless of search/filter.
+  // Sorted by date of sale, then by _id as a tie-breaker.
+  const saleIdMap = (() => {
+    const sorted = [...records].sort((a, b) => {
+      const da = new Date(a.dateOfSale || 0).getTime();
+      const db = new Date(b.dateOfSale || 0).getTime();
+      if (da !== db) return da - db;
+      return String(a._id).localeCompare(String(b._id));
+    });
+    const map = new Map();
+    sorted.forEach((r, i) => map.set(r._id, `SL-${String(i + 1).padStart(6, "0")}`));
+    return map;
+  })();
+
+
   return (
-    <div className="sr-page">
-      <Sidebar />
-
-      <div className="sr-main">
-
-        {/* Breadcrumb */}
-        <div className="sr-breadcrumb">
-          <button className="sr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/sales-transactions")}>
-            SALES &amp; TRANSACTIONS
-          </span>
-          <span>›</span>
-          <span className="breadcrumb-current">SALES RECORD</span>
-        </div>
-
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "SALES RECORD" },
+      ]}
+    >
         {/* Toolbar */}
         <div className="sr-toolbar">
           <button className="add-sales-btn" onClick={() => navigate("/sales-transactions/sales/add")}>
@@ -294,7 +302,7 @@ export default function SalesRecord() {
                 ) : (
                   filtered.map((r) => (
                     <tr key={r._id}>
-                      <td><span className="sr-badge">{r.saleId}</span></td>
+                      <td><span className="sr-badge" title={r.saleId}>{saleIdMap.get(r._id) || "—"}</span></td>
                       <td>{formatDate(r.dateOfSale)}</td>
                       <td>{r.buyer}</td>
                       <td>{r.eggSize}</td>
@@ -328,7 +336,6 @@ export default function SalesRecord() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

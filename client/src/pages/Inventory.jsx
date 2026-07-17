@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import Sidebar from "../components/Sidebar";
+import Breadcrumb from "../components/Breadcrumb";
 import "./Inventory.css";
 
 const cards = [
@@ -16,10 +17,7 @@ export default function Inventory() {
       <Sidebar />
       <div className="inv-main">
         {/* Page header only — no breadcrumb, no search */}
-        <div className="inv-topbar">
-          <button className="inv-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
-          <h2 className="inv-title">INVENTORY</h2>
-        </div>
+        <Breadcrumb items={[{ label: "INVENTORY" }]} />
 
         <div className="inv-grid">
           {cards.map((card, i) => (

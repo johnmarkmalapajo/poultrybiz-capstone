@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import "./Records.css";
 
 const cards = [
@@ -15,35 +15,26 @@ export default function Records() {
   const navigate = useNavigate();
 
   return (
-    <div className="records-page">
-      <Sidebar />
-      <div className="records-main">
-        {/* Page header only — no breadcrumb, no search */}
-        <div className="records-topbar-left">
-          <button className="records-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
-          <h2 className="records-title">RECORDS</h2>
-        </div>
-
-        <div className="records-grid">
-          {cards.map((card, i) => (
-            <button
-              key={card.id}
-              className="record-card"
-              style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
-              onClick={() => navigate(card.path)}
-            >
-              <div className="card-icon-wrap">
-                <span className="card-emoji">{card.emoji}</span>
-              </div>
-              <div className="card-body">
-                <span className="card-label">{card.label}</span>
-                <span className="card-desc">{card.description}</span>
-              </div>
-              <span className="card-arrow">›</span>
-            </button>
-          ))}
-        </div>
+    <PageLayout breadcrumbItems={[{ label: "RECORDS" }]}>
+      <div className="records-grid">
+        {cards.map((card, i) => (
+          <button
+            key={card.id}
+            className="record-card"
+            style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
+            onClick={() => navigate(card.path)}
+          >
+            <div className="card-icon-wrap">
+              <span className="card-emoji">{card.emoji}</span>
+            </div>
+            <div className="card-body">
+              <span className="card-label">{card.label}</span>
+              <span className="card-desc">{card.description}</span>
+            </div>
+            <span className="card-arrow">›</span>
+          </button>
+        ))}
       </div>
-    </div>
+    </PageLayout>
   );
 }

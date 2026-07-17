@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  FiInfo, FiGrid, FiFileText, FiBarChart2, FiSave, FiMenu,
+  FiInfo, FiGrid, FiFileText, FiBarChart2, FiSave, FiX,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import "./EditEggRecord.css";
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/egg-records`;
@@ -169,177 +169,178 @@ export default function EditEggRecord() {
     }
   };
 
+  if (loading) {
+    return (
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "EGG RECORD", path: "/records/egg" },
+          { label: "EDIT EGG RECORD" },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading egg record...</p>
+      </PageLayout>
+    );
+  }
+
   return (
-    <div className="eer-page">
-      <Sidebar />
-
-      <div className="eer-main">
-
-        {/* Breadcrumb */}
-        <div className="eer-breadcrumb">
-          <button className="eer-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="eer-breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="eer-breadcrumb-link" onClick={() => navigate("/records/egg")}>EGG RECORD</span>
-          <span>›</span>
-          <span className="eer-breadcrumb-current">EDIT EGG RECORD</span>
-        </div>
-
-        {/* Header */}
-
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "EGG RECORD", path: "/records/egg" },
+        { label: "EDIT EGG RECORD" },
+      ]}
+    >
         {/* Banners */}
         {success && <div className="eer-success-banner">{success}</div>}
         {error   && <div className="eer-error-banner">{error}</div>}
 
-        {loading ? (
-          <div className="eer-loading">Loading egg record...</div>
-        ) : (
-          <form className="eer-form-card" onSubmit={handleSubmit}>
+        <form className="eer-form-card" onSubmit={handleSubmit}>
 
-            {/* BATCH INFORMATION */}
-            <div className="eer-section-header">
-              <FiInfo />
-              <h3>BATCH INFORMATION</h3>
-              <div className="eer-line" />
+          {/* BATCH INFORMATION */}
+          <div className="eer-section-header">
+            <FiInfo />
+            <h3>Batch Information</h3>
+            <div className="eer-line" />
+          </div>
+
+          <div className="eer-form-grid">
+            <div className="eer-form-group">
+              <label>Batch <span className="eer-req">*</span></label>
+              <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
+                <option value="">Select Batch</option>
+                {formData.batchId && !batchOptions.includes(formData.batchId) && (
+                  <option value={formData.batchId}>{formData.batchId}</option>
+                )}
+                {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <small>Select the flock batch for this collection.</small>
             </div>
 
-            <div className="eer-form-grid">
-              <div className="eer-form-group">
-                <label>Batch <span className="req">*</span></label>
-                <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
-                  <option value="">Select Batch</option>
-                  {formData.batchId && !batchOptions.includes(formData.batchId) && (
-                    <option value={formData.batchId}>{formData.batchId}</option>
-                  )}
-                  {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
-                <small>Select the flock batch for this collection.</small>
-              </div>
-
-              <div className="eer-form-group">
-                <label>Cage <span className="req">*</span></label>
-                <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                  <option value="">Select Cage</option>
-                  {formData.cageId && !cageOptions.includes(formData.cageId) && (
-                    <option value={formData.cageId}>{formData.cageId}</option>
-                  )}
-                  {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
-                <small>Select a cage (C-01 to C-12).</small>
-              </div>
-
-              <div className="eer-form-group">
-                <label>Collection Date <span className="req">*</span></label>
-                <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} required />
-                <small>Date the eggs were collected.</small>
-              </div>
+            <div className="eer-form-group">
+              <label>Cage <span className="eer-req">*</span></label>
+              <select name="cageId" value={formData.cageId} onChange={handleChange} required>
+                <option value="">Select Cage</option>
+                {formData.cageId && !cageOptions.includes(formData.cageId) && (
+                  <option value={formData.cageId}>{formData.cageId}</option>
+                )}
+                {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <small>Select a cage (C-01 to C-12).</small>
             </div>
 
-            {/* EGG COLLECTION */}
-            <div className="eer-section-header">
-              <FiGrid />
-              <h3>EGG COLLECTION</h3>
-              <div className="eer-line" />
+            <div className="eer-form-group">
+              <label> Date <span className="eer-req">*</span></label>
+              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} required />
+              <small>Date the eggs were collected.</small>
             </div>
+          </div>
 
-            <div className="eer-count-grid">
-              {COUNT_FIELDS.map((f) => (
-                <div className="eer-form-group" key={f.name}>
-                  <label>{f.label}</label>
-                  <input
-                    type="number" min="0" step="1" name={f.name}
-                    value={formData[f.name]} onChange={handleCountChange}
-                    onKeyDown={(e) => ["-", "e", "E", "."].includes(e.key) && e.preventDefault()}
-                    placeholder="0"
-                  />
-                </div>
-              ))}
-            </div>
+          {/* EGG COLLECTION */}
+          <div className="eer-section-header">
+            <FiGrid />
+            <h3>Egg Collection</h3>
+            <div className="eer-line" />
+          </div>
 
-            {/* ADDITIONAL INFORMATION */}
-            <div className="eer-section-header">
-              <FiFileText />
-              <h3>ADDITIONAL INFORMATION</h3>
-              <div className="eer-line" />
-            </div>
-
-            <div className="eer-form-grid">
-              <div className="eer-form-group" style={{ gridColumn: "1 / -1" }}>
-                <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
-                <textarea name="remarks" value={formData.remarks} onChange={handleChange}
-                  placeholder="Enter remarks or observations..." rows="3" maxLength={500} />
+          <div className="eer-count-grid">
+            {COUNT_FIELDS.map((f) => (
+              <div className="eer-form-group" key={f.name}>
+                <label>{f.label}</label>
+                <input
+                  type="number" min="0" step="1" name={f.name}
+                  value={formData[f.name]} onChange={handleCountChange}
+                  onKeyDown={(e) => ["-", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                  placeholder="0"
+                />
               </div>
+            ))}
+          </div>
+
+          {/* ADDITIONAL INFORMATION */}
+          <div className="eer-section-header">
+            <FiFileText />
+            <h3>Additional Information</h3>
+            <div className="eer-line" />
+          </div>
+
+          <div className="eer-form-group eer-full-width">
+            <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
+            <textarea name="remarks" value={formData.remarks} onChange={handleChange}
+              placeholder="Enter remarks or observations..." maxLength={500} />
+            <small className="eer-char-count">{(formData.remarks || "").length} / 500</small>
+          </div>
+
+          {/* PRODUCTION SUMMARY (read-only) */}
+          <div className="eer-section-header">
+            <FiBarChart2 />
+            <h3>Production Summary</h3>
+            <div className="eer-line" />
+          </div>
+
+          <div className="eer-result-grid">
+            <div className="eer-result-card">
+              <h4>Current Birds</h4>
+              <div className="eer-result-value">{currentBirds == null ? "--" : currentBirds}</div>
+              <p>From selected batch</p>
             </div>
 
-            {/* PRODUCTION SUMMARY (read-only) */}
-            <div className="eer-section-header">
-              <FiBarChart2 />
-              <h3>PRODUCTION SUMMARY</h3>
-              <div className="eer-line" />
+            <div className="eer-result-card">
+              <h4>Good Eggs</h4>
+              <div className="eer-result-value">{goodEggs}</div>
+              <p>Sum of all egg sizes</p>
             </div>
 
-            <div className="eer-result-grid">
-              <div className="eer-result-card">
-                <h4>Current Birds</h4>
-                <div className="eer-result-value">{currentBirds == null ? "--" : currentBirds}</div>
-                <p>From selected batch</p>
-              </div>
-
-              <div className="eer-result-card">
-                <h4>Good Eggs</h4>
-                <div className="eer-result-value">{goodEggs}</div>
-                <p>Sum of all egg sizes</p>
-              </div>
-
-              <div className="eer-result-card">
-                <h4>Total Eggs</h4>
-                <div className="eer-result-value">{totalEggs}</div>
-                <p>Good Eggs + Cracked Eggs</p>
-              </div>
-
-              <div className="eer-result-card">
-                <h4>Hen-Day Production</h4>
-                <div className="eer-result-value green">{henDayDisplay}</div>
-                <p>( Total Eggs / Current Birds ) × 100</p>
-              </div>
-
-              <div className="eer-result-card">
-                <h4>Production Status</h4>
-                <div className="eer-result-value" style={{ fontSize: "1rem" }}>
-                  {status ? (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", gap: "6px",
-                      background: status.bg, color: status.color,
-                      padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
-                    }}>
-                      {status.dot} {status.label}
-                    </span>
-                  ) : "--"}
-                </div>
-                <p>Based on Hen-Day %</p>
-              </div>
+            <div className="eer-result-card">
+              <h4>Total Eggs</h4>
+              <div className="eer-result-value">{totalEggs}</div>
+              <p>Good Eggs + Cracked Eggs</p>
             </div>
 
-            <div className="eer-info-box">
-              <p>Current Birds, Good Eggs, Total Eggs, Hen-Day %, and Production Status update automatically and are read-only.</p>
+            <div className="eer-result-card">
+              <h4>Hen-Day Production</h4>
+              <div className="eer-result-value green">{henDayDisplay}</div>
+              <p>( Total Eggs / Current Birds ) × 100</p>
             </div>
 
-            {/* Actions */}
-            <div className="eer-form-actions">
+            <div className="eer-result-card">
+              <h4>Production Status</h4>
+              <div className="eer-result-value" style={{ fontSize: "1rem" }}>
+                {status ? (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    background: status.bg, color: status.color,
+                    padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
+                  }}>
+                    {status.dot} {status.label}
+                  </span>
+                ) : "--"}
+              </div>
+              <p>Based on Hen-Day %</p>
+            </div>
+          </div>
+
+          <div className="eer-info-box">
+            <p>Current Birds, Good Eggs, Total Eggs, Hen-Day %, and Production Status update automatically and are read-only.</p>
+          </div>
+
+          {/* Actions */}
+          <div className="eer-form-actions">
+            <p className="eer-req-note">Fields with * are required.</p>
+            <div className="eer-action-btns">
               <button type="button" className="eer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
-                Cancel
+                <FiX /> Cancel
               </button>
               <button type="submit" className="eer-save-btn" disabled={saving}>
-                <FiSave />
-                {saving ? "Saving..." : "Save Changes"}
+                <FiSave /> {saving ? "Saving..." : "Save Changes"}
               </button>
             </div>
+          </div>
 
-          </form>
-        )}
-      </div>
-    </div>
+        </form>
+
+    </PageLayout>
   );
 }

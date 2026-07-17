@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiActivity, FiDroplet, FiFileText, FiAlertTriangle } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditHealthRecord.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
@@ -207,34 +207,28 @@ export default function EditHealthRecord() {
 
   if (loading) {
     return (
-      <div className="ehr-page">
-        <Sidebar />
-        <div className="ehr-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "HEALTH RECORD", path: `/records/health?tab=${isVax ? "vaccination" : "diagnosis"}` },
+          { label: isVax ? "EDIT MEDICATION/VACCINATION" : "EDIT DIAGNOSIS" },
+        ]}
+      >
+        <p className="ehr-loading">Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="ehr-page">
-      <Sidebar />
-
-      <div className="ehr-main">
-
-        {/* Breadcrumb */}
-        <div className="ehr-breadcrumb">
-          <button className="ehr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="ehr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="ehr-bc-sep">›</span>
-          <span className="ehr-bc-link" onClick={() => navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`)}>HEALTH RECORD</span>
-          <span className="ehr-bc-sep">›</span>
-          <span className="ehr-bc-current">{isVax ? "EDIT MEDICATION/VACCINATION" : "EDIT DIAGNOSIS"}</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "HEALTH RECORD", path: `/records/health?tab=${isVax ? "vaccination" : "diagnosis"}` },
+        { label: isVax ? "EDIT MEDICATION/VACCINATION" : "EDIT DIAGNOSIS" },
+      ]}
+    >
 
         {!isVax ? (
           /* ============ DIAGNOSIS FORM ============ */
@@ -462,7 +456,6 @@ export default function EditHealthRecord() {
           </form>
         )}
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

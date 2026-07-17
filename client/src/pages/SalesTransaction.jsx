@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import "./SalesTransaction.css";
 
 const cards = [
@@ -11,35 +11,26 @@ export default function SalesTransaction() {
   const navigate = useNavigate();
 
   return (
-    <div className="st-page">
-      <Sidebar />
-      <div className="st-main">
-        {/* Page header only — no breadcrumb, no search */}
-        <div className="st-topbar">
-          <button className="st-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
-          <h2 className="st-title">SALES &amp; TRANSACTIONS</h2>
-        </div>
-
-        <div className="st-grid">
-          {cards.map((card, i) => (
-            <button
-              key={card.id}
-              className="st-card"
-              style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
-              onClick={() => navigate(card.path)}
-            >
-              <div className="st-card-icon-wrap">
-                <span className="st-card-emoji">{card.emoji}</span>
-              </div>
-              <div className="st-card-body">
-                <span className="st-card-label">{card.label}</span>
-                <span className="st-card-desc">{card.description}</span>
-              </div>
-              <span className="st-card-arrow">›</span>
-            </button>
-          ))}
-        </div>
+    <PageLayout breadcrumbItems={[{ label: "SALES & TRANSACTIONS" }]}>
+      <div className="st-grid">
+        {cards.map((card, i) => (
+          <button
+            key={card.id}
+            className="st-card"
+            style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
+            onClick={() => navigate(card.path)}
+          >
+            <div className="st-card-icon-wrap">
+              <span className="st-card-emoji">{card.emoji}</span>
+            </div>
+            <div className="st-card-body">
+              <span className="st-card-label">{card.label}</span>
+              <span className="st-card-desc">{card.description}</span>
+            </div>
+            <span className="st-card-arrow">›</span>
+          </button>
+        ))}
       </div>
-    </div>
+    </PageLayout>
   );
 }

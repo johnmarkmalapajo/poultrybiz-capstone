@@ -5,10 +5,9 @@ import {
   FiPackage,
   FiFileText,
   FiSave,
-  FiMenu,
+  FiX,
 } from "react-icons/fi";
-
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import batchStore from "../batchStore";
 import "./EditFlock.css";
 
@@ -84,60 +83,53 @@ export default function EditFlock() {
 
   if (loading) {
     return (
-      <div className="edit-flock-page">
-        <Sidebar />
-        <div className="edit-flock-main">
-          <p className="edit-flock-loading">Loading flock record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "FLOCK PROFILE", path: "/records/flock" },
+          { label: "EDIT FLOCK" },
+        ]}
+      >
+        <p className="ef-loading">Loading flock record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="edit-flock-page">
-      <Sidebar />
-
-      <div className="edit-flock-main">
-
-        {/* Breadcrumb */}
-        <div className="edit-flock-breadcrumb">
-          <button className="edit-flock-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/records/flock")}>FLOCK PROFILE</span>
-          <span>›</span>
-          <span className="breadcrumb-current">EDIT FLOCK</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="flock-form-card" onSubmit={handleSubmit}>
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "FLOCK PROFILE", path: "/records/flock" },
+        { label: "EDIT FLOCK" },
+      ]}
+    >
+        <form className="ef-form-card" onSubmit={handleSubmit}>
 
           {/* BATCH INFORMATION */}
-          <div className="section-header">
+          <div className="ef-section-header">
             <FiInfo />
-            <h3>BATCH INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Batch Information</h3>
+            <div className="ef-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
+          <div className="ef-form-grid">
+            <div className="ef-form-group">
               <label>Batch ID</label>
               <input type="text" name="batchId" value={formData.batchId} disabled />
               <small>Batch ID cannot be changed after creation</small>
             </div>
 
-            <div className="form-group">
-              <label>Status <span className="req">*</span></label>
+            <div className="ef-form-group">
+              <label>Status <span className="ef-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
                 {FLOCK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Breed <span className="req">*</span></label>
+            <div className="ef-form-group">
+              <label>Breed <span className="ef-req">*</span></label>
               <select name="breed" value={formData.breed} onChange={handleChange} required>
                 <option value="">Select Breed</option>
                 <option value="Hy-Line W-36">Hy-Line W-36</option>
@@ -148,8 +140,8 @@ export default function EditFlock() {
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Source <span className="req">*</span></label>
+            <div className="ef-form-group">
+              <label>Source <span className="ef-req">*</span></label>
               <input
                 type="text"
                 name="source"
@@ -160,8 +152,8 @@ export default function EditFlock() {
               />
             </div>
 
-            <div className="form-group">
-              <label>Date Acquired <span className="req">*</span></label>
+            <div className="ef-form-group">
+              <label>Date Acquired <span className="ef-req">*</span></label>
               <input
                 type="date"
                 name="dateAcquired"
@@ -173,15 +165,15 @@ export default function EditFlock() {
           </div>
 
           {/* BIRD INFORMATION */}
-          <div className="section-header">
+          <div className="ef-section-header">
             <FiPackage />
-            <h3>BIRD INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Bird Information</h3>
+            <div className="ef-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Purchase Quantity <span className="req">*</span></label>
+          <div className="ef-form-grid">
+            <div className="ef-form-group">
+              <label>Purchase Quantity <span className="ef-req">*</span></label>
               <input
                 type="number"
                 min="1"
@@ -193,19 +185,19 @@ export default function EditFlock() {
               />
             </div>
 
-            <div className="form-group">
+            <div className="ef-form-group">
               <label>Current Birds</label>
               <input type="text" value={currentBirds} disabled readOnly />
               <small>Purchase Qty − Total Mortality ({totalMortality} recorded)</small>
             </div>
 
-            <div className="form-group">
+            <div className="ef-form-group">
               <label>Mortality Rate</label>
               <input type="text" value={`${mortalityRate}%`} disabled readOnly />
               <small>(Total Mortality ÷ Purchase Qty) × 100</small>
             </div>
 
-            <div className="form-group">
+            <div className="ef-form-group">
               <label>Age (Days)</label>
               <input type="text" value={ageDisplay || "—"} disabled readOnly />
               <small>Starts at 16 weeks on arrival; auto-computed from Date Acquired</small>
@@ -213,13 +205,13 @@ export default function EditFlock() {
           </div>
 
           {/* ADDITIONAL INFORMATION */}
-          <div className="section-header">
+          <div className="ef-section-header">
             <FiFileText />
-            <h3>ADDITIONAL INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Additional Information</h3>
+            <div className="ef-line" />
           </div>
 
-          <div className="form-group full-width">
+          <div className="ef-form-group ef-full-width">
             <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
             <textarea
               rows="6"
@@ -231,17 +223,18 @@ export default function EditFlock() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate("/records/flock")}>
-              Cancel
-            </button>
-            <button type="submit" className="save-btn">
-              <FiSave />
-              Save Changes
-            </button>
+          <div className="ef-form-actions">
+            <p className="ef-req-note">Fields with * are required.</p>
+            <div className="ef-action-btns">
+              <button type="button" className="ef-cancel-btn" onClick={() => navigate("/records/flock")}>
+                <FiX /> Cancel
+              </button>
+              <button type="submit" className="ef-save-btn">
+                <FiSave /> Save Changes
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiInfo, FiActivity, FiFileText, FiSave, FiMenu } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiInfo, FiActivity, FiFileText, FiSave, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddFeedInventory.css";
 
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
@@ -79,50 +79,33 @@ export default function AddFeedInventory() {
   };
 
   return (
-    <div className="add-feed-page">
-      <Sidebar />
+    <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "INVENTORY", path: "/inventory" }, { label: "FEED INVENTORY", path: "/inventory/feed-inventory" }, { label: "ADD FEED INVENTORY" }]}>
 
-      <div className="add-feed-main">
-
-        {/* Breadcrumb */}
-        <div className="add-feed-breadcrumb">
-          <button className="add-feed-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory/feed-inventory")}>FEED INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-current">ADD NEW FEEDS</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="feed-form-card" onSubmit={handleSubmit}>
+        <form className="afi-form-card" onSubmit={handleSubmit}>
 
           {/* FEED DETAILS */}
-          <div className="section-header">
+          <div className="afi-section-header">
             <FiInfo />
             <h3>FEED DETAILS</h3>
-            <div className="line"></div>
+            <div className="afi-line"></div>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Date Purchased <span className="req">*</span></label>
+          <div className="afi-form-grid">
+            <div className="afi-form-group">
+              <label>Date Purchased <span className="afi-req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} required />
             </div>
 
-            <div className="form-group">
-              <label>Feed Type <span className="req">*</span></label>
+            <div className="afi-form-group">
+              <label>Feed Type <span className="afi-req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
                 <option value="">Select feed type</option>
                 {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Quantity In <span className="req">*</span></label>
+            <div className="afi-form-group">
+              <label>Quantity In <span className="afi-req">*</span></label>
               <input
                 type="number" min="0" name="quantityIn"
                 value={form.quantityIn} onChange={handleChange}
@@ -130,8 +113,8 @@ export default function AddFeedInventory() {
               />
             </div>
 
-            <div className="form-group">
-              <label>Quantity Out <span className="req">*</span></label>
+            <div className="afi-form-group">
+              <label>Quantity Out <span className="afi-req">*</span></label>
               <input
                 type="number" min="0" name="quantityOut"
                 value={form.quantityOut} readOnly
@@ -142,14 +125,14 @@ export default function AddFeedInventory() {
           </div>
 
           {/* AUTO-COMPUTED */}
-          <div className="section-header">
+          <div className="afi-section-header">
             <FiActivity />
             <h3>AUTO-COMPUTED</h3>
-            <div className="line"></div>
+            <div className="afi-line"></div>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
+          <div className="afi-form-grid">
+            <div className="afi-form-group">
               <label>Balance</label>
               <input type="text" value={`${balance} kg`} disabled />
               <small>Balance = Quantity In − Quantity Out</small>
@@ -157,13 +140,13 @@ export default function AddFeedInventory() {
           </div>
 
           {/* ADDITIONAL INFORMATION */}
-          <div className="section-header">
+          <div className="afi-section-header">
             <FiFileText />
             <h3>ADDITIONAL INFORMATION</h3>
-            <div className="line"></div>
+            <div className="afi-line"></div>
           </div>
 
-          <div className="form-group full-width">
+          <div className="afi-form-group afi-full-width">
             <label>Notes</label>
             <textarea
               rows="6" name="notes" value={form.notes} onChange={handleChange}
@@ -173,17 +156,17 @@ export default function AddFeedInventory() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
+          <div className="afi-form-actions">
+            <button type="button" className="afi-cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
               Cancel
             </button>
-            <button type="submit" disabled={saving} className="save-btn">
+            <button type="submit" disabled={saving} className="afi-save-btn">
               <FiSave />
               Save Feed Record
             </button>
           </div>
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

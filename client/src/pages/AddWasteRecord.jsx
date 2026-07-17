@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiTrash2, FiFileText } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiTrash2, FiFileText } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddWasteRecord.css";
 
 export default function AddWasteRecord() {
@@ -44,24 +44,14 @@ export default function AddWasteRecord() {
   };
 
   return (
-    <div className="awr-page">
-      <Sidebar />
-
-      <div className="awr-main">
-
-        {/* Breadcrumb */}
-        <div className="awr-breadcrumb">
-          <button className="awr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="awr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="awr-bc-sep">›</span>
-          <span className="awr-bc-link" onClick={() => navigate("/records/manure?tab=waste")}>MANURE AND WASTE RECORD</span>
-          <span className="awr-bc-sep">›</span>
-          <span className="awr-bc-current">ADD WASTE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MANURE AND WASTE RECORD", path: "/records/manure?tab=waste" },
+        { label: "ADD WASTE" },
+      ]}
+    >
 
         <form className="awr-form-card" onSubmit={handleSubmit}>
 
@@ -155,7 +145,7 @@ export default function AddWasteRecord() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

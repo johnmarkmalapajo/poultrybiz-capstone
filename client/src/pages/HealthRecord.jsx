@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMenu, FiMaximize,
+  FiPlus, FiSearch, FiFilter,
+  FiEdit2, FiArchive, FiMaximize,
   FiActivity, FiAlertCircle, FiClipboard, FiDroplet,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./HealthRecord.css";
 import { archiveRow } from "../archiveRow";
@@ -17,7 +17,7 @@ export default function HealthRecord() {
   const [params] = useSearchParams();
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ batchId: "All", date: "All", category: "All" });
+  const [filters, setFilters] = useState({ batchId: "All", category: "All", dateFrom: "", dateTo: "" });
   const filterRef = useRef(null);
   const [activeTab, setActiveTab] = useState(
     params.get("tab") === "vaccination" ? "vaccination" : "diagnosis"
@@ -55,8 +55,8 @@ export default function HealthRecord() {
   const isDiagnosis = activeTab === "diagnosis";
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ batchId: "All", date: "All", category: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+  const clearFilters = () => setFilters({ batchId: "All", category: "All", dateFrom: "", dateTo: "" });
+  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
 
   // switching tabs resets the filter (fields differ per table)
   const handleTabChange = (tab) => {
@@ -67,7 +67,9 @@ export default function HealthRecord() {
 
   const matchFilters = (r) => {
     const matchBatch = filters.batchId === "All" || r.batchId === filters.batchId;
-    const matchDate  = filters.date === "All" || r.date === filters.date;
+    const matchDate  =
+      (!filters.dateFrom || (r.date || "") >= filters.dateFrom) &&
+      (!filters.dateTo || (r.date || "") <= filters.dateTo);
     const catField   = isDiagnosis ? r.vetDiagnosis : r.vaccineOrDrug;
     const matchCat   = filters.category === "All" || catField === filters.category;
     return matchBatch && matchDate && matchCat;
@@ -90,7 +92,6 @@ export default function HealthRecord() {
   const activeSource = isDiagnosis ? diagnosisRecords : vaccinationRecords;
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
   const batchOptions = uniq(activeSource.map((r) => r.batchId));
-  const dateOptions  = uniq(activeSource.map((r) => r.date));
   const categoryLabel = isDiagnosis ? "Diagnosis" : "Vaccine / Drug";
   const categoryOptions = uniq(
     activeSource.map((r) => (isDiagnosis ? r.vetDiagnosis : r.vaccineOrDrug))
@@ -102,20 +103,14 @@ export default function HealthRecord() {
     : "/records/health/add?type=vaccination";
 
   return (
-    <div className="hr-page">
-      <Sidebar />
-
-      <div className="hr-main">
-
-        {/* Breadcrumb */}
-        <div className="hr-breadcrumb">
-          <button className="hr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="hr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="hr-bc-current">HEALTH RECORD</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "HEALTH RECORD" },
+      ]}
+    >
 
         {/* Toolbar */}
         <div className="hr-toolbar">
@@ -127,7 +122,7 @@ export default function HealthRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder={isDiagnosis ? "Search diagnosis record..." : "Search treatment / vaccination record..."}
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -176,25 +171,17 @@ export default function HealthRecord() {
                       </select>
                     </div>
 
-                    {/* Date — chips (from active tab's records) */}
-                    {dateOptions.length > 0 && (
-                      <div className="hr-filter-group">
-                        <label className="hr-filter-label">Date</label>
-                        <div className="hr-filter-options">
-                          <button
-                            className={`hr-filter-option ${filters.date === "All" ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("date", "All")}
-                          >All</button>
-                          {dateOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              className={`hr-filter-option ${filters.date === opt ? "selected" : ""}`}
-                              onClick={() => handleFilterChange("date", opt)}
-                            >{opt}</button>
-                          ))}
-                        </div>
+                    {/* Date range — matches MortalityRecord */}
+                    <div className="hr-filter-group">
+                      <label className="hr-filter-label">Date Range</label>
+                      <div className="hr-filter-date-range">
+                        <input type="date" className="hr-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="hr-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -208,10 +195,10 @@ export default function HealthRecord() {
         {activeFilterCount > 0 && (
           <div className="hr-active-filters">
             {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
+              value && value !== "All" ? (
                 <span key={key} className="hr-active-filter-tag">
-                  {(key === "category" ? categoryLabel : key === "batchId" ? "Batch ID" : key.charAt(0).toUpperCase() + key.slice(1))}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {(key === "category" ? categoryLabel : key === "batchId" ? "Batch ID" : key === "dateFrom" ? "From" : "To")}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
               ) : null
             )}
@@ -408,7 +395,6 @@ export default function HealthRecord() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiPackage, FiFileText, FiClipboard } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiPackage, FiFileText, FiClipboard } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddManureRecord.css";
 
 export default function AddManureRecord() {
@@ -49,24 +49,14 @@ export default function AddManureRecord() {
   };
 
   return (
-    <div className="amn-page">
-      <Sidebar />
-
-      <div className="amn-main">
-
-        {/* Breadcrumb */}
-        <div className="amn-breadcrumb">
-          <button className="amn-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="amn-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="amn-bc-sep">›</span>
-          <span className="amn-bc-link" onClick={() => navigate("/records/manure")}>MANURE AND WASTE RECORD</span>
-          <span className="amn-bc-sep">›</span>
-          <span className="amn-bc-current">ADD MANURE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MANURE AND WASTE RECORD", path: "/records/manure" },
+        { label: "ADD MANURE" },
+      ]}
+    >
 
         <form className="amn-form-card" onSubmit={handleSubmit}>
 
@@ -198,7 +188,7 @@ export default function AddManureRecord() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

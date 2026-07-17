@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiShield, FiAlertCircle, FiFileText } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiShield, FiAlertCircle, FiFileText } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddQuarantineIsolation.css";
 
 const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
@@ -132,24 +132,14 @@ export default function AddQuarantineIsolation() {
   };
 
   return (
-    <div className="aqi-page">
-      <Sidebar />
-
-      <div className="aqi-main">
-
-        {/* Breadcrumb */}
-        <div className="aqi-breadcrumb">
-          <button className="aqi-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="aqi-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="aqi-bc-sep">›</span>
-          <span className="aqi-bc-link" onClick={() => navigate(backRoute)}>QUARANTINE AND ISOLATION</span>
-          <span className="aqi-bc-sep">›</span>
-          <span className="aqi-bc-current">ADD {isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "QUARANTINE AND ISOLATION", path: backRoute },
+        { label: `ADD ${isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD` },
+      ]}
+    >
 
         <form className="aqi-form-card" onSubmit={handleSubmit}>
 
@@ -323,7 +313,7 @@ export default function AddQuarantineIsolation() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

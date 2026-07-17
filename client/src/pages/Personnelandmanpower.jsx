@@ -205,7 +205,7 @@ export default function PersonnelManpower() {
           </button>
           <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
           <span>›</span>
-          <span className="breadcrumb-current">PERSONNEL RECORDS</span>
+          <span className="breadcrumb-current">PERSONNEL AND MANPOWER</span>
         </div>
 
         {/* Toolbar (no Add — personnel are added automatically on account approval) */}
@@ -472,12 +472,6 @@ export default function PersonnelManpower() {
               <button className="qr-close" onClick={() => setQrOpen(false)} aria-label="Close"><FiX /></button>
             </div>
 
-            <p className="qr-modal-sub">
-              The Owner/Admin generates <strong>one shared QR code</strong> for the entire farm. <strong>All
-              personnel scan this same QR</strong> to check in (one-to-many). Scanning opens the check-in
-              page — if they're logged in, their attendance is <strong>recorded automatically</strong>;
-              if not, they log in first and check-in continues automatically.
-            </p>
 
             <div className="qr-station">
               {/* QR Code on top (inside a framed card) */}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiTrash2, FiFileText } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiTrash2, FiFileText } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditWasteRecord.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
@@ -74,34 +74,28 @@ export default function EditWasteRecord() {
 
   if (loading) {
     return (
-      <div className="ewr-page">
-        <Sidebar />
-        <div className="ewr-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "MANURE AND WASTE RECORD", path: "/records/manure?tab=waste" },
+          { label: "EDIT WASTE" },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="ewr-page">
-      <Sidebar />
-
-      <div className="ewr-main">
-
-        {/* Breadcrumb */}
-        <div className="ewr-breadcrumb">
-          <button className="ewr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="ewr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="ewr-bc-sep">›</span>
-          <span className="ewr-bc-link" onClick={() => navigate("/records/manure?tab=waste")}>MANURE AND WASTE RECORD</span>
-          <span className="ewr-bc-sep">›</span>
-          <span className="ewr-bc-current">EDIT WASTE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MANURE AND WASTE RECORD", path: "/records/manure?tab=waste" },
+        { label: "EDIT WASTE" },
+      ]}
+    >
 
         <form className="ewr-form-card" onSubmit={handleSubmit}>
 
@@ -200,7 +194,7 @@ export default function EditWasteRecord() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

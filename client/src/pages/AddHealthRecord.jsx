@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiActivity, FiDroplet, FiFileText, FiAlertTriangle } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddHealthRecord.css";
 
 const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
@@ -201,24 +201,14 @@ export default function AddHealthRecord() {
   );
 
   return (
-    <div className="ahr-page">
-      <Sidebar />
-
-      <div className="ahr-main">
-
-        {/* Breadcrumb */}
-        <div className="ahr-breadcrumb">
-          <button className="ahr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="ahr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="ahr-bc-sep">›</span>
-          <span className="ahr-bc-link" onClick={() => navigate(`/records/health?tab=${isVax ? "vaccination" : "diagnosis"}`)}>HEALTH RECORD</span>
-          <span className="ahr-bc-sep">›</span>
-          <span className="ahr-bc-current">{isVax ? "ADD MEDICATION/VACCINATION" : "ADD DIAGNOSIS"}</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "HEALTH RECORD", path: `/records/health?tab=${isVax ? "vaccination" : "diagnosis"}` },
+        { label: isVax ? "ADD MEDICATION/VACCINATION" : "ADD DIAGNOSIS" },
+      ]}
+    >
 
         {!isVax ? (
           /* ============ DIAGNOSIS FORM ============ */
@@ -330,7 +320,7 @@ export default function AddHealthRecord() {
                 <button type="button" className="ahr-cancel-btn" onClick={() => navigate(`/records/health?tab=diagnosis`)}>
                   <FiX /> Cancel
                 </button>
-                <button type="submit" className="ahr-save-btn" disabled={isDuplicate || scheduleInvalid} disabled={saving}>
+                <button type="submit" className="ahr-save-btn" disabled={saving || isDuplicate || scheduleInvalid}>
                   <FiSave /> Save Record
                 </button>
               </div>
@@ -459,7 +449,6 @@ export default function AddHealthRecord() {
           </form>
         )}
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

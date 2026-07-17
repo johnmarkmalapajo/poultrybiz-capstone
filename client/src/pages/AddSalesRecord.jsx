@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FiInfo, FiShoppingCart, FiFileText, FiSave, FiMenu,
-} from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddSalesRecord.css";
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1"}/sales-records`;
@@ -58,7 +56,7 @@ export default function AddSalesRecord() {
       const data = await res.json();
 
       if (data.success) {
-        setSuccess(`Sales record ${data.data.saleId} saved successfully!`);
+        setSuccess("Sales record saved successfully!");
         setTimeout(() => navigate("/sales-transactions/sales"), 1200);
       } else {
         setError(data.message || "Failed to save record.");
@@ -71,28 +69,14 @@ export default function AddSalesRecord() {
   };
 
   return (
-    <div className="asr-page">
-      <Sidebar />
-
-      <div className="asr-main">
-
-        {/* Breadcrumb — tablet/mobile lang lalabas */}
-        <div className="asr-breadcrumb">
-          <button className="asr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="asr-breadcrumb-link" onClick={() => navigate("/sales-transactions")}>
-            SALES TRANSACTIONS
-          </span>
-          <span>›</span>
-          <span className="asr-breadcrumb-link" onClick={() => navigate("/sales-transactions/sales")}>
-            SALES RECORD
-          </span>
-          <span>›</span>
-          <span className="asr-breadcrumb-current">ADD SALES RECORD</span>
-        </div>
-
-
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "SALES RECORD", path: "/sales-transactions/sales" },
+        { label: "ADD SALES RECORD" },
+      ]}
+    >
         {success && <div className="asr-success-banner">{success}</div>}
         {error   && <div className="asr-error-banner">{error}</div>}
 
@@ -226,7 +210,7 @@ export default function AddSalesRecord() {
                   onClick={() => navigate("/sales-transactions/sales")}
                   disabled={loading}
                 >
-                  ✕ Cancel
+                  <FiX /> Cancel
                 </button>
                 <button type="submit" className="asr-save-btn" disabled={loading}>
                   <FiSave />
@@ -237,7 +221,6 @@ export default function AddSalesRecord() {
 
           </form>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

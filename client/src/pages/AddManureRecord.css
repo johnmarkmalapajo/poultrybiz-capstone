@@ -21,132 +21,8 @@
   --radius-lg: 16px;
 }
 
-/* ==========================
-   PAGE SHELL
-========================== */
-
-.amn-page {
-  display: flex;
-  height: 100vh;
-  background: #f4f4f2;
-  font-family: var(--font-body);
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-.amn-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-.sidebar { flex-shrink: 0; }
-
-/* ==========================
-   BREADCRUMB
-========================== */
-
-.amn-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-heading);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.amn-bc-link {
-  cursor: pointer;
-  color: #aaa;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.amn-bc-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-
-.amn-bc-sep { color: #ccc; flex-shrink: 0; }
-
-.amn-bc-current {
-  color: #2d2d2d;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Hamburger — hidden on desktop, visible on mobile */
-.amn-hamburger {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .amn-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-accent);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
-
-  .amn-hamburger:hover {
-    background: var(--color-accent-dark);
-  }
-}
-
-/* ==========================
-   HEADER
-========================== */
-
-.amn-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.amn-header h2 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.15;
-  letter-spacing: -0.5px;
-}
-
-.amn-header p {
-  margin-top: 8px;
-  max-width: 640px;
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #888;
-  line-height: 1.7;
-}
+/* PAGE SHELL / BREADCRUMB
+   Now provided by the shared PageLayout / Breadcrumb components. */
 
 /* ==========================
    FORM CARD
@@ -374,7 +250,6 @@
 ========================== */
 
 @media (max-width: 1024px) {
-  .amn-main { padding: 28px; }
 
   .amn-form-grid {
     grid-template-columns: 1fr;
@@ -390,19 +265,8 @@
 ========================== */
 
 @media (max-width: 768px) {
-  .amn-main {
-    padding: 20px 16px;
-    gap: 20px;
-  }
 
-  .amn-breadcrumb {
-    font-size: 10px;
-    gap: 6px;
-  }
 
-  .amn-header h2 {
-    font-size: var(--fs-md);
-  }
 
   .amn-form-card {
     padding: 20px 16px;
@@ -425,20 +289,6 @@
     justify-content: center;
   }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .amn-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-
-  .amn-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 /* ==========================
@@ -446,15 +296,7 @@
 ========================== */
 
 @media (max-width: 480px) {
-  .amn-main {
-    padding: 16px 12px;
-    gap: 16px;
-  }
 
-  .amn-breadcrumb {
-    font-size: 10px;
-    gap: 4px;
-  }
 
   .amn-form-card {
     padding: 16px 12px;
@@ -485,16 +327,3 @@
   color: var(--text-muted, #a39e94); background: #f5f5f5;
   border-left: 1.5px solid var(--border, #e4e0d8); flex-shrink: 0;
 }
-
-
-/* Required-field indicator — PoultryBiz gold, same as primary buttons */
-.req{color:#E4AF1F;font-weight:700;margin-left:2px}
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.amn-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.amn-breadcrumb::-webkit-scrollbar{display:none}
-.amn-breadcrumb>*{flex-shrink:0}
-.amn-breadcrumb a,.amn-breadcrumb .breadcrumb-link,.amn-breadcrumb .crumb-link,.amn-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.amn-breadcrumb a:hover,.amn-breadcrumb .breadcrumb-link:hover,.amn-breadcrumb .crumb-link:hover,.amn-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.amn-breadcrumb .breadcrumb-current,.amn-breadcrumb .crumb-current,.amn-breadcrumb .active,.amn-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

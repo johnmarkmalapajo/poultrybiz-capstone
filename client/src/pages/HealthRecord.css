@@ -21,64 +21,9 @@
   --font-body: "Lato", sans-serif;
 }
 
-/* ── PAGE SHELL ── */
-.hr-page {
-  display: flex;
-  height: 100vh;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-
-.hr-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* ── BREADCRUMB ── */
-.hr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-}
-.hr-bc-link {
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-.hr-bc-link:hover { color: var(--gold); }
-.hr-bc-current { color: var(--text-primary); font-weight: 800; }
-
-.hr-hamburger {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: var(--gold);
-  border: none;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.hr-hamburger:hover { background: var(--gold-dark); }
-@media (max-width: 768px) { .hr-hamburger { display: flex; } }
+/* ── PAGE SHELL / BREADCRUMB ── */
+/* The page shell, breadcrumb, and hamburger now come from the shared
+   PageLayout / Breadcrumb components. */
 
 /* ── TOOLBAR ── */
 .hr-toolbar {
@@ -359,16 +304,12 @@
 }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 1280px) { .hr-main { padding: 24px 32px; } }
 @media (max-width: 1024px) {
-  .hr-main { padding: 20px; }
   .hr-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .hr-toolbar { flex-direction: column; align-items: stretch; }
   .hr-toolbar-right { flex-wrap: wrap; flex: 1; justify-content: flex-end; }
 }
 @media (max-width: 768px) {
-  .hr-main { padding: 14px; gap: 16px; }
-  .hr-breadcrumb { font-size: 10px; }
   .hr-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .hr-add-btn { justify-content: center; width: 100%; }
 
@@ -386,23 +327,8 @@
   .hr-tabs { overflow-x: auto; }
   .hr-table th, .hr-table td { padding: 10px 12px; font-size: 12px; }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .hr-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-  .hr-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 @media (max-width: 480px) {
-  .hr-main { padding: 12px; gap: 12px; }
-  .hr-breadcrumb { font-size: 10px; }
   .hr-stat-card h3 { font-size: 18px; }
   .hr-stat-card p { font-size: 10px; }
   .hr-stat-icon { width: 38px; height: 38px; min-width: 38px; font-size: 16px; }
@@ -591,7 +517,6 @@
 @media (max-width:360px){.hr-stats-grid>*{flex:1 1 100% !important;min-width:0 !important;}}
 @media (max-width:768px){
   .hr-toolbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
-  .hr-toolbar .toolbar-actions{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:10px !important;width:100% !important;}
   .hr-search-box{width:100% !important;max-width:none !important;min-width:0 !important;flex:none !important;box-sizing:border-box;}
   .hr-btn-group{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;width:100% !important;}
   .hr-btn-group>*{width:100% !important;min-width:0 !important;}
@@ -599,18 +524,8 @@
   .hr-filter-wrap{width:100% !important;}
   .hr-filter-dropdown{left:0 !important;right:auto !important;max-width:calc(100vw - 40px) !important;}
 }
-.hr-breadcrumb{display:flex !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}
-.hr-breadcrumb::-webkit-scrollbar{display:none;}
-.hr-breadcrumb>*{flex-shrink:0;}
 
 
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.hr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.hr-breadcrumb::-webkit-scrollbar{display:none}
-.hr-breadcrumb>*{flex-shrink:0}
-.hr-breadcrumb a,.hr-breadcrumb .breadcrumb-link,.hr-breadcrumb .crumb-link,.hr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.hr-breadcrumb a:hover,.hr-breadcrumb .breadcrumb-link:hover,.hr-breadcrumb .crumb-link:hover,.hr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.hr-breadcrumb .breadcrumb-current,.hr-breadcrumb .crumb-current,.hr-breadcrumb .active,.hr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}
 
 
 /* ===== Search box exact match to Flock Profile reference ===== */
@@ -618,8 +533,6 @@
 @media (max-width:768px){.hr-search-box{width:100% !important}}
 
 
-/* ===== Top padding alignment fix (match List/View top padding to Add/Edit's 16px) ===== */
-.hr-main{padding-top:16px !important}
 
 /* ===== Date range filter (From – To) inside the Filter dropdown ===== */
 .hr-filter-date-range{display:flex;align-items:center;gap:8px}

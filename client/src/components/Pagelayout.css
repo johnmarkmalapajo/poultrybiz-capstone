@@ -1,0 +1,44 @@
+/* PageLayout.css — the ONE shared page-shell implementation used by every
+   page in the app (via the PageLayout.jsx component). Canonical values taken
+   from Sales & Transactions, per the standardization reference. Every page
+   using <PageLayout> automatically gets identical padding, spacing, content
+   alignment, and scroll behavior — no per-page shell CSS needed. */
+
+/* Scoped box-sizing reset (NOT global — index.css intentionally skips a
+   global reset because it would shrink the Sidebar's fixed 240px width).
+   Every page using <PageLayout> gets this automatically — form inputs with
+   width:100%+padding won't overflow their containers. */
+.pl-page *{box-sizing:border-box}
+.pl-page .sidebar, .pl-page .sidebar *{box-sizing:content-box}
+
+.pl-page {
+  display: flex;
+  height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
+  font-family: 'Lato', sans-serif;
+  background: #f5f5f5; /* default; pages can override via the `background` prop */
+}
+
+.pl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 36px 40px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1024px) {
+  .pl-main { padding: 28px 24px; gap: 24px; }
+}
+@media (max-width: 768px) {
+  .pl-main { padding: 20px 16px; gap: 20px; }
+}
+@media (max-width: 480px) {
+  .pl-main { padding: 16px 12px; gap: 16px; }
+}

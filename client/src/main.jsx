@@ -15,9 +15,9 @@ import SalesRecord from "./pages/SalesRecord.jsx"
 import AddSalesRecord from "./pages/AddSalesRecord.jsx"
 import EditSalesRecord from "./pages/EditSalesRecord.jsx"
 import PersonnelVisitors from './pages/PersonnelVisitors'
-import PersonnelManpower from './pages/PersonnelandManpower'
-import FlockProfile from './pages/FlockProfile.jsx'
-import AddFlock from './pages/AddFlock.jsx'
+import PersonnelManpower from './pages/Personnelandmanpower'
+import FlockProfile from './pages/Flockprofile.jsx'
+import AddFlock from './pages/Addflock.jsx'
 import EditFlock from './pages/EditFlock.jsx'
 import EggRecord from "./pages/EggRecord";
 import AddEggRecord from "./pages/AddEggRecord";

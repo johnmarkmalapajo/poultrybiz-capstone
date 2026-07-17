@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiFileText, FiUpload, FiInfo } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiFileText, FiUpload, FiInfo } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditExpense.css";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
+// Same resource name used by AddExpense.jsx / ExpensesRecord.jsx so all
+// three pages read/write the same "pb_expenses" bucket in mockApi.js.
+const API_BASE = "/api/v1/expenses";
 
 const CATEGORIES = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -16,44 +18,61 @@ export default function EditExpense() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({
     date: "", category: "", amount: "", receipt: null, remarks: "",
   });
   const [preview, setPreview] = useState("");      // newly chosen image
-  const [existingReceipt, setExistingReceipt] = useState(""); // saved receipt URL
+  const [existingReceipt, setExistingReceipt] = useState(""); // saved receipt filename
 
   // ── Fetch the existing record ──
   useEffect(() => {
+    let cancelled = false;
+
     const fetchRecord = async () => {
       setLoading(true);
+      setError("");
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API}/expense-records/${id}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const json = await res.json();
-        const rec = json.record || json.data || json;
-        setForm((f) => ({
-          ...f,
-          date: rec.date ? String(rec.date).slice(0, 10) : "",
-          category: rec.category || "",
-          amount: rec.amount ?? "",
-          remarks: rec.remarks || "",
-          receipt: null,
-        }));
-        if (rec.receipt) setExistingReceipt(rec.receipt);
-      } catch {
-        /* keep empty form if fetch fails */
+        const res = await fetch(`${API_BASE}/${id}`);
+
+        let json;
+        try {
+          json = await res.json();
+        } catch {
+          throw new Error("Invalid response from server.");
+        }
+
+        if (cancelled) return;
+
+        // mockApi.js returns the raw record directly (no {record}/{data}
+        // wrapper) for a GET-by-id request.
+        const rec = json?.record || json?.data || (json && !json.message ? json : null);
+
+        if (res.ok && rec) {
+          setForm((f) => ({
+            ...f,
+            date: rec.date ? String(rec.date).slice(0, 10) : "",
+            category: rec.category || "",
+            amount: rec.amount ?? "",
+            remarks: rec.remarks || "",
+            receipt: null,
+          }));
+          if (rec.receipt) setExistingReceipt(rec.receipt);
+        } else {
+          setError(json?.message || "Failed to load record.");
+        }
+      } catch (err) {
+        console.error("EditExpense fetch error:", err);
+        if (!cancelled) setError("Cannot connect to server. Please try again.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetchRecord();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
   }, [id]);
 
   const handleChange = (e) =>
@@ -74,63 +93,72 @@ export default function EditExpense() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
+    setError("");
+    setSuccess("");
     try {
-      const token = localStorage.getItem("token");
-      // Use FormData so the receipt file can be uploaded if changed
-      const body = new FormData();
-      body.append("date", form.date);
-      body.append("category", form.category);
-      body.append("amount", form.amount);
-      body.append("remarks", form.remarks);
-      if (form.receipt) body.append("receipt", form.receipt);
-
       setSaving(true);
-      await fetch(`${API}/expense-records/${id}`, {
+
+      // mockApi.js only understands a JSON string body (it does
+      // JSON.parse(init.body) then spreads it onto the existing record).
+      // FormData has no enumerable own properties when spread, so sending
+      // it here silently produces a no-op update — that was the bug.
+      const payload = {
+        date: form.date,
+        category: form.category,
+        amount: Number(form.amount),
+        remarks: form.remarks,
+        // Keep the existing receipt filename unless the user picked a new file.
+        receipt: form.receipt ? form.receipt.name : (existingReceipt || null),
+      };
+
+      const res = await fetch(`${API_BASE}/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-    } catch {
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setSuccess("Expense record updated successfully!");
+        setTimeout(() => navigate("/sales-transactions/expenses"), 1000);
+      } else {
+        setError(data?.message || `Failed to update record (status ${res.status}).`);
+      }
+    } catch (err) {
+      console.error("EditExpense submit error:", err);
+      setError("Cannot connect to server. Please try again.");
+    } finally {
       setSaving(false);
-      /* silent — adjust endpoint to your backend */
     }
-    navigate("/sales-transactions/expenses");
   };
 
   if (loading) {
     return (
-      <div className="ee-page">
-        <Sidebar />
-        <div className="ee-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+          { label: "EXPENSES RECORD", path: "/sales-transactions/expenses" },
+          { label: "EDIT EXPENSE" },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="ee-page">
-      <Sidebar />
-
-      <div className="ee-main">
-
-        {/* Breadcrumb */}
-        <div className="ee-breadcrumb">
-          <button className="ee-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="ee-breadcrumb-link" onClick={() => navigate("/sales-transactions")}>
-            SALES &amp; TRANSACTIONS
-          </span>
-          <span>›</span>
-          <span className="ee-breadcrumb-link" onClick={() => navigate("/sales-transactions/expenses")}>
-            EXPENSES RECORD
-          </span>
-          <span>›</span>
-          <span className="ee-breadcrumb-current">EDIT EXPENSE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "EXPENSES RECORD", path: "/sales-transactions/expenses" },
+        { label: "EDIT EXPENSE" },
+      ]}
+    >
+        {success && <div className="ee-success-banner">{success}</div>}
+        {error   && <div className="ee-error-banner">{error}</div>}
 
         <form className="ee-form-card" onSubmit={handleSubmit}>
 
@@ -180,7 +208,7 @@ export default function EditExpense() {
                   <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFile} hidden />
                 </label>
                 <span className="ee-file-name">
-                  {form.receipt ? form.receipt.name : (existingReceipt ? "Current receipt on file" : "No file chosen")}
+                  {form.receipt ? form.receipt.name : (existingReceipt || "No file chosen")}
                 </span>
               </div>
 
@@ -189,14 +217,6 @@ export default function EditExpense() {
                 <div className="ee-file-preview">
                   <img src={preview} alt="Receipt preview" />
                   <button type="button" className="ee-file-remove" onClick={removeFile}>Remove</button>
-                </div>
-              )}
-
-              {/* Existing saved receipt (if no new file chosen) */}
-              {!preview && existingReceipt && (
-                <div className="ee-file-preview">
-                  <img src={existingReceipt} alt="Current receipt" />
-                  <a href={existingReceipt} target="_blank" rel="noreferrer" className="ee-view-link">View current</a>
                 </div>
               )}
 
@@ -227,17 +247,17 @@ export default function EditExpense() {
           <div className="ee-form-actions">
             <p className="ee-required-note">Fields with * are required.</p>
             <div className="ee-action-btns">
-              <button type="button" className="ee-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")}>
+              <button type="button" className="ee-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")} disabled={saving}>
                 <FiX /> Cancel
               </button>
               <button type="submit" disabled={saving} className="ee-save-btn">
-                <FiSave /> Update Record
+                <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>
             </div>
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

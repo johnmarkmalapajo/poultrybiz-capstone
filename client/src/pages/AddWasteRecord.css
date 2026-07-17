@@ -21,132 +21,8 @@
   --radius-lg: 16px;
 }
 
-/* ==========================
-   PAGE SHELL
-========================== */
-
-.awr-page {
-  display: flex;
-  height: 100vh;
-  background: #f4f4f2;
-  font-family: var(--font-body);
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-.awr-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-.sidebar { flex-shrink: 0; }
-
-/* ==========================
-   BREADCRUMB
-========================== */
-
-.awr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-heading);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.awr-bc-link {
-  cursor: pointer;
-  color: #aaa;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.awr-bc-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-
-.awr-bc-sep { color: #ccc; flex-shrink: 0; }
-
-.awr-bc-current {
-  color: #2d2d2d;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Hamburger — hidden on desktop, visible on mobile */
-.awr-hamburger {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .awr-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-accent);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
-
-  .awr-hamburger:hover {
-    background: var(--color-accent-dark);
-  }
-}
-
-/* ==========================
-   HEADER
-========================== */
-
-.awr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.awr-header h2 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.15;
-  letter-spacing: -0.5px;
-}
-
-.awr-header p {
-  margin-top: 8px;
-  max-width: 640px;
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #888;
-  line-height: 1.7;
-}
+/* PAGE SHELL / BREADCRUMB
+   Now provided by the shared PageLayout / Breadcrumb components. */
 
 /* ==========================
    FORM CARD
@@ -374,7 +250,6 @@
 ========================== */
 
 @media (max-width: 1024px) {
-  .awr-main { padding: 28px; }
 
   .awr-form-grid {
     grid-template-columns: 1fr;
@@ -390,19 +265,8 @@
 ========================== */
 
 @media (max-width: 768px) {
-  .awr-main {
-    padding: 20px 16px;
-    gap: 20px;
-  }
 
-  .awr-breadcrumb {
-    font-size: 10px;
-    gap: 6px;
-  }
 
-  .awr-header h2 {
-    font-size: var(--fs-md);
-  }
 
   .awr-form-card {
     padding: 20px 16px;
@@ -425,20 +289,6 @@
     justify-content: center;
   }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .awr-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-
-  .awr-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 /* ==========================
@@ -446,15 +296,7 @@
 ========================== */
 
 @media (max-width: 480px) {
-  .awr-main {
-    padding: 16px 12px;
-    gap: 16px;
-  }
 
-  .awr-breadcrumb {
-    font-size: 10px;
-    gap: 4px;
-  }
 
   .awr-form-card {
     padding: 16px 12px;
@@ -509,15 +351,3 @@
   width: auto; min-width: 80px; padding: 0 10px;
   font-size: 12px; flex-shrink: 0;
 }
-
-/* Required-field indicator — PoultryBiz gold, same as primary buttons */
-.req{color:#E4AF1F;font-weight:700;margin-left:2px}
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.awr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.awr-breadcrumb::-webkit-scrollbar{display:none}
-.awr-breadcrumb>*{flex-shrink:0}
-.awr-breadcrumb a,.awr-breadcrumb .breadcrumb-link,.awr-breadcrumb .crumb-link,.awr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.awr-breadcrumb a:hover,.awr-breadcrumb .breadcrumb-link:hover,.awr-breadcrumb .crumb-link:hover,.awr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.awr-breadcrumb .breadcrumb-current,.awr-breadcrumb .crumb-current,.awr-breadcrumb .active,.awr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

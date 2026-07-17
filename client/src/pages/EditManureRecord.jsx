@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiPackage, FiFileText } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiPackage, FiFileText } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditManureRecord.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
@@ -75,34 +75,28 @@ export default function EditManureRecord() {
 
   if (loading) {
     return (
-      <div className="emn-page">
-        <Sidebar />
-        <div className="emn-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "MANURE AND WASTE RECORD", path: "/records/manure" },
+          { label: "EDIT MANURE" },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="emn-page">
-      <Sidebar />
-
-      <div className="emn-main">
-
-        {/* Breadcrumb */}
-        <div className="emn-breadcrumb">
-          <button className="emn-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="emn-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="emn-bc-sep">›</span>
-          <span className="emn-bc-link" onClick={() => navigate("/records/manure")}>MANURE AND WASTE RECORD</span>
-          <span className="emn-bc-sep">›</span>
-          <span className="emn-bc-current">EDIT MANURE</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MANURE AND WASTE RECORD", path: "/records/manure" },
+        { label: "EDIT MANURE" },
+      ]}
+    >
 
         <form className="emn-form-card" onSubmit={handleSubmit}>
 
@@ -207,7 +201,7 @@ export default function EditManureRecord() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

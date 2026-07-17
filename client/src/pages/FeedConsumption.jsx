@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiPlus, FiSearch, FiFilter, FiDownload, FiEdit2, FiArchive,
-  FiGrid, FiPackage, FiUsers, FiLayers, FiMaximize, FiMenu,
+  FiPlus, FiSearch, FiFilter, FiEdit2, FiArchive,
+  FiGrid, FiPackage, FiUsers, FiLayers, FiMaximize,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./FeedConsumption.css";
 import { archiveRow } from "../archiveRow";
@@ -61,41 +61,36 @@ export default function FeedConsumption() {
   const feedTypesUsed = new Set(records.map((r) => r.feedType).filter(Boolean)).size;
 
   return (
-    <div className="fc-page">
-      <Sidebar />
-
-      <div className="fc-main">
-
-        <div className="fc-breadcrumb">
-          <button className="fc-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/inventory")}>INVENTORY</span>
-          <span>›</span>
-          <span className="breadcrumb-current">FEED CONSUMPTION</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "INVENTORY", path: "/inventory" },
+        { label: "FEED CONSUMPTION" },
+      ]}
+    >
 
         <div className="fc-toolbar">
-          <button className="add-fc-btn" onClick={() => navigate("/inventory/feed-consumption/add")}>
+          <button className="fc-add-btn" onClick={() => navigate("/inventory/feed-consumption/add")}>
             <FiPlus />
             Add Feed Consumption
           </button>
 
-          <div className="toolbar-actions">
-            <div className="search-box">
+          <div className="fc-toolbar-right">
+            <div className="fc-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search consumption..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
-            <div className="toolbar-btn-group">
+            <div className="fc-btn-group">
               {/* Filter — inline dropdown (Expenses-style) */}
               <div className="fc-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="fc-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="fc-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -124,7 +119,7 @@ export default function FeedConsumption() {
                 )}
               </div>
 
-              <ExportMenu rows={filtered} name="feed-consumption" title="Feed Consumption" className="toolbar-btn" />
+              <ExportMenu rows={filtered} name="feed-consumption" title="Feed Consumption" className="fc-toolbar-btn" />
             </div>
           </div>
         </div>
@@ -143,9 +138,9 @@ export default function FeedConsumption() {
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiGrid /></div>
+        <div className="fc-stats-grid">
+          <div className="fc-stat-card">
+            <div className="fc-stat-icon gold"><FiGrid /></div>
             <div>
               <h3>{totalRecords}</h3>
               <p>Total Records</p>
@@ -153,8 +148,8 @@ export default function FeedConsumption() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon green"><FiPackage /></div>
+          <div className="fc-stat-card">
+            <div className="fc-stat-icon green"><FiPackage /></div>
             <div>
               <h3>{totalConsumed} kg</h3>
               <p>Total Consumed</p>
@@ -162,8 +157,8 @@ export default function FeedConsumption() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiUsers /></div>
+          <div className="fc-stat-card">
+            <div className="fc-stat-icon blue"><FiUsers /></div>
             <div>
               <h3>{batchesFed}</h3>
               <p>Batches Fed</p>
@@ -171,8 +166,8 @@ export default function FeedConsumption() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon red"><FiLayers /></div>
+          <div className="fc-stat-card">
+            <div className="fc-stat-icon red"><FiLayers /></div>
             <div>
               <h3>{feedTypesUsed}</h3>
               <p>Feed Types Used</p>
@@ -181,7 +176,7 @@ export default function FeedConsumption() {
           </div>
         </div>
 
-        <div className="table-wrapper">
+        <div className="fc-table-wrapper">
           <table className="fc-table">
             <thead>
               <tr>
@@ -196,12 +191,12 @@ export default function FeedConsumption() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan="6" className="fc-empty-state">
+                    <div className="fc-empty-content">
                       <FiMaximize />
                       <h3>No feed consumption records found</h3>
                       <p>Click Add Feed Consumption to record your first entry.</p>
-                      <button className="empty-add-btn" onClick={() => navigate("/inventory/feed-consumption/add")}>
+                      <button className="fc-empty-add-btn" onClick={() => navigate("/inventory/feed-consumption/add")}>
                         <FiPlus />
                         Add Feed Consumption
                       </button>
@@ -217,9 +212,9 @@ export default function FeedConsumption() {
                     <td><strong>{r.quantityConsumed} kg</strong></td>
                     <td>{r.notes}</td>
                     <td>
-                      <div className="action-buttons">
+                      <div className="fc-actions">
                         <button
-                          className="action-btn edit"
+                          className="fc-btn-edit"
                           title="Edit"
                           onClick={() => {
                             localStorage.setItem("editFeedConsumption", JSON.stringify(r));
@@ -228,7 +223,7 @@ export default function FeedConsumption() {
                         >
                           <FiEdit2 />
                         </button>
-                        <button className="action-btn archive" onClick={() => archiveRow({ module: "Feed Consumption", moduleKey: "pb_feed_consumption", record: r, name: r.feedType || r.batchId })} title="Archive">
+                        <button className="fc-btn-archive" onClick={() => archiveRow({ module: "Feed Consumption", moduleKey: "pb_feed_consumption", record: r, name: r.feedType || r.batchId })} title="Archive">
                           <FiArchive />
                         </button>
                       </div>
@@ -239,12 +234,11 @@ export default function FeedConsumption() {
             </tbody>
           </table>
 
-          <div className="table-footer">
+          <div className="fc-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -21,80 +21,11 @@
   --radius-lg: 16px;
 }
 
-/* ========================
-   PAGE SHELL
-======================== */
+/* ============ PAGE SHELL ============ */
+/* .asr-page / .asr-main now come from the shared PageLayout component. */
 
-.asr-page {
-  display: flex;
-  height: 100vh;
-  background: #f4f4f2;
-  font-family: var(--font-body);
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-.asr-main {
-  flex: 1;
-  min-width: 0;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-/* ========================
-   BREADCRUMB
-   (always visible; hamburger appears on tablet/mobile)
-======================== */
-
-.asr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-heading);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.asr-breadcrumb-link {
-  cursor: pointer;
-  color: #aaa;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.asr-breadcrumb-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-
-.asr-breadcrumb-current {
-  color: #2d2d2d;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Hamburger — hidden on desktop, visible on tablet/mobile */
-.asr-hamburger {
-  display: none;
-}
-
-/* ========================
-   HEADER
-======================== */
+/* ============ OTHER ============ */
+.sidebar { flex-shrink: 0; }
 
 .asr-header {
   display: flex;
@@ -392,6 +323,9 @@
 }
 
 .asr-cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 12px 24px;
   border: 1.5px solid #ddd;
   background: #fff;
@@ -431,11 +365,13 @@
   box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
 }
 
-.asr-save-btn:disabled {
+.asr-save-btn:disabled,
+.asr-cancel-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
+.asr-cancel-btn svg,
 .asr-save-btn svg {
   font-size: 16px;
   flex-shrink: 0;
@@ -474,10 +410,6 @@
 ======================== */
 
 @media (max-width: 1024px) {
-  .asr-main {
-    padding: 28px 28px;
-  }
-
   .asr-form-grid {
     grid-template-columns: 1fr;
   }
@@ -489,42 +421,9 @@
 
 /* ========================
    RESPONSIVE — MOBILE (≤768px)
-   Hamburger appears, sidebar collapses
 ======================== */
 
 @media (max-width: 768px) {
-  .asr-main {
-    padding: 20px 16px;
-    gap: 20px;
-  }
-
-  .asr-breadcrumb {
-    font-size: 10px;
-    gap: 6px;
-  }
-
-  /* Hamburger button */
-  .asr-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-accent);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
-
-  .asr-hamburger:hover {
-    background: var(--color-accent-dark);
-  }
-
   .asr-header h2 {
     font-size: var(--fs-md);
   }
@@ -549,21 +448,6 @@
     width: 100%;
     justify-content: center;
   }
-
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .asr-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-
-  .asr-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 /* ========================
@@ -571,26 +455,7 @@
 ======================== */
 
 @media (max-width: 480px) {
-  .asr-main {
-    padding: 16px 12px;
-    gap: 16px;
-  }
-
-  .asr-breadcrumb {
-    font-size: 10px;
-    gap: 4px;
-  }
-
   .asr-form-card {
     padding: 16px 12px;
   }
 }
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.asr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.asr-breadcrumb::-webkit-scrollbar{display:none}
-.asr-breadcrumb>*{flex-shrink:0}
-.asr-breadcrumb a,.asr-breadcrumb .breadcrumb-link,.asr-breadcrumb .crumb-link,.asr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.asr-breadcrumb a:hover,.asr-breadcrumb .breadcrumb-link:hover,.asr-breadcrumb .crumb-link:hover,.asr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.asr-breadcrumb .breadcrumb-current,.asr-breadcrumb .crumb-current,.asr-breadcrumb .active,.asr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

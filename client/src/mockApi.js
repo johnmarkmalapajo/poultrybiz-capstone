@@ -37,7 +37,7 @@ const RESOURCE_KEYS = {
 const keyFor = (r) => RESOURCE_KEYS[r] || "pb_" + r.replace(/-/g, "_");
 
 const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ } };
+const write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore / } try { window.dispatchEvent(new Event("pb_data_changed")); } catch { / ignore */ } };
 const uid = () => "rec_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
 
 // Ensure flock batches exist so "Add" dropdowns aren't empty.
@@ -130,12 +130,16 @@ function computeDashboard() {
   const feedStockKg = Math.max(0, +(feedIn - feedOut).toFixed(2));
 
   // Recent unread ALERT notifications → Dashboard Alert card.
-  const alerts = read("pb_notifications")
-    .filter((n) => n.type === "alert" && !n.read)
-    .sort((a, b) => (b.dateTime || 0) - (a.dateTime || 0))
-    .slice(0, 8)
-    .map((n) => ({ type: n.priority === "high" ? "danger" : "warning", message: n.title, category: n.category }));
-
+ const alerts = read("pb_notifications")
+  .filter((n) => n.type === "alert" && !n.read)
+  .sort((a, b) => new Date(b.dateTime || 0) - new Date(a.dateTime || 0))
+  .slice(0, 5)
+  .map((n) => ({
+    type: n.priority === "high" ? "danger" : "warning",
+    message: n.title,
+    category: n.category,
+  }));
+  
   return {
     flock:      { currentFlockSize, productiveRate, mortalityRate },
     eggs:       { totalEggsToday: eggsToday, sizeDistribution: {}, dailyTrend },
@@ -160,6 +164,13 @@ const origFetch = typeof window !== "undefined" && window.fetch ? window.fetch.b
 
 function mockFetch(input, init = {}) {
   const url = typeof input === "string" ? input : (input && input.url) || "";
+
+  // Allow the real backend to handle authentication endpoints
+  if (url.includes("/api/v1/auth/")) {
+    return origFetch
+      ? origFetch(input, init)
+      : Promise.reject(new Error("Backend unavailable"));
+  }
   const match = url.match(/\/api\/(?:v\d+\/)?([a-z0-9-]+)(?:\/([^/?#]+))?/i);
   if (!match) return origFetch ? origFetch(input, init) : Promise.reject(new Error("network unavailable"));
 

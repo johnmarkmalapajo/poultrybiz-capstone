@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiSave, FiX, FiMenu, FiShield, FiAlertCircle, FiFileText } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiSave, FiX, FiShield, FiAlertCircle, FiFileText } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditQuarantineandIsolation.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
@@ -147,34 +147,28 @@ export default function EditQuarantineIsolation() {
 
   if (loading) {
     return (
-      <div className="eqi-page">
-        <Sidebar />
-        <div className="eqi-main">
-          <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "RECORDS", path: "/records" },
+          { label: "QUARANTINE AND ISOLATION", path: backRoute },
+          { label: `EDIT ${isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD` },
+        ]}
+      >
+        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="eqi-page">
-      <Sidebar />
-
-      <div className="eqi-main">
-
-        {/* Breadcrumb */}
-        <div className="eqi-breadcrumb">
-          <button className="eqi-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="eqi-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span className="eqi-bc-sep">›</span>
-          <span className="eqi-bc-link" onClick={() => navigate(backRoute)}>QUARANTINE AND ISOLATION</span>
-          <span className="eqi-bc-sep">›</span>
-          <span className="eqi-bc-current">EDIT {isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD</span>
-        </div>
-
-        {/* Header */}
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "QUARANTINE AND ISOLATION", path: backRoute },
+        { label: `EDIT ${isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD` },
+      ]}
+    >
 
         <form className="eqi-form-card" onSubmit={handleSubmit}>
 
@@ -350,7 +344,7 @@ export default function EditQuarantineIsolation() {
           </div>
 
         </form>
-      </div>
-    </div>
+
+    </PageLayout>
   );
 }

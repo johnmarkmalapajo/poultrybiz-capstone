@@ -21,141 +21,8 @@
   --radius-lg: 16px;
 }
 
-/* ==========================
-   PAGE SHELL
-   Sidebar stays fixed; only .ahr-main scrolls
-========================== */
-
-.ahr-page {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  background: #f4f4f2;
-  font-family: var(--font-body);
-  max-width: 100%;
-}
-
-.ahr-main {
-  flex: 1;
-  min-width: 0;
-  height: 100vh;
-  box-sizing: border-box;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-/* Keep breadcrumb/header/cards at their natural height so they don't
-   collapse when .ahr-main has a fixed height — main scrolls instead. */
-.ahr-main > * {
-  flex-shrink: 0;
-}
-
-.sidebar { flex-shrink: 0; }
-
-/* ==========================
-   BREADCRUMB
-========================== */
-
-.ahr-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-heading);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.ahr-bc-link {
-  cursor: pointer;
-  color: #aaa;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.ahr-bc-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-
-.ahr-bc-sep { color: #ccc; flex-shrink: 0; }
-
-.ahr-bc-current {
-  color: #2d2d2d;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Hamburger — hidden on desktop, visible on mobile */
-.ahr-hamburger {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .ahr-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-accent);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
-
-  .ahr-hamburger:hover {
-    background: var(--color-accent-dark);
-  }
-}
-
-/* ==========================
-   HEADER
-========================== */
-
-.ahr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.ahr-header h2 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.15;
-  letter-spacing: -0.5px;
-}
-
-.ahr-header p {
-  margin-top: 8px;
-  max-width: 640px;
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #888;
-  line-height: 1.7;
-}
+/* PAGE SHELL / BREADCRUMB
+   Now provided by the shared PageLayout / Breadcrumb components. */
 
 /* ==========================
    FORM CARD
@@ -389,7 +256,6 @@
 ========================== */
 
 @media (max-width: 1024px) {
-  .ahr-main { padding: 28px; }
 
   .ahr-form-grid {
     grid-template-columns: 1fr;
@@ -405,19 +271,8 @@
 ========================== */
 
 @media (max-width: 768px) {
-  .ahr-main {
-    padding: 20px 16px;
-    gap: 20px;
-  }
 
-  .ahr-breadcrumb {
-    font-size: 10px;
-    gap: 6px;
-  }
 
-  .ahr-header h2 {
-    font-size: var(--fs-md);
-  }
 
   .ahr-form-card {
     padding: 20px 16px;
@@ -440,20 +295,6 @@
     justify-content: center;
   }
 
-  /* Sidebar — fully hidden; slides in when hamburger is tapped */
-  .ahr-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-
-  .ahr-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
 
 /* ==========================
@@ -461,29 +302,9 @@
 ========================== */
 
 @media (max-width: 480px) {
-  .ahr-main {
-    padding: 16px 12px;
-    gap: 16px;
-  }
 
-  .ahr-breadcrumb {
-    font-size: 10px;
-    gap: 4px;
-  }
 
   .ahr-form-card {
     padding: 16px 12px;
   }
 }
-
-/* Required-field indicator — PoultryBiz gold, same as primary buttons */
-.req{color:#E4AF1F;font-weight:700;margin-left:2px}
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.ahr-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.ahr-breadcrumb::-webkit-scrollbar{display:none}
-.ahr-breadcrumb>*{flex-shrink:0}
-.ahr-breadcrumb a,.ahr-breadcrumb .breadcrumb-link,.ahr-breadcrumb .crumb-link,.ahr-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.ahr-breadcrumb a:hover,.ahr-breadcrumb .breadcrumb-link:hover,.ahr-breadcrumb .crumb-link:hover,.ahr-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.ahr-breadcrumb .breadcrumb-current,.ahr-breadcrumb .crumb-current,.ahr-breadcrumb .active,.ahr-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

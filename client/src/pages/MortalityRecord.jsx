@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMenu, FiMaximize,
+  FiEdit2, FiArchive, FiMaximize,
   FiHeart, FiFileText, FiAlertCircle,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import "./MortalityRecord.css";
@@ -18,7 +18,7 @@ export default function MortalityRecord() {
   const { canEdit, canArchive } = useUser();
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ causeOfDeath: "All", batchId: "All", date: "All" });
+  const [filters, setFilters] = useState({ causeOfDeath: "All", batchId: "All", dateFrom: "", dateTo: "" });
   const filterRef = useRef(null);
 
   const [records, setRecords] = useState([]);
@@ -41,20 +41,19 @@ export default function MortalityRecord() {
   }, []);
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ causeOfDeath: "All", batchId: "All", date: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+  const clearFilters = () => setFilters({ causeOfDeath: "All", batchId: "All", dateFrom: "", dateTo: "" });
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => v && v !== "All").length;
 
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
   const causeOptions = uniq(records.map((r) => r.causeOfDeath));
   const batchOptions = uniq(records.map((r) => r.batchId));
-  const dateOptions  = uniq(records.map((r) => r.date));
 
   const filtered = records.filter((r) =>
     (r.batchId?.toLowerCase().includes(search.toLowerCase()) ||
       r.causeOfDeath?.toLowerCase().includes(search.toLowerCase())) &&
     (filters.causeOfDeath === "All" || r.causeOfDeath === filters.causeOfDeath) &&
     (filters.batchId === "All" || r.batchId === filters.batchId) &&
-    (filters.date === "All" || r.date === filters.date)
+    (!filters.dateFrom || r.date >= filters.dateFrom) && (!filters.dateTo || r.date <= filters.dateTo)
   );
 
   const totalRecords = records.length;
@@ -62,21 +61,14 @@ export default function MortalityRecord() {
   const batchesAffected = new Set(records.map((r) => r.batchId).filter(Boolean)).size;
 
   return (
-    <div className="mr-page">
-      <Sidebar />
-
-      <div className="mr-main">
-
-        {/* Breadcrumb */}
-        <div className="mr-breadcrumb">
-          <button className="mr-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="mr-bc-link" onClick={() => navigate("/records")}>RECORDS</span>
-          <span>›</span>
-          <span className="mr-bc-current">MORTALITY RECORD</span>
-        </div>
-
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "RECORDS", path: "/records" },
+        { label: "MORTALITY RECORD" },
+      ]}
+    >
         {/* Toolbar */}
         <div className="mr-toolbar">
           <button className="mr-add-btn" onClick={() => navigate("/records/mortality/add")}>
@@ -134,24 +126,16 @@ export default function MortalityRecord() {
                       </select>
                     </div>
 
-                    {dateOptions.length > 0 && (
-                      <div className="mr-filter-group">
-                        <label className="mr-filter-label">Date</label>
-                        <div className="mr-filter-options">
-                          <button
-                            className={`mr-filter-option ${filters.date === "All" ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("date", "All")}
-                          >All</button>
-                          {dateOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              className={`mr-filter-option ${filters.date === opt ? "selected" : ""}`}
-                              onClick={() => handleFilterChange("date", opt)}
-                            >{opt}</button>
-                          ))}
-                        </div>
+                    <div className="mr-filter-group">
+                      <label className="mr-filter-label">Date Range</label>
+                      <div className="mr-filter-date-range">
+                        <input type="date" className="mr-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="mr-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -165,10 +149,10 @@ export default function MortalityRecord() {
         {activeFilterCount > 0 && (
           <div className="mr-active-filters">
             {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
+              value && value !== "All" ? (
                 <span key={key} className="mr-active-filter-tag">
-                  {(key === "batchId" ? "Batch ID" : key === "causeOfDeath" ? "Cause of Death" : key.charAt(0).toUpperCase() + key.slice(1))}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {key === "batchId" ? "Batch ID" : key === "causeOfDeath" ? "Cause of Death" : key === "dateFrom" ? "From" : key === "dateTo" ? "To" : key}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "batchId" || key === "causeOfDeath" ? "All" : "")}>✕</button>
                 </span>
               ) : null
             )}
@@ -277,7 +261,6 @@ export default function MortalityRecord() {
           </div>
         </div>
 
-      </div>
-    </div>
+    </PageLayout>
   );
 }

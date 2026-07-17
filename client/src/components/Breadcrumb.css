@@ -1,0 +1,118 @@
+/* Breadcrumb.css — the ONE shared breadcrumb + hamburger implementation used
+   by every page in the app (via the Breadcrumb.jsx component). Matches the
+   Mortality Record reference exactly: height, spacing, typography, colors,
+   responsive behavior. Every page that uses <Breadcrumb/> automatically gets
+   an identical breadcrumb — no per-page overrides needed. */
+
+.pb-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  min-height: 38px;
+  margin: 0 0 16px;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.618;
+  text-transform: uppercase;
+  color: #a39e94;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+.pb-breadcrumb::-webkit-scrollbar { display: none; }
+.pb-breadcrumb > * { flex-shrink: 0; }
+
+.pb-breadcrumb-sep {
+  color: #a39e94;
+}
+
+.pb-breadcrumb-link {
+  cursor: pointer;
+  color: #a39e94;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+.pb-breadcrumb-link:hover {
+  color: #E4AF1F;
+  text-decoration: underline;
+}
+
+.pb-breadcrumb-current {
+  color: #47321C;
+  font-weight: 800;
+}
+
+/* Hamburger — hidden on desktop, visible on tablet/mobile. Stays in NORMAL
+   document flow (scrolls with the page) — it must NEVER be position:fixed,
+   since only the sidebar itself should be fixed/overlaying. Because the
+   sidebar overlays instead of pushing (see the global rule below), .xx-main
+   never resizes when the sidebar opens, so the hamburger never shifts
+   horizontally either — without needing any special positioning of its own. */
+.pb-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #E4AF1F;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  color: #47321C;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s;
+}
+.pb-hamburger:hover { background: #c8930c; }
+
+@media (max-width: 768px) {
+  .pb-hamburger { display: flex; }
+  .pb-breadcrumb { font-size: 14px; gap: 6px; }
+}
+@media (max-width: 480px) {
+  .pb-breadcrumb { font-size: 14px; gap: 10px; }
+}
+
+/* ============================================================
+   GLOBAL SIDEBAR OVERLAY (tablet / mobile)
+   ============================================================
+   Applies to EVERY page that renders <Breadcrumb/>, since this
+   stylesheet is imported once per page through the component.
+
+   The sidebar now overlays the page (fixed position, slides via
+   transform) instead of pushing .xx-main's width open. This is
+   what keeps the hamburger — and everything else in the page —
+   from ever shifting horizontally when the sidebar opens: the
+   page's own layout is completely unaffected by the sidebar's
+   state either way. Only the sidebar itself slides.
+
+   Desktop is untouched — this rule only exists inside this
+   ≤768px media query.
+   ============================================================ */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 900 !important;
+  }
+  .sidebar.sidebar-open {
+    transform: translateX(0) !important;
+  }
+}
