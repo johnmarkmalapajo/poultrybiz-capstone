@@ -1,15 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
 import { logAudit } from "./AuditLogs";
 import { archiveStore } from "./Archive";
 import { useUser } from "../hooks/useUser";
 import {
-  FiSearch, FiUsers, FiMenu, FiCheck, FiX, FiSlash, FiRotateCcw, FiArchive,
+  FiSearch, FiUsers, FiCheck, FiX, FiSlash, FiRotateCcw, FiArchive, FiMoreVertical,
   FiUserCheck, FiUserX, FiClock, FiFilter,
 } from "react-icons/fi";
-import "./Flockprofile.css";
 import "./UsersRoles.css";
+import PageLayout from "../components/PageLayout";
 
 /* ── Inline store (pb_users) + notifications ── */
 const U_KEY = "pb_users";
@@ -18,9 +17,25 @@ const _read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; }
 const _write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } };
 const _uid = () => "usr_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
 
+/* ── Mock/demo users (only seeded once, on first load, if the store is empty) ── */
+const MOCK_USERS = [
+  { _id: "usr_seed_1", fullName: "Ramon Cruz",     email: "ramon.cruz@poultrybiz.ph",     role: "Admin",  status: "Active",   dateRegistered: "2025-11-02" },
+  { _id: "usr_seed_2", fullName: "Liza Mendoza",    email: "liza.mendoza@poultrybiz.ph",   role: "Farmer", status: "Active",   dateRegistered: "2025-12-14" },
+  { _id: "usr_seed_3", fullName: "Paolo Lim",       email: "paolo.lim@poultrybiz.ph",      role: "Farmer", status: "Active",   dateRegistered: "2026-01-08" },
+  { _id: "usr_seed_4", fullName: "Carla Reyes",     email: "carla.reyes@poultrybiz.ph",    role: "Farmer", status: "Pending",  dateRegistered: "2026-03-22" },
+  { _id: "usr_seed_5", fullName: "Mateo Santos",    email: "mateo.santos@poultrybiz.ph",   role: "Farmer", status: "Pending",  dateRegistered: "2026-04-05" },
+  { _id: "usr_seed_6", fullName: "Grace Fabella",   email: "grace.fabella@poultrybiz.ph",  role: "Farmer", status: "Inactive", dateRegistered: "2025-09-19" },
+  { _id: "usr_seed_7", fullName: "Noel Aguilar",    email: "noel.aguilar@poultrybiz.ph",   role: "Farmer", status: "Active",   dateRegistered: "2026-02-11" },
+  { _id: "usr_seed_8", fullName: "Helen Yu",        email: "helen.yu@poultrybiz.ph",       role: "Admin",  status: "Active",   dateRegistered: "2025-08-30" },
+];
+
 function seed() {
-  // No demo/mock users — Users & Roles starts empty and fills from real
-  // registrations / admin-created accounts.
+  // Seed once with mock/demo data if the store has never been written to.
+  // Real registrations/admin actions take over after that — this never
+  // re-adds the mock rows once the user has interacted with the page.
+  if (localStorage.getItem(U_KEY) == null) {
+    _write(U_KEY, MOCK_USERS);
+  }
 }
 export function getUsers() { seed(); return _read(U_KEY); }
 function saveUsers(list) { _write(U_KEY, list); }
@@ -60,12 +75,16 @@ export default function UsersRoles({ embedded = false, onBack }) {
   const [fDate, setFDate] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);  // 3-dot menu user id
   const [toast, setToast] = useState("");
   const toastRef = useRef(null);
   const filterRef = useRef(null);
   useEffect(() => () => clearTimeout(toastRef.current), []);
   useEffect(() => {
-    const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
+    const onClick = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false);
+      setOpenMenu(null);
+    };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
@@ -122,156 +141,174 @@ export default function UsersRoles({ embedded = false, onBack }) {
     flash(`Archived ${u.fullName}`);
   };
 
-  return (
-    <div className={embedded ? "flock-embedded" : "flock-page"}>
-      {!embedded && <Sidebar />}
+  const changeRole = (u, newRole) => {
+    persist(users.map((x) => (x._id === u._id ? { ...x, role: newRole } : x)));
+    logAudit({ user: nameOf, role: adminRole, module: "Users and Roles", action: "Edited", description: `Changed role of ${u.fullName} from ${u.role} to ${newRole}` });
+    notify({ type: "user", title: "Role Changed", message: `${u.fullName} is now ${newRole}` });
+    flash(`${u.fullName} is now ${newRole}`);
+  };
 
-      <div className="flock-main">
-
-        <div className="flock-breadcrumb">
-          {!embedded && <button className="flock-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>}
-          <span className="breadcrumb-link" onClick={embedded ? onBack : () => navigate("/settings")}>SETTINGS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">USERS &amp; ROLES</span>
-        </div>
-
-        <div className="flock-toolbar">
-          <div className="toolbar-actions">
-            <div className="search-box">
-              <FiSearch />
-              <input placeholder="Search by name or email..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
-
-            <div className="toolbar-btn-group">
-              <div className="flock-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="flock-filter-count">{activeFilterCount}</span>}
-                </button>
-
-                {showFilter && (
-                  <div className="flock-filter-dropdown">
-                    <div className="flock-filter-dropdown-header">
-                      <span>Filter Users</span>
-                      <button className="flock-filter-clear" onClick={clearFilters}>Clear All</button>
-                    </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Role</label>
-                      <select className="flock-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                        <option value="All">All Roles</option>
-                        {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Date Registered</label>
-                      <input className="flock-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+  const content = (
+    <>
+      <div className="ur-toolbar">
+        <div className="ur-toolbar-right">
+          <div className="ur-search-box">
+            <FiSearch />
+            <input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-        </div>
 
-        {activeFilterCount > 0 && (
-          <div className="flock-active-filters">
-            {activeFilters.map((f) => (
-              <span key={f.key} className="flock-active-filter-tag">
-                {f.key}: {f.value}
-                <button onClick={f.clear}>✕</button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiUsers /></div>
-            <div><h3>{counts.total}</h3><p>Total Users</p><span>All Accounts</span></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon orange"><FiClock /></div>
-            <div><h3>{counts.Pending}</h3><p>Pending Requests</p><span>Awaiting Approval</span></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon green"><FiUserCheck /></div>
-            <div><h3>{counts.Active}</h3><p>Active Users</p><span>Can Log In</span></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon red"><FiUserX /></div>
-            <div><h3>{counts.Inactive}</h3><p>Inactive Users</p><span>Disabled</span></div>
-          </div>
-        </div>
-
-        <div className="ur-tabs">
-          {TABS.map((t) => {
-            const n = t.key === "all" ? counts.total : counts[t.key];
-            return (
-              <button key={t.key} className={`ur-tab ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
-                {t.label} <span className="count">{n}</span>
+          <div className="ur-btn-group">
+            <div className="ur-filter-wrap" ref={filterRef}>
+              <button className="ur-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <FiFilter /> Filter
+                {activeFilterCount > 0 && <span className="ur-filter-count">{activeFilterCount}</span>}
               </button>
-            );
-          })}
-        </div>
 
-        <div className="table-wrapper">
-          <table className="flock-table">
-            <thead>
+              {showFilter && (
+                <div className="ur-filter-dropdown">
+                  <div className="ur-filter-dropdown-header">
+                    <span>Filter Users</span>
+                    <button className="ur-filter-clear" onClick={clearFilters}>Clear All</button>
+                  </div>
+                  <div className="ur-filter-group">
+                    <label className="ur-filter-label">Role</label>
+                    <select className="ur-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
+                      <option value="All">All Roles</option>
+                      {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div className="ur-filter-group">
+                    <label className="ur-filter-label">Date Registered</label>
+                    <input className="ur-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {activeFilterCount > 0 && (
+        <div className="ur-active-filters">
+          {activeFilters.map((f) => (
+            <span key={f.key} className="ur-active-filter-tag">
+              {f.key}: {f.value}
+              <button onClick={f.clear}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="ur-stats-grid">
+        <div className="ur-stat-card">
+          <div className="ur-stat-icon gold"><FiUsers /></div>
+          <div><h3>{counts.total}</h3><p>Total Users</p><span>All Accounts</span></div>
+        </div>
+        <div className="ur-stat-card">
+          <div className="ur-stat-icon orange"><FiClock /></div>
+          <div><h3>{counts.Pending}</h3><p>Pending Requests</p><span>Awaiting Approval</span></div>
+        </div>
+        <div className="ur-stat-card">
+          <div className="ur-stat-icon green"><FiUserCheck /></div>
+          <div><h3>{counts.Active}</h3><p>Active Users</p><span>Can Log In</span></div>
+        </div>
+        <div className="ur-stat-card">
+          <div className="ur-stat-icon red"><FiUserX /></div>
+          <div><h3>{counts.Inactive}</h3><p>Inactive Users</p><span>Disabled</span></div>
+        </div>
+      </div>
+
+      <div className="ur-tabs">
+        {TABS.map((t) => {
+          const n = t.key === "all" ? counts.total : counts[t.key];
+          return (
+            <button key={t.key} className={`ur-tab ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
+              {t.label} <span className="count">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="ur-table-wrapper">
+        <table className="ur-table">
+          <thead>
+            <tr>
+              <th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Date Registered</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
               <tr>
-                <th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Date Registered</th><th>Actions</th>
+                <td colSpan="6" className="ur-empty-state">
+                  <div className="ur-empty-content">
+                    <FiUsers />
+                    <h3>No users found</h3>
+                    <p>No accounts match this tab or your filters.</p>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="empty-state">
-                    <div className="empty-content">
-                      <FiUsers />
-                      <h3>No users found</h3>
-                      <p>No accounts match this tab or your filters.</p>
+            ) : filtered.map((u) => {
+              const s = STATUS[u.status] || STATUS.Pending;
+              return (
+                <tr key={u._id}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <div className="ur-avatar" style={{ background: avatarColor(u.fullName) }}>
+                        {u.avatar ? <img src={u.avatar} alt="" /> : initials(u.fullName)}
+                      </div>
+                      <span className="ur-name">{u.fullName}</span>
+                    </div>
+                  </td>
+                  <td>{u.email}</td>
+                  <td>
+                    <select className="ur-role-select" value={u.role}
+                      onChange={(e) => changeRole(u, e.target.value)}>
+                      <option value="Admin">Admin</option>
+                      <option value="Farmer">Farmer</option>
+                    </select>
+                  </td>
+                  <td><span className="ur-badge" style={{ background: s.bg, color: s.color }}>{u.status}</span></td>
+                  <td>{fmtDate(u.dateRegistered)}</td>
+                  <td>
+                    <div className="ur-actions">
+                      {u.status === "Pending" && (<>
+                        <button className="ur-icon-btn approve" onClick={() => approve(u)} title="Approve" aria-label="Approve"><FiCheck /></button>
+                        <button className="ur-icon-btn reject" onClick={() => reject(u)} title="Reject" aria-label="Reject"><FiX /></button>
+                      </>)}
+                      {(u.status === "Active" || u.status === "Inactive") && (
+                        <div className="ur-menu-wrap">
+                          <button className="ur-menu-trigger" onClick={() => setOpenMenu(openMenu === u._id ? null : u._id)}>
+                            <FiMoreVertical />
+                          </button>
+                          {openMenu === u._id && (
+                            <div className="ur-menu-dropdown">
+                              {u.status === "Active" && (
+                                <button onClick={() => { deactivate(u); setOpenMenu(null); }}>
+                                  <FiSlash /> Deactivate
+                                </button>
+                              )}
+                              {u.status === "Inactive" && (
+                                <button onClick={() => { activate(u); setOpenMenu(null); }}>
+                                  <FiRotateCcw /> Activate
+                                </button>
+                              )}
+                              <button onClick={() => { setConfirmArchive(u); setOpenMenu(null); }}>
+                                <FiArchive /> Archive
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map((u) => {
-                const s = STATUS[u.status] || STATUS.Pending;
-                return (
-                  <tr key={u._id}>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                        <div className="ur-avatar" style={{ background: avatarColor(u.fullName) }}>
-                          {u.avatar ? <img src={u.avatar} alt="" /> : initials(u.fullName)}
-                        </div>
-                        <span className="ur-name">{u.fullName}</span>
-                      </div>
-                    </td>
-                    <td>{u.email}</td>
-                    <td><span className="ur-role">{u.role}</span></td>
-                    <td><span className="ur-badge" style={{ background: s.bg, color: s.color }}>{u.status}</span></td>
-                    <td>{fmtDate(u.dateRegistered)}</td>
-                    <td>
-                      <div className="ur-actions">
-                        {u.status === "Pending" && (<>
-                          <button className="ur-btn approve" onClick={() => approve(u)}><FiCheck /> Approve</button>
-                          <button className="ur-btn reject" onClick={() => reject(u)}><FiX /> Reject</button>
-                        </>)}
-                        {u.status === "Active" && (
-                          <button className="ur-btn deactivate" onClick={() => deactivate(u)}><FiSlash /> Deactivate</button>
-                        )}
-                        {u.status === "Inactive" && (<>
-                          <button className="ur-btn activate" onClick={() => activate(u)}><FiRotateCcw /> Activate</button>
-                          <button className="ur-btn archive" onClick={() => setConfirmArchive(u)}><FiArchive /> Archive</button>
-                        </>)}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+              );
+            })}
+          </tbody>
+        </table>
 
-          <div className="table-footer">
-            Showing {filtered.length} entries
-          </div>
+        <div className="ur-table-footer">
+          Showing {filtered.length} entries
         </div>
       </div>
 
@@ -289,6 +326,23 @@ export default function UsersRoles({ embedded = false, onBack }) {
           </div>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "SETTINGS", path: "/settings" },
+        { label: "USERS & ROLES" },
+      ]}
+    >
+      {content}
+    </PageLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiMenu } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./AddTask.css";
 
 /* ── To Do store (inline · localStorage · same keys as the To Do pages) ── */
@@ -104,6 +104,7 @@ export default function AddTask() {
     status: "Pending",
     notes: "",
   });
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -112,8 +113,11 @@ export default function AddTask() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const payload = { ...formData, personnelId: id, assignedTo: personName };
-    console.log("New Task:", payload);
+    if (saving) return;
+    if (window.__pbSaving) return;  // prevent duplicate submissions
+    window.__pbSaving = true;
+    setSaving(true);
+
     // Push the assigned task into the farmer's To Do (frontend simulation) +
     // notify the farmer. Backend should persist this and sync across users.
     assignTask(
@@ -126,54 +130,40 @@ export default function AddTask() {
       },
       getCurrentUser({ name: "Engr. Maria Egginear" }).name
     );
-    if (window.__pbSaving) return;  // prevent duplicate submissions
-    window.__pbSaving = true;
-    assignTask(id, payload);
-    window.__pbSaving = false;
 
+    window.__pbSaving = false;
     navigate(`/personnel-visitors/personnel/view/${id}`);
   };
 
   return (
-    <div className="add-task-page">
-      <Sidebar />
-
-      <div className="add-task-main">
-
-        {/* Breadcrumb */}
-        <div className="add-task-breadcrumb">
-          <button className="add-task-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors/personnel")}>PERSONNEL RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>VIEW PERSONNEL</span>
-          <span>›</span>
-          <span className="breadcrumb-current">ADD TASK</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="task-form-card" onSubmit={handleSubmit}>
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "PERSONNEL AND MANPOWER", path: "/personnel-visitors/personnel" },
+        { label: "VIEW PERSONNEL", path: `/personnel-visitors/personnel/view/${id}` },
+        { label: "ADD TASK" },
+      ]}
+    >
+        <form className="at-form-card" onSubmit={handleSubmit}>
 
           {/* Who the task is for (read-only) */}
-          <div className="task-for-banner">
-            <span className="tfb-avatar">{initials(personName)}</span>
+          <div className="at-for-banner">
+            <span className="at-tfb-avatar">{initials(personName)}</span>
             <div>
-              <div className="tfb-label">Assigning task to</div>
-              <div className="tfb-name">{personName}</div>
+              <div className="at-tfb-label">Assigning task to</div>
+              <div className="at-tfb-name">{personName}</div>
             </div>
           </div>
 
           {/* TASK DETAILS */}
-          <div className="section-header">
+          <div className="at-section-header">
             <FiClipboard />
-            <h3>TASK DETAILS</h3>
-            <div className="line"></div>
+            <h3>Task Details</h3>
+            <div className="at-line" />
           </div>
 
-          <div className="form-group full-width">
-            <label>Work Assigned <span className="req">*</span></label>
+          <div className="at-form-group at-full-width">
+            <label>Work Assigned <span className="at-req">*</span></label>
             <input
               type="text"
               name="work"
@@ -185,41 +175,41 @@ export default function AddTask() {
           </div>
 
           {/* SCHEDULE */}
-          <div className="section-header">
+          <div className="at-section-header">
             <FiCalendar />
-            <h3>SCHEDULE</h3>
-            <div className="line"></div>
+            <h3>Schedule</h3>
+            <div className="at-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Assigned Date <span className="req">*</span></label>
+          <div className="at-form-grid">
+            <div className="at-form-group">
+              <label>Assigned Date <span className="at-req">*</span></label>
               <input type="date" name="assignedDate" value={formData.assignedDate} onChange={handleChange} required />
             </div>
 
-            <div className="form-group">
-              <label>Due Date <span className="req">*</span></label>
+            <div className="at-form-group">
+              <label>Due Date <span className="at-req">*</span></label>
               <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
             </div>
           </div>
 
           {/* PRIORITY & STATUS */}
-          <div className="section-header">
+          <div className="at-section-header">
             <FiFlag />
-            <h3>PRIORITY & STATUS</h3>
-            <div className="line"></div>
+            <h3>Priority &amp; Status</h3>
+            <div className="at-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Priority <span className="req">*</span></label>
+          <div className="at-form-grid">
+            <div className="at-form-group">
+              <label>Priority <span className="at-req">*</span></label>
               <select name="priority" value={formData.priority} onChange={handleChange} required>
                 {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Status <span className="req">*</span></label>
+            <div className="at-form-group">
+              <label>Status <span className="at-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -227,13 +217,13 @@ export default function AddTask() {
           </div>
 
           {/* NOTES */}
-          <div className="section-header">
+          <div className="at-section-header">
             <FiFileText />
-            <h3>ADDITIONAL NOTES</h3>
-            <div className="line"></div>
+            <h3>Additional Notes</h3>
+            <div className="at-line" />
           </div>
 
-          <div className="form-group full-width">
+          <div className="at-form-group at-full-width">
             <label>Notes <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
             <textarea
               rows="4"
@@ -245,16 +235,18 @@ export default function AddTask() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
-              Cancel
-            </button>
-            <button type="submit" className="save-btn">
-              <FiSave /> Save Task
-            </button>
+          <div className="at-form-actions">
+            <p className="at-req-note">Fields with * are required.</p>
+            <div className="at-action-btns">
+              <button type="button" className="at-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
+                <FiX /> Cancel
+              </button>
+              <button type="submit" className="at-save-btn" disabled={saving}>
+                <FiSave /> {saving ? "Saving..." : "Save Task"}
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

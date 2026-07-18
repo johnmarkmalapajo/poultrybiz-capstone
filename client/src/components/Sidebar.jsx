@@ -24,17 +24,19 @@ export function openSidebar() {
 function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, canSeeFinancials, canViewPersonnel } = useUser();
+  const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unread, setUnread] = useState(getUnreadCount);
+  const [unread, setUnread] = useState(() => getUnreadCount(role));
 
-  // Keep the notifications badge in sync (updates when items are marked read).
+  // Keep the notifications badge in sync (updates when items are marked read,
+  // and only counts notifications relevant to THIS user's role — e.g. a
+  // Farmer never sees Admin-only alerts like pending account approvals).
   useEffect(() => {
-    const update = () => setUnread(getUnreadCount());
+    const update = () => setUnread(getUnreadCount(role));
     update();
     return subscribeNotifs(update);
-  }, []);
+  }, [role]);
 
   // Listen for the global open event
   useState(() => {
@@ -171,7 +173,7 @@ function Sidebar() {
 
         <div
           className="user"
-          onClick={() => { navigate("/profile"); closeMobile(); }}
+          onClick={() => { navigate("/settings?view=profile", { state: { fromSidebar: true } }); closeMobile(); }}
           style={{ cursor: "pointer" }}
           title="View Profile"
         >

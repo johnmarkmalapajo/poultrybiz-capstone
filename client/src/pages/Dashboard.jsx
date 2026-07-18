@@ -4,9 +4,10 @@ import {
   PieChart, Pie, Cell, Tooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from "recharts";
-import Sidebar from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import Card, { Icons } from "../components/Card";
 import { useUser } from "../hooks/useUser";
+import { getAll as getNotifications, subscribe as subscribeNotifs } from "../notifStore";
 import "./Dashboard.css";
 
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
@@ -23,6 +24,30 @@ const EMPTY = {
   tasks:      [],
   alerts:     [],
 };
+
+// Same key AdminTodo.jsx writes to — reading it directly (instead of a dead
+// API endpoint) keeps the Dashboard's To Do card in sync with real tasks.
+const ADMIN_TODO_KEY = "pb_admin_todos";
+function loadAdminTasks() {
+  try {
+    const raw = localStorage.getItem(ADMIN_TODO_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return list
+      .filter((t) => !t.archived)
+      .map((t) => ({ _id: t.id, date: t.due, task: t.title, isCompleted: t.status === "Completed" }));
+  } catch {
+    return [];
+  }
+}
+
+// Notifications (Sidebar badge's source of truth) double as the Dashboard's
+// Alert feed — unread alerts/reminders, most recent first.
+function loadDashboardAlerts() {
+  return getNotifications()
+    .filter((n) => !n.read)
+    .sort((a, b) => b.dateTime - a.dateTime)
+    .map((n) => ({ type: n.priority === "high" ? "danger" : "warning", message: n.title }));
+}
 
 // Always returns a fully-shaped dashboard object, even if the API sends
 // partial data, an array, null, or nothing — so the UI can never crash.
@@ -45,7 +70,7 @@ function Dashboard() {
   const [error, setError]     = useState("");
   const [tasks, setTasks]     = useState([]);
 
-  const { user, role, canSeeFinancials } = useUser();
+  const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
   const navigate = useNavigate();
   const TODO_LIMIT = 5;
   const ALERT_LIMIT = 4;
@@ -131,7 +156,10 @@ function Dashboard() {
       if (json && json.success) {
         const shaped = shapeData(json.data);
         setData(shaped);
-        setTasks(shaped.tasks);
+        // Admin/personnel roles get their tasks from the real local To Do
+        // store (see the canViewPersonnel effect below) — don't let this
+        // API result (currently always empty) clobber it.
+        if (!canViewPersonnel) setTasks(shaped.tasks);
       } else {
         setData(EMPTY);
         setError("No dashboard data yet.");
@@ -159,8 +187,49 @@ function Dashboard() {
     };
   }, []);
 
+  // To Do card — for roles with an admin To Do (canViewPersonnel), read the
+  // real pb_admin_todos store directly instead of the (currently empty) API
+  // tasks list, and stay in sync with any edits made on the To Do page.
+  useEffect(() => {
+    if (!canViewPersonnel) return;
+    const update = () => setTasks(loadAdminTasks());
+    update();
+    window.addEventListener("pb_data_changed", update);
+    window.addEventListener("storage", update);
+    window.addEventListener("focus", update);
+    return () => {
+      window.removeEventListener("pb_data_changed", update);
+      window.removeEventListener("storage", update);
+      window.removeEventListener("focus", update);
+    };
+  }, [canViewPersonnel]);
+
+  // Alert card — read from the same notification store the Sidebar badge
+  // uses, so it's always showing real, current, unread items.
+  const [alerts, setAlerts] = useState(loadDashboardAlerts);
+  useEffect(() => {
+    const update = () => setAlerts(loadDashboardAlerts());
+    update();
+    return subscribeNotifs(update);
+  }, []);
+
   // ── Toggle task ──
   const toggleTask = async (id) => {
+    if (canViewPersonnel) {
+      // Admin tasks live in localStorage (pb_admin_todos) — update there and
+      // broadcast so the To Do page and this card both stay in sync.
+      try {
+        const raw = localStorage.getItem(ADMIN_TODO_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        const next = list.map((t) =>
+          t.id === id ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" } : t
+        );
+        localStorage.setItem(ADMIN_TODO_KEY, JSON.stringify(next));
+        window.dispatchEvent(new Event("pb_data_changed"));
+      } catch { /* ignore */ }
+      return;
+    }
+
     const task = tasks.find((t) => t._id === id);
     setTasks((prev) =>
       prev.map((t) => t._id === id ? { ...t, isCompleted: !t.isCompleted } : t)
@@ -193,7 +262,13 @@ function Dashboard() {
   };
 
   const allTrend = data.eggs?.dailyTrend ?? [];
-  const dailyTrend = filterByRange(allTrend, trendRange);
+  // mockApi's computeDashboard() emits { date, eggs, total } — normalize to
+  // `count` here so the chart/table below always has the field they expect,
+  // regardless of which key the backend/mock happens to use.
+  const dailyTrend = filterByRange(allTrend, trendRange).map((row) => ({
+    ...row,
+    count: row.count ?? row.total ?? row.eggs ?? 0,
+  }));
 
   // Pie: size distribution computed for the selected range (falls back to the
   // endpoint's month distribution when per-day sizes aren't available)
@@ -210,201 +285,197 @@ function Dashboard() {
   }));
 
   const hasPieData = pieData.some((d) => d.value > 0);
-  const alerts     = data.alerts ?? [];
 
   return (
-    <div className="dashboard">
-      <Sidebar />
-      <div className="main">
-        <div className="dash-header">
-          <div>
-            <h2 className="title">
-              {isNewUser ? "Welcome," : "Welcome back,"} {user?.name || "User"}!
-            </h2>
-            <p className="subtitle">
-              {isNewUser
-                ? "Let's get your farm set up!"
-                : "Here's what's happening in your farm today"}
-            </p>
-          </div>
+    <PageLayout breadcrumbItems={[{ label: "DASHBOARD" }]}>
+      <div className="dash-header">
+        <div>
+          <h2 className="title">
+            {isNewUser ? "Welcome," : "Welcome back,"} {user?.name || "User"}!
+          </h2>
+          <p className="subtitle">
+            {isNewUser
+              ? "Let's get your farm set up!"
+              : "Here's what's happening in your farm today"}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Top row ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ minWidth: "150px" }}>
+          {loading && (
+            <span style={{
+              fontSize: "12px", fontWeight: "600",
+              padding: "4px 14px", borderRadius: "20px",
+            }}>
+              Loading dashboard...
+            </span>
+          )}
         </div>
 
-        {/* ── Top row ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ minWidth: "150px" }}>
-            {loading && (
-              <span style={{
-                fontSize: "12px", fontWeight: "600",
-                padding: "4px 14px", borderRadius: "20px",
-              }}>
-                Loading dashboard...
-              </span>
+        <button onClick={fetchDashboard} style={{
+          background: "",
+          border: "none", borderRadius: "8px",
+          padding: "6px 16px", fontSize: "13px",
+          fontWeight: "600", cursor: "pointer",
+          transition: "background 0.2s",
+        }}>
+          Refresh
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{
+          borderRadius: "8px", padding: "10px 16px",
+          color: "#c0392b", fontSize: "12px",
+        }}>
+           {error}
+        </div>
+      )}
+
+      {/* ── Stat Cards (Farmer = single horizontal row) ── */}
+      <div className={`cards ${!canSeeFinancials ? "cards-row" : ""}`}>
+        {visibleCards.map((card) => (
+          <Card
+            key={card.title}
+            title={card.title}
+            value={card.value}
+            icon={card.icon}
+            iconBg={card.iconBg}
+          />
+        ))}
+      </div>
+
+      {/* ── Bottom ── */}
+      <div className="bottom">
+        <div className="charts-col">
+
+          {/* Egg Size Distribution */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <span className="chart-title">Latest Egg Size Distribution</span>
+              <select className="chart-filter" value={pieRange} onChange={(e) => setPieRange(e.target.value)}>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
+            </div>
+            {!hasPieData ? (
+              <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
+                No egg data for this period yet.
+              </p>
+            ) : (
+              <div className="pie-wrap">
+                <PieChart width={180} height={180}>
+                  <Pie data={pieData} cx={85} cy={85}
+                    innerRadius={52} outerRadius={85}
+                    dataKey="value" startAngle={90} endAngle={-270}>
+                    {pieData.map((_, i) => <Cell key={i} fill={EGG_COLORS[i]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => `${v}%`} />
+                </PieChart>
+                <div className="pie-legend">
+                  {EGG_LABELS.map((label, i) => (
+                    <div className="legend-row" key={label}>
+                      <span className="legend-dot" style={{ background: EGG_COLORS[i] }} />
+                      <span className="legend-label">{label}</span>
+                      <span className="legend-pct">{pieData[i].value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
-          <button onClick={fetchDashboard} style={{
-            background: "",
-            border: "none", borderRadius: "8px",
-            padding: "6px 16px", fontSize: "13px",
-            fontWeight: "600", cursor: "pointer",
-            transition: "background 0.2s",
-          }}>
-            Refresh
-          </button>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div style={{
-            borderRadius: "8px", padding: "10px 16px",
-            color: "#c0392b", fontSize: "12px",
-          }}>
-             {error}
-          </div>
-        )}
-
-        {/* ── Stat Cards (Farmer = single horizontal row) ── */}
-        <div className={`cards ${!canSeeFinancials ? "cards-row" : ""}`}>
-          {visibleCards.map((card) => (
-            <Card
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              iconBg={card.iconBg}
-            />
-          ))}
-        </div>
-
-        {/* ── Bottom ── */}
-        <div className="bottom">
-          <div className="charts-col">
-
-            {/* Egg Size Distribution */}
-            <div className="chart-card">
-              <div className="chart-header">
-                <span className="chart-title">Latest Egg Size Distribution</span>
-                <select className="chart-filter" value={pieRange} onChange={(e) => setPieRange(e.target.value)}>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
-              </div>
-              {!hasPieData ? (
-                <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
-                  No egg data for this period yet.
-                </p>
-              ) : (
-                <div className="pie-wrap">
-                  <PieChart width={180} height={180}>
-                    <Pie data={pieData} cx={85} cy={85}
-                      innerRadius={52} outerRadius={85}
-                      dataKey="value" startAngle={90} endAngle={-270}>
-                      {pieData.map((_, i) => <Cell key={i} fill={EGG_COLORS[i]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v) => `${v}%`} />
-                  </PieChart>
-                  <div className="pie-legend">
-                    {EGG_LABELS.map((label, i) => (
-                      <div className="legend-row" key={label}>
-                        <span className="legend-dot" style={{ background: EGG_COLORS[i] }} />
-                        <span className="legend-label">{label}</span>
-                        <span className="legend-pct">{pieData[i].value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Daily Egg Harvest Trend */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <span className="chart-title">Daily Egg Harvest Trend</span>
+              <select className="chart-filter" value={trendRange} onChange={(e) => setTrendRange(e.target.value)}>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
             </div>
-
-            {/* Daily Egg Harvest Trend */}
-            <div className="chart-card">
-              <div className="chart-header">
-                <span className="chart-title">Daily Egg Harvest Trend</span>
-                <select className="chart-filter" value={trendRange} onChange={(e) => setTrendRange(e.target.value)}>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
-              </div>
-              {dailyTrend.length === 0 ? (
-                <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
-                  No egg harvest data for this period yet.
-                </p>
-              ) : (
-                <div className="line-wrap">
-                  <ResponsiveContainer width="55%" height={160}>
-                    <LineChart data={dailyTrend}
-                      margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="date" tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count"
-                        stroke="#4a90d9" strokeWidth={2}
-                        dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  <div className="trend-table">
-                    {dailyTrend.map((row) => (
-                      <div className="trend-row" key={row.date}>
-                        <span className="trend-date">{row.date}</span>
-                        <span className="trend-count">{row.count}</span>
-                      </div>
-                    ))}
-                  </div>
+            {dailyTrend.length === 0 ? (
+              <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
+                No egg harvest data for this period yet.
+              </p>
+            ) : (
+              <div className="line-wrap">
+                <ResponsiveContainer width="55%" height={160}>
+                  <LineChart data={dailyTrend}
+                    margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 9 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count"
+                      stroke="#4a90d9" strokeWidth={2}
+                      dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="trend-table">
+                  {dailyTrend.map((row) => (
+                    <div className="trend-row" key={row.date}>
+                      <span className="trend-date">{row.date}</span>
+                      <span className="trend-count">{row.count}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-
+              </div>
+            )}
           </div>
 
-          {/* RIGHT */}
-          <div className="right-col">
-            <div className="todo-card">
-              <h3 className="todo-title">To Do</h3>
-              <div className="todo-header-row">
-                <span /><span>Date</span><span>Task</span>
-              </div>
-              {tasks.length === 0 ? (
-                <p style={{ color: "#aaa", fontSize: "12px", padding: "8px 0" }}>No tasks yet.</p>
-              ) : tasks.slice(0, TODO_LIMIT).map((t) => (
-                <div className="todo-row" key={t._id}>
-                  <input type="checkbox" checked={t.isCompleted}
-                    onChange={() => toggleTask(t._id)} className="todo-check" />
-                  <span className="todo-date">
-                    {t.date ? new Date(t.date).toLocaleDateString() : ""}
-                  </span>
-                  <span className={`todo-task ${t.isCompleted ? "done" : ""}`}>{t.task}</span>
-                </div>
-              ))}
-              {tasks.length > TODO_LIMIT && (
-                <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/admin/todo")}>
-                  See All
-                </button>
-              )}
-            </div>
+        </div>
 
-            <div className="alert-card">
-              <h3 className="alert-title">Alert</h3>
-              {alerts.length === 0 ? (
-                <p style={{ color: "#aaa", fontSize: "13px" }}>No alerts. All good! ✅</p>
-              ) : alerts.slice(0, ALERT_LIMIT).map((a, i) => (
-                <div className="alert-row" key={i}>
-                  <span className="alert-icon">{a.type === "danger" ? "🔺" : "🔶"}</span>
-                  <span className="alert-msg">{a.message}</span>
-                </div>
-              ))}
-              {alerts.length > ALERT_LIMIT && (
-                <button className="dash-see-all" onClick={() => navigate("/notifications")}>
-                  See All
-                </button>
-              )}
+        {/* RIGHT */}
+        <div className="right-col">
+          <div className="todo-card">
+            <h3 className="todo-title">To Do</h3>
+            <div className="todo-header-row">
+              <span /><span>Date</span><span>Task</span>
             </div>
+            {tasks.length === 0 ? (
+              <p style={{ color: "#aaa", fontSize: "12px", padding: "8px 0" }}>No tasks yet.</p>
+            ) : tasks.slice(0, TODO_LIMIT).map((t) => (
+              <div className="todo-row" key={t._id}>
+                <input type="checkbox" checked={t.isCompleted}
+                  onChange={() => toggleTask(t._id)} className="todo-check" />
+                <span className="todo-date">
+                  {t.date ? new Date(t.date).toLocaleDateString() : ""}
+                </span>
+                <span className={`todo-task ${t.isCompleted ? "done" : ""}`}>{t.task}</span>
+              </div>
+            ))}
+            {tasks.length > TODO_LIMIT && (
+              <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/admin/todo")}>
+                See All
+              </button>
+            )}
+          </div>
+
+          <div className="alert-card">
+            <h3 className="alert-title">Alert</h3>
+            {alerts.length === 0 ? (
+              <p style={{ color: "#aaa", fontSize: "13px" }}>No alerts. All good! ✅</p>
+            ) : alerts.slice(0, ALERT_LIMIT).map((a, i) => (
+              <div className="alert-row" key={i}>
+                <span className="alert-icon">{a.type === "danger" ? "🔺" : "🔶"}</span>
+                <span className="alert-msg">{a.message}</span>
+              </div>
+            ))}
+            {alerts.length > ALERT_LIMIT && (
+              <button className="dash-see-all" onClick={() => navigate("/notifications")}>
+                See All
+              </button>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

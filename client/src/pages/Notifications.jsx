@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
 import { useUser } from "../hooks/useUser";
 import {
   FiSearch, FiBell, FiCheck, FiCheckCircle, FiTrash2, FiChevronRight,
   FiAlertTriangle, FiCalendar,
 } from "react-icons/fi";
 import "./Notifications.css";
+import PageLayout from "../components/PageLayout";
 
 /* ── Category meta (icon + label + redirect route) ── */
 const CATEGORIES = {
@@ -149,14 +149,11 @@ export default function Notifications() {
   const tabCategories = [...new Set(allowedItems.filter((n) => n.type === tab).map((n) => n.category))];
 
   return (
-    <div className="nt-page">
-      <Sidebar />
-      <main className="nt-main">
-        {/* Breadcrumb */}
-        <div className="nt-breadcrumb">
-          <button className="nt-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
-          <span className="breadcrumb-current">NOTIFICATIONS</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[{ label: "NOTIFICATIONS" }]}
+    >
 
         {/* Tabs */}
         <div className="nt-tabs">
@@ -245,7 +242,7 @@ export default function Notifications() {
             );
           })}
         </div>
-      </main>
-    </div>
+
+    </PageLayout>
   );
 }

@@ -1,52 +1,54 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiUser, FiBriefcase, FiFileText, FiSave, FiMenu, FiLock } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiUser, FiBriefcase, FiFileText, FiSave, FiLock, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import { getFarmerProfile } from "./FarmerProfile";
 import "./EditPersonnel.css";
 // ── Inline mock data (frontend fallback until the API is wired) ──
+// Same records/IDs as Personnelandmanpower.jsx and ViewPersonnel.jsx so a
+// "View"/"Edit" click on any listed row always resolves to a matching record.
 const PERSONNEL = [
   {
-    _id: "o1", accountRole: "Owner / Admin", status: "Active",
-    position: "Owner / Admin", shiftHours: "—", dateHired: "—",
+    _id: "pm_seed_1", accountRole: "Admin", status: "Active",
+    position: "Admin", shiftHours: "—", dateHired: "—",
     assignedWork: "", remarks: "",
-    profile: { fullName: "Engr. Maria Egginear", contactNumber: "0917 000 1111", image: "" },
+    profile: { fullName: "Ramon Cruz", contactNumber: "0917 555 1201", image: "" },
   },
   {
-    _id: "f1", accountRole: "Farmer", position: "Farm Worker",
-    dateHired: "2023-01-10", shiftHours: "6:00 AM - 3:00 PM", status: "Active",
-    assignedWork: "Morning feeding · Cage 1-4 cleaning", remarks: "Hardworking and trustworthy.",
-    profile: { fullName: "Juan Dela Cruz", contactNumber: "0917 123 4567", image: "" },
+    _id: "pm_seed_2", accountRole: "Owner", status: "Active",
+    position: "Owner", shiftHours: "—", dateHired: "—",
+    assignedWork: "", remarks: "",
+    profile: { fullName: "Helen Yu", contactNumber: "0935 555 7788", image: "" },
   },
   {
-    _id: "f2", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-02-15", shiftHours: "7:00 AM - 4:00 PM", status: "Active",
-    assignedWork: "Vaccination round (Flock B-002)", remarks: "Skilled in poultry care.",
-    profile: { fullName: "Maria Santos", contactNumber: "0917 234 5678", image: "" },
+    _id: "pm_seed_3", accountRole: "Farmer", position: "Layer House Attendant",
+    dateHired: "2025-12-14", shiftHours: "6:00 AM – 2:00 PM", status: "Active",
+    assignedWork: "Handles daily egg collection", remarks: "Handles daily egg collection",
+    profile: { fullName: "Liza Mendoza", contactNumber: "0928 555 3345", image: "" },
   },
   {
-    _id: "f3", accountRole: "Farmer", position: "Maintenance Worker",
-    dateHired: "2023-03-01", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "Water line + equipment check", remarks: "Handles equipment maintenance.",
-    profile: { fullName: "Pedro Reyes", contactNumber: "0917 345 6789", image: "" },
+    _id: "pm_seed_4", accountRole: "Farmer", position: "Feed & Inventory Handler",
+    dateHired: "2026-01-08", shiftHours: "7:00 AM – 3:00 PM", status: "Active",
+    assignedWork: "In charge of feed stock rotation", remarks: "In charge of feed stock rotation",
+    profile: { fullName: "Paolo Lim", contactNumber: "0939 555 8890", image: "" },
   },
   {
-    _id: "f4", accountRole: "Farmer", position: "Inventory Clerk",
-    dateHired: "2023-03-20", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "", remarks: "Organized and detail-oriented.",
-    profile: { fullName: "Ana Garcia", contactNumber: "0917 456 7890", image: "" },
+    _id: "pm_seed_5", accountRole: "Farmer", position: "General Farm Worker",
+    dateHired: "2026-02-11", shiftHours: "6:00 AM – 2:00 PM", status: "Active",
+    assignedWork: "", remarks: "—",
+    profile: { fullName: "Noel Aguilar", contactNumber: "0926 555 2201", image: "" },
   },
   {
-    _id: "f5", accountRole: "Farmer", position: "Farm Hand",
-    dateHired: "2023-04-05", shiftHours: "6:00 AM - 3:00 PM", status: "On Leave",
-    assignedWork: "", remarks: "On medical leave until further notice.",
-    profile: { fullName: "Mark Villanueva", contactNumber: "0917 567 8901", image: "" },
+    _id: "pm_seed_6", accountRole: "Farmer", position: "Sanitation & Waste Management",
+    dateHired: "2025-09-19", shiftHours: "2:00 PM – 10:00 PM", status: "Inactive",
+    assignedWork: "", remarks: "On extended leave",
+    profile: { fullName: "Grace Fabella", contactNumber: "0917 555 6610", image: "" },
   },
   {
-    _id: "f6", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-06-12", shiftHours: "7:00 AM - 4:00 PM", status: "Inactive",
-    assignedWork: "", remarks: "Resigned last May 30, 2024.",
-    profile: { fullName: "Grace Lagon", contactNumber: "0917 678 9012", image: "" },
+    _id: "pm_seed_7", accountRole: "Farmer", position: "Layer House Attendant",
+    dateHired: "2026-03-22", shiftHours: "6:00 AM – 2:00 PM", status: "On Leave",
+    assignedWork: "", remarks: "Approved leave until end of month",
+    profile: { fullName: "Mateo Santos", contactNumber: "0905 555 4412", image: "" },
   },
 ];
 
@@ -99,6 +101,13 @@ export default function EditPersonnel() {
   });
 
   const [loading, setLoading] = useState(true);
+
+  const breadcrumbItems = [
+    { label: "PERSONNEL AND VISITORS", path: "/personnel-visitors" },
+    { label: "PERSONNEL RECORDS", path: "/personnel-visitors/personnel" },
+    { label: "VIEW PERSONNEL", path: `/personnel-visitors/personnel/view/${id}` },
+    { label: "EDIT PERSONNEL" },
+  ];
 
   // ── Fetch this personnel record ──
   useEffect(() => {
@@ -186,44 +195,21 @@ export default function EditPersonnel() {
 
   if (loading) {
     return (
-      <div className="edit-personnel-page">
-        <Sidebar />
-        <div className="edit-personnel-main">
-          <p className="edit-personnel-loading">Loading personnel record...</p>
-        </div>
-      </div>
+      <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
+        <p className="ep-loading">Loading personnel record...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="edit-personnel-page">
-      <Sidebar />
-
-      <div className="edit-personnel-main">
-
-        {/* Breadcrumb */}
-        <div className="edit-personnel-breadcrumb">
-          <button className="edit-personnel-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors/personnel")}>PERSONNEL RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>VIEW PERSONNEL</span>
-          <span>›</span>
-          <span className="breadcrumb-current">EDIT PERSONNEL</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="personnel-form-card" onSubmit={handleSubmit}>
+    <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
+        <form className="ep-form-card" onSubmit={handleSubmit}>
 
           {/* PROFILE INFORMATION (read-only, from My Profile) */}
-          <div className="section-header">
+          <div className="ep-section-header">
             <FiUser />
-            <h3>PROFILE INFORMATION</h3>
-            <div className="line"></div>
+            <h3>Profile Information</h3>
+            <div className="ep-line" />
           </div>
 
           <div className="ep-profile-row">
@@ -238,20 +224,20 @@ export default function EditPersonnel() {
             </p>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group ep-locked">
+          <div className="ep-form-grid">
+            <div className="ep-form-group ep-locked">
               <label>Full Name <span className="ep-lock-badge">Synced</span></label>
               <input type="text" value={profileInfo.fullName} disabled readOnly />
               <small>Synced from My Profile</small>
             </div>
 
-            <div className="form-group ep-locked">
+            <div className="ep-form-group ep-locked">
               <label>Contact Number <span className="ep-lock-badge">Synced</span></label>
               <input type="text" value={profileInfo.contactNumber} disabled readOnly />
               <small>Synced from My Profile</small>
             </div>
 
-            <div className="form-group ep-locked">
+            <div className="ep-form-group ep-locked">
               <label>Email Address <span className="ep-lock-badge">Synced</span></label>
               <input type="text" value={profileInfo.email} disabled readOnly />
               <small>Synced from My Profile</small>
@@ -259,15 +245,15 @@ export default function EditPersonnel() {
           </div>
 
           {/* ROLE / EMPLOYMENT (editable) */}
-          <div className="section-header">
+          <div className="ep-section-header">
             <FiBriefcase />
-            <h3>{isAdmin ? "ROLE" : "EMPLOYMENT DETAILS"}</h3>
-            <div className="line"></div>
+            <h3>{isAdmin ? "Role" : "Employment Details"}</h3>
+            <div className="ep-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Position / Role <span className="req">*</span></label>
+          <div className="ep-form-grid">
+            <div className="ep-form-group">
+              <label>Position / Role <span className="ep-req">*</span></label>
               <input
                 type="text"
                 name="position"
@@ -280,8 +266,8 @@ export default function EditPersonnel() {
 
             {!isAdmin && (
               <>
-                <div className="form-group">
-                  <label>Shift / Duty Hours <span className="req">*</span></label>
+                <div className="ep-form-group">
+                  <label>Shift / Duty Hours <span className="ep-req">*</span></label>
                   <input
                     type="text"
                     name="shiftHours"
@@ -297,14 +283,14 @@ export default function EditPersonnel() {
                   <small>Type custom hours or pick a standard shift</small>
                 </div>
 
-                <div className="form-group">
-                  <label>Employment Status <span className="req">*</span></label>
+                <div className="ep-form-group">
+                  <label>Employment Status <span className="ep-req">*</span></label>
                   <select name="status" value={formData.status} onChange={handleChange} required>
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="ep-form-group">
                   <label>Date Hired</label>
                   <input type="date" name="dateHired" value={formData.dateHired} onChange={handleChange} />
                 </div>
@@ -315,13 +301,13 @@ export default function EditPersonnel() {
           {!isAdmin && (
             <>
               {/* ASSIGNMENT & NOTES (editable) */}
-              <div className="section-header">
+              <div className="ep-section-header">
                 <FiFileText />
-                <h3>ASSIGNMENT & NOTES</h3>
-                <div className="line"></div>
+                <h3>Assignment &amp; Notes</h3>
+                <div className="ep-line" />
               </div>
 
-              <div className="form-group full-width">
+              <div className="ep-form-group ep-full-width">
                 <label>Assigned Work</label>
                 <input
                   type="text"
@@ -332,7 +318,7 @@ export default function EditPersonnel() {
                 />
               </div>
 
-              <div className="form-group full-width">
+              <div className="ep-form-group ep-full-width">
                 <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
                 <textarea
                   rows="5"
@@ -346,17 +332,18 @@ export default function EditPersonnel() {
           )}
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="save-btn">
-              <FiSave />
-              Save Changes
-            </button>
+          <div className="ep-form-actions">
+            <p className="ep-req-note">Fields with * are required.</p>
+            <div className="ep-action-btns">
+              <button type="button" className="ep-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
+                <FiX /> Cancel
+              </button>
+              <button type="submit" disabled={saving} className="ep-save-btn">
+                <FiSave /> {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -6,10 +6,10 @@ import {
 } from "react-icons/fi";
 import { BsQrCode } from "react-icons/bs";
 import { MdPeople, MdPerson, MdPersonOff, MdPersonAdd } from "react-icons/md";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import { getFarmerProfile } from "./FarmerProfile";
 import { exportCsvTable, exportExcel, exportPdf } from "../exportTable";
-import "./PersonnelandManpower.css";
+import "./Personnelandmanpower.css";
 import { archiveRow } from "../archiveRow";
 
 // Overlay the Farmer's own My Profile (pic/name/contact/email) onto their
@@ -37,6 +37,15 @@ const syncFarmerProfile = (list) => {
   return out;
 };
 // ── Inline mock data (frontend fallback until the API is wired) ──
+const MOCK_PERSONNEL = [
+  { _id: "pm_seed_1", profile: { fullName: "Ramon Cruz", contactNumber: "0917 555 1201" }, accountRole: "Admin", status: "Active" },
+  { _id: "pm_seed_2", profile: { fullName: "Helen Yu", contactNumber: "0935 555 7788" }, accountRole: "Owner", status: "Active" },
+  { _id: "pm_seed_3", profile: { fullName: "Liza Mendoza", contactNumber: "0928 555 3345" }, accountRole: "Farmer", position: "Layer House Attendant", dateHired: "2025-12-14", shiftHours: "6:00 AM – 2:00 PM", status: "Active", remarks: "Handles daily egg collection" },
+  { _id: "pm_seed_4", profile: { fullName: "Paolo Lim", contactNumber: "0939 555 8890" }, accountRole: "Farmer", position: "Feed & Inventory Handler", dateHired: "2026-01-08", shiftHours: "7:00 AM – 3:00 PM", status: "Active", remarks: "In charge of feed stock rotation" },
+  { _id: "pm_seed_5", profile: { fullName: "Noel Aguilar", contactNumber: "0926 555 2201" }, accountRole: "Farmer", position: "General Farm Worker", dateHired: "2026-02-11", shiftHours: "6:00 AM – 2:00 PM", status: "Active", remarks: "—" },
+  { _id: "pm_seed_6", profile: { fullName: "Grace Fabella", contactNumber: "0917 555 6610" }, accountRole: "Farmer", position: "Sanitation & Waste Management", dateHired: "2025-09-19", shiftHours: "2:00 PM – 10:00 PM", status: "Inactive", remarks: "On extended leave" },
+  { _id: "pm_seed_7", profile: { fullName: "Mateo Santos", contactNumber: "0905 555 4412" }, accountRole: "Farmer", position: "Layer House Attendant", dateHired: "2026-03-22", shiftHours: "6:00 AM – 2:00 PM", status: "On Leave", remarks: "Approved leave until end of month" },
+];
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/personnel`;
 const STATUS_OPTIONS = ["Active", "Inactive", "On Leave"];
@@ -55,12 +64,6 @@ const getContact = (r) => {
   const p = prof(r);
   return p.contactNumber || p.contact || p.phone || p.mobile || p.phoneNumber || "—";
 };
-const getImage = (r) => {
-  const p = prof(r);
-  return p.image || p.photo || p.avatar || p.profilePicture || p.profileImage || "";
-};
-const getInitials = (name) =>
-  (name && name !== "—" ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
 // ── Personnel-record fields (Admin-managed, NOT from My Profile) ──
 const getAccountRole = (r) => r.accountRole || r.userRole || r.userType || r.role || "";
 const isOwnerAdmin = (r) => /owner|admin/i.test(getAccountRole(r));
@@ -73,17 +76,8 @@ const getStatus = (r) => r.status || "Active";
 const getRemarks = (r) => r.remarks || r.notes || "—";
 const getAssignedWork = (r) => r.assignedWork || r.assignedTask || "";
 
-// Avatar (profile image) cell — image comes from the Farmer's My Profile
-const NameCell = ({ r }) => (
-  <div className="pm-name-cell">
-    {getImage(r) ? (
-      <img className="pm-avatar" src={getImage(r)} alt="" />
-    ) : (
-      <span className="pm-avatar pm-avatar-fallback">{getInitials(getName(r))}</span>
-    )}
-    <span>{getName(r)}</span>
-  </div>
-);
+// Plain name cell (no profile picture/avatar)
+const NameCell = ({ r }) => <span>{getName(r)}</span>;
 
 export default function PersonnelManpower() {
   const navigate = useNavigate();
@@ -100,6 +94,13 @@ export default function PersonnelManpower() {
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({ status: "All" });
   const filterRef = useRef(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const onChange = () => setRefreshKey((k) => k + 1);
+    window.addEventListener("pb_data_changed", onChange);
+    return () => window.removeEventListener("pb_data_changed", onChange);
+  }, []);
 
   // Personnel are created automatically once an account is registered and
   // approved by the Admin/Owner — so this page only reads existing records.
@@ -112,15 +113,15 @@ export default function PersonnelManpower() {
         });
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.records || data.data || [];
-        setRecords(syncFarmerProfile(list));
+        setRecords(syncFarmerProfile(list.length ? list : MOCK_PERSONNEL));
       } catch {
-        setRecords(syncFarmerProfile([]));
+        setRecords(syncFarmerProfile(MOCK_PERSONNEL));
       } finally {
         setLoading(false);
       }
     };
     fetchRecords();
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     const handle = (e) => {
@@ -193,37 +194,31 @@ export default function PersonnelManpower() {
   );
 
   return (
-    <div className="pm-page">
-      <Sidebar />
-
-      <div className="pm-main">
-
-        {/* Breadcrumb */}
-        <div className="pm-breadcrumb">
-          <button className="pm-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">PERSONNEL AND MANPOWER</span>
-        </div>
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "PERSONNEL AND VISITORS", path: "/personnel-visitors" },
+        { label: "PERSONNEL AND MANPOWER" },
+      ]}
+    >
 
         {/* Toolbar (no Add — personnel are added automatically on account approval) */}
         <div className="pm-toolbar">
-          <div className="toolbar-actions">
-            <div className="search-box">
+          <div className="pm-toolbar-right">
+            <div className="pm-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search personnel..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
-            <div className="toolbar-btn-group">
+            <div className="pm-btn-group">
               <div className="pm-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="pm-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="pm-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -250,9 +245,9 @@ export default function PersonnelManpower() {
                 )}
               </div>
 
-              <button className="toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
+              <button className="pm-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
               <div style={{ position: "relative", display: "inline-block" }}>
-                <button className="toolbar-btn" onClick={() => setExportOpen((o) => !o)}>
+                <button className="pm-toolbar-btn" onClick={() => setExportOpen((o) => !o)}>
                   <FiDownload /> Export ▾
                 </button>
                 {exportOpen && (
@@ -302,9 +297,9 @@ export default function PersonnelManpower() {
         )}
 
         {/* Stat Cards */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><MdPeople /></div>
+        <div className="pm-stats-grid">
+          <div className="pm-stat-card">
+            <div className="pm-stat-icon gold"><MdPeople /></div>
             <div>
               <h3>{total}</h3>
               <p>Total Personnel</p>
@@ -312,8 +307,8 @@ export default function PersonnelManpower() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon green"><MdPerson /></div>
+          <div className="pm-stat-card">
+            <div className="pm-stat-icon green"><MdPerson /></div>
             <div>
               <h3>{activeCount}</h3>
               <p>Active</p>
@@ -321,8 +316,8 @@ export default function PersonnelManpower() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon blue"><MdPersonOff /></div>
+          <div className="pm-stat-card">
+            <div className="pm-stat-icon blue"><MdPersonOff /></div>
             <div>
               <h3>{inactiveCount}</h3>
               <p>Inactive</p>
@@ -330,8 +325,8 @@ export default function PersonnelManpower() {
             </div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon purple"><MdPersonAdd /></div>
+          <div className="pm-stat-card">
+            <div className="pm-stat-icon purple"><MdPersonAdd /></div>
             <div>
               <h3>{onLeaveCount}</h3>
               <p>On Leave</p>
@@ -356,7 +351,7 @@ export default function PersonnelManpower() {
           </button>
         </div>
 
-        <div className="table-wrapper">
+        <div className="pm-table-wrapper">
 
           {/* OWNER / ADMIN TABLE */}
           {activeTab === "owner" && (
@@ -372,11 +367,11 @@ export default function PersonnelManpower() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="5" className="empty-state">Loading...</td></tr>
+                  <tr><td colSpan="5" className="pm-empty-state">Loading...</td></tr>
                 ) : owners.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="empty-state">
-                      <div className="empty-content">
+                    <td colSpan="5" className="pm-empty-state">
+                      <div className="pm-empty-content">
                         <FiMaximize />
                         <h3>No owner/admin found</h3>
                         <p>Owner/Admin appears here automatically after registration.</p>
@@ -391,8 +386,8 @@ export default function PersonnelManpower() {
                       <td>{getAccountRole(r) || "Owner"}</td>
                       <td>{statusBadge(getStatus(r))}</td>
                       <td>
-                        <div className="action-buttons">
-                          <button className="action-btn view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                        <div className="pm-actions">
+                          <button className="pm-btn-view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
                         </div>
                       </td>
                     </tr>
@@ -419,11 +414,11 @@ export default function PersonnelManpower() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="8" className="empty-state">Loading personnel records...</td></tr>
+                  <tr><td colSpan="8" className="pm-empty-state">Loading personnel records...</td></tr>
                 ) : farmers.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="empty-state">
-                      <div className="empty-content">
+                    <td colSpan="8" className="pm-empty-state">
+                      <div className="pm-empty-content">
                         <FiMaximize />
                         <h3>No personnel records found</h3>
                         <p>Farmers appear here automatically once their account is approved by the Admin.</p>
@@ -441,9 +436,9 @@ export default function PersonnelManpower() {
                       <td>{statusBadge(getStatus(r))}</td>
                       <td>{getRemarks(r)}</td>
                       <td>
-                        <div className="action-buttons">
-                          <button className="action-btn view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
-                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                        <div className="pm-actions">
+                          <button className="pm-btn-view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                          <button className="pm-btn-archive" onClick={() => archiveRow({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
                         </div>
                       </td>
                     </tr>
@@ -453,12 +448,10 @@ export default function PersonnelManpower() {
             </table>
           )}
 
-          <div className="table-footer">
+          <div className="pm-table-footer">
             Showing {activeTab === "owner" ? owners.length : farmers.length} entries
           </div>
         </div>
-
-      </div>
 
       {/* ── QR ATTENDANCE MODAL ── */}
       {qrOpen && (
@@ -492,6 +485,6 @@ export default function PersonnelManpower() {
         </div>
       )}
 
-    </div>
+    </PageLayout>
   );
 }

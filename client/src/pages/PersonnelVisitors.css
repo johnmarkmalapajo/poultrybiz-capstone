@@ -1,4 +1,5 @@
 /* PersonnelVisitors.css — PoultryBiz (same card design as Records / SalesTransaction) */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
 
 /* ── Page shell ── */
 /* Shell, breadcrumb, and hamburger now come from the shared PageLayout component. */
@@ -11,10 +12,10 @@
 
 /* ── Card grid ── */
 .pv-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
-  align-items: stretch;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 24px !important;
+  align-items: stretch !important;
 }
 
 /* ── Card ── */
@@ -82,8 +83,20 @@
   gap: 4px;
 }
 
-.pv-card-label { font-size: 17px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.2px; }
-.pv-card-desc { font-size: 13px; color: #888; line-height: 1.4; }
+.pv-card-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.2px;
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.pv-card-desc {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.618 !important;
+  font-family: 'Lato', sans-serif !important;
+}
 
 /* ── Arrow ── */
 .pv-card-arrow {
@@ -96,20 +109,15 @@
 
 .pv-card:hover .pv-card-arrow { color: var(--card-color); transform: translateX(4px); }
 
-/* ── Equal-size 3-column card grid (matches Records / SalesTransaction) ── */
-.pv-grid{display:grid !important;grid-template-columns:repeat(3, 1fr) !important;grid-auto-rows:1fr;gap:24px !important;align-items:stretch !important}
-.pv-card{height:100% !important;box-sizing:border-box}
-@media (max-width:1024px){.pv-grid{grid-template-columns:repeat(2, 1fr) !important;gap:18px !important}}
-@media (max-width:640px){.pv-grid{grid-template-columns:1fr !important;gap:14px !important}}
-
-/* ── Responsive cards ── */
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .pv-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 18px !important; }
+}
+@media (max-width: 640px) {
+  .pv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+}
 @media (max-width: 480px) {
   .pv-card { padding: 20px 16px; gap: 14px; }
   .pv-card-icon-wrap { width: 56px; height: 56px; }
   .pv-card-emoji { font-size: 26px; }
 }
-
-/* ── Font matching (same as Records / SalesTransaction) ── */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Lato:wght@400;700&display=swap");
-.pv-card-label{font-family:'Poppins',sans-serif !important}
-.pv-card-desc{font-family:'Lato',sans-serif !important;line-height:1.618 !important}

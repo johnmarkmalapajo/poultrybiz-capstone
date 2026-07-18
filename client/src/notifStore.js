@@ -21,7 +21,7 @@ export const SEED = [
   { id: "n11", type: "alert", category: "mortality", priority: "medium", read: false, dateTime: now - 14 * hr, title: "Mortality Threshold Reached", description: "Batch B-006 mortality reached 5%." },
   { id: "n12", type: "alert", category: "isolation", priority: "medium", read: true,  dateTime: now - 20 * hr, title: "New Isolation Case", description: "A chicken from Batch B-011 was placed under isolation." },
   { id: "n13", type: "alert", category: "personnel", priority: "medium", read: false, dateTime: now - 1 * day, title: "Task Overdue", description: "Assigned task 'Clean coop section C' for Juan D. is now overdue." },
-  { id: "n14", type: "alert", category: "users",     priority: "medium", read: false, dateTime: now - 1 * day - 3 * hr, title: "Pending Farmer Approval", description: "A new Farmer account is waiting for admin approval." },
+  { id: "n14", type: "alert", category: "users",     priority: "medium", read: false, dateTime: now - 1 * day - 3 * hr, title: "Pending Farmer Approval", description: "A new Farmer account is waiting for admin approval.", roles: ["Admin"] },
 
   // ── REMINDERS ──
   { id: "n15", type: "reminder", category: "age",        priority: "low", read: false, dateTime: now - 2 * hr,          title: "Culling Reminder — Approaching", description: "Batch B-002 reached 95 weeks. Prepare for culling or replacement soon." },
@@ -46,16 +46,32 @@ const write = (arr) => {
   try { window.dispatchEvent(new Event(EVENT)); } catch { /* ignore */ }
 };
 
+// A notification with no `roles` field is visible to everyone (e.g. the
+// operational farm alerts). One WITH a `roles` array is only visible to
+// users whose role is included — e.g. Admin-only account approvals or
+// financial alerts should never count toward a Farmer's badge/list.
+function isVisibleToRole(n, role) {
+  if (!n.roles || n.roles.length === 0) return true;
+  if (!role) return true; // unknown role — fail open rather than hide info
+  return n.roles.includes(role);
+}
+
 // No demo/mock notifications — the list starts empty.
 export function seedOnce() { /* intentionally empty */ }
 
-export function getAll() { seedOnce(); return read(); }
+// `role` is optional — pass the current user's role (e.g. "Admin" or
+// "Farmer") to scope the results to what that role should see.
+export function getAll(role) {
+  seedOnce();
+  const all = read();
+  return role ? all.filter((n) => isVisibleToRole(n, role)) : all;
+}
 
 export function setAll(next) { write(next); }
 
-export function getUnreadCount() {
+export function getUnreadCount(role) {
   seedOnce();
-  return read().filter((n) => !n.read).length;
+  return read().filter((n) => !n.read && isVisibleToRole(n, role)).length;
 }
 
 // Subscribe to changes (same-tab custom event + focus + cross-tab storage).

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar, { openSidebar } from "../components/Sidebar";
 import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiArchive, FiRotateCcw, FiTrash2, FiList, FiClock, FiCheckCircle, FiAlertTriangle } from "react-icons/fi";
-import "./Todo.css";
+import "./ToDo.css";
+import PageLayout from "../components/PageLayout";
 
 const STORAGE_KEY = "pb_farmer_todos";
 const initialTasks = [
@@ -73,18 +73,14 @@ export default function FarmerTodo() {
   const clearFilters = () => { setStatus("All"); setPriority("All"); };
 
   return (
-    <div className="todo-page">
-      <Sidebar />
-      <main className="todo-main">
-        <div className="todo-breadcrumb">
-          <button className="todo-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
-          <span className="breadcrumb-current">TO DO</span>
-        </div>
+    <PageLayout
+      breadcrumbItems={[{ label: "TO DO" }]}
+    >
 
         <div className="todo-toolbar">
           <button className="todo-add-btn" onClick={openAdd}><FiPlus /> New Task</button>
           <div className="todo-toolbar-actions">
-            <div className="search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task..." /></div>
+            <div className="todo-search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task..." /></div>
             <div className="todo-filter-wrap" ref={filterRef}>
               <button className="todo-filter-btn" onClick={() => setFilterOpen((o) => !o)}>
                 <FiFilter /> Filter{activeFilters > 0 && <span className="todo-filter-count">{activeFilters}</span>}
@@ -156,7 +152,7 @@ export default function FarmerTodo() {
             </tbody>
           </table>
         </div>
-      </main>
+      
 
       {modalOpen && (
         <div className="todo-overlay" onClick={() => setModalOpen(false)}>
@@ -185,6 +181,7 @@ export default function FarmerTodo() {
           </div>
         </div>
       )}
-    </div>
+
+    </PageLayout>
   );
 }

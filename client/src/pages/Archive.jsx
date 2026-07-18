@@ -1,9 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
-import { FiSearch, FiFilter, FiRotateCcw, FiTrash2, FiArchive, FiMenu, FiCalendar, FiLayers } from "react-icons/fi";
-import "./Flockprofile.css";
+import { FiSearch, FiFilter, FiRotateCcw, FiTrash2, FiArchive, FiCalendar, FiLayers } from "react-icons/fi";
 import "./Archive.css";
+import PageLayout from "../components/PageLayout";
 
 /* ─────────────────────────────────────────────────────────────
    INLINE STORE — centralized soft-delete Archive + Audit Logs.
@@ -151,22 +150,12 @@ export default function Archive({ embedded = false, onBack }) {
     toastRef.current = setTimeout(() => setToast(""), 3200);
   };
 
-  return (
-    <div className={embedded ? "flock-embedded" : "flock-page"}>
-      {!embedded && <Sidebar />}
+  const content = (
+    <>
 
-      <div className="flock-main">
-
-        <div className="flock-breadcrumb">
-          {!embedded && <button className="flock-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>}
-          <span className="breadcrumb-link" onClick={embedded ? onBack : () => navigate("/settings")}>SETTINGS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">ARCHIVE</span>
-        </div>
-
-        <div className="flock-toolbar">
-          <div className="toolbar-actions">
-            <div className="search-box">
+        <div className="arc-toolbar">
+          <div className="arc-toolbar-right">
+            <div className="arc-search-box">
               <FiSearch />
               <input
                 type="text"
@@ -176,22 +165,22 @@ export default function Archive({ embedded = false, onBack }) {
               />
             </div>
 
-            <div className="toolbar-btn-group">
-              <div className="flock-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+            <div className="arc-btn-group">
+              <div className="arc-filter-wrap" ref={filterRef}>
+                <button className="arc-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="flock-filter-count">{activeFilterCount}</span>}
+                  {activeFilterCount > 0 && <span className="arc-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
-                  <div className="flock-filter-dropdown">
-                    <div className="flock-filter-dropdown-header">
+                  <div className="arc-filter-dropdown">
+                    <div className="arc-filter-dropdown-header">
                       <span>Filter Archive</span>
-                      <button className="flock-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="arc-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Module</label>
-                      <select className="flock-filter-select" value={moduleFilter}
+                    <div className="arc-filter-group">
+                      <label className="arc-filter-label">Module</label>
+                      <select className="arc-filter-select" value={moduleFilter}
                         onChange={(e) => setModuleFilter(e.target.value)}>
                         {MODULES.map((m) => <option key={m} value={m}>{m === "All" ? "All Modules" : m}</option>)}
                       </select>
@@ -204,31 +193,31 @@ export default function Archive({ embedded = false, onBack }) {
         </div>
 
         {activeFilterCount > 0 && (
-          <div className="flock-active-filters">
-            <span className="flock-active-filter-tag">
+          <div className="arc-active-filters">
+            <span className="arc-active-filter-tag">
               Module: {moduleFilter}
               <button onClick={() => setModuleFilter("All")}>✕</button>
             </span>
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiArchive /></div>
+        <div className="arc-stats-grid">
+          <div className="arc-stat-card">
+            <div className="arc-stat-icon gold"><FiArchive /></div>
             <div><h3>{stats.total}</h3><p>Total Archived</p><span>All Time</span></div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiCalendar /></div>
+          <div className="arc-stat-card">
+            <div className="arc-stat-icon blue"><FiCalendar /></div>
             <div><h3>{stats.thisMonth}</h3><p>Archived This Month</p><span>This Month</span></div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon green"><FiLayers /></div>
+          <div className="arc-stat-card">
+            <div className="arc-stat-icon green"><FiLayers /></div>
             <div><h3>{stats.modules}</h3><p>Modules</p><span>Distinct</span></div>
           </div>
         </div>
 
-        <div className="table-wrapper">
-          <table className="flock-table">
+        <div className="arc-table-wrapper">
+          <table className="arc-table">
             <thead>
               <tr>
                 <th>Archive Date</th>
@@ -241,8 +230,8 @@ export default function Archive({ embedded = false, onBack }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan="5" className="arc-empty-state">
+                    <div className="arc-empty-content">
                       <FiArchive />
                       <h3>No archived records found</h3>
                       <p>{search || moduleFilter !== "All"
@@ -259,12 +248,23 @@ export default function Archive({ embedded = false, onBack }) {
                     <td>{r.recordName}</td>
                     <td>{r.archivedBy}</td>
                     <td>
-                      <div className="action-buttons">
-                        <button className="arc-restore" onClick={() => askRestore(r)}>
-                          <FiRotateCcw /> Restore
+                      <div className="arc-actions">
+                        <button
+                          className="arc-action-btn restore"
+                          onClick={() => askRestore(r)}
+                          title="Restore"
+                          aria-label="Restore"
+                        >
+                          <FiRotateCcw />
                         </button>
-                        <button className="arc-delete" onClick={() => askDelete(r)}>
-                          <FiTrash2 /> Delete
+
+                        <button
+                          className="arc-action-btn delete"
+                          onClick={() => askDelete(r)}
+                          title="Delete"
+                          aria-label="Delete"
+                        >
+                          <FiTrash2 />
                         </button>
                       </div>
                     </td>
@@ -274,11 +274,10 @@ export default function Archive({ embedded = false, onBack }) {
             </tbody>
           </table>
 
-          <div className="table-footer">
+          <div className="arc-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
-      </div>
 
       {toast && <div className="arc-toast">{toast}</div>}
 
@@ -313,6 +312,23 @@ export default function Archive({ embedded = false, onBack }) {
           </div>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "SETTINGS", path: "/settings" },
+        { label: "ARCHIVE" },
+      ]}
+    >
+      {content}
+    </PageLayout>
   );
 }

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import Sidebar from "../components/Sidebar";
 import {
   FiBell, FiCalendar, FiCamera, FiMail, FiPhone, FiUser, FiClock, FiMapPin,
-  FiLock, FiEye, FiEyeOff, FiSave, FiMenu, FiX, FiCheckCircle, FiSettings,
+  FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle, FiSettings,
 } from "react-icons/fi";
 import "./Profile.css";
 
@@ -83,17 +83,6 @@ export default function AdminProfile({ embedded = false, onBack }) {
       {!embedded && <Sidebar />}
 
       <div className="pf-main">
-        <div className="pf-top">
-          <div className="pf-heading">
-            {!embedded && <button className="pf-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>}
-            <p className="pf-crumb">
-              {embedded
-                ? <span className="pf-crumb-link" onClick={onBack}>SETTINGS</span>
-                : <span>SETTINGS</span>}{" "}
-              <span>›</span> <span className="pf-crumb-current">MY PROFILE</span>
-            </p>
-          </div>
-        </div>
 
         <div className="pf-layout">
           {/* LEFT summary */}

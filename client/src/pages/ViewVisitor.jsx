@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  FiMenu, FiUser, FiMapPin, FiBriefcase, FiPhone,
+  FiUser, FiMapPin, FiBriefcase, FiPhone,
   FiCheckCircle, FiXCircle, FiX, FiEye,
 } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import "./ViewVisitor.css";
 
 const API_BASE = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/api/visitors`;
@@ -87,7 +87,7 @@ export default function ViewVisitor() {
 
     fetch(`${API_BASE}/${id}`, { headers })
       .then((r) => r.json())
-      .then((d) => { const rec = d.record || d.data || d; setVisitor(rec && (rec._id || rec.fullName) ? rec : mockVisitor); })
+      .then((d) => { const rec = d && (d.record || d.data || d); setVisitor(rec && (rec._id || rec.fullName) ? rec : mockVisitor); })
       .catch(() => setVisitor(mockVisitor))
       .finally(() => setLoading(false));
 
@@ -112,23 +112,17 @@ export default function ViewVisitor() {
   const currentBio = bioLog ? getBio(id, bioLog._id || bioLog.id) : null;
 
   return (
-    <div className="vv-page">
-      <Sidebar />
-
-      <main className="vv-main">
-        {/* Breadcrumb */}
-        <div className="vv-breadcrumb">
-          <button className="vv-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors/visitors")}>VISITORS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">VIEW VISITOR</span>
-        </div>
-
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "PERSONNEL AND VISITORS", path: "/personnel-visitors" },
+        { label: "VISITORS", path: "/personnel-visitors/visitors" },
+        { label: "VIEW VISITOR" },
+      ]}
+    >
         {/* Visitor Information card */}
         <div className="vv-profile-card">
-          <div className="vv-avatar">{(getName(visitor)[0] || "?").toUpperCase()}</div>
           <div className="vv-profile-body">
             <h1>{loading ? "Loading..." : getName(visitor)}</h1>
             <div className="vv-profile-grid">
@@ -143,16 +137,15 @@ export default function ViewVisitor() {
         {/* Section label */}
         <div className="vv-section-title">Visitor Logs</div>
 
-        {/* Visitor Logs table (scroll matches Quarantine & Isolation) */}
-        <div className="vv-table-card">
-          <div className="vv-table-wrapper">
+        {/* Visitor Logs table */}
+        <div className="vv-table-wrapper">
             <table className="vv-table">
               <thead>
                 <tr>
                   <th>Date of Visit</th>
                   <th>Purpose of Visit</th>
                   <th>Vehicle Plate</th>
-                  <th>Biosecurity</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,8 +158,12 @@ export default function ViewVisitor() {
                       <td>{l.purpose || "—"}</td>
                       <td>{l.plate || l.vehiclePlate || "—"}</td>
                       <td>
-                        <button className="vv-link-btn" onClick={() => setBioLog(l)}>
-                          <FiEye /> View
+                        <button
+                          className="vv-icon-btn"
+                          title="View biosecurity assessment"
+                          onClick={() => setBioLog(l)}
+                        >
+                          <FiEye />
                         </button>
                       </td>
                     </tr>
@@ -174,10 +171,8 @@ export default function ViewVisitor() {
                 )}
               </tbody>
             </table>
-          </div>
           <div className="vv-table-footer">Showing {logs.length} visit logs</div>
         </div>
-      </main>
 
       {/* ── BIOSECURITY MODAL (opens from the View button) ── */}
       {bioLog && (
@@ -211,6 +206,7 @@ export default function ViewVisitor() {
           </div>
         </div>
       )}
-    </div>
+
+    </PageLayout>
   );
 }

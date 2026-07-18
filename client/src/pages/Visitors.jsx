@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiSearch, FiDownload, FiEye, FiArchive, FiMenu, FiMaximize, FiX,
+  FiSearch, FiDownload, FiEye, FiArchive, FiMaximize, FiX,
 } from "react-icons/fi";
 import { BsQrCode } from "react-icons/bs";
 import { MdGroups, MdHowToReg, MdEventNote } from "react-icons/md";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import "./Visitors.css";
 import { archiveRow } from "../archiveRow";
@@ -82,114 +82,123 @@ export default function Visitors() {
     .reduce((sum, r) => sum + (Number(r.visitCount) || 0), 0);
   const visitsToday = records.filter((r) => !isArchived(r) && Number(r.lastVisitOffset) === 0).length;
 
-  // Export current view to CSV
-  const exportCSV = () => {
-    const headers = ["Full Name", "Address", "Affiliation", "Contact Number"];
-    const rows = visitors.map((r) => [getName(r), getAddress(r), getAffiliation(r), getContact(r)]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = "visitors.csv"; a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className="vm-page">
-      <Sidebar />
-
-      <main className="vm-main">
-        {/* Breadcrumb */}
-        <div className="vm-breadcrumb">
-          <button className="vm-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors")}>PERSONNEL AND VISITORS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">VISITOR'S LOG</span>
-        </div>
-
-        {/* Toolbar (before stats — like Personnel) */}
-        <div className="vm-toolbar">
-          <div className="search-box">
-            <FiSearch />
-            <input
-              type="text"
-              placeholder="Search visitors by name, affiliation, address..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="toolbar-btn-group">
-            <button className="toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
-            <ExportMenu rows={visitors} name="visitors" title="Visitors Log" className="toolbar-btn" />
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      breadcrumbItems={[
+        { label: "PERSONNEL AND VISITORS", path: "/personnel-visitors" },
+        { label: "VISITORS" },
+      ]}
+    >
+        {/* Toolbar */}
+        <div className="vt-toolbar">
+          <div className="vt-toolbar-actions">
+            <div className="vt-search-box">
+              <FiSearch />
+              <input
+                type="text"
+                placeholder="Search visitors by name, affiliation, address..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="vt-toolbar-btn-group">
+              <button className="vt-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
+              <ExportMenu rows={visitors} name="visitors" title="Visitors Log" className="vt-toolbar-btn" />
+            </div>
           </div>
         </div>
 
-        {/* Stat cards */}
-        <div className="vm-stats">
-          <div className="vm-stat">
-            <span className="vm-stat-icon gold"><MdGroups /></span>
-            <div><h2>{totalVisitors}</h2><h4>Total Visitors</h4></div>
+        {/* Stat Cards */}
+        <div className="vt-stats-grid">
+          <div className="vt-stat-card">
+            <div className="vt-stat-icon gold"><MdGroups /></div>
+            <div>
+              <h3>{totalVisitors}</h3>
+              <p>Total Visitors</p>
+              <span>All Time</span>
+            </div>
           </div>
-          <div className="vm-stat">
-            <span className="vm-stat-icon green"><MdEventNote /></span>
-            <div><h2>{visitsThisMonth}</h2><h4>Visits This Month</h4></div>
+          <div className="vt-stat-card">
+            <div className="vt-stat-icon green"><MdEventNote /></div>
+            <div>
+              <h3>{visitsThisMonth}</h3>
+              <p>Visits This Month</p>
+              <span>All Records</span>
+            </div>
           </div>
-          <div className="vm-stat">
-            <span className="vm-stat-icon blue"><MdHowToReg /></span>
-            <div><h2>{visitsToday}</h2><h4>Visits Today</h4></div>
+          <div className="vt-stat-card">
+            <div className="vt-stat-icon blue"><MdHowToReg /></div>
+            <div>
+              <h3>{visitsToday}</h3>
+              <p>Visits Today</p>
+              <span>All Records</span>
+            </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="vm-table-card">
-          <div className="vm-table-wrapper">
-            <table className="vm-table">
-              <thead>
+        <div className="vt-table-wrapper">
+          <table className="vt-table">
+            <thead>
+              <tr>
+                <th>Full Name</th>
+                <th>Address</th>
+                <th>Affiliation / Company</th>
+                <th>Contact Number</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
                 <tr>
-                  <th>Full Name</th>
-                  <th>Address</th>
-                  <th>Affiliation / Company</th>
-                  <th>Contact Number</th>
-                  <th>Actions</th>
+                  <td colSpan="5" className="vt-empty-state">Loading visitors...</td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="5" className="empty-state">Loading visitors...</td></tr>
-                ) : visitors.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="empty-state">
-                      <div className="empty-content">
-                        <FiMaximize />
-                        <h3>No visitors found</h3>
-                        <p>Visitors appear here automatically once they register by scanning the farm QR code.</p>
+              ) : visitors.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="vt-empty-state">
+                    <div className="vt-empty-content">
+                      <FiMaximize />
+                      <h3>No visitors found</h3>
+                      <p>Visitors appear here automatically once they register by scanning the farm QR code.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                visitors.map((r) => (
+                  <tr key={getId(r)}>
+                    <td className="vt-name">{getName(r)}</td>
+                    <td>{getAddress(r)}</td>
+                    <td>{getAffiliation(r)}</td>
+                    <td>{getContact(r)}</td>
+                    <td>
+                      <div className="vt-actions">
+                        <button
+                          className="vt-btn-view"
+                          title="View"
+                          onClick={() => navigate(`/personnel-visitors/visitors/view/${getId(r)}`)}
+                        >
+                          <FiEye />
+                        </button>
+                        <button
+                          className="vt-btn-archive"
+                          onClick={() => archiveRow({ module: "Visitors", moduleKey: "pb_visitors", record: r, name: r.fullName || r.name })}
+                          title="Archive"
+                        >
+                          <FiArchive />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ) : (
-                  visitors.map((r) => (
-                    <tr key={getId(r)}>
-                      <td className="vm-name">{getName(r)}</td>
-                      <td>{getAddress(r)}</td>
-                      <td>{getAffiliation(r)}</td>
-                      <td>{getContact(r)}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button className="action-btn view" title="View" onClick={() => navigate(`/personnel-visitors/visitors/view/${getId(r)}`)}><FiEye /></button>
-                          <button className="action-btn archive" onClick={() => archiveRow({ module: "Visitors", moduleKey: "pb_visitors", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                ))
+              )}
+            </tbody>
+          </table>
+          <div className="vt-table-footer">
+            Showing {visitors.length} entries
           </div>
-
-          <div className="vm-table-footer">Showing {visitors.length} visitors</div>
         </div>
-      </main>
 
       {/* ── SHARED FARM QR MODAL ── */}
       {qrOpen && (
@@ -217,6 +226,6 @@ export default function Visitors() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

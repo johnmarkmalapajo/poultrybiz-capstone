@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import Sidebar from "../components/Sidebar";
 import {
   FiBell, FiCalendar, FiCamera, FiMail, FiPhone, FiUser,
-  FiClock, FiLock, FiEye, FiEyeOff, FiSave, FiMenu, FiX, FiCheckCircle,
+  FiClock, FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle,
 } from "react-icons/fi";
 import "./Profile.css";
 
@@ -102,17 +102,6 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 
       <div className="pf-main">
         {/* Top bar */}
-        <div className="pf-top">
-          <div className="pf-heading">
-            {!embedded && <button className="pf-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>}
-            <p className="pf-crumb">
-              {embedded
-                ? <span className="pf-crumb-link" onClick={onBack}>SETTINGS</span>
-                : <span>SETTINGS</span>}{" "}
-              <span>›</span> <span className="pf-crumb-current">MY PROFILE</span>
-            </p>
-          </div>
-        </div>
 
         <div className="pf-layout">
           {/* LEFT — profile summary card */}

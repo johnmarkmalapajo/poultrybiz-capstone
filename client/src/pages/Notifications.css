@@ -13,24 +13,9 @@
   --text-primary: #1e1c18; --text-second: #6b6457; --text-muted: #a39e94;
 }
 
-/* ── Page shell ── */
-.nt-page { display: flex; height: 100vh; background: var(--bg); font-family: var(--font-body); color: var(--text-primary); overflow: hidden; }
-.nt-main, .nt-main *, .nt-main *::before, .nt-main *::after { box-sizing: border-box; }
-.nt-main { flex: 1; min-width: 0; padding: 36px 44px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 24px; }
-.nt-page .sidebar { flex-shrink: 0; }
+/* ── Page shell / Breadcrumb ── */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
-/* ── Breadcrumb ── */
-.nt-breadcrumb { display: flex; align-items: center; gap: 10px; min-height: 40px; font-family: var(--font-display); font-size: 11px; line-height: 1; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
-.nt-breadcrumb .breadcrumb-current { color: var(--text-primary); font-weight: 800; }
-.nt-hamburger { display: none; }
-
-/* ── Header ── */
-.nt-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.nt-header-title { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.nt-bell-wrap { position: relative; width: 52px; height: 52px; border-radius: 14px; background: var(--gold-light); display: flex; align-items: center; justify-content: center; color: var(--gold-dark); font-size: 24px; flex-shrink: 0; }
-.nt-bell-badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 20px; background: var(--red); color: #fff; font-family: var(--font-display); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); }
-.nt-header-title h1 { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800; color: var(--text-primary); line-height: 1.1; }
-.nt-header-title p { margin: 2px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
 .nt-markall { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; color: var(--text-second); cursor: pointer; white-space: nowrap; transition: border-color 0.2s, color 0.2s; }
 .nt-markall:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .nt-markall:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -114,9 +99,6 @@
   .nt-thead span:nth-child(4) { display: none; } /* hide Status header; shown inline in row */
 }
 @media (max-width: 768px) {
-  .nt-main { padding: 20px 16px; }
-  .nt-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; }
-  .nt-header { align-items: flex-start; }
   .nt-markall { width: 100%; justify-content: center; }
   .nt-toolbar { flex-direction: column; align-items: stretch; }
   .nt-search { width: 100%; flex: 0 0 auto; height: 42px; }
@@ -137,12 +119,3 @@
   .nt-actions { justify-content: flex-start; border-top: 1px solid var(--border); padding-top: 12px; }
   .nt-actions::before { content: none; }
 }
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.nt-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.nt-breadcrumb::-webkit-scrollbar{display:none}
-.nt-breadcrumb>*{flex-shrink:0}
-.nt-breadcrumb a,.nt-breadcrumb .breadcrumb-link,.nt-breadcrumb .crumb-link,.nt-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.nt-breadcrumb a:hover,.nt-breadcrumb .breadcrumb-link:hover,.nt-breadcrumb .crumb-link:hover,.nt-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.nt-breadcrumb .breadcrumb-current,.nt-breadcrumb .crumb-current,.nt-breadcrumb .active,.nt-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

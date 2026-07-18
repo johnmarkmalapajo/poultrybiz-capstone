@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiMenu } from "react-icons/fi";
-import Sidebar, { openSidebar } from "../components/Sidebar";
+import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiX } from "react-icons/fi";
+import PageLayout from "../components/PageLayout";
 import "./EditTask.css";
 import { updateAssignedTask } from "../todoStore";
 // ── Inline mock data (frontend fallback until the API is wired) ──
@@ -101,6 +101,7 @@ export default function EditTask() {
     notes: "",
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const t = getTaskById(id, taskId);
@@ -124,68 +125,62 @@ export default function EditTask() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const payload = { ...formData, _id: taskId, personnelId: id, assignedTo: personName };
-    console.log("Updated Task:", payload);
-    // Backend: update this task
+    if (saving) return;
     if (window.__pbSaving) return;  // prevent duplicate submissions
     window.__pbSaving = true;
-    updateAssignedTask(id, taskId, payload);
-    window.__pbSaving = false;
+    setSaving(true);
 
+    const payload = { ...formData, _id: taskId, personnelId: id, assignedTo: personName };
+    updateAssignedTask(id, taskId, payload);
+
+    window.__pbSaving = false;
     navigate(`/personnel-visitors/personnel/view/${id}`);
   };
 
   if (loading) {
     return (
-      <div className="edit-task-page">
-        <Sidebar />
-        <div className="edit-task-main">
-          <p className="edit-task-loading">Loading task...</p>
-        </div>
-      </div>
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          { label: "PERSONNEL AND MANPOWER", path: "/personnel-visitors/personnel" },
+          { label: "VIEW PERSONNEL", path: `/personnel-visitors/personnel/view/${id}` },
+          { label: "EDIT TASK" },
+        ]}
+      >
+        <p className="et-loading">Loading task...</p>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="edit-task-page">
-      <Sidebar />
-
-      <div className="edit-task-main">
-
-        {/* Breadcrumb */}
-        <div className="edit-task-breadcrumb">
-          <button className="edit-task-hamburger" onClick={openSidebar} aria-label="Open menu">
-            <FiMenu />
-          </button>
-          <span className="breadcrumb-link" onClick={() => navigate("/personnel-visitors/personnel")}>PERSONNEL RECORDS</span>
-          <span>›</span>
-          <span className="breadcrumb-link" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>VIEW PERSONNEL</span>
-          <span>›</span>
-          <span className="breadcrumb-current">EDIT TASK</span>
-        </div>
-
-        {/* Header */}
-
-        <form className="task-form-card" onSubmit={handleSubmit}>
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        { label: "PERSONNEL RECORDS", path: "/personnel-visitors/personnel" },
+        { label: "VIEW PERSONNEL", path: `/personnel-visitors/personnel/view/${id}` },
+        { label: "EDIT TASK" },
+      ]}
+    >
+        <form className="et-form-card" onSubmit={handleSubmit}>
 
           {/* Who the task is for (read-only) */}
-          <div className="task-for-banner">
-            <span className="tfb-avatar">{initials(personName)}</span>
+          <div className="et-for-banner">
+            <span className="et-tfb-avatar">{initials(personName)}</span>
             <div>
-              <div className="tfb-label">Task assigned to</div>
-              <div className="tfb-name">{personName}</div>
+              <div className="et-tfb-label">Task assigned to</div>
+              <div className="et-tfb-name">{personName}</div>
             </div>
           </div>
 
           {/* TASK DETAILS */}
-          <div className="section-header">
+          <div className="et-section-header">
             <FiClipboard />
-            <h3>TASK DETAILS</h3>
-            <div className="line"></div>
+            <h3>Task Details</h3>
+            <div className="et-line" />
           </div>
 
-          <div className="form-group full-width">
-            <label>Work Assigned <span className="req">*</span></label>
+          <div className="et-form-group et-full-width">
+            <label>Work Assigned <span className="et-req">*</span></label>
             <input
               type="text"
               name="work"
@@ -197,41 +192,41 @@ export default function EditTask() {
           </div>
 
           {/* SCHEDULE */}
-          <div className="section-header">
+          <div className="et-section-header">
             <FiCalendar />
-            <h3>SCHEDULE</h3>
-            <div className="line"></div>
+            <h3>Schedule</h3>
+            <div className="et-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Assigned Date <span className="req">*</span></label>
+          <div className="et-form-grid">
+            <div className="et-form-group">
+              <label>Assigned Date <span className="et-req">*</span></label>
               <input type="date" name="assignedDate" value={formData.assignedDate} onChange={handleChange} required />
             </div>
 
-            <div className="form-group">
-              <label>Due Date <span className="req">*</span></label>
+            <div className="et-form-group">
+              <label>Due Date <span className="et-req">*</span></label>
               <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
             </div>
           </div>
 
           {/* PRIORITY & STATUS */}
-          <div className="section-header">
+          <div className="et-section-header">
             <FiFlag />
-            <h3>PRIORITY & STATUS</h3>
-            <div className="line"></div>
+            <h3>Priority &amp; Status</h3>
+            <div className="et-line" />
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Priority <span className="req">*</span></label>
+          <div className="et-form-grid">
+            <div className="et-form-group">
+              <label>Priority <span className="et-req">*</span></label>
               <select name="priority" value={formData.priority} onChange={handleChange} required>
                 {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Status <span className="req">*</span></label>
+            <div className="et-form-group">
+              <label>Status <span className="et-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -239,13 +234,13 @@ export default function EditTask() {
           </div>
 
           {/* NOTES */}
-          <div className="section-header">
+          <div className="et-section-header">
             <FiFileText />
-            <h3>ADDITIONAL NOTES</h3>
-            <div className="line"></div>
+            <h3>Additional Notes</h3>
+            <div className="et-line" />
           </div>
 
-          <div className="form-group full-width">
+          <div className="et-form-group et-full-width">
             <label>Notes <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
             <textarea
               rows="4"
@@ -257,16 +252,18 @@ export default function EditTask() {
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
-              Cancel
-            </button>
-            <button type="submit" className="save-btn">
-              <FiSave /> Save Changes
-            </button>
+          <div className="et-form-actions">
+            <p className="et-req-note">Fields with * are required.</p>
+            <div className="et-action-btns">
+              <button type="button" className="et-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
+                <FiX /> Cancel
+              </button>
+              <button type="submit" className="et-save-btn" disabled={saving}>
+                <FiSave /> {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

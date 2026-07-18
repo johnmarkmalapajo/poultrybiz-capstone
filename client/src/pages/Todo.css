@@ -21,29 +21,22 @@
   --text-primary: #1e1c18; --text-second: #6b6457; --text-muted: #a39e94;
 }
 
-/* ===== PAGE SHELL (like FeedInventory) ===== */
-.todo-page { display: flex; height: 100vh; background: var(--bg); font-family: var(--font-body); color: var(--text-primary); overflow: hidden; }
-.todo-main, .todo-main *, .todo-main *::before, .todo-main *::after { box-sizing: border-box; }
-.todo-main { flex: 1; min-width: 0; padding: var(--space-xl) calc(var(--space-xl) * 1.2); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-lg); }
-.sidebar { flex-shrink: 0; }
-
-/* ===== BREADCRUMB ===== */
-.todo-breadcrumb { display: flex; align-items: center; gap: var(--space-sm); font-family: var(--font-display); font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; user-select: none; flex-wrap: wrap; }
-.todo-breadcrumb .breadcrumb-current { color: var(--text-primary); font-weight: 800; }
-.todo-hamburger { display: none; }
+/* ===== PAGE SHELL / BREADCRUMB ===== */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
 /* ===== TOOLBAR ===== */
 .todo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
-.todo-add-btn { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--space-lg); background: var(--gold); color: #fff; border: none; border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: 0.02em; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
+.todo-add-btn { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--space-lg); height: 42px !important; box-sizing: border-box; background: var(--gold); color: #fff; border: none; border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: 0.02em; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
 .todo-add-btn:hover { background: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(228,175,31,0.35); }
 
 .todo-toolbar-actions { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; justify-content: flex-end; flex-wrap: nowrap; }
 
-.todo-main .search-box { display: flex; align-items: center; gap: var(--space-xs); background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px var(--space-md); min-width: 0; flex: 1; transition: border-color 0.2s, box-shadow 0.2s; }
-.todo-main .search-box:focus-within { border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold-glow); }
-.todo-main .search-box svg { color: var(--text-muted); font-size: var(--text-md); flex-shrink: 0; }
-.todo-main .search-box input { border: none; outline: none; background: transparent; font-family: var(--font-body); font-size: var(--text-base); color: var(--text-primary); min-width: 0; width: 100%; }
-.todo-main .search-box input::placeholder { color: var(--text-muted); }
+.todo-search-box, .todo-toolbar-actions .todo-search-box { display: flex; align-items: center; gap: var(--space-xs); background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 0 var(--space-md); height: 42px !important; min-height: 42px !important; max-height: 42px !important; box-sizing: border-box !important; min-width: 0; flex: 1; transition: border-color 0.2s, box-shadow 0.2s; }
+.todo-search-box input, .todo-toolbar-actions .todo-search-box input { height: 100%; padding: 0; margin: 0; line-height: normal; }
+.todo-search-box:focus-within { border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold-glow); }
+.todo-search-box svg { color: var(--text-muted); font-size: var(--text-md); flex-shrink: 0; }
+.todo-search-box input { border: none; outline: none; background: transparent; font-family: var(--font-body); font-size: var(--text-base); color: var(--text-primary); min-width: 0; width: 100%; }
+.todo-search-box input::placeholder { color: var(--text-muted); }
 
 .todo-select { height: 40px; padding: 0 34px 0 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); font-family: var(--font-body); font-size: var(--text-base); color: var(--text-primary); cursor: pointer; outline: none; flex-shrink: 0; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a39e94' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; transition: border-color 0.2s, box-shadow 0.2s; }
 .todo-select:focus { border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold-glow); }
@@ -78,13 +71,13 @@
 .todo-empty-row td { text-align: center; color: var(--text-muted); padding: var(--space-xl); }
 
 /* ===== BADGES (scoped so they never leak) ===== */
-.todo-main .priority, .todo-main .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
-.todo-main .priority.high { background: var(--icon-red-bg); color: var(--icon-red); }
-.todo-main .priority.medium { background: var(--icon-orange-bg); color: var(--icon-orange); }
-.todo-main .priority.low { background: var(--icon-green-bg); color: var(--icon-green); }
-.todo-main .status.pending { background: var(--icon-orange-bg); color: var(--icon-orange); }
-.todo-main .status.completed { background: var(--icon-green-bg); color: var(--icon-green); }
-.todo-main .status.overdue { background: var(--icon-red-bg); color: var(--icon-red); }
+.todo-table .priority, .todo-table .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.todo-table .priority.high { background: var(--icon-red-bg); color: var(--icon-red); }
+.todo-table .priority.medium { background: var(--icon-orange-bg); color: var(--icon-orange); }
+.todo-table .priority.low { background: var(--icon-green-bg); color: var(--icon-green); }
+.todo-table .status.pending { background: var(--icon-orange-bg); color: var(--icon-orange); }
+.todo-table .status.completed { background: var(--icon-green-bg); color: var(--icon-green); }
+.todo-table .status.overdue { background: var(--icon-red-bg); color: var(--icon-red); }
 
 /* ===== ROW ACTION (Complete / Undo) ===== */
 .todo-act-btn { padding: 7px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-second); border-radius: 8px; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s; white-space: nowrap; }
@@ -108,22 +101,19 @@
 .todo-btn-save:hover { background: var(--gold-dark); }
 
 /* ===== RESPONSIVE — same breakpoints as FeedInventory ===== */
-@media (max-width: 1280px) { .todo-main { padding: var(--space-lg) var(--space-xl); } }
 
 @media (max-width: 1024px) {
-  .todo-main { padding: var(--space-lg); }
   .todo-stats { grid-template-columns: repeat(2, 1fr); }
   .todo-toolbar { flex-wrap: wrap; }
   .todo-toolbar-actions { flex-wrap: wrap; flex: 1; justify-content: flex-end; }
 }
 
 @media (max-width: 768px) {
-  .todo-main { padding: var(--space-md); gap: var(--space-md); }
   .todo-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
   .todo-toolbar { flex-direction: column; align-items: stretch; gap: var(--space-sm); }
   .todo-add-btn { justify-content: center; width: 100%; }
   .todo-toolbar-actions { flex-direction: column; align-items: stretch; gap: var(--space-sm); }
-  .todo-main .search-box { width: 100%; }
+  .todo-search-box { width: 100%; }
   .todo-select { width: 100%; }
   .todo-stats { grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); }
   .todo-stat-card { padding: var(--space-sm) var(--space-md); }
@@ -134,7 +124,6 @@
 }
 
 @media (max-width: 480px) {
-  .todo-main { padding: var(--space-sm); gap: var(--space-sm); }
   .todo-stats { grid-template-columns: repeat(2, 1fr); }
   .todo-stat-icon { width: 38px; height: 38px; min-width: 38px; font-size: var(--text-base); }
   .todo-table { min-width: 640px; }
@@ -142,7 +131,6 @@
 }
 
 @media (max-width: 360px) {
-  .todo-main { padding: var(--space-xs); }
   .todo-stat-card { padding: var(--space-sm); gap: var(--space-sm); }
 }
 
@@ -176,7 +164,7 @@
 
 /* ===== FILTER DROPDOWN (single button, like PersonnelandManpower) ===== */
 .todo-filter-wrap { position: relative; flex-shrink: 0; }
-.todo-filter-btn { display: inline-flex; align-items: center; gap: var(--space-xs); padding: 9px var(--space-md); height: 42px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; color: var(--text-second); cursor: pointer; white-space: nowrap; transition: border-color 0.2s, color 0.2s; }
+.todo-filter-btn { display: inline-flex; align-items: center; gap: var(--space-xs); padding: 9px var(--space-md); height: 42px !important; box-sizing: border-box; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; color: var(--text-second); cursor: pointer; white-space: nowrap; transition: border-color 0.2s, color 0.2s; }
 .todo-filter-btn:hover { border-color: var(--gold); color: var(--gold); }
 .todo-filter-count { background: var(--gold); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 20px; margin-left: 4px; }
 .todo-filter-dropdown { position: absolute; top: calc(100% + 8px); right: 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; min-width: 240px; display: flex; flex-direction: column; gap: 14px; }
@@ -187,7 +175,7 @@
 
 @media (max-width: 768px) {
   .todo-filter-wrap { width: 100%; }
-  .todo-filter-btn { width: 100%; justify-content: center; }
+  .todo-filter-btn { height: 42px !important; box-sizing: border-box; width: 100%; justify-content: center; }
   .todo-filter-dropdown { left: 0; right: auto; width: 100%; min-width: 0; }
 }
 

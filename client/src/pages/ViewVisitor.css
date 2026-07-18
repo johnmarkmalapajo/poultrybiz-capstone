@@ -13,26 +13,11 @@
   --text-primary: #1e1c18; --text-second: #6b6457; --text-muted: #a39e94;
 }
 
-.vv-page { display: flex; height: 100vh; background: var(--bg); font-family: var(--font-body); color: var(--text-primary); overflow: hidden; }
-.vv-main, .vv-main *, .vv-main *::before, .vv-main *::after { box-sizing: border-box; }
-.vv-main { flex: 1; min-width: 0; padding: 36px calc(var(--space-xl) * 1.2); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-lg); }
-.sidebar { flex-shrink: 0; }
-
-/* Breadcrumb */
-.vv-breadcrumb {
-  display: flex; align-items: center; gap: 10px; min-height: 40px;
-  font-family: var(--font-display); font-size: 11px; line-height: 1; font-weight: 600;
-  color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
-  flex-wrap: nowrap; overflow: hidden; white-space: nowrap;
-}
-.vv-breadcrumb .breadcrumb-link { cursor: pointer; color: var(--text-muted); transition: color 0.2s; flex-shrink: 0; }
-.vv-breadcrumb .breadcrumb-link:hover { color: var(--gold); text-decoration: underline; }
-.vv-breadcrumb .breadcrumb-current { color: var(--text-primary); font-weight: 800; }
-.vv-hamburger { display: none; }
+/* ── Page shell / Breadcrumb ── */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
 /* Profile card */
 .vv-profile-card { display: flex; gap: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
-.vv-avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--gold-light); color: var(--gold-dark); font-family: var(--font-display); font-weight: 800; font-size: 28px; }
 .vv-profile-body { flex: 1; min-width: 0; }
 .vv-profile-body h1 { margin: 0 0 14px; font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
 .vv-profile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 28px; }
@@ -49,18 +34,17 @@
 .vv-tabs button:hover { color: var(--text-second); }
 .vv-tabs button.active { color: var(--gold-dark); border-bottom-color: var(--gold); }
 
-/* Table card — scrolls both ways with a sticky header (like ViewPersonnel) */
-.vv-table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.vv-table-wrapper { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+/* Table wrapper — matches mr-table-wrapper canonical pattern: single scroll container, whole page scrolls via PageLayout's pl-main, table itself only scrolls horizontally */
+.vv-table-wrapper { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: none; min-height: 0; overflow-y: hidden; }
 .vv-table { width: 100%; min-width: 700px; border-collapse: collapse; }
-.vv-table thead th { position: sticky; top: 0; z-index: 2; background: var(--gold-light); text-align: left; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; color: #47321C; text-transform: uppercase; letter-spacing: 0.04em; padding: 14px 18px; box-shadow: inset 0 -2px 0 rgba(228,175,31,0.25); }
+.vv-table thead th { position: sticky; top: 0; z-index: 5; background: var(--gold-light); text-align: left; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; color: #47321C; text-transform: uppercase; letter-spacing: 0.04em; padding: 14px 18px; box-shadow: inset 0 -2px 0 rgba(228,175,31,0.25); }
 .vv-table tbody td { padding: 14px 18px; font-size: var(--text-base); color: var(--text-second); border-bottom: 1px solid var(--border); white-space: nowrap; }
 .vv-table tbody tr:last-child td { border-bottom: none; }
 .vv-table tbody tr:hover { background: #fffdf7; }
-.vv-link-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--gold); color: var(--gold-dark); border-radius: 8px; padding: 5px 14px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-sm); cursor: pointer; transition: background 0.2s; }
-.vv-link-btn:hover { background: var(--gold-light); }
+.vv-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: none; border: 1.5px solid var(--border); color: var(--gold-dark); border-radius: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s; font-size: 15px; }
+.vv-icon-btn:hover { background: var(--gold-light); border-color: var(--gold); }
 .vv-empty { text-align: center; color: var(--text-muted); padding: 28px 18px; }
-.vv-table-footer { flex-shrink: 0; padding: 14px 18px; font-size: var(--text-sm); color: var(--text-muted); border-top: 1px solid var(--border); }
+.vv-table-footer { padding: 10px 16px; font-family: var(--font-body); font-size: var(--text-sm); color: var(--text-muted); border-top: 1px solid var(--border); background: #faf9f7; }
 
 /* Biosecurity modal (opens from View button) */
 .vv-bio-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -85,8 +69,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .vv-main { padding: 20px 16px; }
-  .vv-hamburger { display: inline-flex; align-items: center; justify-content: center; background: var(--gold); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; color: #47321C; cursor: pointer; flex-shrink: 0; }
   .vv-profile-card { flex-direction: column; }
   .vv-profile-grid { grid-template-columns: 1fr; }
 }
@@ -98,9 +80,3 @@
 
 
 /* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.vv-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.vv-breadcrumb::-webkit-scrollbar{display:none}
-.vv-breadcrumb>*{flex-shrink:0}
-.vv-breadcrumb a,.vv-breadcrumb .breadcrumb-link,.vv-breadcrumb .crumb-link,.vv-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.vv-breadcrumb a:hover,.vv-breadcrumb .breadcrumb-link:hover,.vv-breadcrumb .crumb-link:hover,.vv-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.vv-breadcrumb .breadcrumb-current,.vv-breadcrumb .crumb-current,.vv-breadcrumb .active,.vv-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

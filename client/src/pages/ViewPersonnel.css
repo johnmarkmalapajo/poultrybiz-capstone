@@ -32,78 +32,8 @@
   --text-muted: #a39e94;
 }
 
-/* ===== PAGE SHELL (sidebar stays fixed) ===== */
-.vp-page {
-  display: flex;
-  height: 100vh;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-.vp-page .sidebar { flex-shrink: 0; }
-
-.vp-main {
-  flex: 1;
-  min-width: 0;
-  height: 100vh;
-  box-sizing: border-box;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-.vp-main > * { flex-shrink: 0; }
-
-/* ===== HEADER / BREADCRUMB ===== */
-.vp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.vp-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  font-family: var(--font-display);
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.vp-breadcrumb .breadcrumb-link { cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
-.vp-breadcrumb .breadcrumb-link:hover { color: var(--gold); text-decoration: underline; }
-.vp-breadcrumb .breadcrumb-current { color: var(--text-primary); font-weight: 800; }
-
-.vp-hamburger { display: none; }
-@media (max-width: 768px) {
-  .vp-hamburger {
-    display: flex; align-items: center; justify-content: center;
-    background: var(--gold); border: none; border-radius: 8px;
-    width: 36px; height: 36px; font-size: 18px; color: #47321C;
-    cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  }
-}
-
-.vp-back-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 9px 16px;
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px;
-  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600;
-  color: var(--text-second); cursor: pointer; white-space: nowrap;
-  transition: border-color 0.2s, color 0.2s;
-}
-.vp-back-btn:hover { border-color: var(--gold); color: var(--gold); }
+/* ===== PAGE SHELL / BREADCRUMB ===== */
+/* Provided by the shared PageLayout / Breadcrumb components. */
 
 /* ===== PROFILE CARD ===== */
 .vp-profile-card {
@@ -127,6 +57,7 @@
   background: var(--gold-light); color: var(--gold-dark);
   font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800;
 }
+.vp-profile-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .vp-name-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .vp-name-row h1 {
   margin: 0; font-family: var(--font-display); font-size: var(--text-xl);
@@ -198,13 +129,9 @@
 .vp-stat-card h4 { margin: 2px 0; font-family: var(--font-body); font-size: var(--text-sm); font-weight: 700; color: var(--text-second); }
 .vp-stat-card p  { margin: 0; font-family: var(--font-body); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* ===== TABLE CARD ===== */
-.vp-table-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-  overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-}
+/* Tab bar sits directly on the page background (not inside a card) */
 .vp-table-top {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-end; justify-content: space-between;
   gap: 12px; padding: 0; border-bottom: 2px solid var(--border); flex-wrap: wrap;
   background: transparent;
 }
@@ -252,8 +179,6 @@
   box-shadow: 0 6px 20px rgba(228,175,31,0.35);
 }
 
-/* Tab bar sits on the page background; tabs align to the underline */
-.vp-table-top { align-items: flex-end; }
 .vp-table-actions { padding-bottom: 8px; }
 
 .vp-table { width: 100%; min-width: 720px; border-collapse: collapse; }
@@ -297,7 +222,6 @@
   .vp-profile-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
-  .vp-main { padding: 20px 16px; }
   .vp-profile-card { flex-direction: column; align-items: stretch; }
   .vp-profile-left { flex-direction: column; align-items: flex-start; }
   .vp-edit-btn { width: 100%; justify-content: center; }
@@ -331,11 +255,28 @@
 }
 .vp-row-edit:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-light); }
 
-/* ===== Scrollable table (no pagination) ===== */
+/* =====================================================================
+   Table wrapper — matches MortalityRecord's .mr-table-wrapper pattern
+   exactly: this ONE element IS the card (border/radius/shadow) and
+   holds the table + footer directly. No separate outer wrapper div,
+   so there's nothing else that can get flex-shrunk to 0 height.
+
+   `flex: none !important` stops the PageLayout flex-column container
+   from shrinking this card when vertical space is tight (e.g. mobile).
+   Scrolls HORIZONTALLY only — the PAGE itself (PageLayout) handles all
+   vertical scrolling, same as every other table page in the app.
+===================================================================== */
 .vp-table-wrapper {
-  max-height: 440px;
-  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
+  flex: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: hidden !important;
 }
 .vp-table thead th {
   position: sticky;
@@ -368,12 +309,3 @@
 }
 .vp-dd-item:hover { background: var(--gold-light); color: var(--gold-dark); }
 .vp-dd-item.active { background: var(--gold-light); color: var(--gold-dark); font-weight: 700; }
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.vp-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.vp-breadcrumb::-webkit-scrollbar{display:none}
-.vp-breadcrumb>*{flex-shrink:0}
-.vp-breadcrumb a,.vp-breadcrumb .breadcrumb-link,.vp-breadcrumb .crumb-link,.vp-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.vp-breadcrumb a:hover,.vp-breadcrumb .breadcrumb-link:hover,.vp-breadcrumb .crumb-link:hover,.vp-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.vp-breadcrumb .breadcrumb-current,.vp-breadcrumb .crumb-current,.vp-breadcrumb .active,.vp-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

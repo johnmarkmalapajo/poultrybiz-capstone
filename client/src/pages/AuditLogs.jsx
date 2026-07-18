@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
 import {
-  FiSearch, FiFilter, FiFileText, FiMenu, FiX, FiClock, FiCalendar,
+  FiSearch, FiFilter, FiFileText, FiX, FiClock, FiCalendar,
 } from "react-icons/fi";
-import "./Flockprofile.css";
 import "./AuditLogs.css";
+import PageLayout from "../components/PageLayout";
 
 /* ─────────────────────────────────────────────────────────────
    INLINE AUDIT STORE (read-only history). Shared key with Archive.
@@ -141,69 +140,58 @@ export default function AuditLogs({ embedded = false, onBack }) {
   const activeFilterCount = activeFilters.length;
   const clearFilters = () => { setFUser("All"); setFRole("All"); setFModule("All"); setFAction("All"); setFDate(""); };
 
-  return (
-    <div className={embedded ? "flock-embedded" : "flock-page"}>
-      {!embedded && <Sidebar />}
-
-      <div className="flock-main">
-
-        <div className="flock-breadcrumb">
-          {!embedded && <button className="flock-hamburger" onClick={openSidebar} aria-label="Open menu"><FiMenu /></button>}
-          <span className="breadcrumb-link" onClick={embedded ? onBack : () => navigate("/settings")}>SETTINGS</span>
-          <span>›</span>
-          <span className="breadcrumb-current">AUDIT LOGS</span>
-        </div>
-
-        <div className="flock-toolbar">
-          <div className="toolbar-actions">
-            <div className="search-box">
+  const content = (
+    <>
+<div className="al-toolbar">
+          <div className="al-toolbar-right">
+            <div className="al-search-box">
               <FiSearch />
               <input placeholder="Search description, user, module..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
 
-            <div className="toolbar-btn-group">
-              <div className="flock-filter-wrap" ref={filterRef}>
-                <button className="toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+            <div className="al-btn-group">
+              <div className="al-filter-wrap" ref={filterRef}>
+                <button className="al-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
                   <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="flock-filter-count">{activeFilterCount}</span>}
+                  {activeFilterCount > 0 && <span className="al-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
-                  <div className="flock-filter-dropdown">
-                    <div className="flock-filter-dropdown-header">
+                  <div className="al-filter-dropdown">
+                    <div className="al-filter-dropdown-header">
                       <span>Filter Logs</span>
-                      <button className="flock-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="al-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">User</label>
-                      <select className="flock-filter-select" value={fUser} onChange={(e) => setFUser(e.target.value)}>
+                    <div className="al-filter-group">
+                      <label className="al-filter-label">User</label>
+                      <select className="al-filter-select" value={fUser} onChange={(e) => setFUser(e.target.value)}>
                         <option value="All">All Users</option>
                         {users.map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Role</label>
-                      <select className="flock-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
+                    <div className="al-filter-group">
+                      <label className="al-filter-label">Role</label>
+                      <select className="al-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
                         <option value="All">All Roles</option><option>Admin</option><option>Farmer</option>
                       </select>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Module</label>
-                      <select className="flock-filter-select" value={fModule} onChange={(e) => setFModule(e.target.value)}>
+                    <div className="al-filter-group">
+                      <label className="al-filter-label">Module</label>
+                      <select className="al-filter-select" value={fModule} onChange={(e) => setFModule(e.target.value)}>
                         <option value="All">All Modules</option>
                         {modules.map((m) => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Action</label>
-                      <select className="flock-filter-select" value={fAction} onChange={(e) => setFAction(e.target.value)}>
+                    <div className="al-filter-group">
+                      <label className="al-filter-label">Action</label>
+                      <select className="al-filter-select" value={fAction} onChange={(e) => setFAction(e.target.value)}>
                         <option value="All">All Actions</option>
                         {actions.map((a) => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
-                    <div className="flock-filter-group">
-                      <label className="flock-filter-label">Date</label>
-                      <input className="flock-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
+                    <div className="al-filter-group">
+                      <label className="al-filter-label">Date</label>
+                      <input className="al-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
                     </div>
                   </div>
                 )}
@@ -213,9 +201,9 @@ export default function AuditLogs({ embedded = false, onBack }) {
         </div>
 
         {activeFilterCount > 0 && (
-          <div className="flock-active-filters">
+          <div className="al-active-filters">
             {activeFilters.map((f) => (
-              <span key={f.key} className="flock-active-filter-tag">
+              <span key={f.key} className="al-active-filter-tag">
                 {f.key}: {f.value}
                 <button onClick={f.clear}>✕</button>
               </span>
@@ -223,23 +211,23 @@ export default function AuditLogs({ embedded = false, onBack }) {
           </div>
         )}
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon gold"><FiFileText /></div>
+        <div className="al-stats-grid">
+          <div className="al-stat-card">
+            <div className="al-stat-icon gold"><FiFileText /></div>
             <div><h3>{stats.total}</h3><p>Total Logs</p><span>All Time</span></div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon green"><FiClock /></div>
+          <div className="al-stat-card">
+            <div className="al-stat-icon green"><FiClock /></div>
             <div><h3>{stats.today}</h3><p>Logs Today</p><span>Today</span></div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon blue"><FiCalendar /></div>
+          <div className="al-stat-card">
+            <div className="al-stat-icon blue"><FiCalendar /></div>
             <div><h3>{stats.thisWeek}</h3><p>This Week</p><span>Last 7 Days</span></div>
           </div>
         </div>
 
-        <div className="table-wrapper">
-          <table className="flock-table">
+        <div className="al-table-wrapper">
+          <table className="al-table">
             <thead>
               <tr>
                 <th>Date &amp; Time</th><th>User</th><th>Role</th><th>Module</th><th>Action</th><th>Description</th>
@@ -248,8 +236,8 @@ export default function AuditLogs({ embedded = false, onBack }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="empty-state">
-                    <div className="empty-content">
+                  <td colSpan="6" className="al-empty-state">
+                    <div className="al-empty-content">
                       <FiFileText />
                       <h3>No audit logs found</h3>
                       <p>No activity matches your search or filters.</p>
@@ -273,11 +261,10 @@ export default function AuditLogs({ embedded = false, onBack }) {
             </tbody>
           </table>
 
-          <div className="table-footer">
+          <div className="al-table-footer">
             Showing {filtered.length} entries
           </div>
         </div>
-      </div>
 
       {/* Details modal */}
       {selected && (() => {
@@ -311,6 +298,26 @@ export default function AuditLogs({ embedded = false, onBack }) {
           </div>
         );
       })()}
-    </div>
+    
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PageLayout
+      background="#f7f6f3"
+      color="#1e1c18"
+      embedded={embedded}
+      breadcrumbItems={[
+        { label: "SETTINGS", path: embedded ? undefined : "/settings" },
+        { label: "AUDIT LOGS" },
+      ]}
+      onBack={onBack}
+    >
+      {content}
+    </PageLayout>
   );
 }

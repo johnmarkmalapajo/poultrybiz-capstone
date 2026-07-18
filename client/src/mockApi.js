@@ -37,7 +37,7 @@ const RESOURCE_KEYS = {
 const keyFor = (r) => RESOURCE_KEYS[r] || "pb_" + r.replace(/-/g, "_");
 
 const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore / } try { window.dispatchEvent(new Event("pb_data_changed")); } catch { / ignore */ } };
+const write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ } };
 const uid = () => "rec_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
 
 // Ensure flock batches exist so "Add" dropdowns aren't empty.
@@ -92,6 +92,98 @@ function sumBy(list, fields) {
     return s;
   }, 0);
 }
+
+// ---- Auto-generated alerts, derived directly from the same stored records
+// that feed the Dashboard's stat cards (no separate/duplicate data entry).
+// Each condition has a STABLE id, so re-running this on every recompute:
+//   - won't duplicate an alert that's already showing,
+//   - preserves whatever read/unread state the user already gave it,
+//   - automatically clears itself once the underlying condition resolves.
+function syncAutoAlerts({ mortalityRate, productiveRate, feedStockKg, netProfitLoss }) {
+  const conditions = [];
+
+  if (mortalityRate >= 5) {
+    conditions.push({
+      id: "auto_mortality_high",
+      category: "mortality",
+      priority: mortalityRate >= 10 ? "high" : "medium",
+      title: "High Mortality Detected",
+      description: `Overall mortality rate reached ${mortalityRate}%. Review affected batches.`,
+    });
+  }
+
+  if (feedStockKg > 0 && feedStockKg < 50) {
+    conditions.push({
+      id: "auto_feed_low",
+      category: "feed",
+      priority: feedStockKg < 20 ? "high" : "medium",
+      title: "Low Feed Stock",
+      description: `Feed stock is down to ${feedStockKg}kg. Restocking is recommended.`,
+    });
+  }
+
+  if (productiveRate > 0 && productiveRate < 80) {
+    conditions.push({
+      id: "auto_low_production",
+      category: "egg",
+      priority: "medium",
+      title: "Low Hen-Day Production",
+      description: `Hen-Day Production is at ${productiveRate}% — below the 80% threshold.`,
+    });
+  }
+
+  if (netProfitLoss < 0) {
+    conditions.push({
+      id: "auto_net_loss",
+      category: "sales",
+      priority: "high",
+      title: "Net Loss Detected",
+      description: `Recorded transactions currently show a net loss of ₱${Math.abs(netProfitLoss).toFixed(2)}.`,
+    });
+  }
+
+  const pendingUsers = read("pb_users").filter((u) => u.status === "Pending").length;
+  if (pendingUsers > 0) {
+    conditions.push({
+      id: "auto_pending_users",
+      category: "users",
+      priority: "medium",
+      title: "Pending Farmer Approval",
+      description: pendingUsers === 1
+        ? "A new Farmer account is waiting for admin approval."
+        : `${pendingUsers} new Farmer accounts are waiting for admin approval.`,
+    });
+  }
+
+  const activeIds = new Set(conditions.map((c) => c.id));
+  const now = Date.now();
+  let changed = false;
+
+  // Drop auto alerts whose condition is no longer true.
+  let next = read("pb_notifications").filter((n) => {
+    if (String(n.id).startsWith("auto_") && !activeIds.has(n.id)) { changed = true; return false; }
+    return true;
+  });
+
+  // Add newly-true conditions that aren't already present — this is what
+  // preserves read state / original timestamp for ones still active.
+  const existingIds = new Set(next.map((n) => n.id));
+  conditions.forEach((c) => {
+    if (!existingIds.has(c.id)) {
+      next = [{ id: c.id, type: "alert", read: false, dateTime: now, ...c }, ...next];
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    write("pb_notifications", next);
+    // notifStore.js listens for its own event name (used by the Sidebar
+    // badge and the Dashboard's Alert card) — fire it too so they refresh
+    // immediately instead of waiting for the next focus/storage event.
+    try { window.dispatchEvent(new Event("pb_notifs_changed")); } catch { /* ignore */ }
+  }
+}
+
 function computeDashboard() {
   const batches   = read("pb_batches");
   const mortality = read("pb_mortality");
@@ -124,26 +216,31 @@ function computeDashboard() {
 
   const salesRevenue  = sumBy(sales, ["totalAmount", "amount", "total", "revenue", "grandTotal"]);
   const totalExpenses = sumBy(expenses, ["amount", "totalAmount", "cost", "total"]);
+  const netProfitLoss = salesRevenue - totalExpenses;
   // Feed Stock (kg) ← available balance: Feed Inventory − Feed Consumption
   const feedIn  = sumBy(feed, ["quantity", "kg", "stockKg", "remainingKg", "currentStock"]);
   const feedOut = sumBy(feedUsed, ["quantity", "kg", "amountKg", "consumedKg", "feedConsumed"]);
   const feedStockKg = Math.max(0, +(feedIn - feedOut).toFixed(2));
 
+  // Keep pb_notifications in sync with the numbers we just computed above,
+  // BEFORE reading it back for the alerts list below.
+  syncAutoAlerts({ mortalityRate, productiveRate, feedStockKg, netProfitLoss });
+
   // Recent unread ALERT notifications → Dashboard Alert card.
- const alerts = read("pb_notifications")
-  .filter((n) => n.type === "alert" && !n.read)
-  .sort((a, b) => new Date(b.dateTime || 0) - new Date(a.dateTime || 0))
-  .slice(0, 5)
-  .map((n) => ({
-    type: n.priority === "high" ? "danger" : "warning",
-    message: n.title,
-    category: n.category,
-  }));
-  
+  const alerts = read("pb_notifications")
+    .filter((n) => n.type === "alert" && !n.read)
+    .sort((a, b) => new Date(b.dateTime || 0) - new Date(a.dateTime || 0))
+    .slice(0, 5)
+    .map((n) => ({
+      type: n.priority === "high" ? "danger" : "warning",
+      message: n.title,
+      category: n.category,
+    }));
+
   return {
     flock:      { currentFlockSize, productiveRate, mortalityRate },
     eggs:       { totalEggsToday: eggsToday, sizeDistribution: {}, dailyTrend },
-    financials: { salesRevenue, totalExpenses, netProfitLoss: salesRevenue - totalExpenses },
+    financials: { salesRevenue, totalExpenses, netProfitLoss },
     feedStockKg,
     tasks:  [],
     alerts,

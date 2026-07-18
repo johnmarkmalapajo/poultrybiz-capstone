@@ -1,10 +1,8 @@
-/* AddTask.css */
-
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&display=swap");
+/* AddTask.css — same design as AddMortalityRecord */
 
 :root {
   --font-heading: "Poppins", sans-serif;
-  --font-body: "Lato", sans-serif;
+  --font-body:    "Lato", sans-serif;
 
   --fs-hint:  9px;
   --fs-label: 11px;
@@ -20,472 +18,127 @@
   --radius-md: 12px;
   --radius-lg: 16px;
 }
-
-/* ==========================
-   PAGE SHELL
-   Sidebar stays fixed; only .add-task-main scrolls
-========================== */
-
-.add-task-page {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  background: #f4f4f2;
-  font-family: var(--font-body);
-  max-width: 100%;
-}
-
-.add-task-main {
-  flex: 1;
-  min-width: 0;
-  height: 100vh;
-  box-sizing: border-box;
-  padding: 36px 44px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-/* Keep breadcrumb/header/cards at natural height so they don't collapse
-   when .add-task-main has a fixed height — main scrolls instead. */
-.add-task-main > * {
-  flex-shrink: 0;
-}
-
-.sidebar { flex-shrink: 0; }
-
-
-/* ==========================
-   LOADING
-========================== */
-
-.add-task-loading {
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #aaa;
-  margin: 0;
-}
-
-/* ==========================
-   BREADCRUMB
-========================== */
-
-.add-task-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  font-family: var(--font-heading);
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.add-task-breadcrumb .breadcrumb-link {
-  cursor: pointer;
-  color: #aaa;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.add-task-breadcrumb .breadcrumb-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-
-.add-task-breadcrumb .breadcrumb-current {
-  color: #2d2d2d;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
 /* Hamburger — hidden on desktop, visible on mobile */
-.add-task-hamburger {
-  display: none;
-}
+/* Required-field indicator — PoultryBiz gold, same as primary buttons */
 
-@media (max-width: 768px) {
-  .add-task-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-accent);
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    color: #47321C;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: background 0.2s;
-  }
+/* ============ PAGE SHELL ============ */
+/* .at-page / .at-main now come from the shared PageLayout component. */
 
-  .add-task-hamburger:hover {
-    background: var(--color-accent-dark);
-  }
-}
+/* ============ OTHER ============ */
+.sidebar { flex-shrink: 0; }
+.at-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.at-header h2 { margin: 0; font-family: var(--font-heading); font-size: var(--fs-lg); font-weight: 700; color: #1a1a1a; line-height: 1.15; letter-spacing: -0.5px; }
+.at-header p { margin-top: 8px; max-width: 640px; font-family: var(--font-body); font-size: var(--fs-base); color: #888; line-height: 1.7; }
+.at-form-card { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: var(--radius-lg); padding: 36px; border: 1.5px solid #ebebeb; box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05); display: flex; flex-direction: column; gap: 28px; }
+.at-section-header { display: flex; align-items: center; gap: 10px; }
+.at-section-header svg { font-size: var(--fs-md); color: var(--color-accent); flex-shrink: 0; }
+.at-section-header h3 { margin: 0; font-family: var(--font-heading); font-size: var(--fs-label); font-weight: 700; color: #aaa; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.at-line { flex: 1; height: 1px; background: #f0f0f0; margin-left: 4px; }
+.at-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 28px; }
+.at-form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.at-form-group label { font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #2d2d2d; }
+.at-req { color: var(--color-accent); }
+.at-form-group small { font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; line-height: 1.5; }
+.at-char-count { text-align: right; }
+.at-full-width { grid-column: 1 / -1; }
+.at-form-group input,
+.at-form-group select,
+.at-form-group textarea { width: 100%; box-sizing: border-box; border: 1.5px solid #e2e2e2; border-radius: var(--radius-sm); background: #fafafa; font-family: var(--font-body); font-size: var(--fs-base); color: #2d2d2d; outline: none; transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; }
+.at-form-group input,
+.at-form-group select { height: 48px; padding: 0 16px; }
+.at-form-group select { cursor: pointer; appearance: auto; }
+.at-form-group textarea { padding: 14px 16px; resize: vertical; min-height: 120px; line-height: 1.65; }
+.at-form-group input:focus,
+.at-form-group select:focus,
+.at-form-group textarea:focus { border-color: var(--color-accent); background: #fff; box-shadow: 0 0 0 4px var(--color-accent-glow); }
+.at-form-group input::placeholder,
+.at-form-group textarea::placeholder { color: #bbb; }
+.at-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.at-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
+.at-action-btns { display: flex; gap: 12px; align-items: center; }
+.at-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.at-cancel-btn:hover { border-color: #bbb; color: #333; }
+.at-save-btn { display: flex; align-items: center; gap: 9px; padding: 12px 26px; border: none; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
+.at-save-btn:hover { background: var(--color-accent-dark); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3); }
+.at-save-btn:disabled,
+.at-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.at-cancel-btn svg,
+.at-save-btn svg { font-size: 16px; flex-shrink: 0; }
+.req { color: #E4AF1F; font-weight: 700; margin-left: 2px; }
 
-/* ==========================
-   HEADER
-========================== */
-
-.add-task-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.add-task-header h2 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.15;
-  letter-spacing: -0.5px;
-}
-
-.add-task-header p {
-  margin-top: 8px;
-  max-width: 640px;
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #888;
-  line-height: 1.7;
-}
-
-/* ==========================
-   FORM CARD
-========================== */
-
-.task-form-card {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 36px;
-  border: 1.5px solid #ebebeb;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-/* ==========================
-   SECTION HEADERS
-========================== */
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.section-header svg {
-  font-size: var(--fs-md);
-  color: var(--color-accent);
-  flex-shrink: 0;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--fs-label);
-  font-weight: 700;
-  color: #aaa;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.line {
-  flex: 1;
-  height: 1px;
-  background: #f0f0f0;
-  margin-left: 4px;
-}
-
-/* ==========================
-   FORM GRID
-========================== */
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px 28px;
-}
-
-/* ==========================
-   FORM GROUPS
-========================== */
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-family: var(--font-heading);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  color: #2d2d2d;
-}
-
-.form-group small {
-  font-family: var(--font-body);
-  font-size: var(--fs-hint);
-  color: #bbb;
-  line-height: 1.5;
-  letter-spacing: 0.01em;
-}
-
-.full-width {
-  grid-column: 1 / -1;
-}
-
-/* ==========================
-   INPUTS, SELECTS, TEXTAREA
-========================== */
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1.5px solid #e2e2e2;
-  border-radius: var(--radius-sm);
-  background: #fafafa;
-  font-family: var(--font-body);
-  font-size: var(--fs-base);
-  color: #2d2d2d;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-}
-
-.form-group input,
-.form-group select {
-  height: 48px;
-  padding: 0 16px;
-}
-
-.form-group select {
-  cursor: pointer;
-  appearance: auto;
-}
-
-.form-group textarea {
-  padding: 14px 16px;
-  resize: vertical;
-  min-height: 140px;
-  line-height: 1.65;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  border-color: var(--color-accent);
-  background: #fff;
-  box-shadow: 0 0 0 4px var(--color-accent-glow);
-}
-
-.form-group input:disabled {
-  background: #f5f5f5;
-  color: #bbb;
-  border-color: #eaeaea;
-  cursor: not-allowed;
-}
-
-/* ==========================
-   FORM ACTIONS
-========================== */
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 14px;
-  padding-top: 4px;
-}
-
-.cancel-btn {
-  padding: 12px 24px;
-  border: 1.5px solid #ddd;
-  background: #fff;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-heading);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  color: #666;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.cancel-btn:hover {
-  border-color: #bbb;
-  color: #333;
-}
-
-.save-btn {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 12px 26px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: #fff;
-  font-family: var(--font-heading);
-  font-size: var(--fs-base);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-}
-
-.save-btn:hover {
-  background: var(--color-accent-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
-}
-
-.save-btn svg {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-/* ==========================
-   RESPONSIVE — TABLET (≤1024px)
-========================== */
-
+/* ============ RESPONSIVE ============ */
 @media (max-width: 1024px) {
-  .form-grid {
+  .at-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .full-width {
+  .at-full-width {
     grid-column: auto;
   }
 }
-
-/* ==========================
-   RESPONSIVE — MOBILE (≤768px)
-========================== */
-
 @media (max-width: 768px) {
-  .add-task-main {
-    padding: 20px 16px;
-    gap: 20px;
-  }
-
-  .add-task-breadcrumb {
-    font-size: 10px;
-    gap: 6px;
-  }
-
-  .add-task-header h2 {
+  .at-header h2 {
     font-size: var(--fs-md);
   }
 
-  .task-form-card {
+  .at-form-card {
     padding: 20px 16px;
     gap: 20px;
   }
 
-  .form-actions {
+  .at-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .at-action-btns {
     flex-direction: column-reverse;
     align-items: stretch;
   }
 
-  .cancel-btn,
-  .save-btn {
+  .at-cancel-btn,
+  .at-save-btn {
     width: 100%;
     justify-content: center;
   }
-
-  .add-task-page .sidebar {
-    width: 0;
-    padding: 0;
-    min-width: 0;
-    overflow: hidden;
-    border: none;
-  }
-
-  .add-task-page .sidebar.sidebar-open {
-    width: 240px;
-    padding: 14px;
-    overflow: visible;
-  }
 }
-
-/* ==========================
-   RESPONSIVE — PHONE (≤480px)
-========================== */
-
 @media (max-width: 480px) {
-  .add-task-main {
-    padding: 16px 12px;
-    gap: 16px;
-  }
-
-  .add-task-breadcrumb {
-    font-size: 10px;
-    gap: 4px;
-  }
-
-  .task-form-card {
+  .at-form-card {
     padding: 16px 12px;
   }
 }
-
-
-/* Personnel banner (who the task is for — read-only) */
-.task-for-banner {
+/* ── Read-only "Assigning to / Assigned to" banner ── */
+.at-for-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: var(--gold-light);
-  border: 1.5px solid rgba(228, 175, 31, 0.4);
+  gap: 14px;
+  background: #fdf3e3;
+  border: 1.5px solid rgba(228, 175, 31, 0.35);
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
 }
-.task-for-banner .tfb-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: #fff; color: var(--gold-dark);
-  font-family: var(--font-display); font-weight: 800; font-size: var(--text-base);
-  border: 1.5px solid rgba(228,175,31,0.5); flex-shrink: 0;
+.at-tfb-avatar {
+  width: 42px; height: 42px; min-width: 42px;
+  border-radius: 50%;
+  background: #E4AF1F;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px; font-weight: 800;
+  letter-spacing: 0.02em;
 }
-.task-for-banner .tfb-label {
-  font-family: var(--font-body); font-size: var(--text-sm);
-  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+.at-tfb-label {
+  font-family: "Lato", sans-serif;
+  font-size: 11px;
+  color: #c8930c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
 }
-.task-for-banner .tfb-name {
-  font-family: var(--font-display); font-size: var(--text-md);
-  font-weight: 800; color: var(--text-primary);
+.at-tfb-name {
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: #47321C;
+  margin-top: 2px;
 }
-
-/* Required asterisk — gold accent (matches design) */
-.req { color: var(--color-accent); }
-
-
-/* ===== Breadcrumb standardization (uniform across the whole app) ===== */
-.add-task-breadcrumb{display:flex !important;align-items:center !important;gap:10px !important;height:38px !important;min-height:38px !important;margin:0 0 16px !important;padding:0 !important;font-family:'Poppins',sans-serif !important;font-size:clamp(10.5px, .25vw + 10px, 11.07px) !important;font-weight:600 !important;letter-spacing:.08em !important;line-height:1.618 !important;text-transform:uppercase !important;color:#a39e94 !important;flex-wrap:nowrap !important;white-space:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;max-width:100%;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.add-task-breadcrumb::-webkit-scrollbar{display:none}
-.add-task-breadcrumb>*{flex-shrink:0}
-.add-task-breadcrumb a,.add-task-breadcrumb .breadcrumb-link,.add-task-breadcrumb .crumb-link,.add-task-breadcrumb .pf-crumb-link{color:#a39e94 !important;cursor:pointer;transition:color .2s;text-decoration:none}
-.add-task-breadcrumb a:hover,.add-task-breadcrumb .breadcrumb-link:hover,.add-task-breadcrumb .crumb-link:hover,.add-task-breadcrumb .pf-crumb-link:hover{color:#E4AF1F !important;text-decoration:underline}
-.add-task-breadcrumb .breadcrumb-current,.add-task-breadcrumb .crumb-current,.add-task-breadcrumb .active,.add-task-breadcrumb>span:last-child{color:#c8930c !important;font-weight:800 !important}

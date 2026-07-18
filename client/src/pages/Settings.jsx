@@ -1,6 +1,5 @@
-import { useSearchParams } from "react-router-dom";
-import Sidebar, { openSidebar } from "../components/Sidebar";
-import "./Records.css";
+import { useSearchParams, useLocation } from "react-router-dom";
+import PageLayout from "../components/PageLayout";
 import "./Settings.css";
 import Profile from "./Profile";
 import UsersRoles from "./UsersRoles";
@@ -49,6 +48,7 @@ const ALL_CARDS = [
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { role } = useUser();
   const isAdmin = role === "Admin";
 
@@ -57,51 +57,53 @@ export default function Settings() {
 
   const raw = searchParams.get("view");
   const viewMode = VALID.includes(raw) ? raw : "menu";
+  const activeCard = cards.find((c) => c.id === viewMode);
 
   const openCard = (id) => setSearchParams({ view: id });
   const backToMenu = () => setSearchParams({});
 
+  // Profile reached directly from the Sidebar shortcut skips the "SETTINGS"
+  // crumb (it's not really a Settings drill-down in that case). Reached via
+  // the Settings menu card, it keeps the normal "SETTINGS > PROFILE" trail.
+  const fromSidebar = viewMode === "profile" && Boolean(location.state?.fromSidebar);
+
+  const breadcrumbItems =
+    viewMode === "menu"
+      ? [{ label: "SETTINGS" }]
+      : fromSidebar
+      ? [{ label: "PROFILE" }]
+      : [{ label: "SETTINGS", path: "/settings" }, { label: (activeCard?.label || "").toUpperCase() }];
+
   return (
-    <div className="records-page">
-      <Sidebar />
-      <div className="records-main">
-        <div className="settings-mobile-bar">
-          <button className="records-hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
+    <PageLayout breadcrumbItems={breadcrumbItems}>
+      {viewMode === "menu" ? (
+        <div className="st-grid">
+          {cards.map((card, i) => (
+            <button
+              key={card.id}
+              className="st-card"
+              style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
+              onClick={() => openCard(card.id)}
+            >
+              <div className="st-card-icon-wrap">
+                <span className="st-card-emoji">{card.emoji}</span>
+              </div>
+              <div className="st-card-body">
+                <span className="st-card-label">{card.label}</span>
+                <span className="st-card-desc">{card.description}</span>
+              </div>
+              <span className="st-card-arrow">›</span>
+            </button>
+          ))}
         </div>
-
-        {viewMode === "menu" ? (
-          <>
-            <h2 className="records-title">SETTINGS</h2>
-
-            <div className="records-grid">
-              {cards.map((card, i) => (
-                <button
-                  key={card.id}
-                  className="record-card"
-                  style={{ "--card-color": card.color, "--card-bg": card.bg, animationDelay: `${i * 80}ms` }}
-                  onClick={() => openCard(card.id)}
-                >
-                  <div className="card-icon-wrap">
-                    <span className="card-emoji">{card.emoji}</span>
-                  </div>
-                  <div className="card-body">
-                    <span className="card-label">{card.label}</span>
-                    <span className="card-desc">{card.description}</span>
-                  </div>
-                  <span className="card-arrow">›</span>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            {viewMode === "profile"     && <Profile    embedded onBack={backToMenu} />}
-            {viewMode === "users-roles" && isAdmin && <UsersRoles embedded onBack={backToMenu} />}
-            {viewMode === "audit-logs"  && isAdmin && <AuditLogs  embedded onBack={backToMenu} />}
-            {viewMode === "archive"     && isAdmin && <Archive    embedded onBack={backToMenu} />}
-          </>
-        )}
-      </div>
-    </div>
+      ) : (
+        <>
+          {viewMode === "profile"     && <Profile    embedded onBack={backToMenu} />}
+          {viewMode === "users-roles" && isAdmin && <UsersRoles embedded onBack={backToMenu} />}
+          {viewMode === "audit-logs"  && isAdmin && <AuditLogs  embedded onBack={backToMenu} />}
+          {viewMode === "archive"     && isAdmin && <Archive    embedded onBack={backToMenu} />}
+        </>
+      )}
+    </PageLayout>
   );
 }

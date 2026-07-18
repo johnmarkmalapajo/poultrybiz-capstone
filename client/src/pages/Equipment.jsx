@@ -14,8 +14,7 @@ const CONDITION_OPTIONS = ["Good", "Fair", "Poor"];
 
 export default function Equipment() {
   const navigate = useNavigate();
-  const { canEdit, canArchive, canSeeFinancials, role } = useUser();
-  const isAdmin = role === "Admin";
+  const { canEdit, canArchive, canSeeFinancials } = useUser();
   const [search, setSearch] = useState("");
   const [records, setRecords] = useState([]);
   useEffect(() => {
@@ -193,7 +192,7 @@ export default function Equipment() {
                 <th>Condition</th>
                 <th>Location/Storage</th>
                 <th>Custodian/Assigned To</th>
-                {isAdmin && <th>Date Acquired</th>}
+                <th>Date Acquired</th>
                 {canSeeFinancials && <th>Acquisition Cost</th>}
                 <th>Remarks</th>
                 <th>Actions</th>
@@ -202,7 +201,7 @@ export default function Equipment() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10 + (isAdmin ? 1 : 0) + (canSeeFinancials ? 1 : 0)} className="eq-empty-state">
+                  <td colSpan={canSeeFinancials ? 13 : 12} className="eq-empty-state">
                     <div className="eq-empty-content">
                       <FiMaximize />
                       <h3>No equipment records found</h3>
@@ -228,7 +227,7 @@ export default function Equipment() {
                     </td>
                     <td>{r.location}</td>
                     <td>{r.custodian}</td>
-                    {isAdmin && <td>{r.dateAcquired}</td>}
+                    <td>{r.dateAcquired}</td>
                     {canSeeFinancials && <td>{peso(r.cost)}</td>}
                     <td>{r.remarks}</td>
                     <td>
