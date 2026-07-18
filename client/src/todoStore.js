@@ -10,8 +10,24 @@ const K = {
 };
 
 const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || "{}"); } catch { return {}; } };
-const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
+const write = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ }
+  try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+};
 const uid = (p) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+// Subscribe to changes (same-tab custom event + focus + cross-tab storage).
+export const subscribe = (cb) => {
+  const handler = () => cb();
+  window.addEventListener("pb_data_changed", handler);
+  window.addEventListener("storage", handler);
+  window.addEventListener("focus", handler);
+  return () => {
+    window.removeEventListener("pb_data_changed", handler);
+    window.removeEventListener("storage", handler);
+    window.removeEventListener("focus", handler);
+  };
+};
 
 /* ── Current user (from auth in real app; demo fallback here) ── */
 export const getCurrentUser = (fallback = null) => {
@@ -21,7 +37,10 @@ export const getCurrentUser = (fallback = null) => {
       if (!raw) continue;
       const u = JSON.parse(raw);
       const name = u.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username;
-      const id = u._id || u.id || u.personnelId || u.userId || name;
+      // Prefer email as the id: it's the one field shared between the real
+      // auth/session user object and the pb_users roster used to assign
+      // tasks (two separate stores in this app — see todoStore.getFarmerList).
+      const id = u.email || u._id || u.id || u.personnelId || u.userId || name;
       const role = u.accountRole || u.role || u.userType || "";
       if (name || id) return { id, name: name || "User", role };
     } catch (e) { /* ignore */ }
@@ -32,15 +51,30 @@ export const getCurrentUser = (fallback = null) => {
 /* ── Assigned tasks (Admin → Farmer) ── */
 export const getAssignedTasks = (farmerId) => read(K.assigned)[farmerId] || [];
 
+// Flattened view of every task any Admin has assigned, across all Farmers —
+// this is what AdminTodo.jsx / the Admin Dashboard To Do card render, so
+// there is exactly one place tasks are created and exactly one place they
+// are listed (no separate "pb_admin_todos" store).
+export const getAllAssignedTasks = () => {
+  const all = read(K.assigned);
+  const out = [];
+  Object.entries(all).forEach(([farmerId, list]) => {
+    (list || []).forEach((t) => out.push({ ...t, farmerId }));
+  });
+  return out.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+};
+
 export const assignTask = (farmerId, task, assignedBy = "Admin") => {
   const all = read(K.assigned);
   const t = {
     _id: uid("at"),
     title: task.title || task.work || "Untitled task",
     description: task.description || task.notes || "",
+    type: task.type || "Records",
     dueDate: task.dueDate || "",
     priority: task.priority || "Medium",
     status: "Pending",
+    archived: false,
     completedAt: null,
     assignedBy,
     createdAt: new Date().toISOString(),
@@ -59,6 +93,12 @@ export const updateAssignedTask = (farmerId, taskId, patch) => {
   all[farmerId] = list.map((t) => (t._id === taskId ? { ...t, ...patch } : t));
   write(K.assigned, all);
   return all[farmerId];
+};
+
+export const deleteAssignedTask = (farmerId, taskId) => {
+  const all = read(K.assigned);
+  all[farmerId] = (all[farmerId] || []).filter((t) => t._id !== taskId);
+  write(K.assigned, all);
 };
 
 export const setAssignedTaskDone = (farmerId, taskId, done, farmerName = "A farmer") => {
@@ -82,9 +122,11 @@ export const addPersonalTodo = (userId, todo) => {
     _id: uid("pt"),
     title: todo.title || "Untitled",
     description: todo.description || "",
+    type: todo.type || "Records",
     dueDate: todo.dueDate || "",
     priority: todo.priority || "Medium",
     done: false,
+    archived: false,
     completedAt: null,
     createdAt: new Date().toISOString(),
   };
@@ -109,6 +151,17 @@ export const deletePersonalTodo = (userId, todoId) => {
   const all = read(K.personal);
   all[userId] = (all[userId] || []).filter((x) => x._id !== todoId);
   write(K.personal, all);
+};
+
+/* ── Farmer directory (for the Admin's "assign to" picker) — reads the
+   real Users & Roles store so the list always matches actual accounts. ── */
+export const getFarmerList = () => {
+  try {
+    const users = JSON.parse(localStorage.getItem("pb_users") || "[]");
+    return users
+      .filter((u) => u.role === "Farmer" && u.status !== "Inactive")
+      .map((u) => ({ id: u.email || u._id, name: u.fullName || u.email || u._id }));
+  } catch { return []; }
 };
 
 /* ── Notifications ── */

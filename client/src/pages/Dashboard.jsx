@@ -8,6 +8,11 @@ import PageLayout from "../components/PageLayout";
 import Card, { Icons } from "../components/Card";
 import { useUser } from "../hooks/useUser";
 import { getAll as getNotifications, subscribe as subscribeNotifs } from "../notifStore";
+import {
+  getAssignedTasks, getAllAssignedTasks, getPersonalTodos,
+  setAssignedTaskDone, updatePersonalTodo,
+  getCurrentUser as getTodoUser,
+} from "../todoStore";
 import "./Dashboard.css";
 
 const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
@@ -17,34 +22,24 @@ const EGG_LABELS = ["Large","Extra Large","Medium","Jumbo","Small","Peewee","Cra
 const EGG_KEYS   = ["large","extraLarge","medium","jumbo","small","peewee","crack"];
 
 const EMPTY = {
-  flock:      { currentFlockSize: 0, productiveRate: 0, mortalityRate: 0 },
+  flock:      { currentFlockSize: 0, productiveRate: 0, mortalityRate: 0, mortalityToday: 0 },
   eggs:       { totalEggsToday: 0, sizeDistribution: {}, dailyTrend: [] },
   financials: { salesRevenue: 0, totalExpenses: 0, netProfitLoss: 0 },
+  feed:       { feedStockKg: 0, feedConsumedToday: 0, feedLowStock: false, feedCriticalStock: false },
+  health:     { sickChickens: 0, underTreatment: 0, vaccinationDue: 0 },
+  equipment:  { operationalEquipment: 0, maintenanceDueEquipment: 0 },
   feedStockKg: 0,
   tasks:      [],
   alerts:     [],
 };
 
-// Same key AdminTodo.jsx writes to — reading it directly (instead of a dead
-// API endpoint) keeps the Dashboard's To Do card in sync with real tasks.
-const ADMIN_TODO_KEY = "pb_admin_todos";
-function loadAdminTasks() {
-  try {
-    const raw = localStorage.getItem(ADMIN_TODO_KEY);
-    const list = raw ? JSON.parse(raw) : [];
-    return list
-      .filter((t) => !t.archived)
-      .map((t) => ({ _id: t.id, date: t.due, task: t.title, isCompleted: t.status === "Completed" }));
-  } catch {
-    return [];
-  }
-}
-
-// Notifications (Sidebar badge's source of truth) double as the Dashboard's
-// Alert feed — unread alerts/reminders, most recent first.
-function loadDashboardAlerts() {
-  return getNotifications()
-    .filter((n) => !n.read)
+// Notifications (Sidebar badge's source of truth AND the Notifications page's
+// source of truth — same "pb_notifications" store, same event) double as the
+// Dashboard's Alert feed — unread alerts, most recent first, scoped to the
+// logged-in user's role so a Farmer never sees an Admin-only alert here.
+function loadDashboardAlerts(role) {
+  return getNotifications(role)
+    .filter((n) => !n.read && n.type === "alert")
     .sort((a, b) => b.dateTime - a.dateTime)
     .map((n) => ({ type: n.priority === "high" ? "danger" : "warning", message: n.title }));
 }
@@ -59,6 +54,9 @@ function shapeData(d) {
     flock:      { ...EMPTY.flock,      ...(d.flock      || {}) },
     eggs:       { ...EMPTY.eggs,       ...(d.eggs       || {}) },
     financials: { ...EMPTY.financials, ...(d.financials || {}) },
+    feed:       { ...EMPTY.feed,       ...(d.feed       || {}) },
+    health:     { ...EMPTY.health,     ...(d.health     || {}) },
+    equipment:  { ...EMPTY.equipment,  ...(d.equipment  || {}) },
     tasks:      Array.isArray(d.tasks)  ? d.tasks  : [],
     alerts:     Array.isArray(d.alerts) ? d.alerts : [],
   };
@@ -128,10 +126,59 @@ function Dashboard() {
       adminOnly: false,
     },
     {
+      title:     "Mortality Today",
+      value:     data.flock?.mortalityToday ?? 0,
+      icon:      Icons.mortality,
+      iconBg:    "#e8f5e9",
+      adminOnly: false,
+    },
+    {
       title:     "Feed Stock (kg)",
-      value:     data.feedStockKg ?? 0,
+      value:     data.feed?.feedStockKg ?? data.feedStockKg ?? 0,
       icon:      Icons.feed,
       iconBg:    "#fff8e1",
+      adminOnly: false,
+    },
+    {
+      title:     "Feed Consumed Today (kg)",
+      value:     data.feed?.feedConsumedToday ?? 0,
+      icon:      Icons.feed,
+      iconBg:    "#fff8e1",
+      adminOnly: false,
+    },
+    {
+      title:     "Sick Chickens",
+      value:     data.health?.sickChickens ?? 0,
+      icon:      Icons.mortality,
+      iconBg:    "#fdecea",
+      adminOnly: false,
+    },
+    {
+      title:     "Under Treatment",
+      value:     data.health?.underTreatment ?? 0,
+      icon:      Icons.mortality,
+      iconBg:    "#fdecea",
+      adminOnly: false,
+    },
+    {
+      title:     "Vaccination Due",
+      value:     data.health?.vaccinationDue ?? 0,
+      icon:      Icons.mortality,
+      iconBg:    "#fdecea",
+      adminOnly: false,
+    },
+    {
+      title:     "Operational Equipment",
+      value:     data.equipment?.operationalEquipment ?? 0,
+      icon:      Icons.productive,
+      iconBg:    "#f3e5f5",
+      adminOnly: false,
+    },
+    {
+      title:     "Equipment Maintenance Due",
+      value:     data.equipment?.maintenanceDueEquipment ?? 0,
+      icon:      Icons.productive,
+      iconBg:    "#f3e5f5",
       adminOnly: false,
     },
   ];
@@ -140,7 +187,10 @@ function Dashboard() {
     (card) => !card.adminOnly || canSeeFinancials
   );
 
-  // ── Fetch dashboard data ──
+  // ── Fetch dashboard data (stat cards, chart, alert list) ──
+  // mockApi.js intercepts this exact URL and computes computeDashboard()
+  // live from the SAME localStorage records every module page reads/writes
+  // — no separate mock data, no hardcoded numbers.
   const fetchDashboard = async () => {
     setLoading(true);
     setError("");
@@ -154,12 +204,7 @@ function Dashboard() {
       });
       const json = await res.json();
       if (json && json.success) {
-        const shaped = shapeData(json.data);
-        setData(shaped);
-        // Admin/personnel roles get their tasks from the real local To Do
-        // store (see the canViewPersonnel effect below) — don't let this
-        // API result (currently always empty) clobber it.
-        if (!canViewPersonnel) setTasks(shaped.tasks);
+        setData(shapeData(json.data));
       } else {
         setData(EMPTY);
         setError("No dashboard data yet.");
@@ -187,12 +232,21 @@ function Dashboard() {
     };
   }, []);
 
-  // To Do card — for roles with an admin To Do (canViewPersonnel), read the
-  // real pb_admin_todos store directly instead of the (currently empty) API
-  // tasks list, and stay in sync with any edits made on the To Do page.
+  // To Do card — ONE store (todoStore.js) for both roles, the exact same
+  // data the To Do pages read/write, so this card is never out of sync:
+  //   Admin  → every task Admin has assigned, across all Farmers.
+  //   Farmer → tasks assigned to them + their own personal to-dos.
+  const todoUser = getTodoUser({ id: "me", name: "You" });
   useEffect(() => {
-    if (!canViewPersonnel) return;
-    const update = () => setTasks(loadAdminTasks());
+    const update = () => {
+      if (canViewPersonnel) {
+        setTasks(getAllAssignedTasks().filter((t) => !t.archived));
+      } else {
+        const assigned = getAssignedTasks(todoUser.id).map((t) => ({ ...t, source: "assigned" }));
+        const personal = getPersonalTodos(todoUser.id).map((t) => ({ ...t, source: "personal" }));
+        setTasks([...assigned, ...personal].filter((t) => !t.archived));
+      }
+    };
     update();
     window.addEventListener("pb_data_changed", update);
     window.addEventListener("storage", update);
@@ -202,49 +256,31 @@ function Dashboard() {
       window.removeEventListener("storage", update);
       window.removeEventListener("focus", update);
     };
-  }, [canViewPersonnel]);
+  }, [canViewPersonnel, todoUser.id]);
 
-  // Alert card — read from the same notification store the Sidebar badge
-  // uses, so it's always showing real, current, unread items.
-  const [alerts, setAlerts] = useState(loadDashboardAlerts);
+  // Alert card — read from the same notification store the Notifications
+  // page and Sidebar badge use, scoped to this user's role, so it's always
+  // showing the exact same real, current, unread items (no duplicate logic).
+  const [alerts, setAlerts] = useState(() => loadDashboardAlerts(role));
   useEffect(() => {
-    const update = () => setAlerts(loadDashboardAlerts());
+    const update = () => setAlerts(loadDashboardAlerts(role));
     update();
     return subscribeNotifs(update);
-  }, []);
+  }, [role]);
 
   // ── Toggle task ──
-  const toggleTask = async (id) => {
+  const toggleTask = (t) => {
     if (canViewPersonnel) {
-      // Admin tasks live in localStorage (pb_admin_todos) — update there and
-      // broadcast so the To Do page and this card both stay in sync.
-      try {
-        const raw = localStorage.getItem(ADMIN_TODO_KEY);
-        const list = raw ? JSON.parse(raw) : [];
-        const next = list.map((t) =>
-          t.id === id ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" } : t
-        );
-        localStorage.setItem(ADMIN_TODO_KEY, JSON.stringify(next));
-        window.dispatchEvent(new Event("pb_data_changed"));
-      } catch { /* ignore */ }
+      // t.farmerId is present because getAllAssignedTasks() flattens
+      // todoStore's per-farmer dict — see todoStore.js.
+      setAssignedTaskDone(t.farmerId, t._id, t.status !== "Completed");
       return;
     }
-
-    const task = tasks.find((t) => t._id === id);
-    setTasks((prev) =>
-      prev.map((t) => t._id === id ? { ...t, isCompleted: !t.isCompleted } : t)
-    );
-    try {
-      const token = localStorage.getItem("token");
-      await fetch(`${BASE_URL}/tasks/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isCompleted: !task?.isCompleted }),
-      });
-    } catch { /* silent */ }
+    if (t.source === "assigned") {
+      setAssignedTaskDone(todoUser.id, t._id, t.status !== "Completed", todoUser.name);
+    } else {
+      updatePersonalTodo(todoUser.id, t._id, { done: t.status !== "Completed", status: t.status === "Completed" ? "Pending" : "Completed" });
+    }
   };
 
   // ── Chart range filters: Today / This Week / This Month ──
@@ -440,16 +476,19 @@ function Dashboard() {
             </div>
             {tasks.length === 0 ? (
               <p style={{ color: "#aaa", fontSize: "12px", padding: "8px 0" }}>No tasks yet.</p>
-            ) : tasks.slice(0, TODO_LIMIT).map((t) => (
-              <div className="todo-row" key={t._id}>
-                <input type="checkbox" checked={t.isCompleted}
-                  onChange={() => toggleTask(t._id)} className="todo-check" />
-                <span className="todo-date">
-                  {t.date ? new Date(t.date).toLocaleDateString() : ""}
-                </span>
-                <span className={`todo-task ${t.isCompleted ? "done" : ""}`}>{t.task}</span>
-              </div>
-            ))}
+            ) : tasks.slice(0, TODO_LIMIT).map((t) => {
+              const done = t.status === "Completed";
+              return (
+                <div className="todo-row" key={t._id}>
+                  <input type="checkbox" checked={done}
+                    onChange={() => toggleTask(t)} className="todo-check" />
+                  <span className="todo-date">
+                    {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ""}
+                  </span>
+                  <span className={`todo-task ${done ? "done" : ""}`}>{t.title}</span>
+                </div>
+              );
+            })}
             {tasks.length > TODO_LIMIT && (
               <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/admin/todo")}>
                 See All

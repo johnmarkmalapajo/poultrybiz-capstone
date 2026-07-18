@@ -46,11 +46,21 @@ const write = (arr) => {
   try { window.dispatchEvent(new Event(EVENT)); } catch { /* ignore */ }
 };
 
-// A notification with no `roles` field is visible to everyone (e.g. the
-// operational farm alerts). One WITH a `roles` array is only visible to
-// users whose role is included — e.g. Admin-only account approvals or
-// financial alerts should never count toward a Farmer's badge/list.
+// Single source of truth for what a Farmer is allowed to see: only
+// operational Records + Inventory categories. Everything else (sales,
+// expenses, personnel, visitors, users/roles, audit, archive, settings) is
+// Admin-only and is hidden from Farmers here AND on the Notifications page.
+export const FARMER_ALLOWED_CATEGORIES = [
+  "egg", "feed", "health", "mortality", "quarantine", "isolation", "equipment", "age",
+];
+
+// A notification with no `roles` field is visible to everyone UNLESS its
+// category is admin-only (see FARMER_ALLOWED_CATEGORIES above). One WITH a
+// `roles` array is only visible to users whose role is included — e.g.
+// Admin-only account approvals or financial alerts should never count
+// toward a Farmer's badge/list.
 function isVisibleToRole(n, role) {
+  if (role === "Farmer" && n.category && !FARMER_ALLOWED_CATEGORIES.includes(n.category)) return false;
   if (!n.roles || n.roles.length === 0) return true;
   if (!role) return true; // unknown role — fail open rather than hide info
   return n.roles.includes(role);

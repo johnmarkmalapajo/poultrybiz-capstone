@@ -2,24 +2,40 @@ import React, { useMemo, useState, useRef, useEffect } from "react";
 import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiArchive, FiRotateCcw, FiTrash2, FiList, FiClock, FiCheckCircle, FiAlertTriangle } from "react-icons/fi";
 import "./ToDo.css";
 import PageLayout from "../components/PageLayout";
+import {
+  getAssignedTasks, setAssignedTaskDone,
+  getPersonalTodos, addPersonalTodo, updatePersonalTodo, deletePersonalTodo,
+  getCurrentUser, subscribe as subscribeTodos,
+} from "../todoStore";
 
-const STORAGE_KEY = "pb_farmer_todos";
-const initialTasks = [
-  { id: 1, title: "Feed the layers (morning)", type: "Records", priority: "High", due: "Jul 3, 2026", assignedBy: "Admin", status: "Pending", archived: false },
-  { id: 2, title: "Clean the coop", type: "Health", priority: "Medium", due: "Jul 3, 2026", assignedBy: "Admin", status: "Pending", archived: false },
-  { id: 3, title: "Record daily egg count", type: "Records", priority: "High", due: "Jul 3, 2026", assignedBy: "Admin", status: "Overdue", archived: false },
-  { id: 4, title: "Refill water dispensers", type: "Inventory", priority: "Low", due: "Jul 4, 2026", assignedBy: "Admin", status: "Completed", archived: false },
-  { id: 5, title: "Check flock health", type: "Health", priority: "Medium", due: "Jul 5, 2026", assignedBy: "Admin", status: "Pending", archived: false },
-  { id: 6, title: "Collect eggs (afternoon batch)", type: "Records", priority: "Low", due: "Jul 6, 2026", assignedBy: "Admin", status: "Completed", archived: false },
-];
-function loadTasks() {
-  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
-  return initialTasks;
+// A task is "Overdue" if it's still Pending and its due date has passed —
+// computed live (not a stored status) so it's always accurate.
+function withDisplayStatus(t) {
+  const status = t.status || (t.done ? "Completed" : "Pending");
+  if (status === "Completed") return { ...t, displayStatus: "Completed" };
+  const due = t.dueDate ? new Date(t.dueDate) : null;
+  const overdue = due && !isNaN(due) && due < new Date(new Date().toDateString());
+  return { ...t, displayStatus: overdue ? "Overdue" : "Pending" };
 }
 
 export default function FarmerTodo() {
-  const [tasks, setTasks] = useState(loadTasks);
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch { /* ignore */ } }, [tasks]);
+  // getCurrentUser() reads the real logged-in session (localStorage "user")
+  // and resolves an id (preferring email) — the same id Admin's farmer
+  // picker uses, so assigned tasks line up for the actual logged-in Farmer.
+  const me = getCurrentUser({ id: "me", name: "Farmer" });
+
+  const loadAll = () => {
+    const assigned = getAssignedTasks(me.id).map((t) => ({ ...t, source: "assigned", assignedBy: t.assignedBy || "Admin" }));
+    const personal = getPersonalTodos(me.id).map((t) => ({ ...t, source: "personal", assignedBy: "You" }));
+    return [...assigned, ...personal].map(withDisplayStatus);
+  };
+
+  const [tasks, setTasks] = useState(loadAll);
+  useEffect(() => {
+    const refresh = () => setTasks(loadAll());
+    refresh();
+    return subscribeTodos(refresh);
+  }, [me.id]);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
@@ -40,34 +56,39 @@ export default function FarmerTodo() {
   const viewingArchived = status === "Archived";
   const filtered = useMemo(() => tasks.filter((t) => {
     if (viewingArchived) { if (!t.archived) return false; }
-    else { if (t.archived) return false; if (status !== "All" && t.status !== status) return false; }
+    else { if (t.archived) return false; if (status !== "All" && t.displayStatus !== status) return false; }
     if (priority !== "All" && t.priority !== priority) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [tasks, status, priority, search, viewingArchived]);
 
   const active = tasks.filter((t) => !t.archived);
-  const c = { total: active.length, pending: active.filter((t) => t.status === "Pending").length, completed: active.filter((t) => t.status === "Completed").length, overdue: active.filter((t) => t.status === "Overdue").length };
+  const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
   const activeFilters = (status !== "All" ? 1 : 0) + (priority !== "All" ? 1 : 0);
 
-  const toggle = (id) => setTasks(tasks.map((t) => (t.id === id ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" } : t)));
+  const toggle = (t) => {
+    if (t.source === "assigned") setAssignedTaskDone(me.id, t._id, t.displayStatus !== "Completed", me.name);
+    else updatePersonalTodo(me.id, t._id, { done: t.displayStatus === "Completed" ? false : true, status: t.displayStatus === "Completed" ? "Pending" : "Completed" });
+  };
   const openAdd = () => { setEditingId(null); setForm({ title: "", type: "Records", priority: "Medium", due: "" }); setModalOpen(true); };
-  const openEdit = (t) => { setEditingId(t.id); setForm({ title: t.title, type: t.type, priority: t.priority, due: t.due }); setModalOpen(true); };
+  const openEdit = (t) => { setEditingId(t._id); setForm({ title: t.title, type: t.type, priority: t.priority, due: t.dueDate }); setModalOpen(true); };
   const saveTask = () => {
     if (!form.title.trim()) return;
-    if (editingId) setTasks(tasks.map((t) => (t.id === editingId ? { ...t, ...form } : t)));
-    else setTasks([{ id: Date.now(), ...form, assignedBy: "You", status: "Pending", archived: false }, ...tasks]);
+    if (editingId) updatePersonalTodo(me.id, editingId, { title: form.title, type: form.type, priority: form.priority, dueDate: form.due });
+    else addPersonalTodo(me.id, { title: form.title, type: form.type, priority: form.priority, dueDate: form.due });
     setModalOpen(false);
   };
-  const doRestore = (t) => setTasks(tasks.map((x) => (x.id === t.id ? { ...x, archived: false } : x)));
+  const doRestore = (t) => updatePersonalTodo(me.id, t._id, { archived: false });
   // Archive immediately — no confirmation (per UX spec); delete keeps its confirm.
-  const archiveTask = (t) =>
-    setTasks(tasks.map((x) => (x.id === t.id ? { ...x, archived: true } : x)));
+  // Only personal (self-created) tasks can be archived/deleted here — tasks
+  // assigned by Admin are managed from the Admin To Do page, so a Farmer
+  // can't make an assigned task silently disappear from the Admin's view.
+  const archiveTask = (t) => updatePersonalTodo(me.id, t._id, { archived: true });
 
   const runConfirm = () => {
     if (!confirm) return;
-    if (confirm.type === "archive") setTasks(tasks.map((x) => (x.id === confirm.task.id ? { ...x, archived: true } : x)));
-    else setTasks(tasks.filter((x) => x.id !== confirm.task.id));
+    if (confirm.type === "archive") updatePersonalTodo(me.id, confirm.task._id, { archived: true });
+    else deletePersonalTodo(me.id, confirm.task._id);
     setConfirm(null);
   };
   const clearFilters = () => { setStatus("All"); setPriority("All"); };
@@ -121,19 +142,21 @@ export default function FarmerTodo() {
             <tbody>
               {filtered.length === 0 && <tr className="todo-empty-row"><td colSpan={8}>{viewingArchived ? "No archived tasks." : "No tasks found."}</td></tr>}
               {filtered.map((t) => {
-                const done = t.status === "Completed";
+                const done = t.displayStatus === "Completed";
                 return (
-                  <tr key={t.id} className={done && !viewingArchived ? "is-done" : ""}>
-                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggle(t.id)} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span>}</td>
+                  <tr key={t._id} className={done && !viewingArchived ? "is-done" : ""}>
+                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggle(t)} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span>}</td>
                     <td><span className="todo-task-title">{t.title}</span></td>
                     <td>{t.type}</td>
                     <td><span className={`priority ${t.priority.toLowerCase()}`}>{t.priority}</span></td>
-                    <td>{t.due}</td>
+                    <td>{t.dueDate}</td>
                     <td>{t.assignedBy}</td>
-                    <td><span className={`status ${t.status.toLowerCase()}`}>{t.status}</span></td>
+                    <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
                     <td>
                       <div className="todo-row-actions">
-                        {viewingArchived ? (
+                        {t.source === "assigned" ? (
+                          <span className="todo-archived-tag" title="Assigned by Admin — managed from the Admin To Do page">Assigned</span>
+                        ) : viewingArchived ? (
                           <>
                             <button className="todo-icon-btn restore" onClick={() => doRestore(t)} title="Restore"><FiRotateCcw /></button>
                             <button className="todo-del-btn" onClick={() => setConfirm({ type: "delete", task: t })} title="Delete"><FiTrash2 /></button>
@@ -162,7 +185,7 @@ export default function FarmerTodo() {
               <div className="todo-field"><label>Task Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Refill water dispensers" /></div>
               <div className="todo-field"><label>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Records</option><option>Health</option><option>Inventory</option><option>Other</option></select></div>
               <div className="todo-field"><label>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
-              <div className="todo-field"><label>Due Date</label><input value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} placeholder="e.g. Jul 5, 2026" /></div>
+              <div className="todo-field"><label>Due Date</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
             </div>
             <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>Cancel</button><button className="todo-btn-save" onClick={saveTask}>{editingId ? "Save Changes" : "Add Task"}</button></div>
           </div>

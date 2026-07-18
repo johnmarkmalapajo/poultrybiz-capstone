@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../hooks/useUser";
+import { FARMER_ALLOWED_CATEGORIES } from "../notifStore";
 import {
   FiSearch, FiBell, FiCheck, FiCheckCircle, FiTrash2, FiChevronRight,
   FiAlertTriangle, FiCalendar,
@@ -17,6 +18,7 @@ const CATEGORIES = {
   health:     { label: "Health",          icon: "💊", redirect: "/records/health" },
   isolation:  { label: "Isolation",       icon: "🚨", redirect: "/records/quarantine" },
   quarantine: { label: "Quarantine",      icon: "🐣", redirect: "/records/quarantine" },
+  equipment:  { label: "Equipment",       icon: "🛠️", redirect: "/inventory/equipment" },
   age:        { label: "Age Reminder",    icon: "📅", redirect: "/records/flock" },
   personnel:  { label: "Personnel",       icon: "👥", redirect: "/personnel-visitors/personnel" },
   visitor:    { label: "Visitor",         icon: "🚶", redirect: "/personnel-visitors/visitors" },
@@ -120,9 +122,11 @@ export default function Notifications() {
 
   const persist = (next) => { writeStore(next); setItems(next); };
 
-  // #12 — Farmers only see operational notifications (no Sales, Expenses,
-  // Visitors, Personnel, User Management / admin notifications).
-  const FARMER_ALLOWED = ["egg", "feed", "health", "mortality", "quarantine", "isolation", "equipment", "age"];
+  // Farmers only see operational notifications (no Sales, Expenses,
+  // Visitors, Personnel, User Management / admin notifications) — this list
+  // lives in notifStore.js so the Dashboard Alert Card uses the exact same
+  // rule and the two never drift out of sync.
+  const FARMER_ALLOWED = FARMER_ALLOWED_CATEGORIES;
   const allowedItems = role === "Farmer" ? items.filter((n) => FARMER_ALLOWED.includes(n.category)) : items;
 
   const unreadAlerts = allowedItems.filter((n) => n.type === "alert" && !n.read).length;
