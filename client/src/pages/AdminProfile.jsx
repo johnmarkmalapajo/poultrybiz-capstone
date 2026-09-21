@@ -167,7 +167,7 @@ const onPickLogo = (e) => {
                 <img src={
                   form.avatar?.startsWith("http")
                   ? form.avatar
-                  : `http://localhost:5000${form.avatar}`
+                  : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.avatar}`
                 }
                 alt="Profile"
               /> 
@@ -299,7 +299,7 @@ const onPickLogo = (e) => {
                       <div style={{ width: 64, height: 64, borderRadius: 10, border: "1px solid #e4e0d8", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#faf8f3", flexShrink: 0 }}>
                         {pendingLogoPreview || form.farmLogo ? (
                           <img
-                            src={pendingLogoPreview || (form.farmLogo?.startsWith("http") ? form.farmLogo : `http://localhost:5000${form.farmLogo}`)}
+                            src={pendingLogoPreview || (form.farmLogo?.startsWith("http") ? form.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.farmLogo}`)}
                             alt="Farm logo"
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />

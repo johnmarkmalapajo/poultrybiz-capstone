@@ -189,7 +189,7 @@ function Sidebar() {
 
           <div className="user-info">
             <img
-              src={user.avatar ? (user.avatar.startsWith("http") ? user.avatar : `http://localhost:5000${user.avatar}`) : userIcon}
+              src={user.avatar ? (user.avatar.startsWith("http") ? user.avatar : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${user.avatar}`) : userIcon}
               alt="User"
               className="user-icon"
             />

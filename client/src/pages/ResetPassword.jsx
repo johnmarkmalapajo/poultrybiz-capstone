@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import "./ResetPassword.css";
 
-const BASE_URL = "http://localhost:5000/api/v1";
+const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1`;
 
 export default function ResetPassword() {
   const navigate = useNavigate();

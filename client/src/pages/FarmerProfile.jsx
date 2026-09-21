@@ -158,7 +158,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
                 <img
                   src={
                     form.avatar
-                      ? `http://localhost:5000${form.avatar}`
+                      ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.avatar}`
                       : ""
                   }
                   alt="Profile"

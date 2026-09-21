@@ -150,7 +150,7 @@ export default function SalesRecord() {
     contact: farmInfo.farmContact,
     email: farmInfo.farmEmail,
     logoUrl: farmInfo.farmLogo
-      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `http://localhost:5000${farmInfo.farmLogo}`)
+      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`)
       : "",
     period: periodLabel,
     fields: [

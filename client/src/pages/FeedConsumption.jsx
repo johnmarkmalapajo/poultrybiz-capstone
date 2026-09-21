@@ -391,7 +391,7 @@ export default function FeedConsumption() {
     logoUrl: farmInfo.farmLogo
       ? farmInfo.farmLogo.startsWith("http")
         ? farmInfo.farmLogo
-        : `http://localhost:5000${farmInfo.farmLogo}`
+        : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`
       : "",
     period: periodLabel,
     fields: [
