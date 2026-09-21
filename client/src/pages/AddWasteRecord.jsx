@@ -1,8 +1,10 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiTrash2, FiFileText } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddWasteRecord.css";
+import { createWasteRecord } from "../api/wasteManure";
+import { listPersonnel } from "../api/personnelManpower";
+import { useState, useEffect } from "react";
 
 export default function AddWasteRecord() {
   const navigate = useNavigate();
@@ -17,9 +19,34 @@ export default function AddWasteRecord() {
     remarks: "",
   });
 
+  const [personnel, setPersonnel] = useState([]);
+  useEffect(() => {
+  listPersonnel()
+    .then((list) => {
+      const names = [
+        ...new Set(
+          list
+            .map(
+              (p) =>
+                p.user?.name ||
+                p.user?.fullName ||
+                p.name ||
+                p.fullName
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      setPersonnel(names);
+    })
+    .catch(() => setPersonnel([]));
+}, []);
+
+  const [error, setError] = useState("");
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
   const [saving, setSaving] = useState(false);
 
@@ -29,18 +56,17 @@ export default function AddWasteRecord() {
     if (saving) return;
     if (window.__pbSaving) return;  // prevent duplicate submissions
     window.__pbSaving = true;
+    setSaving(true);
     try {
-      setSaving(true);
-      await fetch(`/api/waste-records`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, recordType: "Waste" }),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
-
-    navigate("/records/manure?tab=waste");
+      await createWasteRecord({ ...formData, recordType: "Waste" });
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+      navigate("/records/manure?tab=waste");
+    } catch (err) {
+      setError(err?.message || "Couldn't save this record. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   return (
@@ -54,6 +80,12 @@ export default function AddWasteRecord() {
     >
 
         <form className="awr-form-card" onSubmit={handleSubmit}>
+
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
 
           {/* WASTE DETAILS */}
           <div className="awr-section-header">
@@ -111,9 +143,19 @@ export default function AddWasteRecord() {
 
             <div className="awr-form-group">
               <label>Person Responsible <span className="awr-req">*</span></label>
-              <select name="personResponsible" value={formData.personResponsible} onChange={handleChange} required>
-                <option value="">Select person</option>
-              </select>
+              <select
+  name="personResponsible"
+  value={formData.personResponsible}
+  onChange={handleChange}
+  required
+>
+  <option value="">Select person</option>
+  {personnel.map((person) => (
+    <option key={person} value={person}>
+      {person}
+    </option>
+  ))}
+</select>
             </div>
           </div>
 

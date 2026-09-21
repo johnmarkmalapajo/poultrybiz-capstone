@@ -1,0 +1,180 @@
+/* ExportPreviewModal.css — shared, opt-in Export Preview per Chapter 17-18-20 */
+
+.xpm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 10, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+}
+
+.xpm-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(900px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  font-family: "Poppins", sans-serif;
+}
+
+.xpm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #ece7dc;
+  background: #fdf3e3;
+  flex-shrink: 0;
+}
+
+.xpm-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #47321C;
+  font-size: 14.5px;
+}
+
+.xpm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xpm-zoom-btn,
+.xpm-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #47321C;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.xpm-zoom-btn:hover,
+.xpm-close-btn:hover { background: rgba(71, 50, 28, 0.08); }
+
+.xpm-orientation-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  margin-right: 4px;
+  border: 1px solid #e4e0d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #47321C;
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.xpm-orientation-btn:hover { background: rgba(71, 50, 28, 0.08); }
+
+.xpm-zoom-level {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a8478;
+  min-width: 38px;
+  text-align: center;
+}
+
+.xpm-body {
+  flex: 1;
+  overflow: auto;
+  background: #e9e5da;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  /* Chapter 20: swipe/scroll pages on touch devices */
+  -webkit-overflow-scrolling: touch;
+}
+
+.xpm-page {
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+  transform-origin: top center;
+  transition: transform 0.15s ease, width 0.15s ease;
+  width: 780px;
+  flex-shrink: 0;
+}
+
+.xpm-page.xpm-page-landscape {
+  width: 1100px;
+}
+
+.xpm-iframe {
+  width: 100%;
+  height: 1100px;
+  border: none;
+  display: block;
+}
+
+.xpm-page.xpm-page-landscape .xpm-iframe {
+  height: 780px;
+}
+
+.xpm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #ece7dc;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.xpm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.xpm-btn:hover { opacity: 0.88; }
+
+.xpm-btn-cancel { background: transparent; color: #47321C; border: 1px solid #e4e0d8; }
+.xpm-btn-excel { background: #2e9e6b; color: #fff; }
+.xpm-btn-pdf { background: #E4AF1F; color: #fff; }
+
+/* ── Tablet ── */
+@media (max-width: 900px) {
+  .xpm-modal { width: 100%; max-height: 94vh; }
+  .xpm-page { width: 620px; }
+  .xpm-page.xpm-page-landscape { width: 860px; }
+  .xpm-body { padding: 16px; }
+  .xpm-orientation-btn span { display: none; }
+}
+
+/* ── Mobile (Android & iPhone) ── */
+@media (max-width: 560px) {
+  .xpm-overlay { padding: 0; }
+  .xpm-modal { width: 100%; height: 100%; max-height: 100vh; border-radius: 0; }
+  .xpm-header { padding: 12px 14px; }
+  .xpm-header-title span { display: none; } /* icon only, saves space */
+  .xpm-body { padding: 10px; }
+  .xpm-page { width: 480px; }
+  .xpm-page.xpm-page-landscape { width: 680px; }
+  .xpm-footer { padding: 12px 14px; justify-content: space-between; }
+  .xpm-btn { flex: 1; justify-content: center; padding: 12px 10px; font-size: 12.5px; }
+  .xpm-btn-cancel { flex: 0 0 auto; padding: 12px 14px; }
+}

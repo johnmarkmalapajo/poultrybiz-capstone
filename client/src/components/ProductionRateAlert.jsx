@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { FiCheckCircle, FiAlertTriangle, FiAlertCircle } from "react-icons/fi";
+import { FiCheckCircle, FiAlertTriangle, FiAlertCircle, FiHelpCircle } from "react-icons/fi";
 import "./ProductionRateAlert.css";
 
-const DEFAULT_QTY = 4; // each cage contains 4 chickens
-
-// Map a production rate (%) to its status, color, message, and icon.
 function getAlertState(rate) {
   if (rate >= 100)
     return {
@@ -14,17 +11,17 @@ function getAlertState(rate) {
   if (rate >= 75)
     return {
       label: "Warning", tone: "yellow", Icon: FiAlertTriangle,
-      message: "Production is slightly below normal. Continue monitoring.",
+      message: "Egg production is below normal.",
     };
   if (rate >= 50)
     return {
       label: "Critical", tone: "red", Icon: FiAlertCircle,
-      message: "Production has dropped significantly. Immediate inspection is recommended.",
+      message: "Egg production has dropped significantly. Immediate inspection is recommended.",
     };
   if (rate > 0)
     return {
       label: "Critical", tone: "red", Icon: FiAlertCircle,
-      message: "Very low production detected. Check the chickens immediately.",
+      message: "Egg production has dropped significantly. Immediate inspection is recommended.",
     };
   return {
     label: "Critical", tone: "darkred", Icon: FiAlertCircle,
@@ -32,32 +29,21 @@ function getAlertState(rate) {
   };
 }
 
-/**
- * Real-time Chicken Production Rate Alert.
- *
- * Pass either:
- *   - eggsProduced + currentQty (rate is computed: (eggs / qty) * 100), or
- *   - productionRate directly (already a %)
- *
- * Re-renders/updates automatically whenever the props change.
- */
 export default function ProductionRateAlert({
   eggsProduced = 0,
-  currentQty = DEFAULT_QTY,
+  currentQty,
   productionRate,
   lastUpdated,
 }) {
-  const qty = Number(currentQty) > 0 ? Number(currentQty) : DEFAULT_QTY;
+  const hasValidQty = Number(currentQty) > 0;
 
   const rate =
     typeof productionRate === "number"
       ? productionRate
-      : Math.round((Number(eggsProduced) / qty) * 100);
+      : hasValidQty
+        ? Math.round((Number(eggsProduced) / Number(currentQty)) * 100)
+        : null;
 
-  const clamped = Math.max(0, Math.min(100, isFinite(rate) ? rate : 0));
-  const state = getAlertState(clamped);
-
-  // "Last Updated" refreshes whenever the underlying production data changes
   const [updatedAt, setUpdatedAt] = useState(
     lastUpdated ? new Date(lastUpdated) : new Date()
   );
@@ -70,6 +56,29 @@ export default function ProductionRateAlert({
     hour: "numeric", minute: "2-digit", hour12: true,
   });
 
+  if (rate == null) {
+    return (
+      <div className="pra-card pra-gray">
+        <div className="pra-head">
+          <div className="pra-title">
+            <span className="pra-dot" />
+            <h3>Production Rate Alert</h3>
+          </div>
+          <span className="pra-badge pra-badge-gray">
+            <FiHelpCircle /> No Data
+          </span>
+        </div>
+        <div className="pra-message">
+          <FiHelpCircle className="pra-message-icon" />
+          <p>No valid bird count is available for this batch, so a production rate cannot be calculated.</p>
+        </div>
+        <div className="pra-updated">Last updated: {timeText}</div>
+      </div>
+    );
+  }
+
+  const clamped = Math.max(0, Math.min(100, isFinite(rate) ? rate : 0));
+  const state = getAlertState(clamped);
   const { Icon } = state;
 
   return (
@@ -91,7 +100,7 @@ export default function ProductionRateAlert({
           <span className="pra-rate-sub">
             {typeof productionRate === "number"
               ? "Current production"
-              : `${Number(eggsProduced) || 0} of ${qty} produced`}
+              : `${Number(eggsProduced) || 0} of ${currentQty} produced`}
           </span>
         </div>
       </div>

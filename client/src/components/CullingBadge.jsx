@@ -1,16 +1,14 @@
-// CullingBadge.jsx
 // Shows a culling status pill for a flock. Put in: src/components/CullingBadge.jsx
 import {
-  productivityRate, breakageRate, flockAgeMonths, cullingRecommendation,
+  productivityRate, flockAgeMonths, cullingRecommendation,
 } from "../utils/poultryFormulas";
 import "./CullingBadge.css";
 
-// Pass a flock object: { dateAcquired, eggsToday, currentQty, crackedToday, totalEggsToday }
+// Pass a flock object: { dateAcquired, eggsToday, currentQty }
 export default function CullingBadge({ flock = {} }) {
   const ageMonths = flockAgeMonths(flock.dateAcquired);
   const pr  = productivityRate(flock.eggsToday, flock.currentQty);
-  const brk = breakageRate(flock.crackedToday, flock.totalEggsToday);
-  const { shouldCull, reasons } = cullingRecommendation({ ageMonths, pr, breakagePct: brk });
+  const { shouldCull, reasons } = cullingRecommendation({ ageMonths, pr });
 
   return (
     <span

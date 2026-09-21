@@ -249,6 +249,37 @@
 }
 
 /* ========================
+   INPUT WITH FEED 
+======================== */
+.ae-quantity-unit {
+  display: flex;
+  width: 100%;
+}
+
+.ae-quantity-unit input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px 0 0 10px;
+  border-right: none;
+}
+
+.ae-quantity-unit select {
+  width: 80px;
+  flex: 0 0 80px;
+  border-radius: 0 10px 10px 0;
+  border-left: 1px solid #e4e0d8;
+  font-weight: bolder;
+  color: #a39e94;
+}
+
+.ae-unit-equivalent {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #6b6457;
+}
+
+/* ========================
    INPUT WITH UNIT (trays)
 ======================== */
 
@@ -295,12 +326,217 @@
   border: none !important;
   box-shadow: none !important;
 }
+/* ========================
+   FEED SETS
+======================== */
 
+.ae-feed-sets {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ae-feed-set {
+  width: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  border: 1.5px solid #e7e2d8;
+  border-radius: var(--radius-md);
+}
+
+.ae-feed-set-header {
+  margin-bottom: 20px;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: #8f887c;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ae-feed-set-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 28px;
+}
+
+/* ========================
+   ADD ANOTHER FEED SET
+======================== */
+
+.ae-add-feed-set {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 68px;
+  padding: 14px 20px;
+  border: 1.5px dashed var(--color-accent);
+  border-radius: var(--radius-md);
+  background: #fffaf0;
+  color: #c8930c;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.15s;
+}
+
+.ae-add-feed-set:hover {
+  background: #fff5dc;
+  border-color: var(--color-accent-dark);
+  color: var(--color-accent-dark);
+}
+
+.ae-add-feed-set:active {
+  transform: scale(0.99);
+}
+.ae-feed-set-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.ae-remove-feed-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #e53935;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ae-remove-feed-set svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ae-remove-feed-set:hover {
+  opacity: 0.8;
+}
+
+/* ========================
+   FEED SUMMARY
+======================== */
+
+.ae-feed-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-top: 0;
+}
+
+.ae-summary-card {
+  min-height: 110px;
+  padding: 20px 24px;
+  box-sizing: border-box;
+  background: #faf9f6;
+  border: 1.5px solid #e7e2d8;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ae-summary-card span {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  color: #8f887c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ae-summary-card strong {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  color: #242424;
+}
+
+/* ========================
+   QUANTITY + UNIT
+======================== */
+
+.ae-quantity-unit {
+  display: flex;
+  width: 100%;
+}
+
+.ae-quantity-unit input {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+  border-right: none !important;
+}
+
+.ae-quantity-unit select {
+  width: 100px !important;
+  flex: 0 0 100px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  border-left: 1.5px solid #e2e2e2 !important;
+  font-weight: 700 !important;
+  color: #8f887c !important;
+}
+
+.ae-unit-equivalent {
+  display: block;
+  margin-top: 2px;
+}
+
+/* ========================
+   RESPONSIVE
+======================== */
+
+@media (max-width: 1024px) {
+  .ae-feed-set-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ae-feed-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .ae-feed-set {
+    padding: 20px 16px;
+  }
+
+  .ae-add-feed-set {
+    min-height: 60px;
+  }
+
+  .ae-feed-summary {
+    gap: 16px;
+  }
+
+  .ae-summary-card {
+    min-height: 95px;
+    padding: 18px 20px;
+  }
+
+  .ae-summary-card strong {
+    font-size: 23px;
+  }
+}
 /* ========================
    FORM ACTIONS
 ======================== */
 
 .ae-form-actions {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -317,7 +553,7 @@
 }
 
 .ae-action-btns {
-  display: flex;
+  display: flex; margin-left: auto;
   gap: 12px;
   align-items: center;
 }
@@ -431,22 +667,6 @@
   .ae-form-card {
     padding: 20px 16px;
     gap: 20px;
-  }
-
-  .ae-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ae-action-btns {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .ae-cancel-btn,
-  .ae-save-btn {
-    width: 100%;
-    justify-content: center;
   }
 }
 

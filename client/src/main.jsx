@@ -1,5 +1,4 @@
 import "./index.css"
-import "./mockApi"          // frontend mock backend — makes Add/Edit persist (no live backend needed)
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -65,12 +64,37 @@ import AuditLogs from "./pages/AuditLogs";
 import UsersRoles from "./pages/UsersRoles";
 import QRCheckIn from "./pages/QRCheckIn";
 import Profile from "./pages/Profile";
+import ProtectedRoute from "./components/ProtectedRoute";
+import PendingApproval from './pages/PendingApproval';
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+
+function RouteGate({ children }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const hasToken = !!localStorage.getItem('token')
+  const [ready, setReady] = useState(location.pathname === '/' || hasToken)
+
+  useEffect(() => {
+    if (location.pathname !== '/' && !hasToken) {
+      sessionStorage.setItem('pb_intended_path', location.pathname + location.search)
+      navigate('/', { replace: true })
+    }
+    if (!ready) {
+      setReady(true)
+    }
+  }, [])
+
+  if (!ready) return null
+
+  return children
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+      <RouteGate>
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/login" element={<Login />} />
@@ -80,22 +104,22 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/records" element={<Records />} />
         <Route path="/records/flock" element={<FlockProfile />} />
-        <Route path="/records/flock/add" element={<AddFlock />} />
-        <Route path="/records/flock/edit/:id" element={<EditFlock />} />
+        <Route path="/records/flock/add" element={<ProtectedRoute allow={["Owner"]}><AddFlock /></ProtectedRoute>} />
+        <Route path="/records/flock/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditFlock /></ProtectedRoute>} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/sales-transactions" element={<SalesTransaction />} />
-        <Route path="/sales-transactions/sales" element={<SalesRecord />} />
-        <Route path="/sales-transactions/sales/add" element={<AddSalesRecord />} />
-        <Route path="/sales-transactions/sales/edit/:id" element={<EditSalesRecord />} />
-        <Route path="/personnel-visitors" element={<PersonnelVisitors />} />
-        <Route path="/personnel-visitors/personnel" element={<PersonnelManpower />} />
-        <Route path="/personnel-visitors/personnel/view/:id" element={<ViewPersonnel />} />
-        <Route path="/personnel-visitors/personnel/edit/:id" element={<EditPersonnel />} />
-        <Route path="/personnel-visitors/personnel/:id/tasks/add" element={<AddTask />} />
-        <Route path="/personnel-visitors/personnel/:id/tasks/edit/:taskId" element={<EditTask />} />
-        <Route path="/personnel-visitors/visitors" element={<Visitors />} />
-        <Route path="/personnel-visitors/visitors/view/:id" element={<ViewVisitor />} />
-        <Route path="/visitor/check-in" element={<VisitorCheckIn />} />
+        <Route path="/sales-transactions/sales" element={<ProtectedRoute allow={["Owner"]}><SalesRecord /></ProtectedRoute>} />
+        <Route path="/sales-transactions/sales/add" element={<ProtectedRoute allow={["Owner"]}><AddSalesRecord /></ProtectedRoute>} />
+        <Route path="/sales-transactions/sales/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditSalesRecord /></ProtectedRoute>} />
+        <Route path="/personnel-visitors" element={<ProtectedRoute allow={["Owner"]}><PersonnelVisitors /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/personnel" element={<ProtectedRoute allow={["Owner"]}><PersonnelManpower /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/personnel/view/:id" element={<ProtectedRoute allow={["Owner"]}><ViewPersonnel /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/personnel/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditPersonnel /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/personnel/:id/tasks/add" element={<ProtectedRoute allow={["Owner"]}><AddTask /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/personnel/:id/tasks/edit/:taskId" element={<ProtectedRoute allow={["Owner"]}><EditTask /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/visitors" element={<ProtectedRoute allow={["Owner"]}><Visitors /></ProtectedRoute>} />
+        <Route path="/personnel-visitors/visitors/view/:id" element={<ProtectedRoute allow={["Owner"]}><ViewVisitor /></ProtectedRoute>} />
+        <Route path="/visitor/register" element={<VisitorCheckIn />} />
         <Route path="/records/egg" element={<EggRecord />} />
         <Route path="/records/egg/add" element={<AddEggRecord />} />
         <Route path="/records/egg/edit/:id" element={<EditEggRecord />} />
@@ -113,9 +137,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/records/waste/add" element={<AddWasteRecord />} />
         <Route path="/records/manure/edit/:id" element={<EditManureRecord />} />
         <Route path="/records/waste/edit/:id" element={<EditWasteRecord />} />
-        <Route path="/sales-transactions/expenses" element={<ExpensesRecord />} />
-        <Route path="/sales-transactions/expenses/add" element={<AddExpense />} />
-        <Route path="/sales-transactions/expenses/edit/:id" element={<EditExpense />} />
+        <Route path="/sales-transactions/expenses" element={<ProtectedRoute allow={["Owner"]}><ExpensesRecord /></ProtectedRoute>} />
+        <Route path="/sales-transactions/expenses/add" element={<ProtectedRoute allow={["Owner"]}><AddExpense /></ProtectedRoute>} />
+        <Route path="/sales-transactions/expenses/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditExpense /></ProtectedRoute>} />
         <Route path="/inventory/feed-inventory"          element={<FeedInventory />} />
         <Route path="/inventory/feed-inventory/add"      element={<AddFeedInventory />} />
         <Route path="/inventory/feed-inventory/edit/:id" element={<EditFeedInventory />} />
@@ -126,19 +150,21 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/inventory/equipment/add"      element={<AddEquipment />} />
         <Route path="/inventory/equipment/edit/:id" element={<EditEquipment />} />
         <Route path="/todo" element={<FarmerTodo />} />
-        <Route path="/admin/todo" element={<AdminTodo />} />
+        <Route path="/owner/todo" element={<ProtectedRoute allow={["Owner"]}><AdminTodo /></ProtectedRoute>} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/batch-summary/:batchId" element={<BatchSummary />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
 
-        {/* Newly added routes (standalone pages -- one sidebar each) */}
-        <Route path="/settings/archive" element={<Archive />} />
-        <Route path="/audit-logs" element={<AuditLogs />} />
-        <Route path="/users-roles" element={<UsersRoles />} />
+
+        <Route path="/settings/archive" element={<ProtectedRoute allow={["Owner"]}><Archive /></ProtectedRoute>} />
+        <Route path="/audit-logs" element={<ProtectedRoute allow={["Owner"]}><AuditLogs /></ProtectedRoute>} />
+        <Route path="/users-roles" element={<ProtectedRoute allow={["Owner"]}><UsersRoles /></ProtectedRoute>} />
         <Route path="/attendance/check-in" element={<QRCheckIn />} />
         <Route path="/profile" element={<Profile />} />
 
       </Routes>
+      </RouteGate>
     </BrowserRouter>
   </React.StrictMode>,
 )

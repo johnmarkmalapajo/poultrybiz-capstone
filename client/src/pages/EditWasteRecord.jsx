@@ -3,8 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiSave, FiX, FiTrash2, FiFileText } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditWasteRecord.css";
-
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
+import { getWasteRecord, updateWasteRecord } from "../api/wasteManure";
 
 export default function EditWasteRecord() {
   const navigate = useNavigate();
@@ -22,22 +21,17 @@ export default function EditWasteRecord() {
     remarks: "",
   });
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
     const fetchRecord = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API}/waste-records/${id}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const json = await res.json();
+        const json = await getWasteRecord(id);
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
-      } catch {
-        /* keep empty form if fetch fails */
+      } catch (err) {
+        setError(err?.message || "Couldn't load this record.");
       } finally {
         setLoading(false);
       }
@@ -49,27 +43,21 @@ export default function EditWasteRecord() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
     try {
-      const token = localStorage.getItem("token");
       setSaving(true);
-      await fetch(`${API}/waste-records/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-    } catch {
+      await updateWasteRecord(id, formData);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+      navigate("/records/manure?tab=waste");
+    } catch (err) {
       setSaving(false);
-      /* silent — adjust endpoint to your backend */
+      setError(err?.message || "Couldn't save changes. Please try again.");
     }
-    navigate("/records/manure?tab=waste");
   };
 
   if (loading) {
@@ -82,7 +70,7 @@ export default function EditWasteRecord() {
           { label: "EDIT WASTE" },
         ]}
       >
-        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+        <p className="pb-loading-text">Loading record...</p>
       </PageLayout>
     );
   }
@@ -98,6 +86,12 @@ export default function EditWasteRecord() {
     >
 
         <form className="ewr-form-card" onSubmit={handleSubmit}>
+
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
 
           {/* WASTE DETAILS */}
           <div className="ewr-section-header">

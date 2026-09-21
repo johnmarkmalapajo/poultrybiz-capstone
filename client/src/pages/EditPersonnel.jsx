@@ -2,67 +2,17 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiUser, FiBriefcase, FiFileText, FiSave, FiLock, FiX } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
-import { getFarmerProfile } from "./FarmerProfile";
 import "./EditPersonnel.css";
-// ── Inline mock data (frontend fallback until the API is wired) ──
-// Same records/IDs as Personnelandmanpower.jsx and ViewPersonnel.jsx so a
-// "View"/"Edit" click on any listed row always resolves to a matching record.
-const PERSONNEL = [
-  {
-    _id: "pm_seed_1", accountRole: "Admin", status: "Active",
-    position: "Admin", shiftHours: "—", dateHired: "—",
-    assignedWork: "", remarks: "",
-    profile: { fullName: "Ramon Cruz", contactNumber: "0917 555 1201", image: "" },
-  },
-  {
-    _id: "pm_seed_2", accountRole: "Owner", status: "Active",
-    position: "Owner", shiftHours: "—", dateHired: "—",
-    assignedWork: "", remarks: "",
-    profile: { fullName: "Helen Yu", contactNumber: "0935 555 7788", image: "" },
-  },
-  {
-    _id: "pm_seed_3", accountRole: "Farmer", position: "Layer House Attendant",
-    dateHired: "2025-12-14", shiftHours: "6:00 AM – 2:00 PM", status: "Active",
-    assignedWork: "Handles daily egg collection", remarks: "Handles daily egg collection",
-    profile: { fullName: "Liza Mendoza", contactNumber: "0928 555 3345", image: "" },
-  },
-  {
-    _id: "pm_seed_4", accountRole: "Farmer", position: "Feed & Inventory Handler",
-    dateHired: "2026-01-08", shiftHours: "7:00 AM – 3:00 PM", status: "Active",
-    assignedWork: "In charge of feed stock rotation", remarks: "In charge of feed stock rotation",
-    profile: { fullName: "Paolo Lim", contactNumber: "0939 555 8890", image: "" },
-  },
-  {
-    _id: "pm_seed_5", accountRole: "Farmer", position: "General Farm Worker",
-    dateHired: "2026-02-11", shiftHours: "6:00 AM – 2:00 PM", status: "Active",
-    assignedWork: "", remarks: "—",
-    profile: { fullName: "Noel Aguilar", contactNumber: "0926 555 2201", image: "" },
-  },
-  {
-    _id: "pm_seed_6", accountRole: "Farmer", position: "Sanitation & Waste Management",
-    dateHired: "2025-09-19", shiftHours: "2:00 PM – 10:00 PM", status: "Inactive",
-    assignedWork: "", remarks: "On extended leave",
-    profile: { fullName: "Grace Fabella", contactNumber: "0917 555 6610", image: "" },
-  },
-  {
-    _id: "pm_seed_7", accountRole: "Farmer", position: "Layer House Attendant",
-    dateHired: "2026-03-22", shiftHours: "6:00 AM – 2:00 PM", status: "On Leave",
-    assignedWork: "", remarks: "Approved leave until end of month",
-    profile: { fullName: "Mateo Santos", contactNumber: "0905 555 4412", image: "" },
-  },
-];
+import { getPersonnel, updatePersonnel } from "../api/personnelManpower";
+import { useUser } from "../hooks/useUser";
 
-const getPersonnelById = (id) => PERSONNEL.find((p) => p._id === id) || null;
-
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/personnel`;
-const STATUS_OPTIONS = ["Active", "Inactive", "On Leave"];
+const STATUS_OPTIONS = ["Active", "Inactive"];
 const SHIFT_OPTIONS = [
   "Morning (6:00 AM - 2:00 PM)",
   "Afternoon (2:00 PM - 10:00 PM)",
   "Evening (10:00 PM - 6:00 AM)",
 ];
 
-// My Profile accessors (read-only fields)
 const prof = (r) => (r ? r.profile || r.myProfile || r.user || r : {});
 const getName = (r) => {
   const p = prof(r);
@@ -72,69 +22,81 @@ const getContact = (r) => {
   const p = prof(r);
   return p.contactNumber || p.contact || p.phone || p.mobile || p.phoneNumber || "";
 };
+const getEmail = (r) => {
+  const p = prof(r);
+  return (
+    p.email ||
+    p.emailAddress ||
+    r?.email ||
+    r?.emailAddress ||
+    r?.user?.email ||
+    ""
+  );
+};
 const getImage = (r) => {
   const p = prof(r);
-  return p.image || p.photo || p.avatar || p.profilePicture || p.profileImage || "";
+
+  const avatar =
+    p.avatar ||
+    p.profilePicture ||
+    p.profileImage ||
+    p.image ||
+    p.photo;
+
+  if (!avatar) return "";
+
+  return avatar.startsWith("http")
+    ? avatar
+    : `http://localhost:5000${avatar}`;
 };
 const getInitials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
-const getAccountRole = (r) => r?.accountRole || r?.userRole || r?.userType || r?.role || "";
+const getAccountRole = (r) => r?.accountRole || r?.userRole || r?.userType || r?.role || r?.user?.role || r?.profile?.role || "";
 
 export default function EditPersonnel() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { isOwner } = useUser();
 
-  // Read-only profile (synced from My Profile)
   const [profileInfo, setProfileInfo] = useState({ fullName: "", contactNumber: "", email: "", image: "" });
   const [saving, setSaving] = useState(false);
   const [accountRole, setAccountRole] = useState("");
-  const isAdmin = /owner|admin/i.test(accountRole);
+  const isTargetOwner = /^owner$/i.test(accountRole);
+  const accessDenied = !isOwner;
+  const canEditPosition = isOwner && !isTargetOwner;
 
-  // Editable personnel fields (Admin/Owner managed)
   const [formData, setFormData] = useState({
     position: "",
     shiftHours: "",
     status: "Active",
     dateHired: "",
-    assignedWork: "",
     remarks: "",
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const breadcrumbItems = [
     { label: "PERSONNEL AND VISITORS", path: "/personnel-visitors" },
-    { label: "PERSONNEL RECORDS", path: "/personnel-visitors/personnel" },
+    { label: "PERSONNEL AND MANPOWER", path: "/personnel-visitors/personnel" },
     { label: "VIEW PERSONNEL", path: `/personnel-visitors/personnel/view/${id}` },
     { label: "EDIT PERSONNEL" },
   ];
 
-  // ── Fetch this personnel record ──
   useEffect(() => {
-    const mockRecord = getPersonnelById(id);
     const fetchRecord = async () => {
+      setLoading(true);
+      setError("");
       const apply = (rec) => {
         if (!rec) return;
         const role = getAccountRole(rec);
         setAccountRole(role);
-        let pInfo = {
+        const pInfo = {
           fullName: getName(rec),
           contactNumber: getContact(rec),
-          email: rec.profile?.email || rec.email || "",
+          email:  getEmail(rec),
           image: getImage(rec),
         };
-        // Farmer-managed fields come from the Farmer's My Profile (always latest, read-only here)
-        if (/farmer/i.test(role)) {
-          try {
-            const fp = getFarmerProfile();
-            if (fp) pInfo = {
-              fullName: fp.fullName || pInfo.fullName,
-              contactNumber: fp.phone || pInfo.contactNumber,
-              email: fp.email || pInfo.email,
-              image: fp.avatar || pInfo.image,
-            };
-          } catch { /* ignore */ }
-        }
         setProfileInfo(pInfo);
         setFormData((prev) => ({
           ...prev,
@@ -142,21 +104,20 @@ export default function EditPersonnel() {
           shiftHours: rec.shiftHours || rec.shift || rec.dutyHours || "",
           status: rec.status || "Active",
           dateHired: rec.dateHired ? String(rec.dateHired).slice(0, 10) : "",
-          assignedWork: rec.assignedWork || rec.assignedTask || "",
           remarks: rec.remarks || rec.notes || "",
         }));
       };
 
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE}/${id}`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
+        const json = await getPersonnel(id);
         const rec = json.record || json.data || json;
-        apply(rec && (rec._id || rec.profile || rec.position) ? rec : mockRecord);
-      } catch {
-        apply(mockRecord);
+        if (rec && (rec._id || rec.profile || rec.position)) {
+          apply(rec);
+        } else {
+          setError("Record not found.");
+        }
+      } catch (err) {
+        setError(err?.message || "Couldn't load this record.");
       } finally {
         setLoading(false);
       }
@@ -172,25 +133,22 @@ export default function EditPersonnel() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    // Only the editable (Admin-managed) fields are saved.
-    // Full Name, Contact Number, Profile Picture stay synced from My Profile.
-    const payload = isAdmin ? { position: formData.position } : { ...formData };
-    console.log("Updated Personnel Data:", payload);
-    // API integration later
-    if (window.__pbSaving) return;  // prevent duplicate submissions
+    const payload = isTargetOwner ? { position: formData.position } : { ...formData };
+    if (!canEditPosition) delete payload.position;
+    if (!isOwner) delete payload.status;
+    if (window.__pbSaving) return;
     window.__pbSaving = true;
+    setSaving(true); setError("");
     try {
-      setSaving(true);
-      await fetch(`${API_BASE}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
-
-    navigate(`/personnel-visitors/personnel/view/${id}`);
+      await updatePersonnel(id, payload);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
+      navigate(`/personnel-visitors/personnel/view/${id}`);
+    } catch (err) {
+      setError(err?.message || "Couldn't save changes. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   if (loading) {
@@ -201,11 +159,29 @@ export default function EditPersonnel() {
     );
   }
 
+  if (accessDenied) {
+    return (
+      <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
+        <div className="pb-error-banner">
+          Only the Owner can edit this record.
+        </div>
+        <button type="button" className="ep-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
+          <FiX /> Back
+        </button>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
         <form className="ep-form-card" onSubmit={handleSubmit}>
 
-          {/* PROFILE INFORMATION (read-only, from My Profile) */}
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
+
           <div className="ep-section-header">
             <FiUser />
             <h3>Profile Information</h3>
@@ -244,16 +220,18 @@ export default function EditPersonnel() {
             </div>
           </div>
 
-          {/* ROLE / EMPLOYMENT (editable) */}
           <div className="ep-section-header">
             <FiBriefcase />
-            <h3>{isAdmin ? "Role" : "Employment Details"}</h3>
+            <h3>{isTargetOwner ? "Role" : "Employment Details"}</h3>
             <div className="ep-line" />
           </div>
 
           <div className="ep-form-grid">
             <div className="ep-form-group">
-              <label>Position / Role <span className="ep-req">*</span></label>
+              <label>
+                Position / Role <span className="ep-req">*</span>
+                {!canEditPosition && <span className="ep-lock-badge">{isTargetOwner ? "Fixed" : "Owner only"}</span>}
+              </label>
               <input
                 type="text"
                 name="position"
@@ -261,10 +239,19 @@ export default function EditPersonnel() {
                 onChange={handleChange}
                 placeholder="e.g., Poultry Technician"
                 required
+                disabled={!canEditPosition}
+                readOnly={!canEditPosition}
               />
+              {!canEditPosition && (
+                <small>
+                  {isTargetOwner
+                    ? "The Owner's position is permanently fixed."
+                    : "Only the Owner can set or change a position."}
+                </small>
+              )}
             </div>
 
-            {!isAdmin && (
+            {!isTargetOwner && (
               <>
                 <div className="ep-form-group">
                   <label>Shift / Duty Hours <span className="ep-req">*</span></label>
@@ -284,10 +271,14 @@ export default function EditPersonnel() {
                 </div>
 
                 <div className="ep-form-group">
-                  <label>Employment Status <span className="ep-req">*</span></label>
-                  <select name="status" value={formData.status} onChange={handleChange} required>
+                  <label>
+                    Employment Status <span className="ep-req">*</span>
+                    {!isOwner && <span className="ep-lock-badge">Owner only</span>}
+                  </label>
+                  <select name="status" value={formData.status} onChange={handleChange} required disabled={!isOwner}>
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
+                  {!isOwner && <small>Only the Owner can change employment status here.</small>}
                 </div>
 
                 <div className="ep-form-group">
@@ -298,24 +289,12 @@ export default function EditPersonnel() {
             )}
           </div>
 
-          {!isAdmin && (
+          {!isTargetOwner && (
             <>
-              {/* ASSIGNMENT & NOTES (editable) */}
               <div className="ep-section-header">
                 <FiFileText />
                 <h3>Assignment &amp; Notes</h3>
                 <div className="ep-line" />
-              </div>
-
-              <div className="ep-form-group ep-full-width">
-                <label>Assigned Work</label>
-                <input
-                  type="text"
-                  name="assignedWork"
-                  value={formData.assignedWork}
-                  onChange={handleChange}
-                  placeholder="e.g., Morning feeding · Cage 1-4 cleaning"
-                />
               </div>
 
               <div className="ep-form-group ep-full-width">
@@ -331,7 +310,6 @@ export default function EditPersonnel() {
             </>
           )}
 
-          {/* Actions */}
           <div className="ep-form-actions">
             <p className="ep-req-note">Fields with * are required.</p>
             <div className="ep-action-btns">
@@ -339,7 +317,7 @@ export default function EditPersonnel() {
                 <FiX /> Cancel
               </button>
               <button type="submit" disabled={saving} className="ep-save-btn">
-                <FiSave /> {saving ? "Saving..." : "Save Changes"}
+                <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>
             </div>
           </div>

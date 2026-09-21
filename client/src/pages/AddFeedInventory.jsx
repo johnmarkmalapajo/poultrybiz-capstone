@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiInfo, FiActivity, FiFileText, FiSave, FiX } from "react-icons/fi";
+import { FiInfo, FiActivity, FiFileText, FiSave } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddFeedInventory.css";
+import { createFeedInventory } from "../api/feedInventory";
+import { listFeedConsumption } from "../api/feedConsumption";
 
-const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 
 export default function AddFeedInventory() {
@@ -16,15 +17,12 @@ export default function AddFeedInventory() {
 
   // Total consumed per feed type — drives Quantity Out automatically
   const [consumedByType, setConsumedByType] = useState({});
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchConsumption = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${BASE_URL}/feed-consumption`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
+        const json = await listFeedConsumption();
         const list = json.data || json.records || (Array.isArray(json) ? json : []);
         const map = {};
         list.forEach((c) => {
@@ -60,28 +58,31 @@ export default function AddFeedInventory() {
     e.preventDefault();
     if (saving) return;
     const payload = { ...form, balance };
-    // Backend: persist the stock record. Quantity Out stays in sync with
-    // Feed Consumption, and Balance = Quantity In − Quantity Out.
     if (window.__pbSaving) return;  // prevent duplicate submissions
     window.__pbSaving = true;
+    setSaving(true); setError("");
     try {
-      setSaving(true);
-      await fetch(`/api/feed-inventory`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
-
-    navigate("/inventory/feed-inventory");
+      await createFeedInventory(payload);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+      navigate("/inventory/feed-inventory");
+    } catch (err) {
+      setError(err?.message || "Couldn't save this record. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   return (
     <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "INVENTORY", path: "/inventory" }, { label: "FEED INVENTORY", path: "/inventory/feed-inventory" }, { label: "ADD FEED INVENTORY" }]}>
 
         <form className="afi-form-card" onSubmit={handleSubmit}>
+
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
 
           {/* FEED DETAILS */}
           <div className="afi-section-header">

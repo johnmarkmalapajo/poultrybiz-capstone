@@ -2,99 +2,80 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiSearch, FiFilter, FiDownload,
-  FiEye, FiArchive, FiMenu, FiMaximize, FiX,
+  FiEye, FiArchive, FiMaximize, FiX,
 } from "react-icons/fi";
 import { BsQrCode } from "react-icons/bs";
-import { MdPeople, MdPerson, MdPersonOff, MdPersonAdd } from "react-icons/md";
+import { MdPeople, MdPerson, MdPersonOff } from "react-icons/md";
 import PageLayout from "../components/PageLayout";
-import { getFarmerProfile } from "./FarmerProfile";
-import { exportCsvTable, exportExcel, exportPdf } from "../exportTable";
+import { useUser } from "../hooks/useUser";
+import ExportMenu from "../components/ExportMenu";
+import { getFarmInfo } from "../api/profile";
 import "./Personnelandmanpower.css";
 import { archiveRow } from "../archiveRow";
+import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
+import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
+import { listPersonnel } from "../api/personnelManpower";
+import { useTableSort, sortIndicator } from "../hooks/useTableSort";
+import { usePagination } from "../hooks/usePagination";
+import TablePagination from "../components/TablePagination";
+import "../components/TablePagination.css";
 
-// Overlay the Farmer's own My Profile (pic/name/contact/email) onto their
-// Personnel record — these fields are managed by the Farmer, read-only here.
-const syncFarmerProfile = (list) => {
-  let fp;
-  try { fp = getFarmerProfile(); } catch { return list; }
-  if (!fp) return list;
-  let matched = false;
-  const overlay = (r) => ({
-    ...r,
-    profile: { ...(r.profile || {}), fullName: fp.fullName, contactNumber: fp.phone, email: fp.email, image: fp.avatar },
-  });
-  let out = list.map((r) => {
-    const p = r.profile || {};
-    if (!matched && (p.email === fp.email || p.fullName === fp.fullName)) { matched = true; return overlay(r); }
-    return r;
-  });
-  if (!matched) {
-    out = out.map((r) => {
-      if (!matched && /farmer/i.test(r.accountRole || r.role || "")) { matched = true; return overlay(r); }
-      return r;
-    });
-  }
-  return out;
-};
-// ── Inline mock data (frontend fallback until the API is wired) ──
-const MOCK_PERSONNEL = [
-  { _id: "pm_seed_1", profile: { fullName: "Ramon Cruz", contactNumber: "0917 555 1201" }, accountRole: "Admin", status: "Active" },
-  { _id: "pm_seed_2", profile: { fullName: "Helen Yu", contactNumber: "0935 555 7788" }, accountRole: "Owner", status: "Active" },
-  { _id: "pm_seed_3", profile: { fullName: "Liza Mendoza", contactNumber: "0928 555 3345" }, accountRole: "Farmer", position: "Layer House Attendant", dateHired: "2025-12-14", shiftHours: "6:00 AM – 2:00 PM", status: "Active", remarks: "Handles daily egg collection" },
-  { _id: "pm_seed_4", profile: { fullName: "Paolo Lim", contactNumber: "0939 555 8890" }, accountRole: "Farmer", position: "Feed & Inventory Handler", dateHired: "2026-01-08", shiftHours: "7:00 AM – 3:00 PM", status: "Active", remarks: "In charge of feed stock rotation" },
-  { _id: "pm_seed_5", profile: { fullName: "Noel Aguilar", contactNumber: "0926 555 2201" }, accountRole: "Farmer", position: "General Farm Worker", dateHired: "2026-02-11", shiftHours: "6:00 AM – 2:00 PM", status: "Active", remarks: "—" },
-  { _id: "pm_seed_6", profile: { fullName: "Grace Fabella", contactNumber: "0917 555 6610" }, accountRole: "Farmer", position: "Sanitation & Waste Management", dateHired: "2025-09-19", shiftHours: "2:00 PM – 10:00 PM", status: "Inactive", remarks: "On extended leave" },
-  { _id: "pm_seed_7", profile: { fullName: "Mateo Santos", contactNumber: "0905 555 4412" }, accountRole: "Farmer", position: "Layer House Attendant", dateHired: "2026-03-22", shiftHours: "6:00 AM – 2:00 PM", status: "On Leave", remarks: "Approved leave until end of month" },
-];
+const STATUS_OPTIONS = ["Active", "Inactive"];
 
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/personnel`;
-const STATUS_OPTIONS = ["Active", "Inactive", "On Leave"];
-
-// ── Field accessors ──
-// From the Farmer's My Profile: Full Name, Contact Number, and Image only.
-// Everything else (position, date hired, shift, status, remarks) is the
-// Admin-managed Personnel record.
-const prof = (r) => r.profile || r.myProfile || r.user || r; // profile source (flat fallback)
-const getId = (r) => r._id || r.id;
+const prof = (r) => r.profile || r.myProfile || r.user || r;const getId = (r) => r._id || r.id;
 const getName = (r) => {
   const p = prof(r);
   return p.fullName || p.name || [p.firstName, p.lastName].filter(Boolean).join(" ") || r.employeeName || "—";
 };
+
 const getContact = (r) => {
   const p = prof(r);
   return p.contactNumber || p.contact || p.phone || p.mobile || p.phoneNumber || "—";
 };
-// ── Personnel-record fields (Admin-managed, NOT from My Profile) ──
-const getAccountRole = (r) => r.accountRole || r.userRole || r.userType || r.role || "";
-const isOwnerAdmin = (r) => /owner|admin/i.test(getAccountRole(r));
+const getAccountRole = (r) =>
+  r.accountRole ||
+  r.userRole ||
+  r.userType ||
+  r.role ||
+  r.user?.role ||
+  r.profile?.role ||
+  "";
+const isOwnerRow = (r) => /^owner$/i.test(getAccountRole(r));
+
 const getPosition = (r) =>
-  r.position || r.jobTitle || r.designation || r.jobRole || (isOwnerAdmin(r) ? getAccountRole(r) : "") || "—";
-const getHired = (r) =>
-  r.dateHired || r.hired || r.dateJoined || (r.createdAt ? String(r.createdAt).slice(0, 10) : "—");
-const getShift = (r) => r.shiftHours || r.shift || r.dutyHours || "—";
+  r.position || r.jobTitle || r.designation || r.jobRole || "—";
+
+const getDisplayPosition = (r) =>
+  isOwnerRow(r) ? "Owner" : getPosition(r);
 const getStatus = (r) => r.status || "Active";
 const getRemarks = (r) => r.remarks || r.notes || "—";
-const getAssignedWork = (r) => r.assignedWork || r.assignedTask || "";
 
-// Plain name cell (no profile picture/avatar)
 const NameCell = ({ r }) => <span>{getName(r)}</span>;
 
 export default function PersonnelManpower() {
   const navigate = useNavigate();
+  const { canArchive, isOwner, user: currentUser } = useUser();
+  const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
+
+  const canViewRow = (r) => {
+    if (isOwner) return true;
+    if (!isOwnerRow(r)) return true;
+    return String(r.user?._id) === String(currentUser?.id);
+  };
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("farmers");
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // ── QR Attendance ──
   const [qrOpen, setQrOpen] = useState(false);
 
-  // ── Filter (inline dropdown, matches other pages) ──
   const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({ status: "All" });
   const filterRef = useRef(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
 
   useEffect(() => {
     const onChange = () => setRefreshKey((k) => k + 1);
@@ -102,26 +83,27 @@ export default function PersonnelManpower() {
     return () => window.removeEventListener("pb_data_changed", onChange);
   }, []);
 
-  // Personnel are created automatically once an account is registered and
-  // approved by the Admin/Owner — so this page only reads existing records.
   useEffect(() => {
     const fetchRecords = async () => {
+      setLoading(true);
+      setError("");
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(API_BASE, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const data = await listPersonnel();
         const list = Array.isArray(data) ? data : data.records || data.data || [];
-        setRecords(syncFarmerProfile(list.length ? list : MOCK_PERSONNEL));
-      } catch {
-        setRecords(syncFarmerProfile(MOCK_PERSONNEL));
+        setRecords(list);
+      } catch (err) {
+        setRecords([]);
+        setError(err?.message || "Couldn't load personnel records.");
       } finally {
         setLoading(false);
       }
     };
     fetchRecords();
   }, [refreshKey]);
+
+  useEffect(() => {
+    getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handle = (e) => {
@@ -139,50 +121,61 @@ export default function PersonnelManpower() {
     const q = search.toLowerCase();
     const matchSearch =
       getName(r).toLowerCase().includes(q) ||
-      getPosition(r).toLowerCase().includes(q) ||
-      getRemarks(r).toLowerCase().includes(q);
+      getPosition(r).toLowerCase().includes(q);
     const matchStatus = filters.status === "All" || getStatus(r) === filters.status;
     return matchSearch && matchStatus;
   };
 
-  // Owners/Admins sit in their own table; farmers in the main roster
-  const owners = records.filter(isOwnerAdmin).filter(matches);
-  const farmers = records.filter((r) => !isOwnerAdmin(r)).filter(matches);
+  const owners = records.filter(isOwnerRow).filter(matches);
+  const farmers = records.filter((r) => !isOwnerRow(r)).filter(matches);
 
-  // ── Stats (from the personnel workforce / farmers) ──
-  const farmerAll = records.filter((r) => !isOwnerAdmin(r));
-  const total = farmerAll.length;
-  const activeCount = farmerAll.filter((r) => getStatus(r) === "Active").length;
-  const inactiveCount = farmerAll.filter((r) => getStatus(r) === "Inactive").length;
-  const onLeaveCount = farmerAll.filter((r) => getStatus(r) === "On Leave").length;
-
-  const [exportOpen, setExportOpen] = useState(false);
-  // ── Export current view (CSV / Excel / PDF) ──
-  const getExportData = () => {
-    const isOwnerTab = activeTab === "owner";
-    const rows = isOwnerTab ? owners : farmers;
-    const headers = isOwnerTab
-      ? ["Full Name", "Contact Number", "Role", "Status"]
-      : ["Full Name", "Contact Number", "Position", "Date Hired", "Shift", "Status", "Assigned Work", "Remarks"];
-    const data = rows.map((r) =>
-      isOwnerTab
-        ? [getName(r), getContact(r), getAccountRole(r) || "Owner", getStatus(r)]
-        : [getName(r), getContact(r), getPosition(r), getHired(r), getShift(r), getStatus(r), getAssignedWork(r) || "—", getRemarks(r)]
-    );
-    const name = `personnel-${isOwnerTab ? "owner-admin" : "farmers"}`;
-    return { headers, data, name };
+  const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
+  const sortAccessor = (row, col) => {
+    if (col === "name") return getName(row) || "";
+    if (col === "contact") return getContact(row) || "";
+    if (col === "position") return getDisplayPosition(row) || "";
+    if (col === "status") return getStatus(row) || "";
+    return "";
   };
-  const doExport = (kind) => {
-    const { headers, data, name } = getExportData();
-    if (kind === "excel") exportExcel(name, headers, data);
-    else if (kind === "pdf") exportPdf(name, headers, data, "Personnel & Manpower");
-    else exportCsvTable(name, headers, data);
-    setExportOpen(false);
+  const sortedOwners = sortData(owners, sortAccessor);
+  const sortedFarmers = sortData(farmers, sortAccessor);
+  const activeSorted = activeTab === "owner" ? sortedOwners : sortedFarmers;
+  const pager = usePagination(activeSorted.length);
+  useEffect(() => { pager.setPage(1); }, [search, filters, activeTab]);
+  const pageOwners = sortedOwners.slice(pager.startIndex, pager.endIndex);
+  const pageFarmers = sortedFarmers.slice(pager.startIndex, pager.endIndex);
+
+  const allMatching = records.filter(matches);
+  const total = allMatching.length;
+  const activeCount = allMatching.filter((r) => getStatus(r) === "Active").length;
+  const inactiveCount = allMatching.filter((r) => getStatus(r) === "Inactive").length;
+
+  const exportSummary = [
+    { label: "Total Personnel", value: String(total) },
+    { label: "Active", value: String(activeCount) },
+    { label: "Inactive", value: String(inactiveCount) },
+  ];
+
+  const exportMeta = {
+    farmName: farmInfo.farmName,
+    location: farmInfo.farmLocation,
+    contact: farmInfo.farmContact,
+    email: farmInfo.farmEmail,
+    logoUrl: farmInfo.farmLogo
+      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `http://localhost:5000${farmInfo.farmLogo}`)
+      : "",
+    fields: filters.status !== "All" ? [{ label: "Status", value: filters.status }] : [],
   };
 
-  // ── QR Attendance: ONE shared station QR. Scanning it opens the public
-  // check-in page (/attendance/check-in), where the personnel checks in.
-  // The single station QR opens the public check-in page when scanned.
+  const isOwnerTab = activeTab === "owner";
+  const exportRows = (isOwnerTab ? owners : farmers).map((r) => ({
+    "Full Name": getName(r),
+    "Contact Number": getContact(r),
+    "Position": getDisplayPosition(r),
+    "Status": getStatus(r),
+    "Remarks": getRemarks(r),
+  }));
+
   const CHECKIN_URL =
     (typeof window !== "undefined" ? window.location.origin : "") + "/attendance/check-in";
   const STATION_QR =
@@ -203,7 +196,7 @@ export default function PersonnelManpower() {
       ]}
     >
 
-        {/* Toolbar (no Add — personnel are added automatically on account approval) */}
+        {}
         <div className="pm-toolbar">
           <div className="pm-toolbar-right">
             <div className="pm-search-box">
@@ -246,43 +239,26 @@ export default function PersonnelManpower() {
               </div>
 
               <button className="pm-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
-              <div style={{ position: "relative", display: "inline-block" }}>
-                <button className="pm-toolbar-btn" onClick={() => setExportOpen((o) => !o)}>
-                  <FiDownload /> Export ▾
-                </button>
-                {exportOpen && (
-                  <>
-                    <div onClick={() => setExportOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                    <div style={{
-                      position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 41,
-                      background: "#fff", border: "1px solid #e4e0d8", borderRadius: 12,
-                      boxShadow: "0 8px 26px rgba(0,0,0,0.12)", overflow: "hidden", minWidth: 180,
-                      fontFamily: "Poppins, sans-serif",
-                    }}>
-                      {[
-                        { k: "excel", label: "Excel (.xls)", ico: "📊" },
-                        { k: "pdf", label: "PDF", ico: "📄" },
-                        { k: "csv", label: "CSV", ico: "🗒️" },
-                      ].map((opt) => (
-                        <button key={opt.k} onClick={() => doExport(opt.k)} style={{
-                          display: "flex", alignItems: "center", gap: 10, width: "100%",
-                          padding: "11px 16px", border: "none", background: "none", cursor: "pointer",
-                          fontFamily: "Poppins, sans-serif", fontSize: 13, fontWeight: 600, color: "#47321C", textAlign: "left",
-                        }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "#fdf3e3")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
-                          <span>{opt.ico}</span> {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              <ExportMenu
+                rows={exportRows}
+                name={`personnel-${isOwnerTab ? "owner" : "farmers"}`}
+                title="Personnel Management Report"
+                meta={exportMeta}
+                pdfExtra={{ summary: exportSummary }}
+                moduleLabel="Personnel & Manpower"
+                enablePreview
+                filters={{
+                  ...(filters.status !== "All" ? { "Status": filters.status } : {}),
+                }}
+                className="pm-toolbar-btn"
+              />
             </div>
           </div>
         </div>
 
-        {/* Active filter tags */}
+        {error && <div className="pm-active-filters" style={{ color: "#d94f4f" }}>{error}</div>}
+
+        {}
         {activeFilterCount > 0 && (
           <div className="pm-active-filters">
             {Object.entries(filters).map(([key, value]) =>
@@ -296,7 +272,7 @@ export default function PersonnelManpower() {
           </div>
         )}
 
-        {/* Stat Cards */}
+        {}
         <div className="pm-stats-grid">
           <div className="pm-stat-card">
             <div className="pm-stat-icon gold"><MdPeople /></div>
@@ -324,18 +300,9 @@ export default function PersonnelManpower() {
               <span>Not Currently Active</span>
             </div>
           </div>
-
-          <div className="pm-stat-card">
-            <div className="pm-stat-icon purple"><MdPersonAdd /></div>
-            <div>
-              <h3>{onLeaveCount}</h3>
-              <p>On Leave</p>
-              <span>Currently On Leave</span>
-            </div>
-          </div>
         </div>
 
-        {/* Tabs (Quarantine/Isolation style) */}
+        {}
         <div className="pm-tabs">
           <button
             className={`pm-tab ${activeTab === "farmers" ? "active" : ""}`}
@@ -347,98 +314,52 @@ export default function PersonnelManpower() {
             className={`pm-tab ${activeTab === "owner" ? "active" : ""}`}
             onClick={() => setActiveTab("owner")}
           >
-            <MdPerson /> Owner / Admin
+            <MdPerson /> Owner
           </button>
         </div>
 
         <div className="pm-table-wrapper">
 
-          {/* OWNER / ADMIN TABLE */}
+          {}
           {activeTab === "owner" && (
             <table className="pm-table">
               <thead>
                 <tr>
-                  <th>Full Name</th>
-                  <th>Contact Number</th>
-                  <th>Role</th>
-                  <th>Status</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>Full Name{sortIndicator("name", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>Contact Number{sortIndicator("contact", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>Position{sortIndicator("position", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
+                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="5" className="pm-empty-state">Loading...</td></tr>
+                  <tr><td colSpan="6" className="pm-empty-state">Loading...</td></tr>
                 ) : owners.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="pm-empty-state">
+                    <td colSpan="6" className="pm-empty-state">
                       <div className="pm-empty-content">
                         <FiMaximize />
-                        <h3>No owner/admin found</h3>
-                        <p>Owner/Admin appears here automatically after registration.</p>
+                        <h3>No owner found</h3>
+                        <p>Owner appears here automatically after registration.</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  owners.map((r) => (
+                  pageOwners.map((r) => (
                     <tr key={getId(r)}>
                       <td><NameCell r={r} /></td>
                       <td>{getContact(r)}</td>
-                      <td>{getAccountRole(r) || "Owner"}</td>
-                      <td>{statusBadge(getStatus(r))}</td>
-                      <td>
-                        <div className="pm-actions">
-                          <button className="pm-btn-view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
-
-          {/* FARMERS TABLE */}
-          {activeTab === "farmers" && (
-            <table className="pm-table">
-              <thead>
-                <tr>
-                  <th>Full Name</th>
-                  <th>Contact Number</th>
-                  <th>Role / Position</th>
-                  <th>Date Hired</th>
-                  <th>Shift / Duty Hours</th>
-                  <th>Status</th>
-                  <th>Remarks / Notes</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="8" className="pm-empty-state">Loading personnel records...</td></tr>
-                ) : farmers.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="pm-empty-state">
-                      <div className="pm-empty-content">
-                        <FiMaximize />
-                        <h3>No personnel records found</h3>
-                        <p>Farmers appear here automatically once their account is approved by the Admin.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  farmers.map((r) => (
-                    <tr key={getId(r)}>
-                      <td><NameCell r={r} /></td>
-                      <td>{getContact(r)}</td>
-                      <td>{getPosition(r)}</td>
-                      <td>{getHired(r)}</td>
-                      <td>{getShift(r)}</td>
+                      <td>{getDisplayPosition(r)}</td>
                       <td>{statusBadge(getStatus(r))}</td>
                       <td>{getRemarks(r)}</td>
                       <td>
                         <div className="pm-actions">
-                          <button className="pm-btn-view" title="View" onClick={() => navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
-                          <button className="pm-btn-archive" onClick={() => archiveRow({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                          <button className="pm-btn-view" title={canViewRow(r) ? "View" : "You can only view your own record"} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                          {isOwner && !isOwnerRow(r) && (
+                            <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -448,12 +369,68 @@ export default function PersonnelManpower() {
             </table>
           )}
 
-          <div className="pm-table-footer">
-            Showing {activeTab === "owner" ? owners.length : farmers.length} entries
-          </div>
+          {}
+          {activeTab === "farmers" && (
+            <table className="pm-table">
+              <thead>
+                <tr>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>Full Name{sortIndicator("name", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>Contact Number{sortIndicator("contact", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>Position{sortIndicator("position", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
+                  <th>Remarks</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="6" className="pm-empty-state">Loading personnel records...</td></tr>
+                ) : farmers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="pm-empty-state">
+                      <div className="pm-empty-content">
+                        <FiMaximize />
+                        <h3>No personnel records found</h3>
+                        <p>Farmers appear here automatically once their account is approved by the Owner.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  pageFarmers.map((r) => (
+                    <tr key={getId(r)}>
+                      <td><NameCell r={r} /></td>
+                      <td>{getContact(r)}</td>
+                      <td>{getDisplayPosition(r)}</td>
+                      <td>{statusBadge(getStatus(r))}</td>
+                      <td>{getRemarks(r)}</td>
+                      <td>
+                        <div className="pm-actions">
+                          <button className="pm-btn-view" title={canViewRow(r) ? "View" : "You can only view your own record"} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                          {canArchive && (
+                          <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          <TablePagination
+            page={pager.page}
+            setPage={pager.setPage}
+            rowsPerPage={pager.rowsPerPage}
+            setRowsPerPage={pager.setRowsPerPage}
+            totalPages={pager.totalPages}
+            startIndex={pager.startIndex}
+            endIndex={pager.endIndex}
+            totalItems={pager.totalItems}
+          />
         </div>
 
-      {/* ── QR ATTENDANCE MODAL ── */}
+      {}
       {qrOpen && (
         <div className="qr-overlay" onClick={() => setQrOpen(false)}>
           <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
@@ -467,13 +444,13 @@ export default function PersonnelManpower() {
 
 
             <div className="qr-station">
-              {/* QR Code on top (inside a framed card) */}
+              {}
               <div className="qr-frame">
                 <img className="qr-station-img" src={STATION_QR} alt="Attendance QR code" loading="lazy" />
                 <span className="qr-frame-caption">Attendance QR</span>
               </div>
 
-              {/* Download button below */}
+              {}
               <button
                 className="qr-download-btn"
                 onClick={() => window.open(STATION_QR, "_blank", "noopener,noreferrer")}
@@ -485,6 +462,7 @@ export default function PersonnelManpower() {
         </div>
       )}
 
+      <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
     </PageLayout>
   );
 }

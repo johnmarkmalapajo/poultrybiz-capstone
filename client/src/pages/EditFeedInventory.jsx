@@ -1,196 +1,416 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiInfo, FiActivity, FiFileText, FiSave, FiX } from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
+import { FiInfo, FiFileText, FiSave } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditFeedInventory.css";
+import {
+  getFeedInventory,
+  updateFeedInventory,
+} from "../api/feedInventory";
 
-const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
+const QUANTITY_UNITS = ["sacks", "kg"];
+const FEED_SACK_WEIGHT_KG = 50;
 
 export default function EditFeedInventory() {
   const navigate = useNavigate();
+  const { id } = useParams();
 
   const [form, setForm] = useState({
-    date: "", feedType: "", quantityIn: "", quantityOut: "", notes: "",
+    date: "",
+    feedType: "",
+    quantity: "",
+    quantityUnit: "sacks",
+    notes: "",
   });
 
-  // Total consumed per feed type — drives Quantity Out automatically
-  const [consumedByType, setConsumedByType] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [expenseRecordId, setExpenseRecordId] = useState(null);
 
-  // Load the record set by the Edit button on the Feed Stock list
-  useEffect(() => {
-    const saved = localStorage.getItem("editFeedRecord");
-    if (saved) {
-      const r = JSON.parse(saved);
-      setForm({
-        date: r.date || "",
-        feedType: r.feedType || "",
-        quantityIn: r.quantityIn ?? "",
-        quantityOut: r.quantityOut ?? "",
-        notes: r.notes || "",
-      });
-    }
-  }, []);
+  const isLinked = Boolean(expenseRecordId);
 
-  // Fetch consumption totals per feed type
   useEffect(() => {
-    const fetchConsumption = async () => {
+    const fetchRecord = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${BASE_URL}/feed-consumption`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        const json = await getFeedInventory(id);
+        const record = json.record || json.data || json;
+
+        const storedUnit = String(
+          record.quantityUnit || record.unit || "sacks"
+        ).toLowerCase();
+
+        const quantityUnit =
+          storedUnit === "kg" || storedUnit === "kilogram"
+            ? "kg"
+            : "sacks";
+
+        let quantity = record.quantity;
+
+        if (quantity === undefined || quantity === null || quantity === "") {
+          const quantityIn = Number(record.quantityIn || 0);
+
+          quantity =
+            quantityUnit === "kg"
+              ? quantityIn * FEED_SACK_WEIGHT_KG
+              : quantityIn;
+        }
+
+        setForm({
+          date: record.date
+            ? new Date(record.date).toISOString().split("T")[0]
+            : "",
+          feedType: record.feedType || "",
+          quantity,
+          quantityUnit,
+          notes: record.notes || "",
         });
-        const json = await res.json();
-        const list = json.data || json.records || (Array.isArray(json) ? json : []);
-        const map = {};
-        list.forEach((c) => {
-          const t = c.feedType;
-          if (!t) return;
-          map[t] = (map[t] || 0) + (Number(c.quantityConsumed) || 0);
-        });
-        setConsumedByType(map);
-      } catch {
-        setConsumedByType({});
+
+        setExpenseRecordId(record.expenseRecordId || null);
+      } catch (err) {
+        setError(
+          err?.message || "Couldn't load this feed inventory record."
+        );
+      } finally {
+        setLoading(false);
       }
     };
-    fetchConsumption();
-  }, []);
 
-  // Keep Quantity Out in sync with Feed Consumption for the current feed type
-  useEffect(() => {
-    if (form.feedType && consumedByType[form.feedType] != null) {
-      setForm((f) => ({ ...f, quantityOut: String(consumedByType[form.feedType]) }));
-    }
-  }, [consumedByType, form.feedType]);
+    fetchRecord();
+  }, [id]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => {
-      if (name === "feedType") {
-        const out = consumedByType[value] != null ? String(consumedByType[value]) : f.quantityOut;
-        return { ...f, feedType: value, quantityOut: out };
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    if (name === "quantity") {
+      if (value === "") {
+        setForm((current) => ({
+          ...current,
+          quantity: "",
+        }));
+        return;
       }
-      return { ...f, [name]: value };
-    });
+
+      const numericValue = Number(value);
+
+      if (Number.isNaN(numericValue)) {
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        quantity:
+          current.quantityUnit === "sacks"
+            ? Math.max(0, Math.floor(numericValue))
+            : Math.max(0, numericValue),
+      }));
+
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
   };
 
-  const balance = (parseFloat(form.quantityIn) || 0) - (parseFloat(form.quantityOut) || 0);
-  const [saving, setSaving] = useState(false);
+  const handleUnitChange = (event) => {
+    const unit = event.target.value;
 
+    setForm((current) => ({
+      ...current,
+      quantityUnit: unit,
+    }));
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (saving) return;
-    const payload = { ...form, balance };
-    console.log("Feed inventory payload:", payload);
-    // Backend: persist the stock record. Quantity Out stays in sync with
-    // Feed Consumption, and Balance = Quantity In − Quantity Out.
-    localStorage.removeItem("editFeedRecord");
-    if (window.__pbSaving) return;  // prevent duplicate submissions
+  const quantity = Number(form.quantity || 0);
+
+  const equivalentKg =
+    form.quantityUnit === "sacks"
+      ? quantity * FEED_SACK_WEIGHT_KG
+      : quantity;
+
+  const quantityIn =
+    form.quantityUnit === "sacks" ? quantity : quantity / FEED_SACK_WEIGHT_KG;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (saving || window.__pbSaving) {
+      return;
+    }
+
+    setError("");
+
+    if (!isLinked) {
+      if (!form.date) {
+        setError("Please select the purchase date.");
+        return;
+      }
+
+      if (!form.feedType) {
+        setError("Please select a feed type.");
+        return;
+      }
+
+      if (form.quantity === "" || quantity <= 0) {
+        setError("Please enter a valid quantity.");
+        return;
+      }
+
+      if (form.quantityUnit === "sacks" && !Number.isInteger(quantity)) {
+        setError("Sack quantity must be a whole number.");
+        return;
+      }
+    }
+
     window.__pbSaving = true;
-    try {
-      setSaving(true);
-      await fetch(`/api/feed-inventory/${form._id || form.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
+    setSaving(true);
 
-    navigate("/inventory/feed-inventory");
+    try {
+      const payload = isLinked
+        ? {
+            notes: form.notes.trim(),
+          }
+        : {
+            date: form.date,
+            feedType: form.feedType,
+            quantity,
+            quantityUnit: form.quantityUnit,
+            quantityIn,
+            equivalentKg,
+            notes: form.notes.trim(),
+          };
+
+      await updateFeedInventory(id, payload);
+
+      try {
+        window.dispatchEvent(new Event("pb_data_changed"));
+      } catch {}
+
+      navigate("/inventory/feed-inventory");
+    } catch (err) {
+      setError(
+        err?.message || "Couldn't update this feed inventory record."
+      );
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
+
+  if (loading) {
+    return (
+      <PageLayout
+        background="#f4f4f2"
+        breadcrumbItems={[
+          {
+            label: "INVENTORY",
+            path: "/inventory",
+          },
+          {
+            label: "FEED INVENTORY",
+            path: "/inventory/feed-inventory",
+          },
+          {
+            label: "EDIT FEED INVENTORY",
+          },
+        ]}
+      >
+        <p className="pb-loading-text">
+          Loading record...
+        </p>
+      </PageLayout>
+    );
+  }
 
   return (
-    <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "INVENTORY", path: "/inventory" }, { label: "FEED INVENTORY", path: "/inventory/feed-inventory" }, { label: "EDIT FEED INVENTORY" }]}>
+    <PageLayout
+      background="#f4f4f2"
+      breadcrumbItems={[
+        {
+          label: "INVENTORY",
+          path: "/inventory",
+        },
+        {
+          label: "FEED INVENTORY",
+          path: "/inventory/feed-inventory",
+        },
+        {
+          label: "EDIT FEED INVENTORY",
+        },
+      ]}
+    >
+      <form
+        className="efi-form-card"
+        onSubmit={handleSubmit}
+      >
+        {error && (
+          <div className="pb-error-banner">
+            {error}
+          </div>
+        )}
 
-        <form className="efi-form-card" onSubmit={handleSubmit}>
+        <div className="efi-section-header">
+          <FiInfo />
+          <h3>FEED PURCHASE DETAILS</h3>
+          <div className="efi-line"></div>
+        </div>
 
-          {/* FEED DETAILS */}
-          <div className="efi-section-header">
-            <FiInfo />
-            <h3>FEED DETAILS</h3>
-            <div className="efi-line"></div>
+        <div className="efi-form-grid">
+          <div className="efi-form-group">
+            <label>
+              Date Purchased{" "}
+              <span className="efi-req">*</span>
+            </label>
+
+            <input
+              type="date"
+              name="date"
+              value={form.date}
+              onChange={handleChange}
+              disabled={isLinked}
+              readOnly={isLinked}
+              required
+            />
           </div>
 
-          <div className="efi-form-grid">
-            <div className="efi-form-group">
-              <label>Date Purchased <span className="efi-req">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} required />
-            </div>
+          <div className="efi-form-group">
+            <label>
+              Feed Type{" "}
+              <span className="efi-req">*</span>
+            </label>
 
-            <div className="efi-form-group">
-              <label>Feed Type <span className="efi-req">*</span></label>
-              <select name="feedType" value={form.feedType} onChange={handleChange} required>
-                <option value="">Select feed type</option>
-                {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            <select
+              name="feedType"
+              value={form.feedType}
+              onChange={handleChange}
+              disabled={isLinked}
+              required
+            >
+              <option value="">
+                Select feed type
+              </option>
+
+              {FEED_TYPES.map((feedType) => (
+                <option
+                  key={feedType}
+                  value={feedType}
+                >
+                  {feedType}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="efi-form-group">
+            <label>
+              Quantity{" "}
+              <span className="efi-req">*</span>
+            </label>
+
+            <div className="efi-quantity-input">
+              <input
+                type="number"
+                min="0"
+                step={
+                  form.quantityUnit === "sacks"
+                    ? "1"
+                    : "0.01"
+                }
+                name="quantity"
+                value={form.quantity}
+                onChange={handleChange}
+                placeholder="Enter quantity"
+                disabled={isLinked}
+                readOnly={isLinked}
+                required
+              />
+
+              <select
+                name="quantityUnit"
+                value={form.quantityUnit}
+                onChange={handleUnitChange}
+                disabled={isLinked}
+                aria-label="Quantity unit"
+              >
+                {QUANTITY_UNITS.map((unit) => (
+                  <option
+                    key={unit}
+                    value={unit}
+                  >
+                    {unit}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="efi-form-group">
-              <label>Quantity In <span className="efi-req">*</span></label>
-              <input
-                type="number" min="0" name="quantityIn"
-                value={form.quantityIn} onChange={handleChange}
-                placeholder="Enter quantity in (kg)" required
-              />
-            </div>
-
-            <div className="efi-form-group">
-              <label>Quantity Out <span className="efi-req">*</span></label>
-              <input
-                type="number" min="0" name="quantityOut"
-                value={form.quantityOut} readOnly
-                placeholder="Auto from Feed Consumption"
-              />
-              <small>Auto-updated from Feed Consumption records.</small>
-            </div>
+            <small>
+              {form.quantityUnit === "sacks"
+                ? "1 sack = 50 kg"
+                : "Quantity is recorded in kilograms."}
+            </small>
           </div>
+        </div>
 
-          {/* AUTO-COMPUTED */}
-          <div className="efi-section-header">
-            <FiActivity />
-            <h3>AUTO-COMPUTED</h3>
-            <div className="efi-line"></div>
-          </div>
+        <div className="efi-section-header">
+          <FiFileText />
+          <h3>ADDITIONAL INFORMATION</h3>
+          <div className="efi-line"></div>
+        </div>
 
-          <div className="efi-form-grid">
-            <div className="efi-form-group">
-              <label>Balance</label>
-              <input type="text" value={`${balance} kg`} disabled />
-              <small>Balance = Quantity In − Quantity Out</small>
-            </div>
-          </div>
+        <div className="efi-form-group efi-full-width">
+          <label>Remarks</label>
 
-          {/* ADDITIONAL INFORMATION */}
-          <div className="efi-section-header">
-            <FiFileText />
-            <h3>ADDITIONAL INFORMATION</h3>
-            <div className="efi-line"></div>
-          </div>
+          <textarea
+            name="notes"
+            value={form.notes}
+            onChange={handleChange}
+            placeholder="Enter remarks about this feed purchase..."
+            maxLength={255}
+          />
 
-          <div className="efi-form-group efi-full-width">
-            <label>Notes</label>
-            <textarea
-              rows="6" name="notes" value={form.notes} onChange={handleChange}
-              placeholder="Enter notes for this transaction..." maxLength={255}
-            />
-            <small>{(form.notes || "").length} / 255</small>
-          </div>
+          <small className="efi-char-count">
+            {form.notes.length} / 255
+          </small>
+        </div>
 
-          {/* Actions */}
-          <div className="efi-form-actions">
-            <button type="button" className="efi-cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="efi-save-btn">
-              <FiSave />
-              Update Feed Record
-            </button>
-          </div>
-        </form>
+        <div className="efi-form-actions">
+          <button
+            type="button"
+            className="efi-cancel-btn"
+            onClick={() =>
+              navigate(
+                "/inventory/feed-inventory"
+              )
+            }
+            disabled={saving}
+          >
+            Cancel
+          </button>
 
+          <button
+            type="submit"
+            disabled={saving}
+            className="efi-save-btn"
+          >
+            <FiSave />
+
+            {saving
+              ? "Updating..."
+              : "Update Record"}
+          </button>
+        </div>
+      </form>
     </PageLayout>
   );
 }

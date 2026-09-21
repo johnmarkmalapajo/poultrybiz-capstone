@@ -1,146 +1,142 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiSave, FiX, FiShield, FiAlertCircle, FiFileText } from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  FiSave,
+  FiX,
+  FiAlertCircle,
+  FiFileText,
+} from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditQuarantineandIsolation.css";
+import {
+  getQuarantineRecord,
+  updateQuarantineRecord,
+} from "../api/quarantineIsolation";
+import { listFlocks } from "../api/flockProfile";
+import { listHealthOptions } from "../api/healthOptions";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
-const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
-const QUARANTINE_STATUS = ["Ongoing", "Cleared", "Released"];
-const ISOLATION_STATUS = ["In Isolation", "Recovered", "Deceased"];
+const NEW_VALUE = "__new__";
+const backRoute = "/records/quarantine?tab=isolation";
 
 export default function EditQuarantineIsolation() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [params] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
-    recordType: params.get("type") === "isolation" ? "Isolation" : "Quarantine",
     batchId: "",
-    cageId: "",
-    breed: "",
-    dateAcquired: "",
-    source: "",
-    headCount: "",
-    vitaminsGiven: "",
-    status: "",
-    releasedDate: "",
     dateIsolated: "",
-    currentStatus: "",
-    dateOfDeath: "",
+    headCount: "",
+    location: "",
     symptoms: "",
+    remarks: "",
+    isolationId: "",
+    recovered: 0,
+    deceased: 0,
+    remaining: 0,
+    dateCompleted: "",
+    currentStatus: "",
   });
+  const [newSymptom, setNewSymptom] = useState("");
+  const [symptomOptions, setSymptomOptions] = useState([]);
 
   const [flocks, setFlocks] = useState([]);
+  const [error, setError] = useState("");
 
-  // ── Flocks for Batch ID + Cage ID dropdowns ──
   useEffect(() => {
-    fetch(FLOCKS_API)
-      .then((r) => r.json())
-      .then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || []))
+    listHealthOptions("symptom")
+      .then((d) => setSymptomOptions((d.options || []).map((o) => o.value)))
+      .catch(() => setSymptomOptions([]));
+  }, []);
+
+  useEffect(() => {
+    listFlocks()
+      .then((data) =>
+        setFlocks(Array.isArray(data) ? data : data.records || data.flocks || [])
+      )
       .catch(() => setFlocks([]));
   }, []);
 
-  const batchOptions = [...new Set(flocks.map((f) => f.batchId).filter(Boolean))];
-  const cageOptions  = [...new Set(flocks.map((f) => f.cageId).filter(Boolean))];
+  const batchOptions = [...new Set(flocks.filter((f) => f.status !== "Culled").map((f) => f.batchId).filter(Boolean))];
+  const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
+  const headCountExceedsAvailable =
+    selectedFlock != null && Number(formData.headCount) > selectedFlock.currentQuantity;
 
-  // ── Fetch the existing record ──
   useEffect(() => {
     const fetchRecord = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API}/quarantine-records/${id}`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
+        const json = await getQuarantineRecord(id);
         const rec = json.record || json.data || json;
-        const inferredType =
-          rec.recordType ||
-          (rec.dateIsolated || rec.cageId || rec.currentStatus ? "Isolation" : "Quarantine");
-        setFormData((prev) => ({ ...prev, ...rec, recordType: inferredType }));
-      } catch {
-        // keep form as-is if fetch fails
+        setFormData((prev) => ({ ...prev, ...rec }));
+      } catch (err) {
+        setError(err?.message || "Couldn't load this record.");
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const isIsolation = formData.recordType === "Isolation";
-  const backRoute = `/records/quarantine?tab=${isIsolation ? "isolation" : "quarantine"}`;
-
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  })();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      if (name === "status" && value === "Released") {
-        return { ...prev, status: value, releasedDate: prev.releasedDate || today };
-      }
-      if (name === "currentStatus" && value === "Deceased") {
-        return { ...prev, currentStatus: value, dateOfDeath: prev.dateOfDeath || today };
-      }
-      return { ...prev, [name]: value };
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleBatchChange = (e) => {
-    const batchId = e.target.value;
-    const flock = flocks.find((f) => f.batchId === batchId);
-    setFormData((prev) => ({
-      ...prev,
-      batchId,
-      cageId: flock?.cageId ?? prev.cageId,
-      dateAcquired: flock?.dateAcquired ?? prev.dateAcquired,
-      source: flock?.source ?? prev.source,
-      breed: flock?.breed ?? prev.breed,
-    }));
+    setFormData((prev) => ({ ...prev, batchId: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    const payload = { ...formData };
-    if (!isIsolation && formData.status === "Released") {
-      payload.flockTransfer = {
-        batchId: formData.batchId,
-        breed: formData.breed,
-        source: formData.source,
-        dateAcquired: formData.dateAcquired,
-        quantityPurchased: Number(formData.headCount) || 0,
-        status: "Active",
-        releasedDate: formData.releasedDate,
-      };
+
+    if (formData.symptoms === NEW_VALUE && !newSymptom.trim()) {
+      setError("Please enter the Symptoms/Reasons.");
+      return;
     }
-    if (isIsolation && formData.currentStatus === "Deceased") {
-      payload.mortalityTransfer = {
-        date: formData.dateOfDeath || today,
-        batchId: formData.batchId,
-        cageId: formData.cageId,
-        numberOfMortality: 1,
-        causeOfDeath: "Disease",
-        suspectedDisease: "",
-        remarks: formData.symptoms,
-      };
+    if (formData.dateIsolated > today) {
+      setError("Date Isolated cannot be in the future.");
+      return;
     }
+    if (!/^\d+$/.test(String(formData.headCount).trim()) || Number(formData.headCount) <= 0) {
+      setError("Number of Birds Isolated must be a whole number greater than zero.");
+      return;
+    }
+    if (headCountExceedsAvailable) {
+      setError(`Number of Birds Isolated cannot exceed the available birds in this batch (${selectedFlock.currentQuantity}).`);
+      return;
+    }
+
+    const payload = {
+      batchId: formData.batchId,
+      dateIsolated: formData.dateIsolated,
+      headCount: formData.headCount,
+      location: formData.location,
+      remarks: formData.remarks,
+      ...(formData.symptoms === NEW_VALUE
+        ? { newSymptom: newSymptom.trim() }
+        : { symptoms: formData.symptoms }),
+    };
+
     try {
-      const token = localStorage.getItem("token");
       setSaving(true);
-      await fetch(`${API}/quarantine-records/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-    } catch {
+      setError("");
+      await updateQuarantineRecord(id, payload);
+      try {
+        window.dispatchEvent(new Event("pb_data_changed"));
+      } catch {}
+      navigate(backRoute);
+    } catch (err) {
       setSaving(false);
-      /* silent — adjust endpoint to your backend */
+      setError(err?.message || "Couldn't save changes. Please try again.");
     }
-    navigate(backRoute);
   };
 
   const d = (v) => (v ? String(v).slice(0, 10) : "");
@@ -152,10 +148,10 @@ export default function EditQuarantineIsolation() {
         breadcrumbItems={[
           { label: "RECORDS", path: "/records" },
           { label: "QUARANTINE AND ISOLATION", path: backRoute },
-          { label: `EDIT ${isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD` },
+          { label: "EDIT ISOLATION RECORD" },
         ]}
       >
-        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+        <p className="pb-loading-text">Loading record...</p>
       </PageLayout>
     );
   }
@@ -166,185 +162,193 @@ export default function EditQuarantineIsolation() {
       breadcrumbItems={[
         { label: "RECORDS", path: "/records" },
         { label: "QUARANTINE AND ISOLATION", path: backRoute },
-        { label: `EDIT ${isIsolation ? "ISOLATION" : "QUARANTINE"} RECORD` },
+        { label: "EDIT ISOLATION RECORD" },
       ]}
     >
+      <form className="eqi-form-card" onSubmit={handleSubmit}>
+        {error && <div className="pb-error-banner">{error}</div>}
 
-        <form className="eqi-form-card" onSubmit={handleSubmit}>
+        <div className="eqi-section-header">
+          <FiAlertCircle />
+          <h3>Isolation Details</h3>
+          <div className="eqi-line" />
+        </div>
 
-          {/* DETAILS */}
-          <div className="eqi-section-header">
-            {isIsolation ? <FiAlertCircle /> : <FiShield />}
-            <h3>{isIsolation ? "Isolation" : "Quarantine"} Details</h3>
-            <div className="eqi-line" />
+        <div className="eqi-form-grid">
+          <div className="eqi-form-group">
+            <label>Isolation ID</label>
+            <input type="text" value={formData.isolationId} disabled />
+            <small>Cannot be changed.</small>
           </div>
 
-          <div className="eqi-form-grid">
-            <div className="eqi-form-group">
-              <label>Record Type <span className="eqi-req">*</span></label>
-              <select name="recordType" value={formData.recordType} onChange={handleChange} required>
-                <option value="Quarantine">Quarantine</option>
-                <option value="Isolation">Isolation</option>
-              </select>
-            </div>
-
-            <div className="eqi-form-group">
-              <label>Batch ID <span className="eqi-req">*</span></label>
-              <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
-                <option value="">Select batch ID</option>
-                {formData.batchId && !batchOptions.includes(formData.batchId) && (
-                  <option value={formData.batchId}>{formData.batchId}</option>
-                )}
-                {batchOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-
-            {isIsolation && (
-              <div className="eqi-form-group">
-                <label>Cage ID <span className="eqi-req">*</span></label>
-                <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                  <option value="">Select cage</option>
-                  {formData.cageId && !cageOptions.includes(formData.cageId) && (
-                    <option value={formData.cageId}>{formData.cageId}</option>
-                  )}
-                  {cageOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* ── QUARANTINE FIELDS ── */}
-            {!isIsolation && (
-              <>
-                <div className="eqi-form-group">
-                  <label>Breed <span className="eqi-req">*</span></label>
-                  <select name="breed" value={formData.breed} onChange={handleChange} required>
-                    <option value="">Select Breed</option>
-                    {formData.breed && !["Hy-Line W-36", "Lohmann LSL Lite", "Dekalb White", "Shaver White", "Hendrix White"].includes(formData.breed) && (
-                      <option value={formData.breed}>{formData.breed}</option>
-                    )}
-                    <option value="Hy-Line W-36">Hy-Line W-36</option>
-                    <option value="Lohmann LSL Lite">Lohmann LSL Lite</option>
-                    <option value="Dekalb White">Dekalb White</option>
-                    <option value="Shaver White">Shaver White</option>
-                    <option value="Hendrix White">Hendrix White</option>
-                  </select>
-                </div>
-                <div className="eqi-form-group">
-                  <label>Date Acquired</label>
-                  <input type="date" name="dateAcquired" value={d(formData.dateAcquired)} onChange={handleChange} />
-                </div>
-                <div className="eqi-form-group">
-                  <label>Source</label>
-                  <input type="text" name="source" value={formData.source} onChange={handleChange} placeholder="e.g. Supplier name / hatchery" />
-                </div>
-                <div className="eqi-form-group">
-                  <label>Head Count <span className="eqi-req">*</span></label>
-                  <input type="number" min="1" name="headCount" value={formData.headCount} onChange={handleChange} required />
-                </div>
-                <div className="eqi-form-group">
-                  <label>Vitamins Given</label>
-                  <input type="text" name="vitaminsGiven" value={formData.vitaminsGiven} onChange={handleChange} placeholder="e.g. Electrolytes, Vitamin C" />
-                </div>
-                <div className="eqi-form-group">
-                  <label>Status <span className="eqi-req">*</span></label>
-                  <select name="status" value={formData.status} onChange={handleChange} required>
-                    <option value="">Select status</option>
-                    {QUARANTINE_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {formData.status === "Released" && (
-                  <div className="eqi-form-group">
-                    <label>Released Date <span className="eqi-req">*</span></label>
-                    <input type="date" name="releasedDate" value={d(formData.releasedDate)} onChange={handleChange} required />
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ── ISOLATION FIELDS ── */}
-            {isIsolation && (
-              <>
-                <div className="eqi-form-group">
-                  <label>Date Isolated <span className="eqi-req">*</span></label>
-                  <input type="date" name="dateIsolated" value={d(formData.dateIsolated)} onChange={handleChange} required />
-                </div>
-                <div className="eqi-form-group">
-                  <label>Current Status <span className="eqi-req">*</span></label>
-                  <select name="currentStatus" value={formData.currentStatus} onChange={handleChange} required>
-                    <option value="">Select status</option>
-                    {ISOLATION_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {formData.currentStatus === "Deceased" && (
-                  <div className="eqi-form-group">
-                    <label>Date of Death</label>
-                    <input type="date" name="dateOfDeath" value={d(formData.dateOfDeath) || today} disabled readOnly />
-                    <small>Auto-set to today and sent to the Mortality Record.</small>
-                  </div>
-                )}
-              </>
-            )}
+          <div className="eqi-form-group">
+            <label>
+              Batch ID <span className="eqi-req">*</span>
+            </label>
+            <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
+              <option value="">Select batch ID</option>
+              {formData.batchId && !batchOptions.includes(formData.batchId) && (
+                <option value={formData.batchId}>{formData.batchId}</option>
+              )}
+              {batchOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
 
-          {!isIsolation && formData.status === "Released" && (
-            <div style={{ background: "#eaf7f1", color: "#1f7a52", border: "1.5px solid #b8e6cf",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
-              <FiShield /> On release, the connected fields (Batch ID, Breed, Source, Date Acquired, Head Count) will be transferred to the Flock Profile as an active flock.
-            </div>
-          )}
-
-          {isIsolation && formData.currentStatus === "Deceased" && (
-            <div style={{ background: "#fdf0f0", color: "#c0392b", border: "1.5px solid #f5c6c6",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
-              <FiAlertCircle /> On marking deceased, the connected fields (Batch ID, Cage ID, Date, Symptoms) will be transferred to the Mortality Record.
-            </div>
-          )}
-
-          {/* SYMPTOMS / NOTES */}
-          <div className="eqi-section-header">
-            <FiFileText />
-            <h3>{isIsolation ? "Symptoms / Reasons" : "Notes"}</h3>
-            <div className="eqi-line" />
-          </div>
-
-          <div className="eqi-form-group eqi-full-width">
-            <label>{isIsolation ? "Symptoms / Reasons" : "Notes"} <span className="eqi-optional">(optional)</span></label>
-            <textarea
-              name="symptoms"
-              value={formData.symptoms || ""}
+          <div className="eqi-form-group">
+            <label>
+              Date Isolated <span className="eqi-req">*</span>
+            </label>
+            <input
+              type="date"
+              name="dateIsolated"
+              value={d(formData.dateIsolated)}
               onChange={handleChange}
-              placeholder={isIsolation ? "Describe the symptoms or reason for isolation..." : "Any notes about this quarantine batch..."}
-              maxLength={255}
+              max={today}
+              required
             />
-            <div className="eqi-char-row">
-              <small>{isIsolation ? "Briefly describe the symptoms or reason for isolation." : "Optional notes for this record."}</small>
-              <small className="eqi-char-count">{(formData.symptoms || "").length} / 255</small>
-            </div>
           </div>
 
-          {/* Actions */}
-          <div className="eqi-form-actions">
-            <p className="eqi-req-note">Fields with * are required.</p>
-            <div className="eqi-action-btns">
-              <button type="button" className="eqi-cancel-btn" onClick={() => navigate(backRoute)}>
-                <FiX /> Cancel
-              </button>
-              <button type="submit" disabled={saving} className="eqi-save-btn">
-                <FiSave /> Update Record
-              </button>
-            </div>
+          <div className="eqi-form-group">
+            <label>
+              Number of Birds Isolated <span className="eqi-req">*</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              name="headCount"
+              value={formData.headCount}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  headCount: e.target.value.replace(/[^\d]/g, ""),
+                }))
+              }
+              required
+            />
+            {selectedFlock && (
+              <small style={headCountExceedsAvailable ? { color: "#c0392b" } : undefined}>
+                Available birds in this batch: {selectedFlock.currentQuantity}
+              </small>
+            )}
           </div>
 
-        </form>
+          <div className="eqi-form-group">
+            <label>Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="e.g. Isolation Pen 2"
+            />
+          </div>
 
+          <div className="eqi-form-group">
+            <label>
+              Symptoms / Reasons <span className="eqi-req">*</span>
+            </label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <select
+                name="symptoms"
+                value={formData.symptoms}
+                onChange={handleChange}
+                style={{ flex: 1 }}
+                required
+              >
+                <option value="">Select symptoms/reasons</option>
+                {formData.symptoms && formData.symptoms !== NEW_VALUE && !symptomOptions.includes(formData.symptoms) && (
+                  <option value={formData.symptoms}>{formData.symptoms}</option>
+                )}
+                {symptomOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+                <option value={NEW_VALUE}>Others</option>
+              </select>
+              {formData.symptoms === NEW_VALUE && (
+                <input
+                  type="text"
+                  value={newSymptom}
+                  onChange={(e) => setNewSymptom(e.target.value)}
+                  placeholder="Enter symptoms/reason..."
+                  style={{ flex: 1 }}
+                  required
+                />
+              )}
+            </div>
+            <small>Shared with Diagnosis's Presumptive Diagnosis list. This will be saved and available in future Symptoms/Reasons and Presumptive Diagnosis dropdowns.</small>
+          </div>
+        </div>
+
+        <div className="eqi-section-header">
+          <FiFileText />
+          <h3>Remarks</h3>
+          <div className="eqi-line" />
+        </div>
+
+        <div className="eqi-form-group eqi-full-width">
+          <label>
+            Remarks <span className="eqi-optional">(optional)</span>
+          </label>
+          <textarea
+            name="remarks"
+            value={formData.remarks || ""}
+            onChange={handleChange}
+            placeholder="Any additional notes about this isolation event..."
+            maxLength={255}
+          />
+          <div className="eqi-char-row">
+            <small>Optional remarks for this record.</small>
+            <small className="eqi-char-count">
+              {(formData.remarks || "").length} / 255
+            </small>
+          </div>
+        </div>
+
+        <div className="eqi-section-header">
+          <FiAlertCircle />
+          <h3>Isolation Progress (System-Managed)</h3>
+          <div className="eqi-line" />
+        </div>
+
+        <div className="eqi-form-grid">
+          <div className="eqi-form-group">
+            <label>Recovered (total)</label>
+            <input type="text" value={formData.recovered} disabled />
+          </div>
+          <div className="eqi-form-group">
+            <label>Deceased (total)</label>
+            <input type="text" value={formData.deceased} disabled />
+          </div>
+          <div className="eqi-form-group">
+            <label>Remaining</label>
+            <input type="text" value={formData.remaining} disabled />
+          </div>
+          <div className="eqi-form-group">
+            <label>Status</label>
+            <input type="text" value={formData.currentStatus || "—"} disabled />
+          </div>
+          {formData.dateCompleted && (
+            <div className="eqi-form-group">
+              <label>Date Completed</label>
+              <input type="text" value={formData.dateCompleted} disabled />
+            </div>
+          )}
+        </div>
+
+        <div className="eqi-form-actions">
+          <p className="eqi-req-note">Fields with * are required.</p>
+          <div className="eqi-action-btns">
+            <button type="button" className="eqi-cancel-btn" onClick={() => navigate(backRoute)}>
+              <FiX /> Cancel
+            </button>
+            <button type="submit" disabled={saving || headCountExceedsAvailable} className="eqi-save-btn">
+              <FiSave /> {saving ? "Saving..." : "Update Record"}
+            </button>
+          </div>
+        </div>
+      </form>
     </PageLayout>
   );
 }

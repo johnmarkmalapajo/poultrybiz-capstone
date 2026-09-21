@@ -1,4 +1,3 @@
-/* ── Production Rate Alert (drop-in for Dashboard Summary) ── */
 .pra-card {
   --pra-color: #2e9e6b;
   --pra-bg: #eaf7f1;
@@ -16,13 +15,12 @@
   transition: border-color 0.25s, box-shadow 0.25s;
 }
 
-/* tone variants */
 .pra-green   { --pra-color: #2e9e6b; --pra-bg: #eaf7f1; }
 .pra-yellow  { --pra-color: #c8930c; --pra-bg: #fdf3e3; }
 .pra-red     { --pra-color: #d94f4f; --pra-bg: #fdf0f0; }
 .pra-darkred { --pra-color: #a31515; --pra-bg: #fbe3e3; }
+.pra-gray    { --pra-color: #6b6457; --pra-bg: #f0efec; }
 
-/* header */
 .pra-head {
   display: flex;
   align-items: center;
@@ -61,7 +59,6 @@
 }
 .pra-badge svg { font-size: 13px; }
 
-/* rate */
 .pra-rate-row { display: flex; align-items: baseline; gap: 14px; }
 .pra-rate-value {
   font-family: var(--font-head, "Poppins", sans-serif);
@@ -84,7 +81,6 @@
   letter-spacing: 0.04em;
 }
 
-/* progress bar */
 .pra-bar {
   width: 100%;
   height: 8px;
@@ -99,7 +95,6 @@
   transition: width 0.5s ease, background 0.25s;
 }
 
-/* message */
 .pra-message {
   display: flex;
   align-items: flex-start;
@@ -116,7 +111,6 @@
   color: var(--text-primary, #1e1c18);
 }
 
-/* footer */
 .pra-updated {
   font-size: 11px;
   color: var(--text-muted, #a39e94);

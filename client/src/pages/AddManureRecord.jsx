@@ -1,11 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiPackage, FiFileText, FiClipboard } from "react-icons/fi";
+import { FiSave, FiX, FiPackage, FiFileText } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddManureRecord.css";
+import { createManureRecord } from "../api/wasteManure";
+import { listFlocks } from "../api/flockProfile";
+import { listHealthOptions } from "../api/healthOptions";
+import { useUser } from "../hooks/useUser";
+
+const NEW_VALUE = "__new__";
+const METHOD_OPTIONS = ["Composting", "Drying", "Biogas", "Direct Application"];
+const END_USE_OPTIONS = ["Used as fertilizer", "Sold", "Composted", "Biogas"];
+
+const todayStr = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
 export default function AddManureRecord() {
   const navigate = useNavigate();
+  const { user } = useUser();
 
   const [formData, setFormData] = useState({
     date: "",
@@ -14,38 +28,83 @@ export default function AddManureRecord() {
     methodOfHandling: "",
     storageLocation: "",
     endUse: "",
-    personResponsible: "",
-    areaCleaned: "",
-    toolsUsed: "",
-    wasteManagement: "",
-    fertilizerHarvested: "",
     remarks: "",
   });
+
+  const [newMethodOfHandling, setNewMethodOfHandling] = useState("");
+  const [newEndUse, setNewEndUse] = useState("");
+  const [methodOptions, setMethodOptions] = useState(METHOD_OPTIONS);
+  const [endUseOptions, setEndUseOptions] = useState(END_USE_OPTIONS);
+
+  const [flocks, setFlocks] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    listFlocks()
+      .then((d) => setFlocks(Array.isArray(d) ? d : d.records || d.flocks || []))
+      .catch(() => setFlocks([]));
+    listHealthOptions("manureMethod").then((r) => {
+      const fetched = (r.options || []).map((o) => o.value);
+      setMethodOptions([...METHOD_OPTIONS, ...fetched.filter((v) => !METHOD_OPTIONS.includes(v))]);
+    }).catch(() => setMethodOptions(METHOD_OPTIONS));
+    listHealthOptions("manureEndUse").then((r) => {
+      const fetched = (r.options || []).map((o) => o.value);
+      setEndUseOptions([...END_USE_OPTIONS, ...fetched.filter((v) => !END_USE_OPTIONS.includes(v))]);
+    }).catch(() => setEndUseOptions(END_USE_OPTIONS));
+  }, []);
+
+  const batchOptions = [...new Set(
+    flocks.filter((f) => f.status !== "Culled").map((f) => f.batchId).filter(Boolean)
+  )];
+
+  const personResponsible = user?.name || user?.fullName || "";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
   const [saving, setSaving] = useState(false);
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    if (window.__pbSaving) return;  // prevent duplicate submissions
+    if (formData.date && formData.date > todayStr()) {
+      setError("Date cannot be a future date.");
+      return;
+    }
+    if (formData.methodOfHandling === NEW_VALUE && !newMethodOfHandling.trim()) {
+      setError("Please enter the new Method of Handling.");
+      return;
+    }
+    if (formData.endUse === NEW_VALUE && !newEndUse.trim()) {
+      setError("Please enter the new End Use / Disposal.");
+      return;
+    }
+    if (window.__pbSaving) return;
     window.__pbSaving = true;
+    setSaving(true);
     try {
-      setSaving(true);
-      await fetch(`/api/manure-records`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, recordType: "Manure" }),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
-
-    navigate("/records/manure");
+      const payload = {
+        ...formData,
+        personResponsible,
+        recordType: "Manure",
+        ...(formData.methodOfHandling === NEW_VALUE
+          ? { methodOfHandling: undefined, newMethodOfHandling: newMethodOfHandling.trim() }
+          : {}),
+        ...(formData.endUse === NEW_VALUE
+          ? { endUse: undefined, newEndUse: newEndUse.trim() }
+          : {}),
+      };
+      await createManureRecord(payload);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
+      navigate("/records/manure");
+    } catch (err) {
+      setError(err?.message || "Couldn't save this record. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   return (
@@ -60,7 +119,12 @@ export default function AddManureRecord() {
 
         <form className="amn-form-card" onSubmit={handleSubmit}>
 
-          {/* MANURE DETAILS */}
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
+
           <div className="amn-section-header">
             <FiPackage />
             <h3>Manure Details</h3>
@@ -70,13 +134,14 @@ export default function AddManureRecord() {
           <div className="amn-form-grid">
             <div className="amn-form-group">
               <label>Date <span className="amn-req">*</span></label>
-              <input type="date" name="date" value={formData.date} onChange={handleChange} required />
+              <input type="date" name="date" value={formData.date} onChange={handleChange} max={todayStr()} required />
             </div>
 
             <div className="amn-form-group">
               <label>Batch ID / House No. <span className="amn-req">*</span></label>
               <select name="batchId" value={formData.batchId} onChange={handleChange} required>
                 <option value="">Select batch / house</option>
+                {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
             </div>
 
@@ -91,14 +156,23 @@ export default function AddManureRecord() {
 
             <div className="amn-form-group">
               <label>Method of Handling <span className="amn-req">*</span></label>
-              <select name="methodOfHandling" value={formData.methodOfHandling} onChange={handleChange} required>
-                <option value="">Select method</option>
-                <option value="Composting">Composting</option>
-                <option value="Drying">Drying</option>
-                <option value="Biogas">Biogas</option>
-                <option value="Direct Application">Direct Application</option>
-                <option value="Other">Other</option>
-              </select>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <select name="methodOfHandling" value={formData.methodOfHandling} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select method</option>
+                  {methodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  <option value={NEW_VALUE}>Others</option>
+                </select>
+                {formData.methodOfHandling === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newMethodOfHandling}
+                    onChange={(e) => setNewMethodOfHandling(e.target.value)}
+                    placeholder="Enter method..."
+                    style={{ flex: 1 }}
+                    required
+                  />
+                )}
+              </div>
             </div>
 
             <div className="amn-form-group">
@@ -109,58 +183,31 @@ export default function AddManureRecord() {
 
             <div className="amn-form-group">
               <label>End Use / Disposal <span className="amn-req">*</span></label>
-              <select name="endUse" value={formData.endUse} onChange={handleChange} required>
-                <option value="">Select end use / disposal</option>
-                <option value="Used as fertilizer">Used as fertilizer</option>
-                <option value="Sold">Sold</option>
-                <option value="Composted">Composted</option>
-                <option value="Biogas">Biogas</option>
-                <option value="Other">Other</option>
-              </select>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <select name="endUse" value={formData.endUse} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select end use / disposal</option>
+                  {endUseOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  <option value={NEW_VALUE}>Others</option>
+                </select>
+                {formData.endUse === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newEndUse}
+                    onChange={(e) => setNewEndUse(e.target.value)}
+                    placeholder="Enter end use / disposal..."
+                    style={{ flex: 1 }}
+                    required
+                  />
+                )}
+              </div>
             </div>
 
             <div className="amn-form-group">
-              <label>Person Responsible <span className="amn-req">*</span></label>
-              <select name="personResponsible" value={formData.personResponsible} onChange={handleChange} required>
-                <option value="">Select person</option>
-              </select>
+              <label>Person Responsible</label>
+              <input type="text" value={personResponsible} disabled />
             </div>
           </div>
 
-          {/* SANITATION & FERTILIZER (maintenance-log requirement) */}
-          <div className="amn-section-header">
-            <FiClipboard />
-            <h3>Sanitation &amp; Fertilizer</h3>
-            <div className="amn-line" />
-          </div>
-
-          <div className="amn-form-grid">
-            <div className="amn-form-group">
-              <label>Area Cleaned</label>
-              <input type="text" name="areaCleaned" value={formData.areaCleaned} onChange={handleChange}
-                placeholder="e.g. Layer house A, cages 1–10" />
-            </div>
-
-            <div className="amn-form-group">
-              <label>Tools / Equipment Used</label>
-              <input type="text" name="toolsUsed" value={formData.toolsUsed} onChange={handleChange}
-                placeholder="e.g. shovel, sprayer, disinfectant" />
-            </div>
-
-            <div className="amn-form-group">
-              <label>Waste Management Action</label>
-              <input type="text" name="wasteManagement" value={formData.wasteManagement} onChange={handleChange}
-                placeholder="e.g. composted, sterilized, hauled out" />
-            </div>
-
-            <div className="amn-form-group">
-              <label>Fertilizer Harvested (kg)</label>
-              <input type="number" min="0" step="0.1" name="fertilizerHarvested" value={formData.fertilizerHarvested}
-                onChange={handleChange} placeholder="0" />
-            </div>
-          </div>
-
-          {/* ADDITIONAL INFORMATION */}
           <div className="amn-section-header">
             <FiFileText />
             <h3>Additional Information</h3>
@@ -174,7 +221,6 @@ export default function AddManureRecord() {
             <small className="amn-char-count">{formData.remarks.length} / 255</small>
           </div>
 
-          {/* Actions */}
           <div className="amn-form-actions">
             <p className="amn-req-note">Fields with * are required.</p>
             <div className="amn-action-btns">

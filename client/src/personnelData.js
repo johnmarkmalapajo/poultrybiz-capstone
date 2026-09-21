@@ -1,18 +1,7 @@
-// personnelData.js
-// Shared frontend mock data (single source of truth) for the Personnel module.
-// Place this at: src/data/personnelData.js  (adjust the import paths if different)
-//
-// Each personnel is keyed by a stable _id. The View Personnel page looks records
-// up by that id, so every employee shows ONLY their own profile, attendance,
-// and tasks. Editing one record does not affect the others.
-//
-// Full Name, Contact Number, and Image live under `profile` — these are synced
-// from the Farmer's My Profile (read-only). Everything else is Admin-managed.
-
 export const PERSONNEL = [
   {
-    _id: "o1", accountRole: "Owner / Admin", status: "Active",
-    position: "Owner / Admin", shiftHours: "—", dateHired: "—",
+    _id: "o1", accountRole: "Owner", status: "Active",
+    position: "Owner", shiftHours: "—", dateHired: "—",
     assignedWork: "", remarks: "",
     profile: { fullName: "Engr. Maria Egginear", contactNumber: "0917 000 1111", image: "" },
   },
@@ -54,7 +43,6 @@ export const PERSONNEL = [
   },
 ];
 
-// ── Per-personnel attendance (only the selected employee's logs show) ──
 export const ATTENDANCE_BY_ID = {
   f1: [
     { _id: "a1", timestamp: "08:00 AM", date: "May 1, 2024", timeIn: "7:00 AM", timeOut: "5:00 PM", status: "Present", remarks: "Completed", taskCompleted: true },
@@ -77,8 +65,6 @@ export const ATTENDANCE_BY_ID = {
   f6: [],
 };
 
-// ── Per-personnel tasks (assigned by Owner/Admin) ──
-// status: "Pending" | "In Progress" | "Completed"   priority: "High" | "Medium" | "Low"
 export const TASKS_BY_ID = {
   f1: [
     { _id: "t1", date: "May 1, 2024", work: "Morning feeding (Cage 1-4)", assignedDate: "Apr 30, 2024", dueDate: "May 1, 2024", priority: "High",   status: "Completed" },

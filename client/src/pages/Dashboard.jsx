@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiCheck } from "react-icons/fi";
 import {
   PieChart, Pie, Cell, Tooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer
@@ -7,15 +8,19 @@ import {
 import PageLayout from "../components/PageLayout";
 import Card, { Icons } from "../components/Card";
 import { useUser } from "../hooks/useUser";
-import { getAll as getNotifications, subscribe as subscribeNotifs } from "../notifStore";
+import { getDashboardSummary } from "../api/dashboard";
 import {
-  getAssignedTasks, getAllAssignedTasks, getPersonalTodos,
-  setAssignedTaskDone, updatePersonalTodo,
-  getCurrentUser as getTodoUser,
+  refresh as refreshNotifs, getCached as getCachedNotifs,
+  subscribe as subscribeNotifs, getLastError as getNotifsError,
+} from "../notifStore";
+import {
+  refreshAllAssignedTasks, refreshAssignedTasks, refreshPersonalTodos,
+  getCachedAllAssignedTasks, getCachedAssignedTasks, getCachedPersonalTodos,
+  setAssignedTaskDoneById, updatePersonalTodoById,
+  getCurrentUser as getTodoUser, subscribe as subscribeTodos,
 } from "../todoStore";
 import "./Dashboard.css";
-
-const BASE_URL = "https://poultrybiz.onrender.com/api/v1";
+import "./ToDo.css";
 
 const EGG_COLORS = ["#f5d76e","#f5a623","#f0a070","#d4a0e0","#a0c4f0","#70b8d4","#a0d4b0"];
 const EGG_LABELS = ["Large","Extra Large","Medium","Jumbo","Small","Peewee","Crack"];
@@ -28,24 +33,8 @@ const EMPTY = {
   feed:       { feedStockKg: 0, feedConsumedToday: 0, feedLowStock: false, feedCriticalStock: false },
   health:     { sickChickens: 0, underTreatment: 0, vaccinationDue: 0 },
   equipment:  { operationalEquipment: 0, maintenanceDueEquipment: 0 },
-  feedStockKg: 0,
-  tasks:      [],
-  alerts:     [],
 };
 
-// Notifications (Sidebar badge's source of truth AND the Notifications page's
-// source of truth — same "pb_notifications" store, same event) double as the
-// Dashboard's Alert feed — unread alerts, most recent first, scoped to the
-// logged-in user's role so a Farmer never sees an Admin-only alert here.
-function loadDashboardAlerts(role) {
-  return getNotifications(role)
-    .filter((n) => !n.read && n.type === "alert")
-    .sort((a, b) => b.dateTime - a.dateTime)
-    .map((n) => ({ type: n.priority === "high" ? "danger" : "warning", message: n.title }));
-}
-
-// Always returns a fully-shaped dashboard object, even if the API sends
-// partial data, an array, null, or nothing — so the UI can never crash.
 function shapeData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) return EMPTY;
   return {
@@ -57,233 +46,167 @@ function shapeData(d) {
     feed:       { ...EMPTY.feed,       ...(d.feed       || {}) },
     health:     { ...EMPTY.health,     ...(d.health     || {}) },
     equipment:  { ...EMPTY.equipment,  ...(d.equipment  || {}) },
-    tasks:      Array.isArray(d.tasks)  ? d.tasks  : [],
-    alerts:     Array.isArray(d.alerts) ? d.alerts : [],
   };
+}
+
+function SkeletonCard() {
+  return (
+    <div className="dash-card skel-card">
+      <div className="skel skel-icon" />
+      <div className="dash-card-info">
+        <div className="skel skel-value" />
+        <div className="skel skel-label" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonPie() {
+  return (
+    <div className="pie-wrap">
+      <div className="skel skel-circle" />
+      <div className="pie-legend">
+        {[...Array(4)].map((_, i) => (
+          <div className="legend-row" key={i}>
+            <div className="skel skel-dot" />
+            <div className="skel skel-line" style={{ width: "70%" }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SkeletonLine() {
+  return <div className="skel skel-chart" />;
+}
+
+function SkeletonRows({ count = 3 }) {
+  return (
+    <div className="skel-rows">
+      {[...Array(count)].map((_, i) => (
+        <div className="skel skel-line" key={i} style={{ width: `${85 - i * 10}%` }} />
+      ))}
+    </div>
+  );
 }
 
 function Dashboard() {
   const [data, setData]       = useState(EMPTY);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+  const [initialLoad, setInitialLoad] = useState(true);  const [error, setError]     = useState("");
+
   const [tasks, setTasks]     = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
+  const [alerts, setAlerts]   = useState([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
 
   const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
   const navigate = useNavigate();
   const TODO_LIMIT = 5;
   const ALERT_LIMIT = 4;
   const isNewUser = localStorage.getItem("isNewUser") === "true";
+  const todoUser = getTodoUser({ id: "me", userId: "me", name: "You" });
 
-  // ── Cards with beautiful SVG icons (all values guarded with ?. and ?? 0) ──
   const ALL_CARDS = [
-    {
-      title:     "Current Flock Size",
-      value:     data.flock?.currentFlockSize ?? 0,
-      icon:      Icons.flock,
-      iconBg:    "#fff3e0",
-      adminOnly: false,
-    },
-    {
-      title:     "Sales Revenue",
-      value:     data.financials?.salesRevenue ?? 0,
-      icon:      Icons.revenue,
-      iconBg:    "#fff8e1",
-      adminOnly: true,
-    },
-    {
-      title:     "Total Eggs Today",
-      value:     data.eggs?.totalEggsToday ?? 0,
-      icon:      Icons.eggs,
-      iconBg:    "#fffde7",
-      adminOnly: false,
-    },
-    {
-      title:     "Total Expenses",
-      value:     data.financials?.totalExpenses ?? 0,
-      icon:      Icons.expenses,
-      iconBg:    "#fdecea",
-      adminOnly: true,
-    },
-    {
-      title:     "Entire Flock Productive Rate",
-      value:     data.flock?.productiveRate ?? 0,
-      icon:      Icons.productive,
-      iconBg:    "#f3e5f5",
-      adminOnly: false,
-    },
-    {
-      title:     "Net Profit / Loss",
-      value:     data.financials?.netProfitLoss ?? 0,
-      icon:      Icons.profit,
-      iconBg:    "#ede7f6",
-      adminOnly: true,
-    },
-    {
-      title:     "Mortality Rate (%)",
-      value:     data.flock?.mortalityRate ?? 0,
-      icon:      Icons.mortality,
-      iconBg:    "#e8f5e9",
-      adminOnly: false,
-    },
-    {
-      title:     "Mortality Today",
-      value:     data.flock?.mortalityToday ?? 0,
-      icon:      Icons.mortality,
-      iconBg:    "#e8f5e9",
-      adminOnly: false,
-    },
-    {
-      title:     "Feed Stock (kg)",
-      value:     data.feed?.feedStockKg ?? data.feedStockKg ?? 0,
-      icon:      Icons.feed,
-      iconBg:    "#fff8e1",
-      adminOnly: false,
-    },
-    {
-      title:     "Feed Consumed Today (kg)",
-      value:     data.feed?.feedConsumedToday ?? 0,
-      icon:      Icons.feed,
-      iconBg:    "#fff8e1",
-      adminOnly: false,
-    },
-    {
-      title:     "Sick Chickens",
-      value:     data.health?.sickChickens ?? 0,
-      icon:      Icons.mortality,
-      iconBg:    "#fdecea",
-      adminOnly: false,
-    },
-    {
-      title:     "Under Treatment",
-      value:     data.health?.underTreatment ?? 0,
-      icon:      Icons.mortality,
-      iconBg:    "#fdecea",
-      adminOnly: false,
-    },
-    {
-      title:     "Vaccination Due",
-      value:     data.health?.vaccinationDue ?? 0,
-      icon:      Icons.mortality,
-      iconBg:    "#fdecea",
-      adminOnly: false,
-    },
-    {
-      title:     "Operational Equipment",
-      value:     data.equipment?.operationalEquipment ?? 0,
-      icon:      Icons.productive,
-      iconBg:    "#f3e5f5",
-      adminOnly: false,
-    },
-    {
-      title:     "Equipment Maintenance Due",
-      value:     data.equipment?.maintenanceDueEquipment ?? 0,
-      icon:      Icons.productive,
-      iconBg:    "#f3e5f5",
-      adminOnly: false,
-    },
+    { title: "Current Flock Size",              value: data.flock?.currentFlockSize ?? 0, icon: Icons.flock,      iconBg: "#fff3e0", ownerOnly: false },
+    { title: "Sales Revenue",                   value: data.financials?.salesRevenue ?? 0, icon: Icons.revenue,   iconBg: "#fff8e1", ownerOnly: true },
+    { title: "Total Eggs Today",                value: data.eggs?.totalEggsToday ?? 0,     icon: Icons.eggs,      iconBg: "#fffde7", ownerOnly: false },
+    { title: "Total Expenses",                  value: data.financials?.totalExpenses ?? 0, icon: Icons.expenses, iconBg: "#fdecea", ownerOnly: true },
+    { title: "Entire Flock Productive Rate",    value: data.flock?.productiveRate ?? 0,    icon: Icons.productive, iconBg: "#f3e5f5", ownerOnly: false },
+    { title: "Net Profit / Loss",               value: data.financials?.netProfitLoss ?? 0, icon: Icons.profit,   iconBg: "#ede7f6", ownerOnly: true },
+    { title: "Mortality Rate (%)",              value: data.flock?.mortalityRate ?? 0,     icon: Icons.mortality,  iconBg: "#e8f5e9", ownerOnly: false },
+    { title: "Feed Stock (kg)",                 value: data.feed?.feedStockKg ?? 0,        icon: Icons.feed,       iconBg: "#fff8e1", ownerOnly: false },
   ];
+  const visibleCards = ALL_CARDS.filter((card) => !card.ownerOnly || canSeeFinancials);
 
-  const visibleCards = ALL_CARDS.filter(
-    (card) => !card.adminOnly || canSeeFinancials
-  );
-
-  // ── Fetch dashboard data (stat cards, chart, alert list) ──
-  // mockApi.js intercepts this exact URL and computes computeDashboard()
-  // live from the SAME localStorage records every module page reads/writes
-  // — no separate mock data, no hardcoded numbers.
   const fetchDashboard = async () => {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("token");
-      const res   = await fetch(`${BASE_URL}/dashboard`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const json = await res.json();
-      if (json && json.success) {
-        setData(shapeData(json.data));
-      } else {
-        setData(EMPTY);
-        setError("No dashboard data yet.");
-      }
-    } catch {
+      const json = await getDashboardSummary();
+      setData(shapeData(json?.data ?? json));
+    } catch (err) {
       setData(EMPTY);
-      setError("Cannot connect to server. Showing empty dashboard.");
+      setError(err?.message || "Couldn't load dashboard data.");
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   };
 
-  // Live sync — refetch whenever module data changes (add/edit/archive/restore/
-  // delete), on tab focus, or on cross-tab storage changes. No page reload needed.
+  const fetchAlerts = async () => {
+    setAlertsLoading(true);
+    await refreshNotifs(role);
+    setAlertsLoading(false);
+  };
+  useEffect(() => {
+    const update = () => {
+      const list = getCachedNotifs(role)
+        .filter((n) => !n.read && n.type === "alert")
+        .sort((a, b) => new Date(b.dateTime || 0) - new Date(a.dateTime || 0))
+        .map((n) => ({ type: n.priority === "critical" ? "danger" : "warning", message: n.title }));
+      setAlerts(list);
+      if (getNotifsError()) setAlertsLoading(false);
+    };
+    fetchAlerts().then(update);
+    return subscribeNotifs(update);
+  }, [role]);
+
+  const fetchTasks = async () => {
+    setTasksLoading(true);
+    if (canViewPersonnel) {
+      await refreshAllAssignedTasks();
+    } else {
+      await Promise.all([refreshAssignedTasks(todoUser.id), refreshPersonalTodos(todoUser.userId)]);
+    }
+    setTasksLoading(false);
+  };
+  useEffect(() => {
+    const update = () => {
+      if (canViewPersonnel) {
+        setTasks(getCachedAllAssignedTasks().filter((t) => !t.archived));
+      } else {
+        const assigned = getCachedAssignedTasks().map((t) => ({ ...t, source: "assigned" }));
+        const personal = getCachedPersonalTodos().map((t) => ({ ...t, source: "personal" }));
+        setTasks([...assigned, ...personal].filter((t) => !t.archived));
+      }
+    };
+    fetchTasks().then(update);
+    return subscribeTodos(update);
+  }, [canViewPersonnel, todoUser.id]);
+
   useEffect(() => {
     fetchDashboard();
     const refresh = () => fetchDashboard();
     window.addEventListener("pb_data_changed", refresh);
-    window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     return () => {
       window.removeEventListener("pb_data_changed", refresh);
-      window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
     };
   }, []);
 
-  // To Do card — ONE store (todoStore.js) for both roles, the exact same
-  // data the To Do pages read/write, so this card is never out of sync:
-  //   Admin  → every task Admin has assigned, across all Farmers.
-  //   Farmer → tasks assigned to them + their own personal to-dos.
-  const todoUser = getTodoUser({ id: "me", name: "You" });
-  useEffect(() => {
-    const update = () => {
-      if (canViewPersonnel) {
-        setTasks(getAllAssignedTasks().filter((t) => !t.archived));
-      } else {
-        const assigned = getAssignedTasks(todoUser.id).map((t) => ({ ...t, source: "assigned" }));
-        const personal = getPersonalTodos(todoUser.id).map((t) => ({ ...t, source: "personal" }));
-        setTasks([...assigned, ...personal].filter((t) => !t.archived));
-      }
-    };
-    update();
-    window.addEventListener("pb_data_changed", update);
-    window.addEventListener("storage", update);
-    window.addEventListener("focus", update);
-    return () => {
-      window.removeEventListener("pb_data_changed", update);
-      window.removeEventListener("storage", update);
-      window.removeEventListener("focus", update);
-    };
-  }, [canViewPersonnel, todoUser.id]);
+  const [confirmComplete, setConfirmComplete] = useState(null);
 
-  // Alert card — read from the same notification store the Notifications
-  // page and Sidebar badge use, scoped to this user's role, so it's always
-  // showing the exact same real, current, unread items (no duplicate logic).
-  const [alerts, setAlerts] = useState(() => loadDashboardAlerts(role));
-  useEffect(() => {
-    const update = () => setAlerts(loadDashboardAlerts(role));
-    update();
-    return subscribeNotifs(update);
-  }, [role]);
-
-  // ── Toggle task ──
-  const toggleTask = (t) => {
-    if (canViewPersonnel) {
-      // t.farmerId is present because getAllAssignedTasks() flattens
-      // todoStore's per-farmer dict — see todoStore.js.
-      setAssignedTaskDone(t.farmerId, t._id, t.status !== "Completed");
-      return;
-    }
-    if (t.source === "assigned") {
-      setAssignedTaskDone(todoUser.id, t._id, t.status !== "Completed", todoUser.name);
+  const doToggle = async (t) => {
+    if (canViewPersonnel || t.source === "assigned") {
+      const personnelId = t.personnelId || todoUser.id;
+      await setAssignedTaskDoneById(personnelId, t._id, t.status !== "Completed");
     } else {
-      updatePersonalTodo(todoUser.id, t._id, { done: t.status !== "Completed", status: t.status === "Completed" ? "Pending" : "Completed" });
+      await updatePersonalTodoById(t._id, { status: t.status === "Completed" ? "Pending" : "Completed" }, todoUser.userId);
     }
   };
 
-  // ── Chart range filters: Today / This Week / This Month ──
+  const toggleTask = (t) => {
+    if (t.status !== "Completed") {
+      setConfirmComplete(t);
+    } else {
+      doToggle(t);
+    }
+  };
+
   const [pieRange, setPieRange] = useState("month");
   const [trendRange, setTrendRange] = useState("week");
 
@@ -294,20 +217,14 @@ function Dashboard() {
       const floor = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
       return trend.filter((t) => t.date >= floor);
     }
-    return trend.filter((t) => t.date.startsWith(todayISO.slice(0, 7))); // this calendar month
-  };
+    return trend.filter((t) => t.date.startsWith(todayISO.slice(0, 7)));  };
 
   const allTrend = data.eggs?.dailyTrend ?? [];
-  // mockApi's computeDashboard() emits { date, eggs, total } — normalize to
-  // `count` here so the chart/table below always has the field they expect,
-  // regardless of which key the backend/mock happens to use.
   const dailyTrend = filterByRange(allTrend, trendRange).map((row) => ({
     ...row,
     count: row.count ?? row.total ?? row.eggs ?? 0,
   }));
 
-  // Pie: size distribution computed for the selected range (falls back to the
-  // endpoint's month distribution when per-day sizes aren't available)
   const pieSlice = filterByRange(allTrend, pieRange);
   const rangeSizes = {}; let rangeTotal = 0;
   pieSlice.forEach((t) => {
@@ -337,12 +254,13 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* ── Top row ── */}
+      {}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ minWidth: "150px" }}>
           {loading && (
             <span style={{
-              fontSize: "12px", fontWeight: "600",
+              fontSize: "12px", fontWeight: "600", color: "var(--text-second, #6b6457)",
+              background: "var(--gold-light, #fdf3e3)",
               padding: "4px 14px", borderRadius: "20px",
             }}>
               Loading dashboard...
@@ -351,7 +269,7 @@ function Dashboard() {
         </div>
 
         <button onClick={fetchDashboard} style={{
-          background: "",
+          background: "var(--gold-light, #fdf3e3)", color: "var(--gold-dark, #c8930c)",
           border: "none", borderRadius: "8px",
           padding: "6px 16px", fontSize: "13px",
           fontWeight: "600", cursor: "pointer",
@@ -361,34 +279,36 @@ function Dashboard() {
         </button>
       </div>
 
-      {/* Error */}
+      {}
       {error && (
         <div style={{
-          borderRadius: "8px", padding: "10px 16px",
-          color: "#c0392b", fontSize: "12px",
+          background: "var(--red-bg, #fdf0f0)", borderRadius: "8px", padding: "10px 16px",
+          color: "var(--red, #d94f4f)", fontSize: "12px",
         }}>
-           {error}
+          {error}
         </div>
       )}
 
-      {/* ── Stat Cards (Farmer = single horizontal row) ── */}
+      {}
       <div className={`cards ${!canSeeFinancials ? "cards-row" : ""}`}>
-        {visibleCards.map((card) => (
-          <Card
-            key={card.title}
-            title={card.title}
-            value={card.value}
-            icon={card.icon}
-            iconBg={card.iconBg}
-          />
-        ))}
+        {initialLoad
+          ? visibleCards.map((card) => <SkeletonCard key={card.title} />)
+          : visibleCards.map((card) => (
+              <Card
+                key={card.title}
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+                iconBg={card.iconBg}
+              />
+            ))}
       </div>
 
-      {/* ── Bottom ── */}
+      {}
       <div className="bottom">
         <div className="charts-col">
 
-          {/* Egg Size Distribution */}
+          {}
           <div className="chart-card">
             <div className="chart-header">
               <span className="chart-title">Latest Egg Size Distribution</span>
@@ -398,8 +318,10 @@ function Dashboard() {
                 <option value="month">This Month</option>
               </select>
             </div>
-            {!hasPieData ? (
-              <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
+            {initialLoad ? (
+              <SkeletonPie />
+            ) : !hasPieData ? (
+              <p className="chart-empty">
                 No egg data for this period yet.
               </p>
             ) : (
@@ -425,7 +347,7 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Daily Egg Harvest Trend */}
+          {}
           <div className="chart-card">
             <div className="chart-header">
               <span className="chart-title">Daily Egg Harvest Trend</span>
@@ -435,8 +357,10 @@ function Dashboard() {
                 <option value="month">This Month</option>
               </select>
             </div>
-            {dailyTrend.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "13px", padding: "12px 0" }}>
+            {initialLoad ? (
+              <SkeletonLine />
+            ) : dailyTrend.length === 0 ? (
+              <p className="chart-empty">
                 No egg harvest data for this period yet.
               </p>
             ) : (
@@ -467,21 +391,28 @@ function Dashboard() {
 
         </div>
 
-        {/* RIGHT */}
+        {}
         <div className="right-col">
           <div className="todo-card">
             <h3 className="todo-title">To Do</h3>
             <div className="todo-header-row">
               <span /><span>Date</span><span>Task</span>
             </div>
-            {tasks.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "12px", padding: "8px 0" }}>No tasks yet.</p>
+            {tasksLoading ? (
+              <SkeletonRows count={3} />
+            ) : tasks.length === 0 ? (
+              <p className="card-empty">No tasks yet.</p>
             ) : tasks.slice(0, TODO_LIMIT).map((t) => {
               const done = t.status === "Completed";
               return (
                 <div className="todo-row" key={t._id}>
-                  <input type="checkbox" checked={done}
-                    onChange={() => toggleTask(t)} className="todo-check" />
+                  <span
+                    className={`todo-check ${done ? "checked" : ""}`}
+                    onClick={() => toggleTask(t)}
+                    title={done ? "Mark as pending" : "Mark as done"}
+                  >
+                    {done && <FiCheck />}
+                  </span>
                   <span className="todo-date">
                     {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ""}
                   </span>
@@ -490,7 +421,7 @@ function Dashboard() {
               );
             })}
             {tasks.length > TODO_LIMIT && (
-              <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/admin/todo")}>
+              <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/owner/todo")}>
                 See All
               </button>
             )}
@@ -498,11 +429,13 @@ function Dashboard() {
 
           <div className="alert-card">
             <h3 className="alert-title">Alert</h3>
-            {alerts.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "13px" }}>No alerts. All good! ✅</p>
+            {alertsLoading ? (
+              <SkeletonRows count={2} />
+            ) : alerts.length === 0 ? (
+              <p className="alert-empty">No alerts. All good! ✅</p>
             ) : alerts.slice(0, ALERT_LIMIT).map((a, i) => (
               <div className="alert-row" key={i}>
-                <span className="alert-icon">{a.type === "danger" ? "🔺" : "🔶"}</span>
+                <span className={`alert-icon ${a.type}`}>{a.type === "danger" ? "🔺" : "🔶"}</span>
                 <span className="alert-msg">{a.message}</span>
               </div>
             ))}
@@ -514,6 +447,19 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {confirmComplete && (
+        <div className="todo-confirm-overlay" onClick={() => setConfirmComplete(null)}>
+          <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="todo-confirm-title">Mark this task as completed?</h3>
+            <p className="todo-confirm-message">The task status will be changed to Completed.</p>
+            <div className="todo-confirm-actions">
+              <button className="todo-confirm-cancel" onClick={() => setConfirmComplete(null)}>Cancel</button>
+              <button className="todo-btn-save" onClick={() => { doToggle(confirmComplete); setConfirmComplete(null); }}>Mark as Completed</button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 }

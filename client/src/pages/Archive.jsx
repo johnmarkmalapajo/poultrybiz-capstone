@@ -3,72 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { FiSearch, FiFilter, FiRotateCcw, FiTrash2, FiArchive, FiCalendar, FiLayers } from "react-icons/fi";
 import "./Archive.css";
 import PageLayout from "../components/PageLayout";
+import { listArchivedRecords, deleteArchiveEntry } from "../api/archive";
+import { RESTORE_FN_BY_MODULE_KEY, DELETE_FN_BY_MODULE_KEY } from "../archiveRow";
+import { deleteUserPermanently } from "../api/users";
+import { checkDependencies, DEPENDENCY_TYPE_BY_MODULE_KEY } from "../api/dependencies";
+import { useTableSort, sortIndicator } from "../hooks/useTableSort";
+import { usePagination } from "../hooks/usePagination";
+import TablePagination from "../components/TablePagination";
+import "../components/TablePagination.css";
 
-/* ─────────────────────────────────────────────────────────────
-   INLINE STORE — centralized soft-delete Archive + Audit Logs.
-   Exported so any module can archive a record:
-     import { archiveStore } from "../pages/Archive";
-     archiveStore.archive({ module, recordName, archivedBy, moduleKey, payload });
-────────────────────────────────────────────────────────────── */
-const A_KEY = "pb_archive";
-const LOG_KEY = "pb_audit_logs";
-const _read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const _write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } };
-const _uid = () => "arc_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-
-function _seed() {
-  // No demo/mock archive data — records appear here ONLY when the user
-  // archives them from a module.
-}
-
-export const archiveStore = {
-  seed: _seed,
-  getAll() { _seed(); return _read(A_KEY).slice().sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)); },
-  getLogs() { return _read(LOG_KEY); },
-  archive({ module, recordName, archivedBy = "Admin", payload = {}, moduleKey = "" }) {
-    const rec = { id: _uid(), module, recordName, archivedBy, archivedAt: new Date().toISOString(), moduleKey, payload };
-    const a = _read(A_KEY); a.unshift(rec); _write(A_KEY, a);
-    this.log(`${archivedBy} archived ${module} "${recordName}".`, archivedBy);
-    return rec;
-  },
-  restore(id, by = "Admin") {
-    const a = _read(A_KEY);
-    const rec = a.find((r) => r.id === id);
-    if (!rec) return null;
-    _write(A_KEY, a.filter((r) => r.id !== id));
-    if (rec.moduleKey && rec.payload && Object.keys(rec.payload).length) {
-      const modArr = _read(rec.moduleKey);
-      modArr.push({ ...rec.payload, status: "Active" });
-      _write(rec.moduleKey, modArr);
-    }
-    this.log(`${by} restored ${rec.module} "${rec.recordName}".`, by);
-    return rec;
-  },
-  remove(id, by = "Admin") {
-    const a = _read(A_KEY);
-    const rec = a.find((r) => r.id === id);
-    if (!rec) return null;
-    _write(A_KEY, a.filter((r) => r.id !== id));
-    this.log(`${by} permanently deleted ${rec.module} "${rec.recordName}".`, by);
-    return rec;
-  },
-  log(detail, by = "Admin") {
-    const logs = _read(LOG_KEY);
-    logs.unshift({ id: "log_" + Date.now() + "_" + Math.floor(Math.random() * 999), action: "Archive/Restore", detail, by, at: new Date().toISOString() });
-    _write(LOG_KEY, logs);
-  },
-};
-
-/* ── Constants ── */
 const MODULES = [
-  "All", "Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption",
+  "All", "Users","Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption", "Equipment", "Manure Records",
   "Sales Records", "Expense Records", "Diagnosis", "Treatment", "Vaccination",
   "Mortality Records", "Isolation", "Quarantine", "Waste Management",
   "Personnel & Manpower", "Visitors",
 ];
 const MODULE_COLORS = {
-  "Flock Profile": "gold", "Egg Records": "orange",
-  "Feed Inventory": "green", "Feed Consumption": "green",
+  "Users": "blue", "Flock Profile": "gold", "Egg Records": "orange",
+  "Feed Inventory": "green", "Feed Consumption": "green", "Equipment": "green",
   "Sales Records": "blue", "Expense Records": "blue",
   "Diagnosis": "red", "Treatment": "red", "Vaccination": "red", "Mortality Records": "red",
   "Isolation": "orange", "Quarantine": "orange",
@@ -83,7 +35,29 @@ const fmtDate = (iso) => {
 
 export default function Archive({ embedded = false, onBack }) {
   const navigate = useNavigate();
-  const [records, setRecords] = useState(() => archiveStore.getAll());
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const isOwner = currentUser.role === "Owner";
+  const canRestore = (record) => {
+  if (record.moduleKey === "pb_personal_todos") {
+    return isOwner;
+  }
+
+  const targetRole =
+    record.payload?.role ||
+    record.payload?.user?.role ||
+    "";
+
+  if (isOwner) {
+    return targetRole !== "Owner";
+  }
+
+  return false;
+};
+
+
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("All");
   const [showFilter, setShowFilter] = useState(false);
@@ -93,7 +67,27 @@ export default function Archive({ embedded = false, onBack }) {
   const toastRef = useRef(null);
   const filterRef = useRef(null);
 
-  const refresh = () => setRecords(archiveStore.getAll());
+  const refresh = () => {
+    setLoading(true);
+    setError("");
+    listArchivedRecords()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.records || data.data || [];
+        setRecords(list.slice().sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)));
+      })
+      .catch((err) => { setRecords([]); setError(err?.message || "Couldn't load archived records."); })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener("pb_data_changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("pb_data_changed", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   useEffect(() => () => clearTimeout(toastRef.current), []);
   useEffect(() => {
     const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
@@ -114,6 +108,20 @@ export default function Archive({ embedded = false, onBack }) {
     });
   }, [records, search, moduleFilter]);
 
+  const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
+  const sortAccessor = (row, col) => {
+    if (col === "archivedAt") return row.archivedAt || "";
+    if (col === "module") return row.module || "";
+    if (col === "recordName") return row.recordName || "";
+    if (col === "archivedBy") return row.archivedBy || "";
+    return "";
+  };
+  const sorted = sortData(filtered, sortAccessor);
+  const pager = usePagination(sorted.length);
+  useEffect(() => { pager.setPage(1); }, [search, moduleFilter]);
+  const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+
+
   const stats = useMemo(() => {
     const now = new Date();
     const thisMonth = records.filter((r) => {
@@ -128,24 +136,68 @@ export default function Archive({ embedded = false, onBack }) {
   const clearFilters = () => setModuleFilter("All");
 
   const askRestore = (r) => { setConfirmMode("restore"); setConfirmRec(r); };
-  const askDelete = (r) => { setConfirmMode("delete"); setConfirmRec(r); };
 
-  const doRestore = () => {
+  const [depPreview, setDepPreview] = useState(null);  const [depChecking, setDepChecking] = useState(false);
+
+  const askDelete = async (r) => {
+    const recordId = r.recordId || r.payload?._id || r.payload?.id;
+    const depType = DEPENDENCY_TYPE_BY_MODULE_KEY[r.moduleKey];
+
+    if (depType && recordId) {
+      setDepChecking(true);
+      try {
+        const result = await checkDependencies(depType, recordId);
+        if (result?.hasDependencies) {
+          setDepPreview({ record: r, connections: result.connections });
+          setDepChecking(false);
+          return;
+        }
+      } catch {
+      }
+      setDepChecking(false);
+    }
+
+    setConfirmMode("delete");
+    setConfirmRec(r);
+  };
+
+  const doRestore = async () => {
     if (!confirmRec) return;
-    archiveStore.restore(confirmRec.id, "Admin");
-    setToast(`Restored ${confirmRec.module} "${confirmRec.recordName}".`);
-    setConfirmRec(null);
-    refresh();
+    const restoreFn = RESTORE_FN_BY_MODULE_KEY[confirmRec.moduleKey];
+    const recordId = confirmRec.recordId || confirmRec.payload?._id || confirmRec.payload?.id;
+    try {
+      if (restoreFn && recordId) await restoreFn(recordId, confirmRec.payload);
+      setToast(`Restored ${confirmRec.module} "${confirmRec.recordName}".`);
+      setConfirmRec(null);
+      refresh();
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
+    } catch (err) {
+      setToast(err?.message || "Couldn't restore this record. Please try again.");
+    }
     clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(""), 3200);
   };
 
-  const doDelete = () => {
+  const doDelete = async () => {
     if (!confirmRec) return;
-    archiveStore.remove(confirmRec.id, "Admin");
-    setToast(`Permanently deleted ${confirmRec.module} "${confirmRec.recordName}".`);
-    setConfirmRec(null);
-    refresh();
+    try {
+      if (confirmRec.module === "Users") {
+        await deleteUserPermanently(confirmRec.recordId);
+      } else {
+        const recordId = confirmRec.recordId || confirmRec.payload?._id || confirmRec.payload?.id;
+        const deleteFn = DELETE_FN_BY_MODULE_KEY[confirmRec.moduleKey];
+        if (deleteFn && recordId) {
+          await deleteFn(recordId, confirmRec.payload);
+        } else {
+          await deleteArchiveEntry(confirmRec.id);
+        }
+      }
+      setToast(`Permanently deleted ${confirmRec.module} "${confirmRec.recordName}".`);
+      setConfirmRec(null);
+      refresh();
+    } catch (err) {
+      setToast(err?.message || "Couldn't delete this record. Please try again.");
+    }
     clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(""), 3200);
   };
@@ -201,6 +253,8 @@ export default function Archive({ embedded = false, onBack }) {
           </div>
         )}
 
+        {error && <div className="pb-error-banner">{error}</div>}
+
         <div className="arc-stats-grid">
           <div className="arc-stat-card">
             <div className="arc-stat-icon gold"><FiArchive /></div>
@@ -220,15 +274,17 @@ export default function Archive({ embedded = false, onBack }) {
           <table className="arc-table">
             <thead>
               <tr>
-                <th>Archive Date</th>
-                <th>Module</th>
-                <th>Record Name</th>
-                <th>Archived By</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("archivedAt")}>Archive Date{sortIndicator("archivedAt", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("module")}>Module{sortIndicator("module", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("recordName")}>Record Name{sortIndicator("recordName", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("archivedBy")}>Archived By{sortIndicator("archivedBy", sortColumn, sortDirection)}</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan="5" className="arc-empty-state">Loading archived records...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="arc-empty-state">
                     <div className="arc-empty-content">
@@ -241,7 +297,7 @@ export default function Archive({ embedded = false, onBack }) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((r) => (
+                pageRows.map((r) => (
                   <tr key={r.id}>
                     <td>{fmtDate(r.archivedAt)}</td>
                     <td><span className={badgeClass(r.module)}>{r.module}</span></td>
@@ -249,23 +305,27 @@ export default function Archive({ embedded = false, onBack }) {
                     <td>{r.archivedBy}</td>
                     <td>
                       <div className="arc-actions">
+                       {canRestore(r) && (
                         <button
                           className="arc-action-btn restore"
                           onClick={() => askRestore(r)}
                           title="Restore"
                           aria-label="Restore"
                         >
-                          <FiRotateCcw />
-                        </button>
+                        <FiRotateCcw />
+                          </button>
+                        )}
 
-                        <button
-                          className="arc-action-btn delete"
-                          onClick={() => askDelete(r)}
-                          title="Delete"
-                          aria-label="Delete"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        {isOwner && (
+                          <button
+                            className="arc-action-btn delete"
+                            onClick={() => askDelete(r)}
+                            title="Delete"
+                            aria-label="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -274,9 +334,16 @@ export default function Archive({ embedded = false, onBack }) {
             </tbody>
           </table>
 
-          <div className="arc-table-footer">
-            Showing {filtered.length} entries
-          </div>
+          <TablePagination
+            page={pager.page}
+            setPage={pager.setPage}
+            rowsPerPage={pager.rowsPerPage}
+            setRowsPerPage={pager.setRowsPerPage}
+            totalPages={pager.totalPages}
+            startIndex={pager.startIndex}
+            endIndex={pager.endIndex}
+            totalItems={pager.totalItems}
+          />
         </div>
 
       {toast && <div className="arc-toast">{toast}</div>}
@@ -309,6 +376,47 @@ export default function Archive({ embedded = false, onBack }) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {depPreview && (
+        <div className="arc-overlay" onClick={() => setDepPreview(null)}>
+          <div className="arc-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Permanent Delete Blocked</h3>
+            <p>
+              <strong>"{depPreview.record.recordName}"</strong> has related records
+              in other modules. Deleting it would affect this historical data.
+            </p>
+            <div className="arc-dep-list">
+              {depPreview.connections.map((c) => (
+                c.path ? (
+                  <button
+                    key={c.moduleKey}
+                    className="arc-dep-row arc-dep-row-clickable"
+                    onClick={() => navigate(c.path)}
+                    title={`View ${c.module}`}
+                  >
+                    <span>{c.module}</span>
+                    <span className="arc-dep-count">{c.count.toLocaleString()} →</span>
+                  </button>
+                ) : (
+                  <div key={c.moduleKey} className="arc-dep-row">
+                    <span>{c.module}</span>
+                    <span className="arc-dep-count">{c.count.toLocaleString()}</span>
+                  </div>
+                )
+              ))}
+            </div>
+            <p>
+              This record cannot be permanently deleted while these connections
+              exist. It stays safely in Archive — restore it if you need to bring
+              it back, or keep it archived indefinitely. Click any module above
+              to review its records.
+            </p>
+            <div className="arc-modal-btns">
+              <button className="arc-btn-cancel" onClick={() => setDepPreview(null)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

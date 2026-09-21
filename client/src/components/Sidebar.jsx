@@ -13,10 +13,10 @@ import logoutIcon from "../assets/logout.svg"
 import userMenuIcon from "../assets/user.svg"
 import userIcon from "../assets/donlogo.png"
 import { useUser } from "../hooks/useUser"
-import { getUnreadCount, subscribe as subscribeNotifs } from "../notifStore"
+import { getUnreadCount, refresh as refreshNotifs, subscribe as subscribeNotifs } from "../notifStore"
 import { FiX } from "react-icons/fi"
+import { logout } from "../api/auth";
 
-// Global event-based approach — more reliable than reassigning a variable
 export function openSidebar() {
   window.dispatchEvent(new CustomEvent("open-sidebar"));
 }
@@ -24,21 +24,24 @@ export function openSidebar() {
 function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [profileVersion, setProfileVersion] = useState(0);
   const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unread, setUnread] = useState(() => getUnreadCount(role));
+  const [unread, setUnread] = useState(0);
 
-  // Keep the notifications badge in sync (updates when items are marked read,
-  // and only counts notifications relevant to THIS user's role — e.g. a
-  // Farmer never sees Admin-only alerts like pending account approvals).
+  useEffect(() => {
+    const handler = () => setProfileVersion((v) => v + 1);
+    window.addEventListener("pb_user_updated", handler);
+    return () => window.removeEventListener("pb_user_updated", handler);
+  }, []);
+
   useEffect(() => {
     const update = () => setUnread(getUnreadCount(role));
-    update();
+    refreshNotifs(role).then(update);
     return subscribeNotifs(update);
   }, [role]);
 
-  // Listen for the global open event
   useState(() => {
     const handler = () => setMobileOpen(true);
     window.addEventListener("open-sidebar", handler);
@@ -49,34 +52,41 @@ function Sidebar() {
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
+  try {
+    await logout();
+  } catch (error) {
+    console.error("Logout audit failed:", error);
+  } finally {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/login");
-  };
+    sessionStorage.removeItem("pb_intended_path");
+    navigate("/", { replace: true });
+  }
+};
 
   const closeMobile = () => setMobileOpen(false);
 
   return (
     <>
-      {/* Overlay */}
       {mobileOpen && (
         <div className="sidebar-overlay" onClick={closeMobile} />
       )}
 
       <div className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
 
-        {/* Close button — phone only */}
         <button className="sidebar-close-btn" onClick={closeMobile}>
           <FiX />
         </button>
 
-        <p className="company">Egginear Agri-Poultry Solutions</p>
         <div className="logo-title">
           <img src={sidelogo} alt="Poultrybriz Logo" className="sidelogo" />
-          <h2>POULTRYBIZ</h2>
+          <div className="brand-text">
+            <p className="company">Egginear Agri-Poultry Solutions</p>
+            <h2>POULTRYBIZ</h2>
+            <p className="location">Poras, Boac, Marinduque</p>
+          </div>
         </div>
-        <p className="location">Poras, Boac, Marinduque</p>
 
         <ul>
           <li className={isActive("/dashboard") ? "active" : "secondary"}>
@@ -104,12 +114,11 @@ function Sidebar() {
             <li className={isActive("/sales-transactions") ? "active" : "secondary"}>
               <Link to="/sales-transactions" className="nav-link" onClick={closeMobile}>
                 <img src={salesTransactionsIcon} alt="Sales and Transactions" className="menu-icon" />
-                Sales & Transactions
+                Sales and Transactions
               </Link>
             </li>
           )}
 
-          {/* Personnel & Visitors — hidden from Farmer */}
           {canViewPersonnel && (
             <li className={isActive("/personnel-visitors") ? "active" : "secondary"}>
               <Link to="/personnel-visitors" className="nav-link" onClick={closeMobile}>
@@ -119,8 +128,8 @@ function Sidebar() {
             </li>
           )}
 
-          <li className={isActive("/todo") || isActive("/admin/todo") ? "active" : "secondary"}>
-            <Link to={canViewPersonnel ? "/admin/todo" : "/todo"} className="nav-link" onClick={closeMobile}>
+          <li className={isActive("/todo") || isActive("/owner/todo") ? "active" : "secondary"}>
+            <Link to={canViewPersonnel ? "/owner/todo" : "/todo"} className="nav-link" onClick={closeMobile}>
               <img src={todoIcon} alt="To Do" className="menu-icon" />
               To Do
             </Link>
@@ -177,17 +186,23 @@ function Sidebar() {
           style={{ cursor: "pointer" }}
           title="View Profile"
         >
+
           <div className="user-info">
-            <img src={userIcon} alt="User" className="user-icon" />
+            <img
+              src={user.avatar ? (user.avatar.startsWith("http") ? user.avatar : `http://localhost:5000${user.avatar}`) : userIcon}
+              alt="User"
+              className="user-icon"
+            />
             <div className="user-details">
-              <p><strong>{user.name || "Don Mark Dela Cruz"}</strong></p>
-              <span>{user.role || "Egginear Poultry Solutions"}</span>
+              <p><strong>{user.name || "User"}</strong></p>
+              <span>
+                  {user.role === "Owner" ? "Owner" : user.role}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Logout Modal */}
       {showLogoutModal && (
         <div className="logout-overlay" onClick={() => setShowLogoutModal(false)}>
           <div className="logout-modal" onClick={(e) => e.stopPropagation()}>

@@ -1,11 +1,23 @@
-const express = require('express')
-const { login, signup, forgotPassword, resetPassword } = require('../controllers/authController')
+const express = require("express");
 
-const router = express.Router()
+const {
+  login,
+  signup,
+  logout,
+  forgotPassword,
+  resetPassword,
+  checkFirstAccount,
+} = require("../controllers/authController");
 
-router.post('/login', login)
-router.post('/signup', signup)
-router.post('/forgot-password', forgotPassword)
-router.post('/reset-password', resetPassword)
+const { protect } = require("../middleware/authMiddleware");
 
-module.exports = router
+const router = express.Router();
+
+router.get("/first-account-check", checkFirstAccount);
+router.post("/signup", signup);
+router.post("/login", login);
+router.post("/logout", protect, logout);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+
+module.exports = router;

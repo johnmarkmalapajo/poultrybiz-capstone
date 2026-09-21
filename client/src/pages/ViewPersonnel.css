@@ -89,6 +89,17 @@
 }
 .vp-edit-btn:hover { background: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(228,175,31,0.35); }
 
+.vp-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.vp-download-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; background: transparent; color: #47321C; border: 1.5px solid #e4e0d8;
+  border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base);
+  font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+.vp-download-btn:hover { background: #faf8f3; border-color: var(--gold); }
+
 /* ===== BADGES ===== */
 .badge {
   display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px;
@@ -225,6 +236,8 @@
   .vp-profile-card { flex-direction: column; align-items: stretch; }
   .vp-profile-left { flex-direction: column; align-items: flex-start; }
   .vp-edit-btn { width: 100%; justify-content: center; }
+  .vp-download-btn { width: 100%; justify-content: center; }
+  .vp-header-actions { width: 100%; flex-direction: column; }
   .vp-profile-grid { grid-template-columns: 1fr; }
 
   /* Stat cards — 2x2 like FlockProfile */
@@ -309,3 +322,11 @@
 }
 .vp-dd-item:hover { background: var(--gold-light); color: var(--gold-dark); }
 .vp-dd-item.active { background: var(--gold-light); color: var(--gold-dark); font-weight: 700; }
+/* ── Tasks tab — two separate sections (Personal / Assigned), never
+   merged into one table ── */
+.vp-task-sections { display: flex; flex-direction: column; gap: 28px; }
+.vp-task-section-title {
+  font-family: var(--font-display); font-size: 15px; font-weight: 800;
+  color: #47321C; margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--gold);
+}

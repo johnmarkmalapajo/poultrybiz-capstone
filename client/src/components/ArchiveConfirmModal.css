@@ -1,0 +1,66 @@
+/* Same visual design as Sidebar.css's .logout-modal, reused here so every
+   page's archive confirmation looks identical. */
+.pb-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.pb-confirm-modal {
+  background: #FFFDF6;
+  border-radius: 12px;
+  padding: 32px 28px 24px;
+  width: 350px;
+  max-width: calc(100% - 40px);
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  font-family: 'Poppins', sans-serif;
+}
+.pb-confirm-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #47321C;
+  margin: 0 0 10px;
+  letter-spacing: 0.5px;
+}
+.pb-confirm-message {
+  font-family: 'Lato', sans-serif;
+  font-size: 13px;
+  color: #47321C;
+  font-weight: 500;
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+.pb-confirm-actions { display: flex; gap: 10px; }
+.pb-confirm-cancel {
+  flex: 1;
+  padding: 10px 20px;
+  border: 2px solid transparent;
+  border-radius: 30px;
+  color: #47321C;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: 0.3s;
+  background: transparent;
+}
+.pb-confirm-cancel:hover { border-color: #47321C; }
+.pb-confirm-archive {
+  flex: 1;
+  padding: 10px 20px;
+  border: 2px solid #E4AF1F;
+  border-radius: 30px;
+  background: #E4AF1F;
+  color: #47321C;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.pb-confirm-archive:hover { background: #c8930c; border-color: #c8930c; color: #fff; }

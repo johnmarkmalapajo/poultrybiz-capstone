@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiClock, FiCalendar, FiLogIn, FiAlertCircle } from "react-icons/fi";
 import "./QRCheckIn.css";
+import { createAttendance, getPersonnelAttendance } from "../api/personnelManpower";
+import logo from "../assets/logo.png";
 
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
@@ -55,24 +57,30 @@ export default function QRCheckIn() {
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 
-  const checkIn = () => {
+  const [error, setError] = useState("");
+
+  const checkIn = async () => {
     if (!user) return;
     const t = new Date();
     const time = t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
     const date = t.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const entry = {
-      _id: `qr-${Date.now()}`,
-      date, timestamp: time, timeIn: time, timeOut: "—",
-      status: "Present", remarks: "QR check-in", source: "qr", offset: 0,
-    };
     try {
-      const all = JSON.parse(localStorage.getItem("pb_attendance") || "{}");
-      all[user.id] = [entry, ...(all[user.id] || [])];
-      localStorage.setItem("pb_attendance", JSON.stringify(all));
-      try { window.dispatchEvent(new Event("pb_data_changed")); } catch (e) { /* ignore */ }
-    } catch (e) { /* ignore */ }
-    setDone({ name: user.name, time, date });
-  };
+  const result = await createAttendance();
+
+  try {
+    window.dispatchEvent(new Event("pb_data_changed"));
+  } catch (e) { /* ignore */ }
+
+  setDone({
+    name: user.name,
+    time,
+    date,
+    checkOut: result?.attendance?.timeOut || null,
+  });
+} catch (err) {
+  setError(err?.message || "Couldn't record your attendance.");
+}
+  }
 
   // ── AUTO check-in on scan ──
   // Logged in + QR scanned = attendance is recorded automatically (no button).
@@ -80,16 +88,17 @@ export default function QRCheckIn() {
   useEffect(() => {
     if (!user || done) return;
     const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    let existing = null;
-    try {
-      const all = JSON.parse(localStorage.getItem("pb_attendance") || "{}");
-      existing = (all[user.id] || []).find((e) => e.date === today) || null;
-    } catch (e) { /* ignore */ }
-    if (existing) {
-      setDone({ name: user.name, time: existing.timeIn || existing.timestamp, date: existing.date, already: true });
-    } else {
-      checkIn();
-    }
+    getPersonnelAttendance(user.id)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.records || data.data || [];
+        const existing = list.find((e) => e.date === today) || null;
+        if (existing) {
+          setDone({ name: user.name, time: existing.timeIn || existing.timestamp, date: existing.date, already: true });
+        } else {
+          checkIn();
+        }
+      })
+      .catch(() => checkIn()); // if we can't check for an existing entry, still try to check in
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user && user.id]);
 
@@ -98,7 +107,7 @@ export default function QRCheckIn() {
       {!user ? (
         <div className="qc-card">
           <div className="qc-header">
-            <div className="qc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
+            <div className="qc-logo"><img src="assets/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
             <div className="qc-brand"><h1>PoultryBiz</h1><p>Attendance Check-In</p></div>
           </div>
           <div className="qc-notice">
@@ -117,7 +126,7 @@ export default function QRCheckIn() {
 
         {/* Brand header */}
         <div className="qc-brand">
-          <div className="qc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
+          <div className="qc-logo"><img src={logo} alt="PoultryBiz" style={{ width: 55, height: 55, objectFit: "contain" }} /></div>
           <div>
             <h1>PoultryBiz</h1>
             <p>Attendance Check-In</p>
@@ -143,7 +152,11 @@ export default function QRCheckIn() {
                   </div>
                 </div>
 
-                <p className="qc-hint">Recording your attendance…</p>
+                {error ? (
+                  <div className="pb-error-banner">{error}</div>
+                ) : (
+                  <p className="qc-hint">Recording your attendance…</p>
+                )}
               </>
             ) : (
               <div className="qc-notice">
@@ -169,3 +182,4 @@ export default function QRCheckIn() {
     </div>
   );
 }
+

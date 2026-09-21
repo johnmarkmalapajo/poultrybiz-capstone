@@ -53,9 +53,69 @@
 .efc-form-group textarea:focus { border-color: var(--color-accent); background: #fff; box-shadow: 0 0 0 4px var(--color-accent-glow); }
 .efc-form-group input::placeholder,
 .efc-form-group textarea::placeholder { color: #bbb; }
-.efc-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+
+.efc-quantity-input {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 48px;
+  border: 1.5px solid #e2e2e2;
+  border-radius: 12px;
+  background: #fafafa;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.efc-quantity-input:focus-within {
+  border-color: var(--color-accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--color-accent-glow);
+}
+
+.efc-quantity-input input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  padding: 0 16px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #2d2d2d;
+}
+
+.efc-quantity-input input::placeholder {
+  color: #bbb;
+}
+
+.efc-quantity-input select {
+  width: 95px;
+  height: 100%;
+  padding: 0 15px;
+  border: none !important;
+  border-left: 1.5px solid #e2e2e2 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+  font-family: var(--font-heading);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+}
+
+.efc-quantity-input select:focus {
+  outline: none;
+}
+.efc-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .efc-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.efc-action-btns { display: flex; gap: 12px; align-items: center; }
+.efc-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 .efc-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .efc-cancel-btn:hover { border-color: #bbb; color: #333; }
 .efc-save-btn { display: flex; align-items: center; gap: 9px; padding: 12px 26px; border: none; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
@@ -86,21 +146,7 @@
     gap: 20px;
   }
 
-  .efc-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
 
-  .efc-action-btns {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .efc-cancel-btn,
-  .efc-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 @media (max-width: 480px) {
   .efc-form-card {

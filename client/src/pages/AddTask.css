@@ -53,9 +53,9 @@
 .at-form-group textarea:focus { border-color: var(--color-accent); background: #fff; box-shadow: 0 0 0 4px var(--color-accent-glow); }
 .at-form-group input::placeholder,
 .at-form-group textarea::placeholder { color: #bbb; }
-.at-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.at-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .at-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.at-action-btns { display: flex; gap: 12px; align-items: center; }
+.at-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 .at-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .at-cancel-btn:hover { border-color: #bbb; color: #333; }
 .at-save-btn { display: flex; align-items: center; gap: 9px; padding: 12px 26px; border: none; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
@@ -86,21 +86,7 @@
     gap: 20px;
   }
 
-  .at-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
 
-  .at-action-btns {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .at-cancel-btn,
-  .at-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 @media (max-width: 480px) {
   .at-form-card {

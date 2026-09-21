@@ -5,7 +5,6 @@
 import {
   productivityRate,
   prStatus,
-  breakageRate,
   flockAgeMonths,
   cullingRecommendation,
   feedDaysRemaining,
@@ -47,12 +46,11 @@ export function generateAlerts(farm = {}) {
     }
   });
 
-  // 2. Culling due (age / PR / breakage)
+  // 2. Culling due (age / PR)
   flocks.forEach((f) => {
     const ageMonths = flockAgeMonths(f.dateAcquired);
     const pr = productivityRate(f.eggsToday, f.currentQty);
-    const brk = breakageRate(f.crackedToday, f.totalEggsToday);
-    const rec = cullingRecommendation({ ageMonths, pr, breakagePct: brk });
+    const rec = cullingRecommendation({ ageMonths, pr });
     if (rec.shouldCull) {
       alerts.push({
         id: `cull-${f.batchId}`,
@@ -82,7 +80,7 @@ export function generateAlerts(farm = {}) {
   if (vitaminDueToday(lastVitaminDate)) {
     alerts.push({
       id: "vitamin-due",
-      severity: "info",
+      severity: "normal",
       title: "Vitamins Due Today",
       message: "Vitamins are given every other day. Today is a scheduled day.",
       icon: "droplet",

@@ -11,7 +11,7 @@ export default function SalesTransaction() {
   const navigate = useNavigate();
 
   return (
-    <PageLayout breadcrumbItems={[{ label: "SALES & TRANSACTIONS" }]}>
+    <PageLayout breadcrumbItems={[{ label: "SALES AND TRANSACTIONS" }]}>
       <div className="st-grid">
         {cards.map((card, i) => (
           <button

@@ -43,3 +43,29 @@ button {
   font-family: inherit;
   cursor: pointer;
 }
+
+/* ── Shared status banners (used across Add/Edit forms and list pages for
+   surfacing backend fetch/save errors, validation warnings, and confirmations)
+   — one real class per variant instead of the same inline style object
+   repeated on every page. ── */
+.pb-error-banner,
+.pb-warning-banner,
+.pb-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-family: "Lato", sans-serif;
+}
+.pb-error-banner   { background: #fdf0f0; color: #c0392b; border: 1.5px solid #f5c6c6; }
+.pb-warning-banner { background: #fff8e1; color: #856404; border: 1.5px solid #ffe08a; }
+.pb-success-banner { background: #eaf7f1; color: #1f7a52; border: 1.5px solid #b8e6cf; }
+
+.pb-loading-text {
+  color: #aaa;
+  font-family: "Lato", sans-serif;
+}

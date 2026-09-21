@@ -1,49 +1,20 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { logAudit } from "./AuditLogs";
-import { archiveStore } from "./Archive";
-import { useUser } from "../hooks/useUser";
 import {
   FiSearch, FiUsers, FiCheck, FiX, FiSlash, FiRotateCcw, FiArchive, FiMoreVertical,
   FiUserCheck, FiUserX, FiClock, FiFilter,
 } from "react-icons/fi";
+import { API_BASE } from "../api/client";
 import "./UsersRoles.css";
 import PageLayout from "../components/PageLayout";
-
-/* ── Inline store (pb_users) + notifications ── */
-const U_KEY = "pb_users";
-const N_KEY = "pb_notifications";
-const _read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const _write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } };
-const _uid = () => "usr_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-
-/* ── Mock/demo users (only seeded once, on first load, if the store is empty) ── */
-const MOCK_USERS = [
-  { _id: "usr_seed_1", fullName: "Ramon Cruz",     email: "ramon.cruz@poultrybiz.ph",     role: "Admin",  status: "Active",   dateRegistered: "2025-11-02" },
-  { _id: "usr_seed_2", fullName: "Liza Mendoza",    email: "liza.mendoza@poultrybiz.ph",   role: "Farmer", status: "Active",   dateRegistered: "2025-12-14" },
-  { _id: "usr_seed_3", fullName: "Paolo Lim",       email: "paolo.lim@poultrybiz.ph",      role: "Farmer", status: "Active",   dateRegistered: "2026-01-08" },
-  { _id: "usr_seed_4", fullName: "Carla Reyes",     email: "carla.reyes@poultrybiz.ph",    role: "Farmer", status: "Pending",  dateRegistered: "2026-03-22" },
-  { _id: "usr_seed_5", fullName: "Mateo Santos",    email: "mateo.santos@poultrybiz.ph",   role: "Farmer", status: "Pending",  dateRegistered: "2026-04-05" },
-  { _id: "usr_seed_6", fullName: "Grace Fabella",   email: "grace.fabella@poultrybiz.ph",  role: "Farmer", status: "Inactive", dateRegistered: "2025-09-19" },
-  { _id: "usr_seed_7", fullName: "Noel Aguilar",    email: "noel.aguilar@poultrybiz.ph",   role: "Farmer", status: "Active",   dateRegistered: "2026-02-11" },
-  { _id: "usr_seed_8", fullName: "Helen Yu",        email: "helen.yu@poultrybiz.ph",       role: "Admin",  status: "Active",   dateRegistered: "2025-08-30" },
-];
-
-function seed() {
-  // Seed once with mock/demo data if the store has never been written to.
-  // Real registrations/admin actions take over after that — this never
-  // re-adds the mock rows once the user has interacted with the page.
-  if (localStorage.getItem(U_KEY) == null) {
-    _write(U_KEY, MOCK_USERS);
-  }
-}
-export function getUsers() { seed(); return _read(U_KEY); }
-function saveUsers(list) { _write(U_KEY, list); }
-export function notify({ type = "user", title, message }) {
-  const a = _read(N_KEY);
-  a.unshift({ id: "ntf_" + Date.now(), at: new Date().toISOString(), type, title, message, read: false });
-  _write(N_KEY, a);
-}
+import { useTableSort, sortIndicator } from "../hooks/useTableSort";
+import { usePagination } from "../hooks/usePagination";
+import TablePagination from "../components/TablePagination";
+import "../components/TablePagination.css";
+import {
+  listUsers, approveUser, rejectUser,
+  activateUser, deactivateUser, archiveUser,
+} from "../api/users";
 
 const STATUS = {
   Active:   { bg: "#eaf7f1", color: "#2e9e6b" },
@@ -64,32 +35,72 @@ const TABS = [
 
 export default function UsersRoles({ embedded = false, onBack }) {
   const navigate = useNavigate();
-  const uu = useUser() || {};
-  const adminRole = uu.role || "Admin";
-  const nameOf = typeof uu.user === "string" ? uu.user : (uu.user?.name || uu.user?.fullName || "Admin");
 
-  const [users, setUsers] = useState(() => getUsers());
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentRole = currentUser.role;
+
+  const visibleTabs =
+  currentRole === "Owner"
+    ? TABS
+    : TABS.filter((t) => t.key !== "Pending");
+
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [fRole, setFRole] = useState("All");
   const [fDate, setFDate] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
-  const [openMenu, setOpenMenu] = useState(null);  // 3-dot menu user id
-  const [toast, setToast] = useState("");
+  const [confirmStatusChange, setConfirmStatusChange] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);  const [toast, setToast] = useState("");
   const toastRef = useRef(null);
   const filterRef = useRef(null);
+  const menuRef = useRef(null);
+
+
+const refresh = async () => {
+  try {
+    setLoading(true);
+    setError("");
+
+    const data = await listUsers();
+
+    setUsers(data?.users || []);
+  } catch (err) {
+    setUsers([]);
+    setError(err?.message || "Couldn't load users.");
+  } finally {
+    setLoading(false);
+  }
+};
+  useEffect(() => {
+    refresh();
+    window.addEventListener("pb_data_changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("pb_data_changed", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   useEffect(() => () => clearTimeout(toastRef.current), []);
   useEffect(() => {
-    const onClick = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false);
-      setOpenMenu(null);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+  const onClick = (e) => {
+    if (filterRef.current && !filterRef.current.contains(e.target)) {
+      setShowFilter(false);
+    }
 
-  const persist = (next) => { saveUsers(next); setUsers(next); };
+    if (!e.target.closest(".ur-menu-wrap")) {
+      setOpenMenu(null);
+    }
+  };
+
+  document.addEventListener("mousedown", onClick);
+
+  return () => document.removeEventListener("mousedown", onClick);
+}, []);
+
   const flash = (m) => { setToast(m); clearTimeout(toastRef.current); toastRef.current = setTimeout(() => setToast(""), 3000); };
 
   const counts = useMemo(() => ({
@@ -105,12 +116,26 @@ export default function UsersRoles({ embedded = false, onBack }) {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
       const inTab = tab === "all" || u.status === tab;
-      const inSearch = !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+      const inSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
       const inRole = fRole === "All" || u.role === fRole;
-      const inDate = !fDate || u.dateRegistered === fDate;
+      const inDate = !fDate || u.createdAt === fDate;
       return inTab && inSearch && inRole && inDate;
     });
   }, [users, tab, search, fRole, fDate]);
+
+  const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
+  const sortAccessor = (row, col) => {
+    if (col === "name") return row.name || "";
+    if (col === "email") return row.email || "";
+    if (col === "role") return row.role || "";
+    if (col === "status") return row.status || "";
+    if (col === "createdAt") return row.createdAt || "";
+    return "";
+  };
+  const sorted = sortData(filtered, sortAccessor);
+  const pager = usePagination(sorted.length);
+  useEffect(() => { pager.setPage(1); }, [tab, search, fRole, fDate]);
+  const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
   const activeFilters = [
     fRole !== "All" && { key: "Role", value: fRole, clear: () => setFRole("All") },
@@ -119,33 +144,34 @@ export default function UsersRoles({ embedded = false, onBack }) {
   const activeFilterCount = activeFilters.length;
   const clearFilters = () => { setFRole("All"); setFDate(""); };
 
-  /* ---- action handlers ---- */
-  const setStatus = (u, status, actionLabel, auditAction, desc) => {
-    persist(users.map((x) => (x._id === u._id ? { ...x, status } : x)));
-    logAudit({ user: nameOf, role: adminRole, module: "Users and Roles", action: auditAction, description: desc });
-    notify({ type: "user", title: `Account ${actionLabel}`, message: desc });
-    flash(desc);
+  const runAction = async (fn, successMsg) => {
+    try {
+      await fn();
+      flash(successMsg);
+      refresh();
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
+    } catch (err) {
+      flash(err?.message || "That action couldn't be completed. Please try again.");
+    }
   };
 
-  const approve    = (u) => setStatus(u, "Active",   "Approved",    "Approved", `Approved account: ${u.fullName}`);
-  const reject     = (u) => { persist(users.filter((x) => x._id !== u._id)); logAudit({ user: nameOf, role: adminRole, module: "Users and Roles", action: "Rejected", description: `Rejected registration: ${u.fullName}` }); notify({ type: "user", title: "Account Rejected", message: `Rejected registration: ${u.fullName}` }); flash(`Rejected ${u.fullName}`); };
-  const deactivate = (u) => setStatus(u, "Inactive", "Deactivated", "Edited",   `Deactivated user: ${u.fullName}`);
-  const activate   = (u) => setStatus(u, "Active",   "Activated",   "Edited",   `Activated user: ${u.fullName}`);
+  const approve    = (u) => runAction(() => approveUser(u._id), `Approved ${u.name}`);
+  const reject     = (u) => runAction(() => rejectUser(u._id), `Rejected ${u.name}`);
+  const deactivate = (u) => runAction(() => deactivateUser(u._id), `Deactivated ${u.name}`);
+  const activate   = (u) => runAction(() => activateUser(u._id), `Activated ${u.name}`);
+  const archive    = (u) => runAction( () => archiveUser(u._id), `Archived ${u.name}` );
 
   const doArchive = () => {
     const u = confirmArchive; if (!u) return;
-    archiveStore.archive({ module: "Users and Roles", recordName: u.fullName, archivedBy: nameOf, moduleKey: U_KEY, payload: u });
-    persist(users.filter((x) => x._id !== u._id));
-    notify({ type: "user", title: "Account Archived", message: `Archived account: ${u.fullName}` });
     setConfirmArchive(null);
-    flash(`Archived ${u.fullName}`);
+    runAction(() => archiveUser(u._id), `Archived ${u.name}`);
   };
 
-  const changeRole = (u, newRole) => {
-    persist(users.map((x) => (x._id === u._id ? { ...x, role: newRole } : x)));
-    logAudit({ user: nameOf, role: adminRole, module: "Users and Roles", action: "Edited", description: `Changed role of ${u.fullName} from ${u.role} to ${newRole}` });
-    notify({ type: "user", title: "Role Changed", message: `${u.fullName} is now ${newRole}` });
-    flash(`${u.fullName} is now ${newRole}`);
+  const doStatusChange = () => {
+    const cs = confirmStatusChange; if (!cs) return;
+    setConfirmStatusChange(null);
+    if (cs.action === "deactivate") deactivate(cs.user);
+    else activate(cs.user);
   };
 
   const content = (
@@ -199,15 +225,23 @@ export default function UsersRoles({ embedded = false, onBack }) {
         </div>
       )}
 
+      {error && <div className="pb-error-banner">{error}</div>}
+
       <div className="ur-stats-grid">
         <div className="ur-stat-card">
           <div className="ur-stat-icon gold"><FiUsers /></div>
           <div><h3>{counts.total}</h3><p>Total Users</p><span>All Accounts</span></div>
         </div>
+        {currentRole === "Owner" && (
         <div className="ur-stat-card">
           <div className="ur-stat-icon orange"><FiClock /></div>
-          <div><h3>{counts.Pending}</h3><p>Pending Requests</p><span>Awaiting Approval</span></div>
+            <div>
+            <h3>{counts.Pending}</h3>
+              <p>Pending Requests</p>
+            <span>Awaiting Approval</span>
+          </div>
         </div>
+        )}
         <div className="ur-stat-card">
           <div className="ur-stat-icon green"><FiUserCheck /></div>
           <div><h3>{counts.Active}</h3><p>Active Users</p><span>Can Log In</span></div>
@@ -219,7 +253,7 @@ export default function UsersRoles({ embedded = false, onBack }) {
       </div>
 
       <div className="ur-tabs">
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           const n = t.key === "all" ? counts.total : counts[t.key];
           return (
             <button key={t.key} className={`ur-tab ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
@@ -233,11 +267,18 @@ export default function UsersRoles({ embedded = false, onBack }) {
         <table className="ur-table">
           <thead>
             <tr>
-              <th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Date Registered</th><th>Actions</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("name")}>User{sortIndicator("name", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("email")}>Email{sortIndicator("email", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("role")}>Role{sortIndicator("role", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("createdAt")}>Date Registered{sortIndicator("createdAt", sortColumn, sortDirection)}</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan="6" className="ur-empty-state">Loading users...</td></tr>
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan="6" className="ur-empty-state">
                   <div className="ur-empty-content">
@@ -247,48 +288,49 @@ export default function UsersRoles({ embedded = false, onBack }) {
                   </div>
                 </td>
               </tr>
-            ) : filtered.map((u) => {
+            ) : pageRows.map((u) => {
               const s = STATUS[u.status] || STATUS.Pending;
+
+              const canManageStatus = currentRole === "Owner";
               return (
                 <tr key={u._id}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                      <div className="ur-avatar" style={{ background: avatarColor(u.fullName) }}>
-                        {u.avatar ? <img src={u.avatar} alt="" /> : initials(u.fullName)}
+                      <div className="ur-avatar" style={{ background: avatarColor(u.name) }}>
+                        {u.avatar ? <img src={`${API_BASE}${u.avatar}`} alt={u.name} /> : initials(u.name)}
                       </div>
-                      <span className="ur-name">{u.fullName}</span>
+                      <span className="ur-name">{u.name}</span>
                     </div>
                   </td>
                   <td>{u.email}</td>
                   <td>
-                    <select className="ur-role-select" value={u.role}
-                      onChange={(e) => changeRole(u, e.target.value)}>
-                      <option value="Admin">Admin</option>
-                      <option value="Farmer">Farmer</option>
-                    </select>
+                    <span className="ur-badge">{u.role}</span>
                   </td>
                   <td><span className="ur-badge" style={{ background: s.bg, color: s.color }}>{u.status}</span></td>
-                  <td>{fmtDate(u.dateRegistered)}</td>
+                  <td>{fmtDate(u.createdAt)}</td>
                   <td>
                     <div className="ur-actions">
-                      {u.status === "Pending" && (<>
-                        <button className="ur-icon-btn approve" onClick={() => approve(u)} title="Approve" aria-label="Approve"><FiCheck /></button>
-                        <button className="ur-icon-btn reject" onClick={() => reject(u)} title="Reject" aria-label="Reject"><FiX /></button>
-                      </>)}
-                      {(u.status === "Active" || u.status === "Inactive") && (
+                        {u.status === "Pending" && currentRole === "Owner" && (<>
+                      <button className="ur-icon-btn approve" onClick={() => approve(u)} title="Approve" aria-label="Approve" > <FiCheck /> </button>
+                      <button className="ur-icon-btn reject" onClick={() => reject(u)} title="Reject" aria-label="Reject" > <FiX /> </button> </>
+                    )}         
+                      {(u.status === "Active" || u.status === "Inactive") &&
+                         canManageStatus && (
                         <div className="ur-menu-wrap">
                           <button className="ur-menu-trigger" onClick={() => setOpenMenu(openMenu === u._id ? null : u._id)}>
                             <FiMoreVertical />
                           </button>
                           {openMenu === u._id && (
-                            <div className="ur-menu-dropdown">
+                            <div className="ur-menu-dropdown" ref={menuRef}>
                               {u.status === "Active" && (
-                                <button onClick={() => { deactivate(u); setOpenMenu(null); }}>
-                                  <FiSlash /> Deactivate
-                                </button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmStatusChange({ user: u, action: "deactivate" }); setOpenMenu(null); }}
+                                >
+                                 <FiSlash /> Deactivate
+                               </button>
                               )}
+                              
                               {u.status === "Inactive" && (
-                                <button onClick={() => { activate(u); setOpenMenu(null); }}>
+                                <button onClick={() => { setConfirmStatusChange({ user: u, action: "activate" }); setOpenMenu(null); }}>
                                   <FiRotateCcw /> Activate
                                 </button>
                               )}
@@ -307,9 +349,16 @@ export default function UsersRoles({ embedded = false, onBack }) {
           </tbody>
         </table>
 
-        <div className="ur-table-footer">
-          Showing {filtered.length} entries
-        </div>
+        <TablePagination
+          page={pager.page}
+          setPage={pager.setPage}
+          rowsPerPage={pager.rowsPerPage}
+          setRowsPerPage={pager.setRowsPerPage}
+          totalPages={pager.totalPages}
+          startIndex={pager.startIndex}
+          endIndex={pager.endIndex}
+          totalItems={pager.totalItems}
+        />
       </div>
 
       {toast && <div className="ur-toast">{toast}</div>}
@@ -318,10 +367,34 @@ export default function UsersRoles({ embedded = false, onBack }) {
         <div className="ur-overlay" onClick={() => setConfirmArchive(null)}>
           <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Archive Account?</h3>
-            <p>This will move <strong>"{confirmArchive.fullName}"</strong> to the <strong>Archive</strong>.<br />They will no longer be able to log in, but all their info is kept.</p>
+            <p>This will move <strong>"{confirmArchive.name}"</strong> to the <strong>Archive</strong>.<br />They will no longer be able to log in, but all their info is kept.</p>
             <div className="ur-modal-btns">
               <button className="ur-mb-cancel" onClick={() => setConfirmArchive(null)}>Cancel</button>
               <button className="ur-mb-confirm" onClick={doArchive}>Archive</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmStatusChange && (
+        <div className="ur-overlay" onClick={() => setConfirmStatusChange(null)}>
+          <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
+            {confirmStatusChange.action === "deactivate" ? (
+              <>
+                <h3>Deactivate Account?</h3>
+                <p>This will disable <strong>"{confirmStatusChange.user.name}"</strong>'s account.<br />They will no longer be able to log in until reactivated.</p>
+              </>
+            ) : (
+              <>
+                <h3>Activate Account?</h3>
+                <p>This will restore <strong>"{confirmStatusChange.user.name}"</strong>'s access.<br />They will be able to log in again.</p>
+              </>
+            )}
+            <div className="ur-modal-btns">
+              <button className="ur-mb-cancel" onClick={() => setConfirmStatusChange(null)}>Cancel</button>
+              <button className="ur-mb-confirm" onClick={doStatusChange}>
+                {confirmStatusChange.action === "deactivate" ? "Deactivate" : "Activate"}
+              </button>
             </div>
           </div>
         </div>

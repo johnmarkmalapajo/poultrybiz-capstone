@@ -2,79 +2,151 @@ import { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import {
   FiBell, FiCalendar, FiCamera, FiMail, FiPhone, FiUser, FiClock, FiMapPin,
-  FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle, FiSettings,
+  FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle, FiSettings, FiImage,
 } from "react-icons/fi";
 import "./Profile.css";
+import { useUser } from "../hooks/useUser";
+import { updateStoredUser } from "../hooks/useUser";
+import {
+  getMyProfile,
+  updateMyProfile,
+  changeMyPassword,
+  uploadAvatar,
+  uploadFarmLogo,
+} from "../api/profile";
 
-/* Admin profile store (own key; Admin manages own account) */
-const AP_KEY = "pb_admin_profile";
-const DEFAULT_ADMIN = {
-  fullName: "Don Mark Dela Cruz",
-  email: "donmark@email.com",
-  phone: "0912 345 6789",
-  address: "Brgy. Poras, Boac, Marinduque",
-  avatar: "",
-  dateJoined: "2024-01-10",
-  status: "Active",           // Active | Inactive | On Leave
-  role: "Administrator",       // read-only
-  lastLogin: "May 15, 2024 08:25 AM",
-  language: "English",
-  timezone: "(GMT+08:00) Asia/Manila",
-  emailNotif: true,
-  loginAlerts: true,
+const EMPTY_ADMIN = {
+  fullName: "", email: "", phone: "", address: "", avatar: "",
+  dateJoined: "", status: "Active", role: "Owner", position: "", employmentStatus: "", lastLogin: "",
+  language: "English", timezone: "(GMT+08:00) Asia/Manila",
+  emailNotif: true, loginAlerts: true,
+  farmName: "", farmLocation: "", farmLogo: "", farmContact: "", farmEmail: "",
 };
-function readAdmin() {
-  try { return { ...DEFAULT_ADMIN, ...(JSON.parse(localStorage.getItem(AP_KEY)) || {}) }; }
-  catch { return { ...DEFAULT_ADMIN }; }
-}
-function writeAdmin(p) { try { localStorage.setItem(AP_KEY, JSON.stringify(p)); } catch { /* ignore */ } }
-export function getAdminProfile() { return readAdmin(); }
 
 const STATUS_STYLE = {
   "Active":   { bg: "#eaf7f1", color: "#2e9e6b" },
   "Inactive": { bg: "#f0efec", color: "#7a7469" },
-  "On Leave": { bg: "#fdf2e6", color: "#e0892f" },
 };
 
 
 export default function AdminProfile({ embedded = false, onBack }) {
-  const [saved, setSaved] = useState(() => readAdmin());
-  const [form, setForm] = useState(saved);
+  const { isOwner } = useUser();
+  const [saved, setSaved] = useState(EMPTY_ADMIN);
+  const [form, setForm] = useState(EMPTY_ADMIN);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
+  const [pendingLogoFile, setPendingLogoFile] = useState(null);
+  const [pendingLogoPreview, setPendingLogoPreview] = useState("");
   const [showPass, setShowPass] = useState(false);
   const fileRef = useRef(null);
+  const logoFileRef = useRef(null);
   const toastRef = useRef(null);
   useEffect(() => () => clearTimeout(toastRef.current), []);
+
+  useEffect(() => {
+    setLoading(true);
+    getMyProfile()
+      .then((data) => {
+        const p = { ...EMPTY_ADMIN, ...(data.record || data.data || data) };
+        setSaved(p);
+        setForm(p);
+      })
+      .catch((err) => setError(err?.message || "Couldn't load your profile."))
+      .finally(() => setLoading(false));
+  }, []);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const onPickPhoto = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("avatar", reader.result);
-    reader.readAsDataURL(file);
-  };
+const onPickPhoto = async (e) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  try {
+    setSaving(true);
+
+    const result = await uploadAvatar(file);
+
+    const avatar = result.avatar;
+
+    setSaved((prev) => ({
+      ...prev,
+      avatar,
+    }));
+
+    setForm((prev) => ({
+      ...prev,
+      avatar,
+    }));
+
+    updateStoredUser({ avatar });
+
+    flash("Profile picture updated successfully.");
+
+  } catch (err) {
+    setError(err.message || "Unable to upload profile picture.");
+  } finally {
+    setSaving(false);
+  }
+};
+
   const flash = (m) => { setToast(m); clearTimeout(toastRef.current); toastRef.current = setTimeout(() => setToast(""), 3000); };
-  const onSave = () => {
+
+const onPickLogo = (e) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
+
+  setPendingLogoFile(file);
+  setPendingLogoPreview(URL.createObjectURL(file));
+};
+
+  const onSave = async () => {
     if (!form.fullName.trim() || !form.email.trim()) {
       return flash("Full Name and Email are required.");
     }
-
-    const updatedProfile = {
-      ...form,
-      dateJoined: saved.dateJoined,
-    };
-
-    writeAdmin(updatedProfile);
-    setSaved(updatedProfile);
-    setForm(updatedProfile);
-    flash("Profile saved successfully.");
+    setSaving(true); setError("");
+    try {
+      let farmLogo = form.farmLogo;
+      if (pendingLogoFile) {
+        const result = await uploadFarmLogo(pendingLogoFile);
+        farmLogo = result.farmLogo;
+      }
+      const payload = {
+        fullName: form.fullName, email: form.email, phone: form.phone, address: form.address,
+        avatar: form.avatar, language: form.language, timezone: form.timezone,
+        emailNotif: form.emailNotif, loginAlerts: form.loginAlerts,
+        farmName: form.farmName, farmLocation: form.farmLocation,
+        farmContact: form.farmContact, farmEmail: form.farmEmail,
+      };
+      const updated = await updateMyProfile(payload);
+      const p = { ...form, ...(updated?.record || updated?.data || updated || {}), farmLogo };
+      if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
+      setPendingLogoFile(null);
+      setPendingLogoPreview("");
+      setSaved(p);
+      setForm(p);
+      updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
+      flash("Profile saved successfully.");
+    } catch (err) {
+      setError(err?.message || "Couldn't save your profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
-  const onCancel = () => setForm(saved);
+  const onCancel = () => {
+    if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
+    setPendingLogoFile(null);
+    setPendingLogoPreview("");
+    setForm(saved);
+  };
 
-  const st = STATUS_STYLE[form.status] || STATUS_STYLE["Active"];
+  const st = STATUS_STYLE[form.employmentStatus] || STATUS_STYLE["Active"];
   const joinedLabel = (() => { const d = new Date(form.dateJoined); return isNaN(d) ? form.dateJoined : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); })();
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -84,30 +156,43 @@ export default function AdminProfile({ embedded = false, onBack }) {
 
       <div className="pf-main">
 
+        {error && <div className="pb-error-banner">{error}</div>}
+        {loading && <p className="pb-loading-text">Loading your profile...</p>}
+
         <div className="pf-layout">
-          {/* LEFT summary */}
+          {}
           <div className="pf-card pf-side">
             <div className="pf-avatar-wrap">
-              <div className="pf-avatar">{form.avatar ? <img src={form.avatar} alt="Profile" /> : <FiUser />}</div>
+              <div className="pf-avatar">{form.avatar ? 
+                <img src={
+                  form.avatar?.startsWith("http")
+                  ? form.avatar
+                  : `http://localhost:5000${form.avatar}`
+                }
+                alt="Profile"
+              /> 
+              : <FiUser />
+              }
+              </div>
               <button className="pf-cam" onClick={() => fileRef.current?.click()} aria-label="Change photo"><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
             </div>
             <h3 className="pf-name">{form.fullName || "—"}</h3>
-            <p className="pf-pos">{form.role}</p>
+            <p className="pf-pos">{form.position || "—"}</p>
             <div className="pf-divider" />
             <div className="pf-info-list">
               <div className="pf-info-row"><FiMail />{form.email || "—"}</div>
               <div className="pf-info-row"><FiPhone />{form.phone || "—"}</div>
               <div className="pf-info-row"><FiCalendar />Joined: {joinedLabel}</div>
-              <div className="pf-info-row"><FiUser />Role: {form.role}</div>
+              <div className="pf-info-row"><FiUser />Position: {form.position || "—"}</div>
               <div className="pf-info-row"><FiClock />Last Login: {saved.lastLogin}</div>
             </div>
             <button className="pf-changepass" onClick={() => setShowPass(true)}><FiLock /> Change Password</button>
           </div>
 
-          {/* RIGHT */}
+          {}
           <div className="pf-right">
-            {/* Personal Information */}
+            {}
             <div className="pf-card pf-section">
               <div className="pf-section-head"><div className="pf-section-ico"><FiUser /></div><h2>Personal Information</h2></div>
               <div className="pf-grid">
@@ -124,8 +209,8 @@ export default function AdminProfile({ embedded = false, onBack }) {
                   <input className="pf-input" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Role</label>
-                  <input className="pf-input readonly" value={form.role} readOnly tabIndex={-1} />
+                  <label className="pf-label">Position</label>
+                  <input className="pf-input readonly" value={form.position || "—"} readOnly tabIndex={-1} />
                 </div>
                 <div className="pf-field full">
                   <label className="pf-label">Address</label>
@@ -143,17 +228,19 @@ export default function AdminProfile({ embedded = false, onBack }) {
                   />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Status</label>
-                  <select className="pf-select" value={form.status} onChange={(e) => set("status", e.target.value)} style={{ color: st.color, fontWeight: 600 }}>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="On Leave">On Leave</option>
-                  </select>
+                  <label className="pf-label">Employment Status</label>
+                  <span className="pf-status-pill" style={{ background: st.bg, color: st.color }}>
+                    {st.dot} {form.employmentStatus || "—"}
+                  </span>
+                </div>
+                <div className="pf-field">
+                  <label className="pf-label">Last Login</label>
+                  <input className="pf-input readonly" value={saved.lastLogin || "—"} readOnly tabIndex={-1} />
                 </div>
               </div>
             </div>
 
-            {/* Account Preferences (Admin only) */}
+            {}
             <div className="pf-card pf-section">
               <div className="pf-section-head"><div className="pf-section-ico"><FiSettings /></div><h2>Account Preferences</h2></div>
               <div className="pf-grid">
@@ -181,12 +268,60 @@ export default function AdminProfile({ embedded = false, onBack }) {
                 </div>
               </div>
             </div>
+
+            {}
+            {isOwner && (
+              <div className="pf-card pf-section">
+                <div className="pf-section-head"><div className="pf-section-ico"><FiImage /></div><h2>Farm Information</h2></div>
+                <p style={{ fontSize: 12.5, color: "#8a8478", margin: "-8px 0 14px" }}>
+                  Shown on exported reports (PDF headers) across the system.
+                </p>
+                <div className="pf-grid">
+                  <div className="pf-field">
+                    <label className="pf-label">Farm Name</label>
+                    <input className="pf-input" value={form.farmName} onChange={(e) => set("farmName", e.target.value)} placeholder="e.g. DMDC Farm" />
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Farm Location</label>
+                    <input className="pf-input" value={form.farmLocation} onChange={(e) => set("farmLocation", e.target.value)} placeholder="e.g. Poras, Boac, Marinduque" />
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Farm Contact Number</label>
+                    <input className="pf-input" value={form.farmContact} onChange={(e) => set("farmContact", e.target.value)} placeholder="e.g. 0917-123-4567" />
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Farm Email <span style={{ fontWeight: 400, color: "#a39e94" }}>(optional)</span></label>
+                    <input className="pf-input" type="email" value={form.farmEmail} onChange={(e) => set("farmEmail", e.target.value)} placeholder="e.g. contact@dmdcfarm.com" />
+                  </div>
+                  <div className="pf-field full">
+                    <label className="pf-label">Farm Logo</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ width: 64, height: 64, borderRadius: 10, border: "1px solid #e4e0d8", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#faf8f3", flexShrink: 0 }}>
+                        {pendingLogoPreview || form.farmLogo ? (
+                          <img
+                            src={pendingLogoPreview || (form.farmLogo?.startsWith("http") ? form.farmLogo : `http://localhost:5000${form.farmLogo}`)}
+                            alt="Farm logo"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : <FiImage style={{ color: "#c9c2b3" }} />}
+                      </div>
+                      <div>
+                        <button type="button" className="pf-btn pf-btn-cancel" onClick={() => logoFileRef.current?.click()} disabled={saving}>
+                          <FiCamera /> {pendingLogoPreview || form.farmLogo ? "Change Logo" : "Upload Logo"}
+                        </button>
+                        <input ref={logoFileRef} type="file" accept="image/*" hidden onChange={onPickLogo} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="pf-actions">
-          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty}>Cancel</button>
-          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty}><FiSave /> Save Changes</button>
+          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>Cancel</button>
+          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? "Saving..." : "Save Changes"}</button>
         </div>
       </div>
 
@@ -200,6 +335,7 @@ function ChangePasswordModal({ onClose }) {
   const [vals, setVals] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [msg, setMsg] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const set = (k, v) => setVals((s) => ({ ...s, [k]: v }));
   const toggle = (k) => setShow((s) => ({ ...s, [k]: !s[k] }));
   const fields = [
@@ -207,13 +343,22 @@ function ChangePasswordModal({ onClose }) {
     { label: "New Password", k: "next", placeholder: "Enter new password" },
     { label: "Confirm New Password", k: "confirm", placeholder: "Re-enter new password" },
   ];
-  const submit = () => {
+  const submit = async () => {
+    if (submitting) return;
     if (!vals.current || !vals.next || !vals.confirm) return setMsg({ type: "error", text: "Please fill in all password fields." });
     if (vals.next.length < 8) return setMsg({ type: "error", text: "New password must be at least 8 characters." });
     if (vals.next === vals.current) return setMsg({ type: "error", text: "New password must be different from the current one." });
     if (vals.next !== vals.confirm) return setMsg({ type: "error", text: "New password and confirmation do not match." });
-    setMsg({ type: "success", text: "Password updated successfully!" });
-    setTimeout(onClose, 1300);
+    setSubmitting(true);
+    try {
+      await changeMyPassword({ currentPassword: vals.current, newPassword: vals.next });
+      setMsg({ type: "success", text: "Password updated successfully!" });
+      setTimeout(onClose, 1300);
+    } catch (err) {
+      setMsg({ type: "error", text: err?.message || "Couldn't update your password. Please try again." });
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <div className="pf-overlay" onClick={onClose}>
@@ -231,8 +376,8 @@ function ChangePasswordModal({ onClose }) {
           </div>
         ))}
         <div className="pf-modal-btns">
-          <button className="pf-mb-cancel" onClick={onClose}>Cancel</button>
-          <button className="pf-mb-update" onClick={submit}>Update Password</button>
+          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update Password"}</button>
         </div>
       </div>
     </div>

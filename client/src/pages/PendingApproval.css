@@ -1,0 +1,101 @@
+/* PendingApproval.css */
+
+.pa-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #f5c842 0%, #e8a020 50%, #d48a10 100%);
+  font-family: 'Poppins', sans-serif;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.pa-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 48px 52px 40px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.pa-icon {
+  font-size: 56px;
+  margin-bottom: 4px;
+}
+
+.pa-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.pa-desc {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.pa-info-box {
+  width: 100%;
+  background: #f9f9f9;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  margin: 8px 0;
+}
+
+.pa-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.pa-info-label {
+  color: #888;
+  font-weight: 500;
+}
+
+.pa-info-value {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.pa-status-badge {
+  background: #fff8e1;
+  color: #e8a020;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #f5c842;
+}
+
+.pa-btn {
+  width: 100%;
+  padding: 14px;
+  background: #e8a020;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+
+.pa-btn:hover { background: #d48a10; }

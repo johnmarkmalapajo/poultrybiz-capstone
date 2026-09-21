@@ -76,5 +76,5 @@
 .alert-warning { border-left: 4px solid #E4AF1F; }
 .alert-warning .alert-icon { background: var(--gold-light, #fdf3e3); color: #c8930c; }
 
-.alert-info { border-left: 4px solid #3a7bd5; }
-.alert-info .alert-icon { background: #eef3fc; color: #3a7bd5; }
+.alert-normal { border-left: 4px solid #3a7bd5; }
+.alert-normal .alert-icon { background: #eef3fc; color: #3a7bd5; }

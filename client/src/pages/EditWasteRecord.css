@@ -175,7 +175,7 @@
 ========================== */
 
 .ewr-form-actions {
-  display: flex;
+  width: 100%; display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 14px;
@@ -191,7 +191,7 @@
 }
 
 .ewr-action-btns {
-  display: flex;
+  display: flex; margin-left: auto;
   gap: 12px;
   align-items: center;
 }
@@ -273,21 +273,6 @@
     gap: 20px;
   }
 
-  .ewr-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ewr-action-btns {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .ewr-cancel-btn,
-  .ewr-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
 
 }
 

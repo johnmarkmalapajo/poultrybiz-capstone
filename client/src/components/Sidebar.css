@@ -6,23 +6,34 @@
   font-family: 'Poppins', sans-serif;
 }
 
+.logo-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .company {
   font-size: 11px;
   font-weight: bold;
-  margin-bottom: -15px;
-  margin-left: 83px;
+  margin: 0;
 }
 
 .sidebar h2 {
   font-weight: 800;
+  margin: 2px 0;
 }
 
 .location {
   font-size: 12px;
-  margin-top: -15px;
-  margin-bottom: 25px;
-  margin-left: 83px;
   font-weight: bold;
+  margin: 0;
 }
 
 .sidebar ul {
@@ -116,16 +127,11 @@
   color: #666;
 }
 
-.logo-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .sidelogo {
   height: 72px;
   width: auto;
   border-radius: 8px;
+  flex-shrink: 0;
 }
 
 /* ── Logout Modal ── */
@@ -298,6 +304,10 @@
     padding: 14px;
   }
 
+  .logo-title {
+    margin-bottom: 16px;
+  }
+
   .sidelogo {
     height: 48px;
   }
@@ -308,15 +318,10 @@
 
   .company {
     font-size: 9px;
-    margin-left: 62px;
-    margin-bottom: -12px;
   }
 
   .location {
     font-size: 9px;
-    margin-left: 62px;
-    margin-top: -10px;
-    margin-bottom: 16px;
   }
 
   .sidebar li {

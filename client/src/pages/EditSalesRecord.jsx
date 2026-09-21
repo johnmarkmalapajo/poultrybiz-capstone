@@ -3,12 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditSalesRecord.css";
-
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1"}/sales-records`;
-
-function getToken() {
-  return localStorage.getItem("token") || "";
-}
+import { getSalesRecord, updateSalesRecord } from "../api/salesRecord";
 
 export default function EditSalesRecord() {
   const navigate = useNavigate();
@@ -36,16 +31,7 @@ export default function EditSalesRecord() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${API_BASE}/${id}`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
-
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          throw new Error("Invalid response from server.");
-        }
+        const data = await getSalesRecord(id);
 
         if (cancelled) return;
 
@@ -53,7 +39,7 @@ export default function EditSalesRecord() {
         // or the record itself returned directly.
         const r = data?.data || data?.record || (data && !data.message ? data : null);
 
-        if (res.ok && r) {
+        if (r) {
           setFormData({
             dateOfSale:   (r.dateOfSale || "").split("T")[0] || "",
             buyer:        r.buyer || "",
@@ -66,8 +52,7 @@ export default function EditSalesRecord() {
           setError(data?.message || "Failed to load record.");
         }
       } catch (err) {
-        console.error("EditSalesRecord fetch error:", err);
-        if (!cancelled) setError("Cannot connect to server. Please try again.");
+        if (!cancelled) setError(err?.message || "Cannot connect to server. Please try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -94,28 +79,12 @@ export default function EditSalesRecord() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
-        method:  "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body:    JSON.stringify({ ...formData, totalAmount: parseFloat(totalAmount) }),
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        /* some backends return no body on success — that's fine */
-      }
-
-      if (res.ok) {
-        setSuccess("Sales record updated successfully!");
-        setTimeout(() => navigate("/sales-transactions/sales"), 1200);
-      } else {
-        setError(data?.message || "Failed to update record.");
-      }
+      await updateSalesRecord(id, { ...formData, totalAmount: parseFloat(totalAmount) });
+      setSuccess("Sales record updated successfully!");
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+      setTimeout(() => navigate("/sales-transactions/sales"), 1200);
     } catch (err) {
-      console.error("EditSalesRecord submit error:", err);
-      setError("Cannot connect to server. Please try again.");
+      setError(err?.message || "Cannot connect to server. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -126,7 +95,7 @@ export default function EditSalesRecord() {
       <PageLayout
         background="#f4f4f2"
         breadcrumbItems={[
-          { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+          { label: "SALES AND TRANSACTIONS", path: "/sales-transactions" },
           { label: "SALES RECORD", path: "/sales-transactions/sales" },
           { label: "EDIT SALES RECORD" },
         ]}
@@ -140,7 +109,7 @@ export default function EditSalesRecord() {
     <PageLayout
       background="#f4f4f2"
       breadcrumbItems={[
-        { label: "SALES & TRANSACTIONS", path: "/sales-transactions" },
+        { label: "SALES AND TRANSACTIONS", path: "/sales-transactions" },
         { label: "SALES RECORD", path: "/sales-transactions/sales" },
         { label: "EDIT SALES RECORD" },
       ]}
@@ -287,7 +256,7 @@ export default function EditSalesRecord() {
               </button>
               <button type="submit" className="esr-save-btn" disabled={saving}>
                 <FiSave />
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? "Saving..." : "Update Record"}
               </button>
             </div>
           </div>

@@ -1,22 +1,20 @@
 import { useState } from "react";
 import { FiDownload } from "react-icons/fi";
-import { exportCsvTable, exportExcel, exportPdf } from "../exportTable";
+import { exportExcel, exportPdf } from "../exportTable";
+import { useUser } from "../hooks/useUser";
+import { logReportExport } from "../api/reports";
+import { canExportModule } from "../exportPermissions";
+import ExportPreviewModal from "./ExportPreviewModal";
 
-/**
- * Reusable Export dropdown (Excel / PDF / CSV) — frontend only.
- * Place at: src/components/ExportMenu.jsx
- *
- *   <ExportMenu rows={filtered} name="egg-records" title="Egg Records" className="egg-toolbar-btn" />
- *
- * rows     : array of record objects (exports what's currently shown/filtered)
- * columns  : optional [{ key, label }] or ["field", ...] to control columns/order
- * name     : file name prefix
- * title    : heading shown on the PDF
- * className: match the page's toolbar button class
- */
-export default function ExportMenu({ rows = [], name = "export", title = "PoultryBiz Report", columns, className = "toolbar-btn" }) {
+export default function ExportMenu({ rows = [], name = "export", title = "PoultryBiz Report", columns, meta = null, pdfExtra = {}, moduleLabel, filters = {}, enablePreview = false, className = "toolbar-btn" }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const { user, role, isOwner } = useUser();
+  const exportedBy = { name: user?.name || "Unknown", role: isOwner ? "Owner" : (user?.role || "") };
+  const pdfExportedBy = isOwner ? exportedBy : null;
+
+  if (!canExportModule(role, moduleLabel || title)) return null;
 
   const build = () => {
     if (!rows || !rows.length) return { headers: [], data: [] };
@@ -34,25 +32,49 @@ export default function ExportMenu({ rows = [], name = "export", title = "Poultr
     return { headers, data };
   };
 
+  const logExport = (kind) => {
+    logReportExport({
+      module: moduleLabel || title,
+      reportTitle: title,
+      format: kind === "pdf" ? "PDF" : "Excel",
+      filters,
+    }).catch(() => {});
+  };
+
   const doExport = (kind) => {
-    if (busy) return; // prevent duplicate exports
+    if (busy) return;
     const { headers, data } = build();
     if (!data.length) { alert("No records available to export."); setOpen(false); return; }
+
+    if (enablePreview && (kind === "pdf" || kind === "excel")) {
+      setPreview({ headers, data });
+      setOpen(false);
+      return;
+    }
+
     setBusy(true);
     try {
       if (kind === "excel") exportExcel(name, headers, data, title);
-      else if (kind === "pdf") exportPdf(name, headers, data, title);
-      else exportCsvTable(name, headers, data, title);
+      else if (kind === "pdf") exportPdf(name, headers, data, title, pdfExportedBy, meta, pdfExtra);
+
+      logExport(kind);
     } finally {
       setOpen(false);
       setTimeout(() => setBusy(false), 600);
     }
   };
 
+  const downloadFromPreview = (kind, orientation = "portrait") => {
+    if (!preview) return;
+    if (kind === "excel") exportExcel(name, preview.headers, preview.data, title);
+    else exportPdf(name, preview.headers, preview.data, title, pdfExportedBy, meta, pdfExtra, orientation);
+    logExport(kind);
+    setPreview(null);
+  };
+
   const OPTS = [
     { k: "excel", label: "Excel (.xlsx)", ico: "📊" },
     { k: "pdf", label: "PDF", ico: "📄" },
-    { k: "csv", label: "CSV", ico: "🗒️" },
   ];
 
   return (
@@ -83,6 +105,21 @@ export default function ExportMenu({ rows = [], name = "export", title = "Poultr
             ))}
           </div>
         </>
+      )}
+
+      {enablePreview && (
+        <ExportPreviewModal
+          open={!!preview}
+          onClose={() => setPreview(null)}
+          headers={preview?.headers}
+          data={preview?.data}
+          title={title}
+          exportedBy={pdfExportedBy}
+          meta={meta}
+          extra={pdfExtra}
+          onDownloadPdf={(orientation) => downloadFromPreview("pdf", orientation)}
+          onDownloadExcel={() => downloadFromPreview("excel")}
+        />
       )}
     </div>
   );

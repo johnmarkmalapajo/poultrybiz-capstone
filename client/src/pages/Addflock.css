@@ -60,6 +60,25 @@
 .af-form-group small { font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; line-height: 1.5; }
 .af-full-width { grid-column: 1 / -1; }
 
+.af-inline-flex {
+  display: flex;
+  gap: 10px;
+}
+.af-inline-flex input { flex: 1; }
+.af-checkbox-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.af-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+
 /* ============ INPUTS / SELECT ============ */
 
 .af-form-group input,
@@ -78,9 +97,9 @@
 
 /* ============ FORM ACTIONS ============ */
 
-.af-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.af-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .af-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.af-action-btns { display: flex; gap: 12px; align-items: center; }
+.af-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 
 .af-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .af-cancel-btn:hover { border-color: #bbb; color: #333; }
@@ -102,12 +121,11 @@
 @media (max-width: 768px) {
   .af-form-card { padding: 20px 16px; gap: 20px; }
 
-  .af-form-actions { flex-direction: column; align-items: stretch; }
-  .af-action-btns { flex-direction: column-reverse; align-items: stretch; }
-  .af-cancel-btn,
-  .af-save-btn { width: 100%; justify-content: center; }
+
 }
 
 @media (max-width: 480px) {
   .af-form-card { padding: 16px 12px; }
+  .af-inline-flex { flex-wrap: wrap; }
+  .af-inline-flex input { min-width: 0; width: 100%; }
 }

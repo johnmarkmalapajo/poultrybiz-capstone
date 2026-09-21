@@ -201,6 +201,15 @@
   display: inline-block;
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ── Sign up link ── */
 .login-signup {
   text-align: center;
@@ -214,6 +223,18 @@
   font-weight: 700;
   cursor: pointer;
   transition: color 0.2s;
+}
+
+.login-error.pending {
+  background: #fff8e1;
+  border-left-color: #f5c842;
+  color: #e8a020;
+}
+
+.login-error.rejected {
+  background: #fdecea;
+  border-left-color: #e05555;
+  color: #e05555;
 }
 
 

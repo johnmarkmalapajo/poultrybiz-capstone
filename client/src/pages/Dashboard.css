@@ -13,6 +13,30 @@
      Lato for body copy) ── */
   --font-head: 'Poppins', sans-serif;
   --font-body: 'Lato', sans-serif;
+  --font-display: 'Poppins', sans-serif;
+
+  /* ── Shared design-system tokens (same values as FlockProfile/ToDo/
+     Notifications) so every card on this page matches the rest of the
+     app instead of using one-off colors. ── */
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 26px;
+
+  --gold:       #E4AF1F;
+  --gold-dark:  #c8930c;
+  --gold-light: #fdf3e3;
+  --gold-glow:  rgba(228, 175, 31, 0.14);
+
+  --surface: #ffffff;
+  --border:  #e4e0d8;
+  --text-primary: #1e1c18;
+  --text-second:  #6b6457;
+  --text-muted:   #a39e94;
+
+  --red:  #d94f4f; --red-bg:  #fdf0f0;
+  --green:#2e9e6b; --green-bg:#eaf7f1;
+  --blue: #3a7bd5; --blue-bg: #eef3fc;
 }
 
 /* ── Page shell (container, sidebar, main padding, hamburger, breadcrumb
@@ -79,10 +103,11 @@
 }
 
 .chart-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px 22px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: var(--space-md) 22px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   min-width: 0;
   box-sizing: border-box;
 }
@@ -91,26 +116,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: var(--space-md);
 }
 
 .chart-title {
-  font-family: var(--font-head);
+  font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-primary);
 }
 
 .chart-filter {
+  height: 34px;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  padding: 4px 10px;
-  border: 1.5px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-  color: #555;
+  padding: 0 28px 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text-second);
   cursor: pointer;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a39e94' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.chart-filter:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px var(--gold-glow);
 }
 
 /* ── Pie chart ── */
@@ -119,6 +155,9 @@
   align-items: center;
   gap: 20px;
 }
+
+/* Keep the donut at its intended size — only the legend column shrinks. */
+.pie-wrap svg { flex-shrink: 0; }
 
 .pie-legend {
   display: flex;
@@ -143,8 +182,8 @@
   flex-shrink: 0;
 }
 
-.legend-label { flex: 1; color: #555; }
-.legend-pct   { font-weight: 700; color: #1a1a1a; min-width: 38px; text-align: right; }
+.legend-label { flex: 1; color: var(--text-second); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend-pct   { font-weight: 700; color: var(--text-primary); min-width: 34px; text-align: right; flex-shrink: 0; }
 
 /* ── Line chart ── */
 .line-wrap {
@@ -170,8 +209,8 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
-.trend-date  { color: #888; }
-.trend-count { font-weight: 700; color: #1a1a1a; }
+.trend-date  { color: var(--text-second); }
+.trend-count { font-weight: 700; color: var(--text-primary); }
 
 /* ── Right column ── */
 .right-col {
@@ -181,20 +220,25 @@
   min-width: 0;
 }
 
-/* ── To Do ── */
-.todo-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 18px 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+/* ── To Do & Alert cards — same shell as .chart-card (border + radius +
+   shadow) so the whole bottom row reads as one consistent system instead
+   of the charts looking "framed" and these two looking flat. ── */
+.todo-card,
+.alert-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: var(--space-md) 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   box-sizing: border-box;
 }
 
-.todo-title {
-  font-family: var(--font-head);
+.todo-title,
+.alert-title {
+  font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-primary);
   margin: 0 0 10px;
 }
 
@@ -202,14 +246,14 @@
   display: grid;
   grid-template-columns: 22px 80px 1fr;
   gap: 8px;
-  font-family: var(--font-head);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
   font-weight: 600;
-  color: #aaa;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 
@@ -218,52 +262,74 @@
   grid-template-columns: 22px 80px 1fr;
   align-items: center;
   gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid #f8f8f8;
+  padding: 8px 6px;
+  margin: 0 -6px;
+  border-radius: 8px;
+  border-bottom: 1px solid var(--gold-light);
   font-family: var(--font-body);
   font-size: var(--text-base);
   min-height: 30px;
+  transition: background 0.15s;
 }
+.todo-row:last-of-type { border-bottom: none; }
+.todo-row:hover { background: #faf9f7; }
 
 .todo-check {
-  width: 15px;
-  height: 15px;
-  accent-color: #E4AF1F;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid #cbc3b2;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.todo-check:hover { border-color: var(--icon-green, #2e9e6b); box-shadow: 0 0 0 3px rgba(46,158,107,0.12); transform: scale(1.08); }
+.todo-check.checked { background: linear-gradient(135deg, #34b47c, #2e9e6b); border-color: #2e9e6b; box-shadow: 0 2px 8px rgba(46,158,107,0.35); }
+.todo-check svg { font-size: 12px; }
 
-.todo-date { color: #888; font-size: var(--text-sm); }
-.todo-task { color: #333; }
-.todo-task.done { text-decoration: line-through; color: #bbb; }
+.todo-date { color: var(--text-second); font-size: var(--text-sm); }
+.todo-task { font-family: var(--font-display); font-weight: 700; color: var(--text-primary); }
+.todo-task.done { text-decoration: line-through; color: var(--text-muted); font-weight: 700; }
 
 /* ── Alerts ── */
-.alert-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 18px 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  box-sizing: border-box;
-}
-
-.alert-title {
-  font-family: var(--font-head);
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 10px;
-}
-
 .alert-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 0;
+  padding: 7px 6px;
+  margin: 0 -6px;
+  border-radius: 8px;
   font-family: var(--font-body);
   font-size: var(--text-base);
+  transition: background 0.15s;
 }
+.alert-row:hover { background: #faf8f4; }
 
-.alert-icon { font-size: var(--text-md); }
-.alert-msg  { color: #333; font-weight: 500; }
+/* Icon gets a colored badge (same visual language as .todo-stat-icon /
+   .stat-icon elsewhere in the app) instead of a bare emoji floating in
+   the row — danger = red, warning = gold, matching the priority colors
+   already used on the To Do and Notifications pages. */
+.alert-icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-base);
+  background: var(--gold-light);
+  flex-shrink: 0;
+}
+.alert-icon.danger  { background: var(--red-bg); }
+.alert-icon.warning { background: var(--gold-light); }
+
+.alert-msg { color: var(--text-primary); font-weight: 500; }
 
 /* ==========================
    RESPONSIVE (content only — page shell responsiveness comes from
@@ -275,13 +341,15 @@
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bottom { grid-template-columns: 1fr; }
 
-  /* Farmer one-row stays one row, but allow horizontal scroll if tight */
+  /* Farmer view: wrap into a visible grid instead of a horizontal scroll —
+     a scroll-to-see-more row was hiding cards off-screen with no obvious
+     way to reach them on touch devices. */
   .cards.cards-row {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: visible;
   }
-  .cards.cards-row > * { flex: 0 0 180px; }
+  .cards.cards-row > * { flex: none; min-width: 0; }
 }
 
 /* ── Mobile (≤768px) ── */
@@ -310,10 +378,67 @@
   .chart-card,
   .todo-card,
   .alert-card { padding: 16px; }
-  .pie-wrap { flex-direction: column; align-items: stretch; }
+  .pie-wrap {
+    gap: 12px;
+  }
+  /* Shrink the donut itself (Recharts' inline SVG has a matching viewBox,
+     so scaling the box via CSS scales the chart proportionally) so the
+     percentage legend keeps fitting beside it instead of being pushed
+     underneath. */
+  .pie-wrap svg { width: 130px; height: 130px; }
+  .legend-row { font-size: var(--text-sm); gap: 6px; }
   .line-wrap { flex-direction: column; }
 }
 
+/* Empty/loading placeholder text (charts + To-Do/Alert cards) */
+.chart-empty { color: #aaa; font-size: 13px; padding: 12px 0; }
+.card-empty  { color: #aaa; font-size: 12px; padding: 8px 0; }
+.alert-empty { color: #aaa; font-size: 13px; }
+
 /* See All link (To-Do + Alert cards) */
-.dash-see-all{display:inline-flex;align-items:center;gap:4px;margin-top:10px;background:none;border:none;color:#c8930c;font-family:var(--font-head);font-weight:600;font-size:12.5px;cursor:pointer;padding:4px 0;transition:color .2s}
-.dash-see-all:hover{color:#E4AF1F;text-decoration:underline}
+.dash-see-all{display:inline-flex;align-items:center;gap:4px;margin-top:10px;background:none;border:none;color:var(--gold-dark);font-family:var(--font-head);font-weight:600;font-size:12.5px;cursor:pointer;padding:4px 0;transition:color .2s}
+.dash-see-all:hover{color:var(--gold);text-decoration:underline}
+/* ── Skeleton loading state (first mount only — see Dashboard.jsx) ──
+   Same shimmer treatment everywhere: a moving gradient sweep over a
+   flat --border-colored base, so it reads as "loading" at a glance. */
+.skel {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-light, #fdf3e3);
+  border-radius: 6px;
+}
+
+.skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: skelShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skelShimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Stat cards */
+.skel-card { animation: none; opacity: 1; transform: none; } /* skip entrance anim while it's just a placeholder */
+.skel-icon { width: 40px; height: 40px; min-width: 40px; border-radius: 10px; }
+.skel-value { width: 60%; height: 18px; margin-bottom: 6px; border-radius: 4px; }
+.skel-label { width: 85%; height: 11px; border-radius: 4px; }
+
+/* Pie chart */
+.skel-circle { width: 170px; height: 170px; border-radius: 50%; flex-shrink: 0; }
+.skel-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Line chart */
+.skel-chart { width: 100%; height: 160px; border-radius: 10px; }
+
+/* To Do / Alert rows */
+.skel-rows { display: flex; flex-direction: column; gap: 10px; padding: 6px 0; }
+.skel-line { height: 12px; border-radius: 4px; }

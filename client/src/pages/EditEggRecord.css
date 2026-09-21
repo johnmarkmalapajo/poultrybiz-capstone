@@ -138,9 +138,9 @@
 
 /* ============ FORM ACTIONS ============ */
 
-.eer-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.eer-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .eer-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.eer-action-btns { display: flex; gap: 12px; align-items: center; }
+.eer-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 
 .eer-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .eer-cancel-btn:hover { border-color: #bbb; color: #333; }
@@ -173,10 +173,7 @@
   .eer-form-card { padding: 20px 16px; gap: 20px; }
   .eer-count-grid { grid-template-columns: repeat(2, 1fr); }
 
-  .eer-form-actions { flex-direction: column; align-items: stretch; }
-  .eer-action-btns { flex-direction: column-reverse; align-items: stretch; }
-  .eer-cancel-btn,
-  .eer-save-btn { width: 100%; justify-content: center; }
+
 }
 
 @media (max-width: 480px) {

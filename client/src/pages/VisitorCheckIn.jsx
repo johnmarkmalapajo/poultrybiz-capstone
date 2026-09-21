@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { FiCheckCircle, FiUser, FiMapPin, FiBriefcase, FiPhone, FiCalendar, FiClipboard, FiTruck, FiShield } from "react-icons/fi";
+import { FiCheckCircle, FiUser, FiCalendar, FiClipboard, FiTruck, FiShield } from "react-icons/fi";
 import "./VisitorCheckIn.css";
-
-const API_BASE = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/api/visitors`;
+import { registerVisitorCheckIn } from "../api/visitorLog";
+import logo from "../assets/logo.png";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -32,11 +32,12 @@ export default function VisitorCheckIn() {
   });
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    // Frontend only: the backend should search-or-create the Visitor, then create
-    // a Visitor Log + Biosecurity Assessment linked by ObjectId references.
+    if (saving) return;
     const payload = {
       visitor: {
         fullName: form.fullName, address: form.address,
@@ -52,10 +53,16 @@ export default function VisitorCheckIn() {
         entryDisinfection: form.entryDisinfection, fluSymptoms: form.fluSymptoms,
       },
     };
-    console.log("Visitor registration payload →", payload);
-    // Example backend call (uncomment when API is ready):
-    // fetch(`${API_BASE}/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setDone(true);
+    setSaving(true);
+    setError("");
+    try {
+      await registerVisitorCheckIn(payload);
+      setDone(true);
+    } catch (err) {
+      setError(err?.message || "Couldn't submit your registration. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Yes/No radio group
@@ -93,7 +100,7 @@ export default function VisitorCheckIn() {
       <form className="vc-card" onSubmit={submit}>
         {/* Brand */}
         <div className="vc-brand">
-          <div className="vc-logo"><img src="/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
+          <div className="qc-logo"><img src={logo} alt="PoultryBiz" style={{ width: 55, height: 55, objectFit: "contain" }} /></div>
           <div><h1>PoultryBiz</h1><p>Visitor Registration</p></div>
         </div>
 
@@ -146,7 +153,13 @@ export default function VisitorCheckIn() {
           </div>
         ))}
 
-        <button className="vc-btn" type="submit"><FiCheckCircle /> Submit Registration</button>
+        {error && (
+          <div className="pb-error-banner">
+            {error}
+          </div>
+        )}
+
+        <button className="vc-btn" type="submit" disabled={saving}><FiCheckCircle /> {saving ? "Submitting..." : "Submit Registration"}</button>
         <p className="vc-hint">By submitting, your visit and biosecurity declaration are recorded for farm safety.</p>
       </form>
     </div>

@@ -1,87 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiX } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddTask.css";
-
-/* ── To Do store (inline · localStorage · same keys as the To Do pages) ── */
-const K_ASSIGNED = "pb_assigned_tasks";
-const K_NOTIFS = "pb_todo_notifs";
-const _read = (k) => { try { return JSON.parse(localStorage.getItem(k) || "{}"); } catch { return {}; } };
-const _write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-const _uid = (p) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-const getCurrentUser = (fallback = null) => {
-  for (const key of ["pb_user", "user", "currentUser", "authUser"]) {
-    try {
-      const raw = localStorage.getItem(key); if (!raw) continue;
-      const u = JSON.parse(raw);
-      const name = u.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username;
-      const id = u._id || u.id || u.userId || name;
-      if (name || id) return { id, name: name || "User" };
-    } catch (e) { /* ignore */ }
-  }
-  return fallback;
-};
-const assignTask = (farmerId, task, assignedBy = "Admin") => {
-  const all = _read(K_ASSIGNED);
-  const t = { _id: _uid("at"), title: task.title || "Untitled task", description: task.description || "", dueDate: task.dueDate || "", priority: task.priority || "Medium", status: "Pending", completedAt: null, assignedBy, createdAt: new Date().toISOString() };
-  all[farmerId] = [t, ...(all[farmerId] || [])];
-  _write(K_ASSIGNED, all);
-  const notifs = _read(K_NOTIFS);
-  notifs[farmerId] = [{ _id: _uid("n"), message: `New task assigned: ${t.title}${t.dueDate ? ` (due ${t.dueDate})` : ""}.`, read: false, at: new Date().toISOString() }, ...(notifs[farmerId] || [])];
-  _write(K_NOTIFS, notifs);
-  return t;
-};
-// ── Inline mock data (frontend fallback until the API is wired) ──
-const PERSONNEL = [
-  {
-    _id: "o1", accountRole: "Owner / Admin", status: "Active",
-    position: "Owner / Admin", shiftHours: "—", dateHired: "—",
-    assignedWork: "", remarks: "",
-    profile: { fullName: "Engr. Maria Egginear", contactNumber: "0917 000 1111", image: "" },
-  },
-  {
-    _id: "f1", accountRole: "Farmer", position: "Farm Worker",
-    dateHired: "2023-01-10", shiftHours: "6:00 AM - 3:00 PM", status: "Active",
-    assignedWork: "Morning feeding · Cage 1-4 cleaning", remarks: "Hardworking and trustworthy.",
-    profile: { fullName: "Juan Dela Cruz", contactNumber: "0917 123 4567", image: "" },
-  },
-  {
-    _id: "f2", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-02-15", shiftHours: "7:00 AM - 4:00 PM", status: "Active",
-    assignedWork: "Vaccination round (Flock B-002)", remarks: "Skilled in poultry care.",
-    profile: { fullName: "Maria Santos", contactNumber: "0917 234 5678", image: "" },
-  },
-  {
-    _id: "f3", accountRole: "Farmer", position: "Maintenance Worker",
-    dateHired: "2023-03-01", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "Water line + equipment check", remarks: "Handles equipment maintenance.",
-    profile: { fullName: "Pedro Reyes", contactNumber: "0917 345 6789", image: "" },
-  },
-  {
-    _id: "f4", accountRole: "Farmer", position: "Inventory Clerk",
-    dateHired: "2023-03-20", shiftHours: "8:00 AM - 5:00 PM", status: "Active",
-    assignedWork: "", remarks: "Organized and detail-oriented.",
-    profile: { fullName: "Ana Garcia", contactNumber: "0917 456 7890", image: "" },
-  },
-  {
-    _id: "f5", accountRole: "Farmer", position: "Farm Hand",
-    dateHired: "2023-04-05", shiftHours: "6:00 AM - 3:00 PM", status: "On Leave",
-    assignedWork: "", remarks: "On medical leave until further notice.",
-    profile: { fullName: "Mark Villanueva", contactNumber: "0917 567 8901", image: "" },
-  },
-  {
-    _id: "f6", accountRole: "Farmer", position: "Poultry Technician",
-    dateHired: "2023-06-12", shiftHours: "7:00 AM - 4:00 PM", status: "Inactive",
-    assignedWork: "", remarks: "Resigned last May 30, 2024.",
-    profile: { fullName: "Grace Lagon", contactNumber: "0917 678 9012", image: "" },
-  },
-];
-
-const getPersonnelById = (id) => PERSONNEL.find((p) => p._id === id) || null;
+import { createPersonnelTask } from "../api/personnelManpower";
+import { getPersonnel } from "../api/personnelManpower";
 
 const PRIORITIES = ["High", "Medium", "Low"];
-const STATUSES = ["Pending", "In Progress", "Completed"];
+const STATUSES = ["Pending", "Completed"];
+
+const FARMER_CATEGORIES = [
+  "Flock Record", "Egg Record", "Health Record", "Quarantine and Isolation",
+  "Manure and Waste Record", "Mortality Record", "Feed Inventory",
+  "Feed Consumption", "Equipment and Tools",
+];
+const OWNER_CATEGORIES = [
+  ...FARMER_CATEGORIES,
+  "Sales Record", "Expense Record", "Personnel and Manpower", "Visitor's Log",
+];
+const categoriesFor = (person) => {
+  const role = person?.user?.role || person?.role || "";
+  return role === "Owner" ? OWNER_CATEGORIES : FARMER_CATEGORIES;
+};
 
 const fullName = (p) =>
   p?.profile?.fullName || p?.fullName || p?.name || "this personnel";
@@ -91,10 +31,11 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function AddTask() {
   const navigate = useNavigate();
-  const { id } = useParams(); // personnel id
+  const { id } = useParams();
 
-  const person = getPersonnelById(id);
-  const personName = fullName(person);
+  const [person, setPerson] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     work: "",
@@ -102,37 +43,57 @@ export default function AddTask() {
     dueDate: "",
     priority: "Medium",
     status: "Pending",
+    category: "",
     notes: "",
   });
+
+  useEffect(() => {
+    setLoading(true);
+    getPersonnel(id)
+      .then((json) => {
+        const rec = json.record || json.data || json;
+        setPerson(rec && (rec._id || rec.profile || rec.fullName) ? rec : null);
+        setFormData((prev) => ({ ...prev, category: categoriesFor(rec)[0] }));
+      })
+      .catch((err) => setError(err?.message || "Couldn't load this personnel record."))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const personName = fullName(person);
+
   const [saving, setSaving] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    if (window.__pbSaving) return;  // prevent duplicate submissions
+    if (window.__pbSaving) return;
     window.__pbSaving = true;
-    setSaving(true);
+    setSaving(true); setError("");
 
-    // Push the assigned task into the farmer's To Do (frontend simulation) +
-    // notify the farmer. Backend should persist this and sync across users.
-    assignTask(
-      id,
-      {
-        title: formData.work,
-        description: formData.notes,
-        dueDate: formData.dueDate,
-        priority: formData.priority,
-      },
-      getCurrentUser({ name: "Engr. Maria Egginear" }).name
-    );
-
-    window.__pbSaving = false;
-    navigate(`/personnel-visitors/personnel/view/${id}`);
+    try {
+  await createPersonnelTask(id, {
+  title: formData.work,
+  module: formData.category,
+  description: formData.notes,
+  assignedDate: formData.assignedDate,
+  dueDate: formData.dueDate,
+  priority: formData.priority,
+  status: formData.status,
+  remarks: "",
+});
+  navigate(`/personnel-visitors/personnel/view/${id}`);
+} catch (err) {
+      setError(err?.message || "Couldn't assign this task. Please try again.");
+    } finally {
+      setSaving(false);
+      window.__pbSaving = false;
+    }
   };
 
   return (
@@ -146,16 +107,16 @@ export default function AddTask() {
     >
         <form className="at-form-card" onSubmit={handleSubmit}>
 
-          {/* Who the task is for (read-only) */}
+          {error && <div className="pb-error-banner">{error}</div>}
+
           <div className="at-for-banner">
             <span className="at-tfb-avatar">{initials(personName)}</span>
             <div>
               <div className="at-tfb-label">Assigning task to</div>
-              <div className="at-tfb-name">{personName}</div>
+              <div className="at-tfb-name">{loading ? "Loading..." : personName}</div>
             </div>
           </div>
 
-          {/* TASK DETAILS */}
           <div className="at-section-header">
             <FiClipboard />
             <h3>Task Details</h3>
@@ -174,7 +135,13 @@ export default function AddTask() {
             />
           </div>
 
-          {/* SCHEDULE */}
+          <div className="at-form-group at-full-width">
+            <label>Category <span className="at-req">*</span></label>
+            <select name="category" value={formData.category} onChange={handleChange} required>
+              {categoriesFor(person).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
           <div className="at-section-header">
             <FiCalendar />
             <h3>Schedule</h3>
@@ -193,7 +160,6 @@ export default function AddTask() {
             </div>
           </div>
 
-          {/* PRIORITY & STATUS */}
           <div className="at-section-header">
             <FiFlag />
             <h3>Priority &amp; Status</h3>
@@ -216,7 +182,6 @@ export default function AddTask() {
             </div>
           </div>
 
-          {/* NOTES */}
           <div className="at-section-header">
             <FiFileText />
             <h3>Additional Notes</h3>
@@ -234,7 +199,6 @@ export default function AddTask() {
             />
           </div>
 
-          {/* Actions */}
           <div className="at-form-actions">
             <p className="at-req-note">Fields with * are required.</p>
             <div className="at-action-btns">
@@ -242,7 +206,7 @@ export default function AddTask() {
                 <FiX /> Cancel
               </button>
               <button type="submit" className="at-save-btn" disabled={saving}>
-                <FiSave /> {saving ? "Saving..." : "Save Task"}
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

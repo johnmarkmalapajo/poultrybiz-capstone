@@ -3,15 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddMortalityRecord.css";
+import { createMortalityRecord, listMortalityRecords } from "../api/mortalityRecord";
+import { listFlocks } from "../api/flockProfile";
+import { listQuarantineRecords } from "../api/quarantineIsolation";
+import { listHealthOptions } from "../api/healthOptions";
 
-const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
-const MORT_API   = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/mortality-records`;
-
-const CHICKENS_PER_CAGE = 4; // each cage (room) holds 4 chickens
-const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown", "Others"];
-const CAGES = Array.from({ length: 12 }, (_, i) => `C-${String(i + 1).padStart(2, "0")}`);
-
-const flockCages = (f) => f.assignedCages || (f.cageId ? [f.cageId] : []);
+const NEW_VALUE = "__new__";
+const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
 
 export default function AddMortalityRecord() {
   const navigate = useNavigate();
@@ -19,34 +17,56 @@ export default function AddMortalityRecord() {
   const [formData, setFormData] = useState({
     date: "",
     batchId: "",
-    cageId: "",
     numberOfMortality: "",
     causeOfDeath: "",
-    suspectedDisease: "",
     remarks: "",
   });
 
   const [flocks, setFlocks] = useState([]);
+  const [isolationRecords, setIsolationRecords] = useState([]);
   const [mortRecords, setMortRecords] = useState([]);
   const [error, setError] = useState("");
+  const [newCauseOfDeath, setNewCauseOfDeath] = useState("");
+  const [causeOfDeathOptions, setCauseOfDeathOptions] = useState(CAUSES);
 
   useEffect(() => {
-    fetch(FLOCKS_API)
-      .then((r) => r.json())
+    listHealthOptions("causeOfDeath").then((r) => {
+      const fetched = (r.options || []).map((o) => o.value);
+      setCauseOfDeathOptions([...CAUSES, ...fetched.filter((v) => !CAUSES.includes(v))]);
+    }).catch(() => setCauseOfDeathOptions(CAUSES));
+  }, []);
+
+  useEffect(() => {
+    listFlocks()
       .then((d) => setFlocks(Array.isArray(d) ? d : d.records || d.flocks || []))
       .catch(() => setFlocks([]));
 
-    fetch(MORT_API)
-      .then((r) => r.json())
+    listQuarantineRecords()
+      .then((d) => setIsolationRecords((Array.isArray(d) ? d : d.records || d.data || []).filter((r) => r.recordType === "Isolation")))
+      .catch(() => setIsolationRecords([]));
+
+    listMortalityRecords()
       .then((d) => setMortRecords(Array.isArray(d) ? d : d.records || d.data || []))
       .catch(() => setMortRecords([]));
   }, []);
 
-  const batchOptions = [...new Set(flocks.map((f) => f.batchId).filter(Boolean))];
+  const isolationBatchIds = new Set(isolationRecords.map((r) => r.batchId));
+  const batchOptions = [...new Set(
+    flocks
+      .filter((f) => f.status === "Active" && !isolationBatchIds.has(f.batchId))
+      .map((f) => f.batchId)
+      .filter(Boolean)
+  )];
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
-  const cageOptions = CAGES;
+  const nextMortalityId = (() => {
+    let max = 0;
+    mortRecords.forEach((r) => {
+      const m = /^M-(\d+)$/.exec(r.mortalityId || "");
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    return `M-${String(max + 1).padStart(3, "0")}`;
+  })();
 
-  // ── Per-batch totals (Current Birds + Mortality Rate) ──
   const purchaseQty = Number(selectedFlock?.quantityPurchased) || 0;
   const batchMortality = mortRecords
     .filter((r) => r.batchId === formData.batchId)
@@ -54,34 +74,22 @@ export default function AddMortalityRecord() {
   const currentBirds = Math.max(0, purchaseQty - batchMortality);
   const mortalityRate = purchaseQty > 0 ? ((batchMortality / purchaseQty) * 100).toFixed(2) : "0.00";
 
-  // ── Per-cage current birds (cap = 4 − prior deaths in that cage) ──
-  const cagePriorDeaths = mortRecords
-    .filter((r) => r.batchId === formData.batchId && r.cageId === formData.cageId)
-    .reduce((s, r) => s + (Number(r.numberOfMortality) || 0), 0);
-  const cageCurrentBirds = formData.cageId ? Math.max(0, CHICKENS_PER_CAGE - cagePriorDeaths) : null;
-
-  // ── Duplicate check (Batch + Cage + Date) ──
   const isDuplicate =
-    formData.batchId && formData.cageId && formData.date &&
+    formData.batchId && formData.date &&
     mortRecords.some(
-      (r) => r.batchId === formData.batchId && r.cageId === formData.cageId && r.date === formData.date
+      (r) => r.batchId === formData.batchId && r.date === formData.date
     );
 
   const isDisease = formData.causeOfDeath === "Disease";
   const numDead = Number(formData.numberOfMortality) || 0;
-  const exceedsCage = cageCurrentBirds != null && numDead > cageCurrentBirds;
+  const exceedsBirds = formData.batchId !== "" && numDead > currentBirds;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      // reset cage when batch changes
-      if (name === "batchId") return { ...prev, batchId: value, cageId: "" };
-      return { ...prev, [name]: value };
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError("");
   };
   const [saving, setSaving] = useState(false);
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -90,31 +98,35 @@ export default function AddMortalityRecord() {
     if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
     if (numDead < 1) return setError("Enter at least 1 dead chicken.");
     if (isDuplicate)
-      return setError("A mortality record already exists for this Batch + Cage + Date.");
-    if (exceedsCage)
-      return setError(`Number of dead chickens (${numDead}) exceeds current birds in cage ${formData.cageId} (${cageCurrentBirds}).`);
+      return setError("A mortality record already exists for this Batch + Date.");
+    if (exceedsBirds)
+      return setError(`Number of dead chickens (${numDead}) exceeds current birds in batch ${formData.batchId} (${currentBirds}).`);
+
+    if (formData.causeOfDeath === NEW_VALUE && !newCauseOfDeath.trim())
+      return setError("Please enter the new Cause of Death.");
 
     const payload = {
       ...formData,
+      ...(formData.causeOfDeath === NEW_VALUE
+        ? { causeOfDeath: undefined, newCauseOfDeath: newCauseOfDeath.trim() }
+        : {}),
       numberOfMortality: numDead,
       currentBirds,
       mortalityRate: Number(mortalityRate),
     };
-    // API integration here later
-    if (window.__pbSaving) return;  // prevent duplicate submissions
+    if (window.__pbSaving) return;
     window.__pbSaving = true;
+    setSaving(true);
     try {
-      setSaving(true);
-      await fetch(`${MORT_API}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      setSaving(false); /* saving is local (mock API) — ignore network errors */ }
-    finally { window.__pbSaving = false; }
-
-    navigate("/records/mortality");
+      await createMortalityRecord(payload);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
+      navigate("/records/mortality");
+    } catch (err) {
+      setError(err?.message || "Couldn't save this record. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   return (
@@ -126,18 +138,15 @@ export default function AddMortalityRecord() {
         { label: "ADD MORTALITY" },
       ]}
     >
-        {/* Header */}
 
         <form className="amr-form-card" onSubmit={handleSubmit}>
 
           {error && (
-            <div style={{ background: "#fdf0f0", color: "#c0392b", border: "1.5px solid #f5c6c6",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600 }}>
+            <div className="pb-error-banner">
               {error}
             </div>
           )}
 
-          {/* MORTALITY DETAILS */}
           <div className="amr-section-header">
             <FiHeart />
             <h3>Mortality Details</h3>
@@ -145,6 +154,12 @@ export default function AddMortalityRecord() {
           </div>
 
           <div className="amr-form-grid">
+            <div className="amr-form-group">
+              <label>Mortality ID</label>
+              <input type="text" value={nextMortalityId} disabled />
+              <small>Automatically generated when this record is saved.</small>
+            </div>
+
             <div className="amr-form-group">
               <label>Date <span className="amr-req">*</span></label>
               <input type="date" name="date" value={formData.date} onChange={handleChange} required />
@@ -156,65 +171,56 @@ export default function AddMortalityRecord() {
                 <option value="">Select batch ID</option>
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
-            </div>
-
-            <div className="amr-form-group">
-              <label>Cage <span className="amr-req">*</span></label>
-              <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                <option value="">Select Cage</option>
-                {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-              {formData.cageId && (
-                <small>Current birds in this cage: {cageCurrentBirds}</small>
+              {formData.batchId && (
+                <small>Current birds in this batch: {currentBirds}</small>
               )}
             </div>
 
             <div className="amr-form-group">
               <label>Number of Mortality <span className="amr-req">*</span></label>
-              <input type="number" min="0" max={cageCurrentBirds ?? undefined}
+              <input type="number" min="0" max={formData.batchId ? currentBirds : undefined}
                 name="numberOfMortality"
                 value={formData.numberOfMortality} onChange={handleChange}
                 placeholder="Enter number of mortality" required />
-              {exceedsCage && (
-                <small style={{ color: "#c0392b" }}>Cannot exceed {cageCurrentBirds} (current birds in cage).</small>
+              {exceedsBirds && (
+                <small style={{ color: "#c0392b" }}>Cannot exceed {currentBirds} (current birds in batch).</small>
               )}
             </div>
 
             <div className="amr-form-group">
               <label>Cause of Death <span className="amr-req">*</span></label>
-              <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} required>
-                <option value="">Select cause</option>
-                {CAUSES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            <div className="amr-form-group">
-              <label>Suspected Disease <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
-              <input type="text" name="suspectedDisease"
-                value={formData.suspectedDisease} onChange={handleChange}
-                placeholder="e.g. Newcastle, Coccidiosis" />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select cause</option>
+                  {causeOfDeathOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value={NEW_VALUE}>Others</option>
+                </select>
+                {formData.causeOfDeath === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newCauseOfDeath}
+                    onChange={(e) => setNewCauseOfDeath(e.target.value)}
+                    placeholder="Enter cause of death..."
+                    style={{ flex: 1 }}
+                    required
+                  />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Duplicate warning */}
           {isDuplicate && (
-            <div style={{ background: "#fff8e1", color: "#856404", border: "1.5px solid #ffe08a",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
-              <FiAlertTriangle /> A record already exists for this Batch + Cage + Date.
+            <div className="pb-warning-banner">
+              <FiAlertTriangle /> A record already exists for this Batch + Date.
             </div>
           )}
 
-          {/* Disease → Critical Health Alert (UI notice) */}
           {isDisease && (
-            <div style={{ background: "#fdf0f0", color: "#c0392b", border: "1.5px solid #f5c6c6",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
+            <div className="pb-error-banner">
               <FiAlertTriangle /> Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.
             </div>
           )}
 
-          {/* ADDITIONAL INFORMATION */}
           <div className="amr-section-header">
             <FiFileText />
             <h3>Additional Information</h3>
@@ -229,15 +235,14 @@ export default function AddMortalityRecord() {
             <small className="amr-char-count">{formData.remarks.length} / 500</small>
           </div>
 
-          {/* Actions */}
           <div className="amr-form-actions">
             <p className="amr-req-note">Fields with * are required.</p>
             <div className="amr-action-btns">
               <button type="button" className="amr-cancel-btn" onClick={() => navigate("/records/mortality")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="amr-save-btn" disabled={isDuplicate || exceedsCage} disabled={saving}>
-                <FiSave /> Save Record
+              <button type="submit" className="amr-save-btn" disabled={isDuplicate || exceedsBirds || saving}>
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

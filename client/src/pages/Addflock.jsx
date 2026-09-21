@@ -3,75 +3,160 @@ import { useNavigate } from "react-router-dom";
 import {
   FiInfo,
   FiPackage,
-  FiFileText,
   FiSave,
   FiX,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
-import batchStore from "../batchStore";
+import { listFlocks, createFlock } from "../api/flockProfile";
+import { listBreeds, createBreed } from "../api/breed";
+import { listSuppliers, createSupplier } from "../api/supplier";
 import "./Addflock.css";
 
-const FLOCK_STATUSES = ["Active", "Quarantined", "Completed", "Culled"];
+const NEW_VALUE = "__new__";
+const FLOCK_ARRIVAL_AGE_WEEKS = 16;
 
-// Chickens arrive at 16 weeks; current age = 16 + weeks since arrival
-function computeAgeWeeks(dateStr) {
-  if (!dateStr) return "";
+const HARDCODED_BREEDS = ["Hy-Line W-36", "Lohmann LSL Lite", "Dekalb White", "Shaver White", "Hendrix White"];
+
+const mergeBreeds = (dynamic) => {
+  const merged = [...HARDCODED_BREEDS];
+  (dynamic || []).forEach((name) => {
+    if (!merged.some((b) => b.toLowerCase() === name.toLowerCase())) merged.push(name);
+  });
+  return merged;
+};
+
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+function computeAgeWeeksPreview(dateStr) {
+  if (!dateStr) return null;
   const start = new Date(dateStr);
-  if (isNaN(start)) return "";
-  const weeksElapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / (86400000 * 7)));
-  return `${16 + weeksElapsed} weeks`;
+  if (isNaN(start)) return null;
+  const diffDays = Math.floor((new Date(localToday()) - new Date(dateStr)) / 86400000);
+  return FLOCK_ARRIVAL_AGE_WEEKS + Math.max(0, Math.floor(diffDays / 7));
 }
 
 export default function AddFlock() {
   const navigate = useNavigate();
+  const today = localToday();
 
   const [formData, setFormData] = useState({
-    batchId: "",
     breed: "",
-    source: "",
+    supplier: "",
     dateAcquired: "",
+    dateAcquiredEnd: "",
     quantityPurchased: "",
-    status: "Active",
-    notes: "",
   });
+  const [newBreed, setNewBreed] = useState("");
+  const [newSupplier, setNewSupplier] = useState("");
+  const [useDateRange, setUseDateRange] = useState(false);
+
+  const [nextBatchId, setNextBatchId] = useState("F-001");
+  const [breeds, setBreeds] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
-  // ── Auto-generate the next Batch ID (F-001, F-002, ...) ──
   useEffect(() => {
-    const batches = batchStore.getBatches();
-    let max = 0;
-    batches.forEach((b) => {
-      const m = /^F-(\d+)$/.exec(b.batchId || "");
-      if (m) max = Math.max(max, parseInt(m[1], 10));
-    });
-    const next = `F-${String(max + 1).padStart(3, "0")}`;
-    setFormData((prev) => ({ ...prev, batchId: next }));
+    listFlocks()
+      .then((d) => {
+        const batches = Array.isArray(d) ? d : d.records || d.data || d.flocks || [];
+        let max = 0;
+        batches.forEach((b) => {
+          const m = /^F-(\d+)$/.exec(b.batchId || "");
+          if (m) max = Math.max(max, parseInt(m[1], 10));
+        });
+        setNextBatchId(`F-${String(max + 1).padStart(3, "0")}`);
+      })
+      .catch(() => setNextBatchId("F-001"));
   }, []);
 
-  // ── Read-only placeholders (computed later after backend integration) ──
-  const purchaseQty   = Number(formData.quantityPurchased) || 0;
-  const currentBirds  = purchaseQty;     // new flock: total mortality = 0
-  const mortalityRate = "0.00";          // 0% on creation
-  const ageDisplay    = computeAgeWeeks(formData.dateAcquired);
+  useEffect(() => {
+    listBreeds()
+      .then((d) => setBreeds(mergeBreeds((d.breeds || []).map((b) => b.name))))
+      .catch(() => setBreeds(HARDCODED_BREEDS));
+    listSuppliers()
+      .then((d) => setSuppliers((d.suppliers || []).map((s) => s.name)))
+      .catch(() => setSuppliers([]));
+  }, []);
 
-  const handleSubmit = (e) => {
+  const ageWeeksPreview = computeAgeWeeksPreview(formData.dateAcquired);
+  const statusPreview = formData.dateAcquired
+    ? (formData.dateAcquired === today ? "Quarantined" : "Active")
+    : null;
+
+  const dateEndInvalid =
+    useDateRange && formData.dateAcquiredEnd && formData.dateAcquired &&
+    formData.dateAcquiredEnd < formData.dateAcquired;
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.batchId.trim()) { alert("Please enter a Batch ID."); return; }
+    if (saving) return;
+
+    if (formData.breed === NEW_VALUE && !newBreed.trim()) {
+      setError("Please enter the new Breed name.");
+      return;
+    }
+    if (formData.supplier === NEW_VALUE && !newSupplier.trim()) {
+      setError("Please enter the new Supplier name.");
+      return;
+    }
+    if (!formData.dateAcquired) {
+      setError("Please select the Date Acquired.");
+      return;
+    }
+    if (formData.dateAcquired > today) {
+      setError("Date Acquired cannot be a future date.");
+      return;
+    }
+    if (useDateRange && formData.dateAcquiredEnd) {
+      if (formData.dateAcquiredEnd > today) {
+        setError("Date Acquired (end) cannot be a future date.");
+        return;
+      }
+      if (dateEndInvalid) {
+        setError("Date Acquired (end) cannot be earlier than the start date.");
+        return;
+      }
+    }
+    if (!/^\d+$/.test(String(formData.quantityPurchased).trim()) || Number(formData.quantityPurchased) <= 0) {
+      setError("Purchased Quantity must be a whole number greater than zero.");
+      return;
+    }
+
     const payload = {
-      ...formData,
-      batchId: formData.batchId.trim(),
-      quantityPurchased: purchaseQty,
-      currentQuantity: currentBirds,
-      totalMortality: 0,
-      mortalityRate: Number(mortalityRate),
-      status: formData.status || "Active",
+      breed: formData.breed === NEW_VALUE ? undefined : formData.breed,
+      newBreed: formData.breed === NEW_VALUE ? newBreed.trim() : undefined,
+      supplier: formData.supplier === NEW_VALUE ? undefined : formData.supplier,
+      newSupplier: formData.supplier === NEW_VALUE ? newSupplier.trim() : undefined,
+      dateAcquired: formData.dateAcquired,
+      dateAcquiredEnd: useDateRange && formData.dateAcquiredEnd ? formData.dateAcquiredEnd : null,
+      quantityPurchased: Number(formData.quantityPurchased),
     };
-    batchStore.addBatch(payload);       // persist to localStorage (pb_batches)
-    navigate("/records/flock");         // back to Flock Profile — new row shows + stays
+
+    if (window.__pbSaving) return;
+    window.__pbSaving = true;
+    setSaving(true);
+    setError("");
+    try {
+      await createFlock(payload);
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
+      navigate("/records/flock");
+    } catch (err) {
+      setError(err?.message || "Couldn't save this flock. Please try again.");
+      setSaving(false);
+    } finally {
+      window.__pbSaving = false;
+    }
   };
 
   return (
@@ -85,7 +170,12 @@ export default function AddFlock() {
     >
         <form className="af-form-card" onSubmit={handleSubmit}>
 
-          {/* BATCH INFORMATION */}
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
+
           <div className="af-section-header">
             <FiInfo />
             <h3>Batch Information</h3>
@@ -95,46 +185,54 @@ export default function AddFlock() {
           <div className="af-form-grid">
             <div className="af-form-group">
               <label>Batch ID</label>
-              <input
-                type="text"
-                name="batchId"
-                value={formData.batchId}
-                onChange={handleChange}
-                placeholder="Auto-generated"
-                disabled
-              />
-              <small>Generated automatically</small>
-            </div>
-
-            <div className="af-form-group">
-              <label>Status <span className="af-req">*</span></label>
-              <select name="status" value={formData.status} onChange={handleChange} required>
-                {FLOCK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <input type="text" value={nextBatchId} disabled />
+              <small>Automatically generated when this record is saved.</small>
             </div>
 
             <div className="af-form-group">
               <label>Breed <span className="af-req">*</span></label>
-              <select name="breed" value={formData.breed} onChange={handleChange} required>
-                <option value="">Select Breed</option>
-                <option value="Hy-Line W-36">Hy-Line W-36</option>
-                <option value="Lohmann LSL Lite">Lohmann LSL Lite</option>
-                <option value="Dekalb White">Dekalb White</option>
-                <option value="Shaver White">Shaver White</option>
-                <option value="Hendrix White">Hendrix White</option>
-              </select>
+              <div className="af-inline-flex">
+                <select name="breed" value={formData.breed} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select Breed</option>
+                  {breeds.map((b) => <option key={b} value={b}>{b}</option>)}
+                  <option value={NEW_VALUE}>+ Add New Breed</option>
+                </select>
+                {formData.breed === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newBreed}
+                    onChange={(e) => setNewBreed(e.target.value)}
+                    placeholder="Enter new breed name..."
+                    required
+                  />
+                )}
+              </div>
+              {formData.breed === NEW_VALUE && (
+                <small>This will be saved and available in future Breed dropdowns.</small>
+              )}
             </div>
 
             <div className="af-form-group">
-              <label>Source <span className="af-req">*</span></label>
-              <input
-                type="text"
-                name="source"
-                value={formData.source}
-                onChange={handleChange}
-                placeholder="Supplier / Hatchery"
-                required
-              />
+              <label>Supplier <span className="af-req">*</span></label>
+              <div className="af-inline-flex">
+                <select name="supplier" value={formData.supplier} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select Supplier</option>
+                  {suppliers.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value={NEW_VALUE}>+ Add New Supplier</option>
+                </select>
+                {formData.supplier === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newSupplier}
+                    onChange={(e) => setNewSupplier(e.target.value)}
+                    placeholder="Enter new supplier name..."
+                    required
+                  />
+                )}
+              </div>
+              {formData.supplier === NEW_VALUE && (
+                <small>This will be saved and available in future Supplier dropdowns.</small>
+              )}
             </div>
 
             <div className="af-form-group">
@@ -144,12 +242,39 @@ export default function AddFlock() {
                 name="dateAcquired"
                 value={formData.dateAcquired}
                 onChange={handleChange}
+                max={today}
                 required
               />
             </div>
+
+            <div className="af-form-group">
+              <label className="af-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={useDateRange}
+                  onChange={(e) => setUseDateRange(e.target.checked)}
+                />
+                {" "}Acquired over a date range
+              </label>
+            </div>
+
+            {useDateRange && (
+              <div className="af-form-group">
+                <label>Date Acquired (End) <span className="af-req">*</span></label>
+                <input
+                  type="date"
+                  name="dateAcquiredEnd"
+                  value={formData.dateAcquiredEnd}
+                  onChange={handleChange}
+                  min={formData.dateAcquired || undefined}
+                  max={today}
+                  required
+                />
+                {dateEndInvalid && <small style={{ color: "#c0392b" }}>Cannot be earlier than the start date.</small>}
+              </div>
+            )}
           </div>
 
-          {/* BIRD INFORMATION */}
           <div className="af-section-header">
             <FiPackage />
             <h3>Bird Information</h3>
@@ -158,13 +283,13 @@ export default function AddFlock() {
 
           <div className="af-form-grid">
             <div className="af-form-group">
-              <label>Purchase Quantity <span className="af-req">*</span></label>
+              <label>Purchased Quantity <span className="af-req">*</span></label>
               <input
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
                 name="quantityPurchased"
                 value={formData.quantityPurchased}
-                onChange={handleChange}
+                onChange={(e) => setFormData((prev) => ({ ...prev, quantityPurchased: e.target.value.replace(/[^\d]/g, "") }))}
                 placeholder="Enter number of birds"
                 required
               />
@@ -172,50 +297,31 @@ export default function AddFlock() {
 
             <div className="af-form-group">
               <label>Current Birds</label>
-              <input type="text" value={currentBirds || "—"} disabled readOnly />
-              <small>Purchase Qty − Total Mortality (auto-computed later)</small>
+              <input type="text" value={formData.quantityPurchased || "—"} disabled readOnly />
+              <small>Purchased Qty − Total Mortality (0 recorded)</small>
             </div>
 
             <div className="af-form-group">
-              <label>Mortality Rate</label>
-              <input type="text" value={`${mortalityRate}%`} disabled readOnly />
-              <small>(Total Mortality ÷ Purchase Qty) × 100</small>
+              <label>Age</label>
+              <input type="text" value={ageWeeksPreview !== null ? `${ageWeeksPreview} weeks` : "—"} disabled readOnly />
+              <small>Auto-computed from Date Acquired.</small>
             </div>
 
             <div className="af-form-group">
-              <label>Age (Days)</label>
-              <input type="text" value={ageDisplay || "—"} disabled readOnly />
-              <small>Starts at 16 weeks on arrival; auto-computed from Date Acquired</small>
+              <label>Status</label>
+              <input type="text" value={statusPreview || "—"} disabled readOnly />
+              <small>Flocks acquired today start Quarantined until released; flocks acquired on a past date start Active.</small>
             </div>
           </div>
 
-          {/* ADDITIONAL INFORMATION */}
-          <div className="af-section-header">
-            <FiFileText />
-            <h3>Additional Information</h3>
-            <div className="af-line" />
-          </div>
-
-          <div className="af-form-group af-full-width">
-            <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
-            <textarea
-              rows="6"
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              placeholder="Enter remarks, observations, or additional information..."
-            />
-          </div>
-
-          {/* Actions */}
           <div className="af-form-actions">
             <p className="af-req-note">Fields with * are required.</p>
             <div className="af-action-btns">
               <button type="button" className="af-cancel-btn" onClick={() => navigate("/records/flock")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="af-save-btn">
-                <FiSave /> Save Flock Record
+              <button type="submit" className="af-save-btn" disabled={saving || dateEndInvalid}>
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

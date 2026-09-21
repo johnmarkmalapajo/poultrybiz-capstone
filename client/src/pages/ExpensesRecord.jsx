@@ -2,60 +2,79 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiMaximize,
+  FiEdit2, FiArchive, FiMaximize, FiEye,
   FiFileText, FiDollarSign, FiTag, FiList,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
+import { useUser } from "../hooks/useUser";
 import ExportMenu from "../components/ExportMenu";
-import { archiveRow } from "../archiveRow";
+import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
+import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import "./ExpensesRecord.css";
-
-const API_BASE = "/api/v1/expenses";
+import { listExpenseRecords } from "../api/expenseRecord";
+import { API_BASE } from "../api/client";
+import { getFarmInfo } from "../api/profile";
+import { useTableSort, sortIndicator } from "../hooks/useTableSort";
+import { usePagination } from "../hooks/usePagination";
+import TablePagination from "../components/TablePagination";
+import "../components/TablePagination.css";
 
 const CATEGORY_OPTIONS = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
   "Equipment", "Transportation", "Miscellaneous",
 ];
-const AMOUNT_OPTIONS = ["Below ₱1,000", "₱1,000 - ₱3,000", "Above ₱3,000"];
 
 const formatPeso = (n) =>
   "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const isUploadedReceipt = (receipt) =>
+  typeof receipt === "string" && receipt.startsWith("/uploads/");
+
+const isImageReceipt = (receipt) =>
+  isUploadedReceipt(receipt) && /\.(jpe?g|png|gif|webp)$/i.test(receipt);
+
+const isPdfReceipt = (receipt) =>
+  isUploadedReceipt(receipt) && /\.pdf$/i.test(receipt);
+
+const RECEIPT_LABELS = {
+  "Feed Purchase": "Feed Receipt",
+  "Equipment": "Equipment Receipt",
+  "Medicine": "Medicine Receipt",
+  "Utilities": "Utilities Receipt",
+  "Labor": "Labor Receipt",
+  "Transportation": "Transportation Receipt",
+  "Miscellaneous": "Miscellaneous Receipt",
+};
+
+const getReceiptLabel = (category) =>
+  RECEIPT_LABELS[category] || "Receipt";
+
 export default function ExpensesRecord() {
   const navigate = useNavigate();
+  const { canEdit, canArchive } = useUser();
+  const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
+  const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
+  const [viewRecord, setViewRecord] = useState(null);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(API_BASE);
-      const data = await res.json().catch(() => ([]));
-
-      if (res.ok) {
-        // mockApi.js returns an array that also carries .records/.data —
-        // handle both a plain array and a wrapped shape safely.
-        const list = Array.isArray(data) ? data : (data.records || data.data || []);
-        setRecords(list);
-      } else {
-        setError(data?.message || "Failed to load records.");
-        setRecords([]);
-      }
+      const data = await listExpenseRecords();
+      const list = Array.isArray(data) ? data : (data.records || data.data || []);
+      setRecords(list);
     } catch (err) {
-      console.error("[ExpensesRecord] fetch error:", err);
-      setError("Cannot connect to server. Please try again.");
+      setError(err?.message || "Cannot connect to server. Please try again.");
       setRecords([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Load once on mount, then re-fetch whenever ANY page writes to the
-  // mock store (mockApi.js dispatches "pb_data_changed" on every save),
-  // plus on tab focus as a safety net.
   useEffect(() => {
     fetchRecords();
     window.addEventListener("pb_data_changed", fetchRecords);
@@ -66,12 +85,15 @@ export default function ExpensesRecord() {
     };
   }, [fetchRecords]);
 
+  useEffect(() => {
+    getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
+  }, []);
+
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ category: "All", date: "All", amount: "All" });
+  const [filters, setFilters] = useState({ category: "All", dateFrom: "", dateTo: "" });
   const filterRef = useRef(null);
 
-  // Close filter dropdown on outside click
   useEffect(() => {
     const handleClick = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) {
@@ -83,41 +105,73 @@ export default function ExpensesRecord() {
   }, []);
 
   const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ category: "All", date: "All", amount: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
-
-  // Date options are derived from the records (no hardcoding)
-  const dateOptions = [...new Set(records.map((r) => r.date).filter(Boolean))];
-
-  const matchAmount = (r) => {
-    if (filters.amount === "All") return true;
-    if (filters.amount === "Below ₱1,000")     return r.amount < 1000;
-    if (filters.amount === "₱1,000 - ₱3,000")  return r.amount >= 1000 && r.amount <= 3000;
-    if (filters.amount === "Above ₱3,000")     return r.amount > 3000;
-    return true;
-  };
+  const clearFilters = () => setFilters({ category: "All", dateFrom: "", dateTo: "" });
+  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
 
   const filtered = records.filter((r) => {
-    const matchSearch =
-      !search ||
-      r.category?.toLowerCase().includes(search.toLowerCase()) ||
-      r.remarks?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || r.category?.toLowerCase().includes(search.toLowerCase());
     const matchCategory = filters.category === "All" || r.category === filters.category;
-    const matchDate     = filters.date === "All" || r.date === filters.date;
-    return matchSearch && matchCategory && matchDate && matchAmount(r);
+    const matchDate =
+      (!filters.dateFrom || (r.date || "") >= filters.dateFrom) &&
+      (!filters.dateTo || (r.date || "") <= filters.dateTo);
+    return matchSearch && matchCategory && matchDate;
   });
 
-  // Stats
-  const totalAmount = records.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-  const categoriesUsed = new Set(records.map((r) => r.category).filter(Boolean)).size;
-
-  const handleArchive = async (r) => {
-    try {
-      archiveRow({ module: "Expenses", moduleKey: "pb_expenses", record: r, name: r.category || r.description });
-      await fetch(`${API_BASE}/${r._id || r.id}`, { method: "DELETE" });
-    } catch { /* ignore */ }
-    fetchRecords();
+  const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
+  const sortAccessor = (row, col) => {
+    if (col === "date") return row.date || "";
+    if (col === "category") return row.category || "";
+    if (col === "amount") return Number(row.amount) || 0;
+    return "";
   };
+  const sorted = sortData(filtered, sortAccessor);
+  const pager = usePagination(sorted.length);
+  useEffect(() => { pager.setPage(1); }, [search, filters]);
+  const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+
+  const totalAmount = filtered.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const categoriesUsed = new Set(filtered.map((r) => r.category).filter(Boolean)).size;
+
+  const categoryBreakdown = (() => {
+    const byCategory = {};
+    filtered.forEach((r) => {
+      if (!r.category) return;
+      byCategory[r.category] = (byCategory[r.category] || 0) + (Number(r.amount) || 0);
+    });
+    return Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  })();
+
+  const handleArchive = (r) =>
+    requestArchive({ module: "Expenses", moduleKey: "pb_expenses", record: r, name: r.category || r.description, onArchived: fetchRecords });
+
+  const periodLabel = filters.dateFrom && filters.dateTo
+    ? `${filters.dateFrom} – ${filters.dateTo}`
+    : filters.dateFrom
+      ? `From ${filters.dateFrom}`
+      : filters.dateTo
+        ? `Until ${filters.dateTo}`
+        : "All Time";
+
+  const exportMeta = {
+    farmName: farmInfo.farmName,
+    location: farmInfo.farmLocation,
+    contact: farmInfo.farmContact,
+    email: farmInfo.farmEmail,
+    logoUrl: farmInfo.farmLogo
+      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `http://localhost:5000${farmInfo.farmLogo}`)
+      : "",
+    period: periodLabel,
+    fields: filters.category !== "All" ? [{ label: "Category", value: filters.category }] : [],
+  };
+
+  const exportSummary = filtered.length
+    ? [
+        { label: "Total Records", value: String(filtered.length) },
+        { label: "Total Expenses", value: formatPeso(totalAmount) },
+        { label: "Categories Used", value: String(categoriesUsed) },
+        ...categoryBreakdown.map(([cat, amt]) => ({ label: cat, value: formatPeso(amt) })),
+      ]
+    : [];
 
   return (
     <PageLayout
@@ -128,7 +182,7 @@ export default function ExpensesRecord() {
         { label: "EXPENSES RECORD" },
       ]}
     >
-        {/* Toolbar */}
+        {}
         <div className="er-toolbar">
           <button className="er-add-btn" onClick={() => navigate("/sales-transactions/expenses/add")}>
             <FiPlus /> Add Expense
@@ -162,7 +216,7 @@ export default function ExpensesRecord() {
                       <button className="er-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    {/* Category — dropdown */}
+                    {}
                     <div className="er-filter-group">
                       <label className="er-filter-label">Category</label>
                       <select
@@ -177,72 +231,58 @@ export default function ExpensesRecord() {
                       </select>
                     </div>
 
-                    {/* Expense Date — chips (from records) */}
-                    {dateOptions.length > 0 && (
-                      <div className="er-filter-group">
-                        <label className="er-filter-label">Expense Date</label>
-                        <div className="er-filter-options">
-                          <button
-                            className={`er-filter-option ${filters.date === "All" ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("date", "All")}
-                          >All</button>
-                          {dateOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              className={`er-filter-option ${filters.date === opt ? "selected" : ""}`}
-                              onClick={() => handleFilterChange("date", opt)}
-                            >{opt}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Amount — chips */}
                     <div className="er-filter-group">
-                      <label className="er-filter-label">Amount</label>
-                      <div className="er-filter-options">
-                        <button
-                          className={`er-filter-option ${filters.amount === "All" ? "selected" : ""}`}
-                          onClick={() => handleFilterChange("amount", "All")}
-                        >All</button>
-                        {AMOUNT_OPTIONS.map((opt) => (
-                          <button
-                            key={opt}
-                            className={`er-filter-option ${filters.amount === opt ? "selected" : ""}`}
-                            onClick={() => handleFilterChange("amount", opt)}
-                          >{opt}</button>
-                        ))}
+                      <label className="er-filter-label">Report Period</label>
+                      <div className="er-filter-date-range">
+                        <input type="date" className="er-filter-select" value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                        <span>to</span>
+                        <input type="date" className="er-filter-select" value={filters.dateTo}
+                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              <ExportMenu rows={filtered} name="expenses-record" title="Expenses Record" className="er-toolbar-btn" />
+              <ExportMenu
+                rows={filtered}
+                name="expenses-record"
+                title="Farm Expense Report"
+                meta={exportMeta}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                moduleLabel="Expense Record"
+                enablePreview
+                filters={{
+                  ...(filters.category !== "All" ? { "Category": filters.category } : {}),
+                  ...(periodLabel !== "All Time" ? { "Report Period": periodLabel } : {}),
+                }}
+                className="er-toolbar-btn"
+              />
             </div>
           </div>
         </div>
 
-        {/* Active filter tags */}
+        {}
         {activeFilterCount > 0 && (
           <div className="er-active-filters">
             {Object.entries(filters).map(([key, value]) =>
               value !== "All" ? (
                 <span key={key} className="er-active-filter-tag">
-                  {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
+                  {key === "category" ? "Category" : key === "dateFrom" ? "From" : "To"}: {value}
+                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
                 </span>
               ) : null
             )}
           </div>
         )}
 
-        {/* Stats */}
+        {}
         <div className="er-stats-grid">
           <div className="er-stat-card">
             <div className="er-stat-icon gold"><FiFileText /></div>
             <div>
-              <h3>{records.length}</h3>
+              <h3>{filtered.length}</h3>
               <p>Total Records</p>
               <span>All Time</span>
             </div>
@@ -273,10 +313,10 @@ export default function ExpensesRecord() {
           </div>
         </div>
 
-        {/* Error banner */}
+        {}
         {error && <div className="er-error-banner" style={{ display: "block" }}>{error}</div>}
 
-        {/* Table */}
+        {}
         <div className="er-table-wrapper">
           {loading ? (
             <div className="er-loading">Loading expense records...</div>
@@ -284,9 +324,9 @@ export default function ExpensesRecord() {
             <table className="er-table">
               <thead>
                 <tr>
-                  <th>Expense Date</th>
-                  <th>Category</th>
-                  <th>Amount</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("date")}>Expense Date{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("category")}>Category{sortIndicator("category", sortColumn, sortDirection)}</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("amount")}>Amount{sortIndicator("amount", sortColumn, sortDirection)}</th>
                   <th>Receipt</th>
                   <th>Remarks</th>
                   <th>Actions</th>
@@ -310,15 +350,23 @@ export default function ExpensesRecord() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r) => (
+                  pageRows.map((r) => (
                     <tr key={r._id || r.id}>
-                      <td>{r.date}</td>
+                      <td>{r.date ? new Date(r.date).toISOString().split("T")[0] : ""}</td>
                       <td>{r.category}</td>
                       <td className="er-amount">{formatPeso(r.amount)}</td>
-                      <td>{r.receipt || "—"}</td>
+                      <td>{r.receipt ? getReceiptLabel(r.category) : "—"}</td>
                       <td>{r.remarks || "—"}</td>
                       <td>
                         <div className="er-action-buttons">
+                          <button
+                            className="er-action-btn view"
+                            title="View"
+                            onClick={() => setViewRecord(r)}
+                          >
+                            <FiEye />
+                          </button>
+                          {canEdit && (
                           <button
                             className="er-action-btn edit"
                             title="Edit"
@@ -326,9 +374,12 @@ export default function ExpensesRecord() {
                           >
                             <FiEdit2 />
                           </button>
+                          )}
+                          {canArchive && (
                           <button className="er-action-btn archive" onClick={() => handleArchive(r)} title="Archive">
                             <FiArchive />
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -338,10 +389,66 @@ export default function ExpensesRecord() {
             </table>
           )}
 
-          <div className="er-table-footer">
-            Showing {filtered.length} entries
+          <TablePagination
+            page={pager.page}
+            setPage={pager.setPage}
+            rowsPerPage={pager.rowsPerPage}
+            setRowsPerPage={pager.setRowsPerPage}
+            totalPages={pager.totalPages}
+            startIndex={pager.startIndex}
+            endIndex={pager.endIndex}
+            totalItems={pager.totalItems}
+          />
+        </div>
+
+      <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
+
+      {viewRecord && (
+        <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
+          <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "left" }}>
+            <h3 className="pb-confirm-title">Expense Record</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
+              <div><small>Expense Date</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toISOString().split("T")[0] : "—"}</p></div>
+              <div><small>Category</small><p style={{ margin: 0 }}>{viewRecord.category || "—"}</p></div>
+              <div><small>Amount</small><p style={{ margin: 0 }}>{formatPeso(viewRecord.amount)}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <small>{getReceiptLabel(viewRecord.category)}</small>
+                {isImageReceipt(viewRecord.receipt) ? (
+                  <div style={{ marginTop: 6 }}>
+                    <img
+                      src={`${API_BASE}${viewRecord.receipt}`}
+                      alt={getReceiptLabel(viewRecord.category)}
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 320,
+                        borderRadius: 8,
+                        border: "1px solid #e2e2e2",
+                        display: "block",
+                      }}
+                    />
+                  </div>
+                ) : isPdfReceipt(viewRecord.receipt) ? (
+                  <p style={{ margin: 0 }}>
+                    <a
+                      href={`${API_BASE}${viewRecord.receipt}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open {getReceiptLabel(viewRecord.category)} (PDF)
+                    </a>
+                  </p>
+                ) : (
+                  <p style={{ margin: 0 }}>{viewRecord.receipt ? getReceiptLabel(viewRecord.category) : "—"}</p>
+                )}
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}><small>Remarks</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
+            </div>
+            <div className="pb-confirm-actions">
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+            </div>
           </div>
         </div>
+      )}
 
     </PageLayout>
   );

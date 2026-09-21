@@ -1,0 +1,251 @@
+.sie-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sie-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sie-form-group label {
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d2d2d;
+}
+.sie-req {
+  color: #e4af1f;
+}
+.sie-form-group small {
+  font-family: "Lato", sans-serif;
+  font-size: 9px;
+  color: #bbb;
+  line-height: 1.5;
+}
+
+.sie-form-group input,
+.sie-form-group select {
+  width: 100%;
+  box-sizing: border-box;
+  height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  font-family: "Lato", sans-serif;
+  font-size: 14px;
+  color: #2d2d2d;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
+}
+.sie-form-group select {
+  cursor: pointer;
+  appearance: auto;
+}
+.sie-form-group input:focus,
+.sie-form-group select:focus {
+  border-color: #e4af1f;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(228, 175, 31, 0.12);
+}
+
+.sie-readonly {
+  background: #f5f5f5 !important;
+  color: #555 !important;
+  cursor: not-allowed;
+  font-weight: 700 !important;
+}
+
+.sie-input-with-prefix {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow: hidden;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.sie-input-with-prefix:focus-within {
+  border-color: #e4af1f;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(228, 175, 31, 0.12);
+}
+.sie-prefix {
+  padding: 0 12px;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e4af1f;
+  background: #fff9ee;
+  border-right: 1.5px solid #e2e2e2;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.sie-input-with-prefix input {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  flex: 1;
+  height: 48px;
+}
+.sie-input-with-prefix input:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.sie-set {
+  border: 1.5px solid #ececec;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fcfcfb;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sie-set-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sie-set-label {
+  font-family: "Poppins", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.sie-remove-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: #d94f4f;
+  font-family: "Lato", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.sie-remove-btn:hover {
+  text-decoration: underline;
+}
+
+.sie-set-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 20px;
+}
+
+.sie-stock-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  background: #f7f6f3;
+  border: 1px solid #e4e0d8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: "Lato", sans-serif;
+  font-size: 12.5px;
+  color: #6b6457;
+}
+.sie-stock-status strong {
+  color: #1e1c18;
+  font-weight: 700;
+}
+.sie-stock-status-error {
+  background: #fdf0f0;
+  border-color: #f3d5d5;
+  color: #a83a3a;
+}
+.sie-stock-status-error strong {
+  color: #c0392b;
+}
+
+.sie-set-error {
+  background: #fdf0f0;
+  border: 1px solid #d94f4f;
+  color: #d94f4f;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: "Lato", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.sie-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1.5px dashed #e4af1f;
+  border-radius: 10px;
+  background: #fff9ee;
+  color: #c8930c;
+  font-family: "Poppins", sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.sie-add-btn:hover {
+  background: #fdf3e3;
+}
+
+.sie-totals {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sie-totals > div {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #faf8f3;
+  border: 1px solid #e4e0d8;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.sie-totals span {
+  font-family: "Lato", sans-serif;
+  font-size: 11px;
+  color: #8a8478;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sie-totals strong {
+  font-family: "Poppins", sans-serif;
+  font-size: 20px;
+  color: #1e1c18;
+}
+
+@media (max-width: 900px) {
+  .sie-set-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .sie-set-grid {
+    grid-template-columns: 1fr;
+  }
+  .sie-totals {
+    flex-direction: column;
+  }
+}

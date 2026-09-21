@@ -13,7 +13,6 @@ export default function Login() {
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
-  // ── Load saved email on mount ──
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
@@ -47,8 +46,10 @@ export default function Login() {
         body: JSON.stringify({ email: form.email, password: form.password }),
       });
       const data = await res.json();
+
+      console.log("LOGIN RESPONSE:", data);
+
       if (data.success) {
-        // ── Check if new or returning user ──
         const existingUsers = JSON.parse(localStorage.getItem("knownUsers") || "[]");
         const isNewUser = !existingUsers.includes(data.user.id);
 
@@ -63,8 +64,15 @@ export default function Login() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         navigate("/dashboard");
+
       } else {
-        setError(data.message || "Invalid email or password.");
+        if (data.isPending) {
+          setError("⏳ Your account is still pending Owner approval. Please wait.");
+        } else if (data.isRejected) {
+          setError("❌ Your account has been rejected. Please contact the Owner.");
+        } else {
+          setError(data.message || "Invalid email or password.");
+        }
       }
     } catch {
       setError("Cannot connect to server. Make sure backend is running.");
@@ -129,7 +137,14 @@ export default function Login() {
             </button>
           </div>
 
-          {error && <p className="login-error">{error}</p>}
+          {error && (
+            <p className={`login-error ${
+              error.includes("⏳") ? "pending" :
+              error.includes("❌") ? "rejected" : ""
+            }`}>
+              {error}
+            </p>
+          )}
 
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? <span className="login-spinner" /> : "Login"}

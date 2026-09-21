@@ -138,9 +138,9 @@
 
 /* ============ FORM ACTIONS ============ */
 
-.aer-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.aer-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .aer-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.aer-action-btns { display: flex; gap: 12px; align-items: center; }
+.aer-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 
 .aer-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .aer-cancel-btn:hover { border-color: #bbb; color: #333; }
@@ -163,10 +163,7 @@
   .aer-form-card { padding: 20px 16px; gap: 20px; }
   .aer-count-grid { grid-template-columns: repeat(2, 1fr); }
 
-  .aer-form-actions { flex-direction: column; align-items: stretch; }
-  .aer-action-btns { flex-direction: column-reverse; align-items: stretch; }
-  .aer-cancel-btn,
-  .aer-save-btn { width: 100%; justify-content: center; }
+
 }
 
 @media (max-width: 480px) {

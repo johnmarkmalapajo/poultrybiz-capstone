@@ -1,0 +1,91 @@
+/* TablePagination.css — shared pagination styling, reused by any module
+   that adopts the shared table architecture. */
+
+.tp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 4px 4px;
+  font-family: "Poppins", sans-serif;
+  font-size: 12.5px;
+  color: #8a8478;
+  border-top: 1px solid #eee6d8;
+  margin-top: 8px;
+}
+
+.tp-summary { white-space: nowrap; }
+
+.tp-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tp-rows-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tp-rows-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1.5px solid #e4e0d8;
+  font-size: 12.5px;
+  color: #47321C;
+  background: #fff;
+}
+
+.tp-nav-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #e4e0d8;
+  background: #fff;
+  color: #47321C;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.tp-nav-btn:hover:not(:disabled) { border-color: var(--gold, #E4AF1F); }
+.tp-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tp-page-numbers { display: flex; align-items: center; gap: 4px; }
+
+.tp-page-btn {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: #8a8478;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.tp-page-btn:hover { background: #faf5e8; }
+.tp-page-btn.active {
+  background: var(--gold, #E4AF1F);
+  color: #fff;
+}
+.tp-page-dots {
+  min-width: 20px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a39e94;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+/* Mobile — stack summary above controls, and let page numbers wrap
+   instead of overflowing the screen */
+@media (max-width: 640px) {
+  .tp-pagination { flex-direction: column; align-items: flex-start; }
+  .tp-controls { width: 100%; justify-content: space-between; }
+  .tp-page-numbers { flex-wrap: wrap; }
+}

@@ -50,9 +50,9 @@
 .nt-row:hover { background: #fffdf7; }
 .nt-row.unread { background: #fffdf7; }
 .nt-row::before { content: ""; position: absolute; left: 0; top: 0; width: 4px; height: 100%; }
-.nt-row.prio-high::before { background: var(--red); }
-.nt-row.prio-medium::before { background: var(--gold); }
-.nt-row.prio-low::before { background: var(--blue); }
+.nt-row.prio-critical::before { background: var(--red); }
+.nt-row.prio-warning::before { background: var(--gold); }
+.nt-row.prio-normal::before { background: var(--blue); }
 
 /* Notification cell */
 .nt-cell-main { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
@@ -69,9 +69,9 @@
 
 /* Priority badge */
 .nt-prio { display: inline-flex; align-items: center; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
-.nt-prio.prio-high { background: var(--red-bg); color: var(--red); }
-.nt-prio.prio-medium { background: var(--gold-light); color: var(--gold-dark); }
-.nt-prio.prio-low { background: var(--blue-bg); color: var(--blue); }
+.nt-prio.prio-critical { background: var(--red-bg); color: var(--red); }
+.nt-prio.prio-warning { background: var(--gold-light); color: var(--gold-dark); }
+.nt-prio.prio-normal { background: var(--blue-bg); color: var(--blue); }
 
 /* Status pill */
 .nt-status { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 20px; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; }

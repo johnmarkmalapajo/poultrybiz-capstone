@@ -5,9 +5,8 @@ import {
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditEggRecord.css";
-
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/egg-records`;
-const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
+import { getEggRecord, updateEggRecord } from "../api/eggRecord";
+import { listFlocks } from "../api/flockProfile";
 
 const SIZE_FIELDS = [
   { name: "peewee",     label: "Peewee" },
@@ -19,10 +18,10 @@ const SIZE_FIELDS = [
 ];
 const COUNT_FIELDS = [...SIZE_FIELDS, { name: "crackedEggs", label: "Cracked Eggs" }];
 
-// Fixed list of 12 cages (C-01 … C-12)
-const CAGES = Array.from({ length: 12 }, (_, i) => `C-${String(i + 1).padStart(2, "0")}`);
-
-const flockCages = (f) => f?.assignedCages || (f?.cageId ? [f.cageId] : []);
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
 function productionStatus(rate) {
   if (rate == null) return null;
@@ -35,16 +34,17 @@ function productionStatus(rate) {
 export default function EditEggRecord() {
   const navigate = useNavigate();
   const { id }   = useParams();
+  const today = localToday();
 
   const [formData, setFormData] = useState({
     batchId: "",
-    cageId: "",
     currentQuantity: "",
     collectionDate: "",
     peewee: "", small: "", medium: "", large: "", extraLarge: "", jumbo: "",
     crackedEggs: "",
     remarks: "",
   });
+  const [originalBatchId, setOriginalBatchId] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -52,27 +52,23 @@ export default function EditEggRecord() {
   const [success, setSuccess] = useState("");
   const [flocks, setFlocks]   = useState([]);
 
-  // Flocks (Batch + Cage dropdowns)
   useEffect(() => {
-    fetch(FLOCKS_API)
-      .then((r) => r.json())
+    listFlocks()
       .then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || []))
       .catch(() => setFlocks([]));
   }, []);
 
-  // Fetch existing record
   useEffect(() => {
     const fetchRecord = async () => {
+      setLoading(true);
       try {
-        const res  = await fetch(`${API_BASE}/${id}`);
-        const data = await res.json();
-        const r = data.record || data.data;
+        const data = await getEggRecord(id);
+        const r = data.record || data.data || data;
         if (r) {
           setFormData((prev) => ({
             ...prev,
             batchId:         r.batchId || "",
-            cageId:          r.cageId || "",
-            currentQuantity: r.currentQuantity ?? "",
+            currentQuantity: r.birdsAtCollection ?? "",
             collectionDate:  r.collectionDate?.split("T")[0] || "",
             peewee:          r.peewee ?? "",
             small:           r.small ?? "",
@@ -83,11 +79,12 @@ export default function EditEggRecord() {
             crackedEggs:     r.crackedEggs ?? "",
             remarks:         r.remarks ?? "",
           }));
+          setOriginalBatchId(r.batchId || "");
         } else {
-          setError(data.message || "Failed to load record.");
+          setError("Record not found.");
         }
-      } catch {
-        setError("Cannot connect to server. Please try again.");
+      } catch (err) {
+        setError(err?.message || "Cannot connect to server. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -96,12 +93,12 @@ export default function EditEggRecord() {
   }, [id]);
 
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
-  const batchOptions = [...new Set(flocks.map((f) => f.batchId).filter(Boolean))];
-  const cageOptions = CAGES;
+
+  const eligibleFlocks = flocks.filter((f) => f.status === "Active" || f.batchId === originalBatchId);
+  const batchOptions = [...new Set(eligibleFlocks.map((f) => f.batchId).filter(Boolean))];
 
   const num = (v) => parseInt(v, 10) || 0;
 
-  // ── Frontend computations ──
   const goodEggs =
     num(formData.peewee) + num(formData.small) + num(formData.medium) +
     num(formData.large) + num(formData.extraLarge) + num(formData.jumbo);
@@ -115,13 +112,19 @@ export default function EditEggRecord() {
   const henDayDisplay = henDayRate == null ? "--" : `${henDayRate.toFixed(2)}%`;
   const status = productionStatus(henDayRate);
 
+  const eggTotalExceeded = currentBirds != null && totalEggs > currentBirds;
+
   const handleCountChange = (e) => {
     const { name, value } = e.target;
     if (value === "") return setFormData((p) => ({ ...p, [name]: "" }));
-    const n = Math.max(0, Math.floor(Number(value)));
-    if (Number.isNaN(n)) return;
-    setFormData((p) => ({ ...p, [name]: String(n) }));
+    if (!/^\d+$/.test(value)) return;
+    setFormData((p) => ({ ...p, [name]: value }));
     setError("");
+  };
+
+  const handleCountPaste = (e) => {
+    const text = e.clipboardData.getData("text");
+    if (!/^\d+$/.test(text)) e.preventDefault();
   };
 
   const handleChange = (e) => {
@@ -136,7 +139,6 @@ export default function EditEggRecord() {
     setFormData((prev) => ({
       ...prev,
       batchId,
-      cageId: "",
       currentQuantity: flock?.currentQuantity ?? prev.currentQuantity,
     }));
     setError("");
@@ -144,26 +146,29 @@ export default function EditEggRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+
+    if (formData.collectionDate > today) {
+      setError("Collection Date cannot be a future date.");
+      return;
+    }
+    if (eggTotalExceeded) {
+      setError(`Total eggs: ${totalEggs}. Current chickens: ${currentBirds}. Please reduce the egg quantities.`);
+      return;
+    }
+
     setSaving(true); setError(""); setSuccess("");
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData, goodEggs, totalEggs,
-          henDayPercent: henDayRate == null ? null : henDayRate,
-          productionStatus: status?.label ?? null,
-        }),
+      await updateEggRecord(id, {
+        ...formData, goodEggs, totalEggs,
+        henDayPercent: henDayRate == null ? null : henDayRate,
+        productionStatus: status?.label ?? null,
       });
-      const data = await res.json();
-      if (data.success !== false) {
-        setSuccess("Egg record updated successfully!");
-        setTimeout(() => navigate("/records/egg"), 1200);
-      } else {
-        setError(data.message || "Failed to update record.");
-      }
-    } catch {
-      setError("Cannot connect to server. Please try again.");
+      setSuccess("Egg record updated successfully!");
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
+      setTimeout(() => navigate("/records/egg"), 1200);
+    } catch (err) {
+      setError(err?.message || "Cannot connect to server. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -179,7 +184,7 @@ export default function EditEggRecord() {
           { label: "EDIT EGG RECORD" },
         ]}
       >
-        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading egg record...</p>
+        <p className="pb-loading-text">Loading egg record...</p>
       </PageLayout>
     );
   }
@@ -193,13 +198,11 @@ export default function EditEggRecord() {
         { label: "EDIT EGG RECORD" },
       ]}
     >
-        {/* Banners */}
         {success && <div className="eer-success-banner">{success}</div>}
         {error   && <div className="eer-error-banner">{error}</div>}
 
         <form className="eer-form-card" onSubmit={handleSubmit}>
 
-          {/* BATCH INFORMATION */}
           <div className="eer-section-header">
             <FiInfo />
             <h3>Batch Information</h3>
@@ -216,29 +219,16 @@ export default function EditEggRecord() {
                 )}
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
-              <small>Select the flock batch for this collection.</small>
-            </div>
-
-            <div className="eer-form-group">
-              <label>Cage <span className="eer-req">*</span></label>
-              <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                <option value="">Select Cage</option>
-                {formData.cageId && !cageOptions.includes(formData.cageId) && (
-                  <option value={formData.cageId}>{formData.cageId}</option>
-                )}
-                {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-              <small>Select a cage (C-01 to C-12).</small>
+              <small>Only Active batches are eligible for a new assignment.</small>
             </div>
 
             <div className="eer-form-group">
               <label> Date <span className="eer-req">*</span></label>
-              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} required />
+              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} max={today} required />
               <small>Date the eggs were collected.</small>
             </div>
           </div>
 
-          {/* EGG COLLECTION */}
           <div className="eer-section-header">
             <FiGrid />
             <h3>Egg Collection</h3>
@@ -250,16 +240,22 @@ export default function EditEggRecord() {
               <div className="eer-form-group" key={f.name}>
                 <label>{f.label}</label>
                 <input
-                  type="number" min="0" step="1" name={f.name}
+                  type="text" inputMode="numeric" name={f.name}
                   value={formData[f.name]} onChange={handleCountChange}
-                  onKeyDown={(e) => ["-", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                  onPaste={handleCountPaste}
+                  onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
                   placeholder="0"
                 />
               </div>
             ))}
           </div>
 
-          {/* ADDITIONAL INFORMATION */}
+          {eggTotalExceeded && (
+            <div className="eer-error-banner">
+              Total eggs: {totalEggs}. Current chickens: {currentBirds}. Please reduce the egg quantities.
+            </div>
+          )}
+
           <div className="eer-section-header">
             <FiFileText />
             <h3>Additional Information</h3>
@@ -273,7 +269,6 @@ export default function EditEggRecord() {
             <small className="eer-char-count">{(formData.remarks || "").length} / 500</small>
           </div>
 
-          {/* PRODUCTION SUMMARY (read-only) */}
           <div className="eer-section-header">
             <FiBarChart2 />
             <h3>Production Summary</h3>
@@ -295,7 +290,7 @@ export default function EditEggRecord() {
 
             <div className="eer-result-card">
               <h4>Total Eggs</h4>
-              <div className="eer-result-value">{totalEggs}</div>
+              <div className="eer-result-value" style={eggTotalExceeded ? { color: "#d94f4f" } : undefined}>{totalEggs}</div>
               <p>Good Eggs + Cracked Eggs</p>
             </div>
 
@@ -314,7 +309,7 @@ export default function EditEggRecord() {
                     background: status.bg, color: status.color,
                     padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
                   }}>
-                    {status.dot} {status.label}
+                    {status.label}
                   </span>
                 ) : "--"}
               </div>
@@ -322,19 +317,14 @@ export default function EditEggRecord() {
             </div>
           </div>
 
-          <div className="eer-info-box">
-            <p>Current Birds, Good Eggs, Total Eggs, Hen-Day %, and Production Status update automatically and are read-only.</p>
-          </div>
-
-          {/* Actions */}
           <div className="eer-form-actions">
             <p className="eer-req-note">Fields with * are required.</p>
             <div className="eer-action-btns">
               <button type="button" className="eer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="eer-save-btn" disabled={saving}>
-                <FiSave /> {saving ? "Saving..." : "Save Changes"}
+              <button type="submit" className="eer-save-btn" disabled={saving || eggTotalExceeded}>
+                <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>
             </div>
           </div>

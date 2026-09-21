@@ -3,15 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiSave, FiX, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditMortalityRecord.css";
+import { getMortalityRecord, updateMortalityRecord, listMortalityRecords } from "../api/mortalityRecord";
+import { listFlocks } from "../api/flockProfile";
+import { listQuarantineRecords } from "../api/quarantineIsolation";
+import { listHealthOptions } from "../api/healthOptions";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1");
-const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
-const MORT_API   = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/mortality-records`;
-
-const CHICKENS_PER_CAGE = 4;
-const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown", "Others"];
-const CAGES = Array.from({ length: 12 }, (_, i) => `C-${String(i + 1).padStart(2, "0")}`);
-const flockCages = (f) => f.assignedCages || (f.cageId ? [f.cageId] : []);
+const NEW_VALUE = "__new__";
+const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
 
 export default function EditMortalityRecord() {
   const navigate = useNavigate();
@@ -22,54 +20,61 @@ export default function EditMortalityRecord() {
   const [formData, setFormData] = useState({
     date: "",
     batchId: "",
-    cageId: "",
     numberOfMortality: "",
     causeOfDeath: "",
-    suspectedDisease: "",
     remarks: "",
   });
 
   const [flocks, setFlocks] = useState([]);
+  const [isolationRecords, setIsolationRecords] = useState([]);
   const [mortRecords, setMortRecords] = useState([]);
   const [error, setError] = useState("");
+  const [newCauseOfDeath, setNewCauseOfDeath] = useState("");
+  const [causeOfDeathOptions, setCauseOfDeathOptions] = useState(CAUSES);
 
-  // ── Fetch this record ──
+  useEffect(() => {
+    listHealthOptions("causeOfDeath").then((r) => {
+      const fetched = (r.options || []).map((o) => o.value);
+      setCauseOfDeathOptions([...CAUSES, ...fetched.filter((v) => !CAUSES.includes(v))]);
+    }).catch(() => setCauseOfDeathOptions(CAUSES));
+  }, []);
+
   useEffect(() => {
     const fetchRecord = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API}/mortality-records/${id}`, {
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
+        const json = await getMortalityRecord(id);
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
-      } catch {
-        // keep form
+      } catch (err) {
+        setError(err?.message || "Couldn't load this record.");
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // ── Flocks + all mortality records (for cages, computed totals, duplicate check) ──
   useEffect(() => {
-    fetch(FLOCKS_API)
-      .then((r) => r.json())
+    listFlocks()
       .then((d) => setFlocks(Array.isArray(d) ? d : d.records || d.flocks || []))
       .catch(() => setFlocks([]));
-    fetch(MORT_API)
-      .then((r) => r.json())
+    listQuarantineRecords()
+      .then((d) => setIsolationRecords((Array.isArray(d) ? d : d.records || d.data || []).filter((r) => r.recordType === "Isolation")))
+      .catch(() => setIsolationRecords([]));
+    listMortalityRecords()
       .then((d) => setMortRecords(Array.isArray(d) ? d : d.records || d.data || []))
       .catch(() => setMortRecords([]));
   }, []);
 
-  const batchOptions = [...new Set(flocks.map((f) => f.batchId).filter(Boolean))];
+  const isolationBatchIds = new Set(isolationRecords.map((r) => r.batchId));
+  const batchOptions = [...new Set(
+    flocks
+      .filter((f) => f.status === "Active" && !isolationBatchIds.has(f.batchId))
+      .map((f) => f.batchId)
+      .filter(Boolean)
+  )];
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
-  const cageOptions = CAGES;
 
   const purchaseQty = Number(selectedFlock?.quantityPurchased) || 0;
   const batchMortality = mortRecords
@@ -78,52 +83,61 @@ export default function EditMortalityRecord() {
   const currentBirds = Math.max(0, purchaseQty - batchMortality);
   const mortalityRate = purchaseQty > 0 ? ((batchMortality / purchaseQty) * 100).toFixed(2) : "0.00";
 
-  // per-cage current birds, excluding THIS record's own count
-  const cagePriorDeaths = mortRecords
-    .filter((r) => r._id !== id && r.batchId === formData.batchId && r.cageId === formData.cageId)
-    .reduce((s, r) => s + (Number(r.numberOfMortality) || 0), 0);
-  const cageCurrentBirds = formData.cageId ? Math.max(0, CHICKENS_PER_CAGE - cagePriorDeaths) : null;
-
   const isDuplicate =
-    formData.batchId && formData.cageId && formData.date &&
+    formData.batchId && formData.date &&
     mortRecords.some(
-      (r) => r._id !== id && r.batchId === formData.batchId && r.cageId === formData.cageId && r.date === formData.date
+      (r) => r._id !== id && r.batchId === formData.batchId && r.date === formData.date
     );
 
   const isDisease = formData.causeOfDeath === "Disease";
+  const isAutomaticallyGenerated = Boolean(
+    formData.autoGeneratedFromCulling ||
+    formData.autoGeneratedFromIsolation ||
+    formData.sourceIsolationId
+  );
   const numDead = Number(formData.numberOfMortality) || 0;
-  const exceedsCage = cageCurrentBirds != null && numDead > cageCurrentBirds;
+  const exceedsBirds = formData.batchId !== "" && numDead > currentBirds;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      if (name === "batchId") return { ...prev, batchId: value, cageId: "" };
-      return { ...prev, [name]: value };
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
-    if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
-    if (numDead < 1) return setError("Enter at least 1 dead chicken.");
-    if (isDuplicate) return setError("A mortality record already exists for this Batch + Cage + Date.");
-    if (exceedsCage) return setError(`Number of dead chickens (${numDead}) exceeds current birds in cage ${formData.cageId} (${cageCurrentBirds}).`);
+    if (!isAutomaticallyGenerated) {
+      if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
+      if (numDead < 1) return setError("Enter at least 1 dead chicken.");
+      if (isDuplicate) return setError("A mortality record already exists for this Batch + Date.");
+      if (exceedsBirds) return setError(`Number of dead chickens (${numDead}) exceeds current birds in batch ${formData.batchId} (${currentBirds}).`);
+      if (formData.causeOfDeath === NEW_VALUE && !newCauseOfDeath.trim())
+        return setError("Please enter the new Cause of Death.");
+    }
 
     try {
-      const token = localStorage.getItem("token");
       setSaving(true);
-      await fetch(`${API}/mortality-records/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...formData, numberOfMortality: numDead, currentBirds, mortalityRate: Number(mortalityRate) }),
-      });
-    } catch {
+      await updateMortalityRecord(
+        id,
+        isAutomaticallyGenerated
+          ? { remarks: formData.remarks || "" }
+          : {
+              ...formData,
+              ...(formData.causeOfDeath === NEW_VALUE
+                ? { causeOfDeath: undefined, newCauseOfDeath: newCauseOfDeath.trim() }
+                : {}),
+              numberOfMortality: numDead,
+              currentBirds,
+              mortalityRate: Number(mortalityRate),
+            }
+      );
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
+      navigate("/records/mortality");
+    } catch (err) {
       setSaving(false);
-      /* silent — adjust endpoint to your backend */
+      setError(err?.message || "Couldn't save changes. Please try again.");
     }
-    navigate("/records/mortality");
   };
 
   if (loading) {
@@ -136,7 +150,7 @@ export default function EditMortalityRecord() {
           { label: "EDIT MORTALITY" },
         ]}
       >
-        <p style={{ color: "#aaa", fontFamily: "var(--font-body)" }}>Loading record...</p>
+        <p className="pb-loading-text">Loading record...</p>
       </PageLayout>
     );
   }
@@ -150,18 +164,15 @@ export default function EditMortalityRecord() {
         { label: "EDIT MORTALITY" },
       ]}
     >
-        {/* Header */}
 
         <form className="emr-form-card" onSubmit={handleSubmit}>
 
           {error && (
-            <div style={{ background: "#fdf0f0", color: "#c0392b", border: "1.5px solid #f5c6c6",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600 }}>
+            <div className="pb-error-banner">
               {error}
             </div>
           )}
 
-          {/* MORTALITY DETAILS */}
           <div className="emr-section-header">
             <FiHeart />
             <h3>Mortality Details</h3>
@@ -170,80 +181,81 @@ export default function EditMortalityRecord() {
 
           <div className="emr-form-grid">
             <div className="emr-form-group">
+              <label>Mortality ID</label>
+              <input type="text" value={formData.mortalityId || "—"} disabled />
+              <small>Cannot be changed.</small>
+            </div>
+
+            <div className="emr-form-group">
               <label>Date <span className="emr-req">*</span></label>
-              <input type="date" name="date" value={formData.date ? String(formData.date).slice(0,10) : ""} onChange={handleChange} required />
+              <input type="date" name="date" value={formData.date ? String(formData.date).slice(0,10) : ""} onChange={handleChange} required disabled={isAutomaticallyGenerated} />
             </div>
 
             <div className="emr-form-group">
               <label>Batch ID <span className="emr-req">*</span></label>
-              <select name="batchId" value={formData.batchId} onChange={handleChange} required>
-                <option value="">Select batch ID</option>
-                {formData.batchId && !batchOptions.includes(formData.batchId) && (
-                  <option value={formData.batchId}>{formData.batchId}</option>
-                )}
-                {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            </div>
-
-            <div className="emr-form-group">
-              <label>Cage <span className="emr-req">*</span></label>
-              <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                <option value="">Select Cage</option>
-                {formData.cageId && !cageOptions.includes(formData.cageId) && (
-                  <option value={formData.cageId}>{formData.cageId}</option>
-                )}
-                {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-              {formData.cageId && <small>Current birds in this cage: {cageCurrentBirds}</small>}
+              {isAutomaticallyGenerated ? (
+                <input type="text" value={formData.batchId} disabled />
+              ) : (
+                <select name="batchId" value={formData.batchId} onChange={handleChange} required>
+                  <option value="">Select batch ID</option>
+                  {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              )}
+              {formData.sourceIsolationId ? (
+                <small>This record came from an Isolation event — change its Batch ID from the Isolation record instead.</small>
+              ) : (
+                formData.batchId && <small>Current birds in this batch: {currentBirds}</small>
+              )}
             </div>
 
             <div className="emr-form-group">
               <label>Number of Mortality <span className="emr-req">*</span></label>
-              <input type="number" min="0" max={cageCurrentBirds ?? undefined}
+              <input type="number" min="0" max={formData.batchId ? currentBirds : undefined}
                 name="numberOfMortality"
                 value={formData.numberOfMortality} onChange={handleChange}
-                placeholder="Enter number of mortality" required />
-              {exceedsCage && (
-                <small style={{ color: "#c0392b" }}>Cannot exceed {cageCurrentBirds} (current birds in cage).</small>
+                placeholder="Enter number of mortality" required disabled={isAutomaticallyGenerated} />
+              {exceedsBirds && (
+                <small style={{ color: "#c0392b" }}>Cannot exceed {currentBirds} (current birds in batch).</small>
               )}
             </div>
 
             <div className="emr-form-group">
               <label>Cause of Death <span className="emr-req">*</span></label>
-              <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} required>
-                <option value="">Select cause</option>
-                {formData.causeOfDeath && !CAUSES.includes(formData.causeOfDeath) && (
-                  <option value={formData.causeOfDeath}>{formData.causeOfDeath}</option>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} style={{ flex: 1 }} required disabled={isAutomaticallyGenerated}>
+                  <option value="">Select cause</option>
+                  {formData.causeOfDeath && formData.causeOfDeath !== NEW_VALUE && !causeOfDeathOptions.includes(formData.causeOfDeath) && (
+                    <option value={formData.causeOfDeath}>{formData.causeOfDeath}</option>
+                  )}
+                  {causeOfDeathOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value={NEW_VALUE}>Others</option>
+                </select>
+                {formData.causeOfDeath === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newCauseOfDeath}
+                    onChange={(e) => setNewCauseOfDeath(e.target.value)}
+                    placeholder="Enter cause of death..."
+                    style={{ flex: 1 }}
+                    required disabled={isAutomaticallyGenerated}
+                  />
                 )}
-                {CAUSES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            <div className="emr-form-group">
-              <label>Suspected Disease <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
-              <input type="text" name="suspectedDisease"
-                value={formData.suspectedDisease || ""} onChange={handleChange}
-                placeholder="e.g. Newcastle, Coccidiosis" />
+              </div>
             </div>
           </div>
 
-          {isDuplicate && (
-            <div style={{ background: "#fff8e1", color: "#856404", border: "1.5px solid #ffe08a",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
-              <FiAlertTriangle /> A record already exists for this Batch + Cage + Date.
+          {!isAutomaticallyGenerated && isDuplicate && (
+            <div className="pb-warning-banner">
+              <FiAlertTriangle /> A record already exists for this Batch + Date.
             </div>
           )}
 
           {isDisease && (
-            <div style={{ background: "#fdf0f0", color: "#c0392b", border: "1.5px solid #f5c6c6",
-              borderRadius: "8px", padding: "10px 14px", fontSize: "13px", fontWeight: 600,
-              display: "flex", alignItems: "center", gap: "8px" }}>
+            <div className="pb-error-banner">
               <FiAlertTriangle /> Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.
             </div>
           )}
 
-          {/* ADDITIONAL INFORMATION */}
           <div className="emr-section-header">
             <FiFileText />
             <h3>Additional Information</h3>
@@ -258,14 +270,13 @@ export default function EditMortalityRecord() {
             <small className="emr-char-count">{(formData.remarks || "").length} / 500</small>
           </div>
 
-          {/* Actions */}
           <div className="emr-form-actions">
             <p className="emr-req-note">Fields with * are required.</p>
             <div className="emr-action-btns">
               <button type="button" className="emr-cancel-btn" onClick={() => navigate("/records/mortality")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="emr-save-btn" disabled={saving || isDuplicate || exceedsCage}>
+              <button type="submit" className="emr-save-btn" disabled={saving || (!isAutomaticallyGenerated && (isDuplicate || exceedsBirds))}>
                 <FiSave /> Update Record
               </button>
             </div>

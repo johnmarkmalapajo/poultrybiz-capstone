@@ -5,59 +5,67 @@ import {
   FiClock, FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle,
 } from "react-icons/fi";
 import "./Profile.css";
+import {
+  getMyProfile,
+  updateMyProfile,
+  changeMyPassword,
+  uploadAvatar,
+} from "../api/profile";
+import { updateStoredUser } from "../hooks/useUser";
 
-/* ─────────────────────────────────────────────────────────────
-   INLINE PROFILE STORE — shared with Personnel & Manpower.
-   Farmer edits pic/name/contact/email → Personnel reads these
-   (read-only). Personnel manages position/status separately.
-     import { getFarmerProfile } from "../pages/FarmerProfile";
-────────────────────────────────────────────────────────────── */
-const P_KEY = "pb_farmer_profile";
-const DEFAULT_PROFILE = {
-  fullName: "Juan Dela Cruz",
-  email: "juandelacruz@email.com",
-  phone: "0912 345 6789",
-  avatar: "", // base64 data URL; empty → placeholder
-  // read-only (managed by Owner/Admin in Personnel module):
-  position: "Farmer",
-  status: "Active", // Active | Inactive | On Leave
-  dateJoined: "January 10, 2024",
-  lastLogin: "May 15, 2024 08:25 AM",
+const EMPTY_PROFILE = {
+  fullName: "",
+  email: "",
+  phone: "",
+  address: "",
+  avatar: "",
+  dateJoined: "",
+  status: "Active",
+  position: "",
+  employmentStatus: "",
+  role: "Farmer",
+  lastLogin: "",
+  language: "English",
+  timezone: "(GMT+08:00) Asia/Manila",
+  emailNotif: true,
+  loginAlerts: true,
 };
-
-function readProfile() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(P_KEY));
-    return { ...DEFAULT_PROFILE, ...(saved || {}) };
-  } catch { return { ...DEFAULT_PROFILE }; }
-}
-function writeProfile(p) {
-  try { localStorage.setItem(P_KEY, JSON.stringify(p)); } catch { /* ignore */ }
-}
-export function getFarmerProfile() { return readProfile(); }
 
 const STATUS_STYLE = {
   "Active":   { bg: "#eaf7f1", color: "#2e9e6b"},
   "Inactive": { bg: "#f0efec", color: "#7a7469" },
-  "On Leave": { bg: "#fdf2e6", color: "#e0892f"},
 };
 
-/* ─────────────────────────────────────────────────────────────
-   INLINE STYLES
-────────────────────────────────────────────────────────────── */
 
-/* ─────────────────────────────────────────────────────────────
-   COMPONENT
-────────────────────────────────────────────────────────────── */
 export default function FarmerProfile({ embedded = false, onBack }) {
-  const [saved, setSaved] = useState(() => readProfile());
-  const [form, setForm] = useState(saved);
+  const [saved, setSaved] = useState(EMPTY_PROFILE);
+  const [form, setForm] = useState(EMPTY_PROFILE);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const fileRef = useRef(null);
   const toastRef = useRef(null);
 
   useEffect(() => () => clearTimeout(toastRef.current), []);
+
+  useEffect(() => {
+  setLoading(true);
+  getMyProfile()
+    .then((data) => {
+      console.log("PROFILE API:", data);
+
+      const p = { ...EMPTY_PROFILE, ...(data.record || data.data || data) };
+
+      console.log("PROFILE OBJECT:", p);
+
+      setSaved(p);
+      setForm(p);
+    })
+      .catch((err) => setError(err?.message || "Couldn't load your profile."))
+      .finally(() => setLoading(false));
+  }, []);
 
   const dirty =
     form.fullName !== saved.fullName ||
@@ -67,13 +75,37 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const onPickPhoto = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("avatar", reader.result);
-    reader.readAsDataURL(file);
-  };
+  const onPickPhoto = async (e) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  try {
+    setSaving(true);
+
+    const result = await uploadAvatar(file);
+
+    const avatar = result.avatar;
+
+    setSaved((prev) => ({
+      ...prev,
+      avatar,
+    }));
+
+    setForm((prev) => ({
+      ...prev,
+      avatar,
+    }));
+
+    updateStoredUser({ avatar });
+
+    flash("Profile picture updated successfully.");
+  } catch (err) {
+    setError(err.message || "Unable to upload profile picture.");
+  } finally {
+    setSaving(false);
+  }
+};
 
   const flash = (msg) => {
     setToast(msg);
@@ -81,19 +113,30 @@ export default function FarmerProfile({ embedded = false, onBack }) {
     toastRef.current = setTimeout(() => setToast(""), 3000);
   };
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!form.fullName.trim() || !form.email.trim()) {
       flash("Full Name and Email are required.");
       return;
     }
-    writeProfile(form);        // → syncs to Personnel & Manpower
-    setSaved(form);
-    flash("Profile saved. Personnel record updated.");
+    setSaving(true); setError("");
+    try {
+      const updated = await updateMyProfile({ fullName: form.fullName, email: form.email, phone: form.phone, avatar: form.avatar });
+      const p = { ...form, ...(updated?.record || updated?.data || updated || {}) };
+      setSaved(p);
+      setForm(p);
+      updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
+      flash("Profile saved. Personnel record updated.");
+    } catch (err) {
+      setError(err?.message || "Couldn't save your profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onCancel = () => setForm(saved);
 
-  const st = STATUS_STYLE[saved.status] || STATUS_STYLE["Active"];
+  const st = STATUS_STYLE[saved.employmentStatus] || STATUS_STYLE["Active"];
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return (
@@ -101,14 +144,26 @@ export default function FarmerProfile({ embedded = false, onBack }) {
       {!embedded && <Sidebar />}
 
       <div className="pf-main">
-        {/* Top bar */}
+        {}
+
+        {error && <div className="pb-error-banner">{error}</div>}
+        {loading && <p className="pb-loading-text">Loading your profile...</p>}
 
         <div className="pf-layout">
-          {/* LEFT — profile summary card */}
+          {}
           <div className="pf-card pf-side">
             <div className="pf-avatar-wrap">
               <div className="pf-avatar">
-                {form.avatar ? <img src={form.avatar} alt="Profile" /> : <FiUser />}
+                {form.avatar ? 
+                <img
+                  src={
+                    form.avatar
+                      ? `http://localhost:5000${form.avatar}`
+                      : ""
+                  }
+                  alt="Profile"
+              /> : 
+              <FiUser />}
               </div>
               <button className="pf-cam" onClick={() => fileRef.current?.click()} aria-label="Change photo"><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
@@ -131,7 +186,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
             </button>
           </div>
 
-          {/* RIGHT — personal information (editable + read-only) */}
+          {}
           <div className="pf-card pf-section">
             <div className="pf-section-head">
               <div className="pf-section-ico"><FiUser /></div>
@@ -158,9 +213,9 @@ export default function FarmerProfile({ embedded = false, onBack }) {
                 <input className="pf-input readonly" value={saved.position} readOnly tabIndex={-1} />
               </div>
               <div className="pf-field">
-                <label className="pf-label">Account Status</label>
+                <label className="pf-label">Employment Status</label>
                 <span className="pf-status-pill" style={{ background: st.bg, color: st.color }}>
-                  {st.dot} {saved.status}
+                  {st.dot} {saved.employmentStatus || "—"}
                 </span>
               </div>
 
@@ -176,33 +231,31 @@ export default function FarmerProfile({ embedded = false, onBack }) {
           </div>
         </div>
 
-        {/* Footer actions */}
+        {}
         <div className="pf-actions">
-          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty}>Cancel</button>
-          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty}><FiSave /> Save Changes</button>
+          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>Cancel</button>
+          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? "Saving..." : "Save Changes"}</button>
         </div>
       </div>
 
       {toast && <div className="pf-toast"><FiCheckCircle /> {toast}</div>}
 
-      {/* Change Password modal */}
+      {}
       {showPass && <ChangePasswordModal onClose={() => setShowPass(false)} />}
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   CHANGE PASSWORD MODAL (frontend validation only)
-────────────────────────────────────────────────────────────── */
 function ChangePasswordModal({ onClose }) {
   const [vals, setVals] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
-  const [msg, setMsg] = useState(null); // { type, text }
+  const [msg, setMsg] = useState(null);  const [submitting, setSubmitting] = useState(false);
 
   const set = (k, v) => setVals((s) => ({ ...s, [k]: v }));
   const toggle = (k) => setShow((s) => ({ ...s, [k]: !s[k] }));
 
-  const submit = () => {
+  const submit = async () => {
+    if (submitting) return;
     if (!vals.current || !vals.next || !vals.confirm) {
       return setMsg({ type: "error", text: "Please fill in all password fields." });
     }
@@ -215,8 +268,16 @@ function ChangePasswordModal({ onClose }) {
     if (vals.next !== vals.confirm) {
       return setMsg({ type: "error", text: "New password and confirmation do not match." });
     }
-    setMsg({ type: "success", text: "Password updated successfully!" });
-    setTimeout(onClose, 1300);
+    setSubmitting(true);
+    try {
+      await changeMyPassword({ currentPassword: vals.current, newPassword: vals.next });
+      setMsg({ type: "success", text: "Password updated successfully!" });
+      setTimeout(onClose, 1300);
+    } catch (err) {
+      setMsg({ type: "error", text: err?.message || "Couldn't update your password. Please try again." });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fields = [
@@ -258,8 +319,8 @@ function ChangePasswordModal({ onClose }) {
         ))}
 
         <div className="pf-modal-btns">
-          <button className="pf-mb-cancel" onClick={onClose}>Cancel</button>
-          <button className="pf-mb-update" onClick={submit}>Update Password</button>
+          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update Password"}</button>
         </div>
       </div>
     </div>

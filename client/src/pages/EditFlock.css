@@ -60,6 +60,25 @@
 .ef-form-group small { font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; line-height: 1.5; }
 .ef-full-width { grid-column: 1 / -1; }
 
+.ef-inline-flex {
+  display: flex;
+  gap: 10px;
+}
+.ef-inline-flex input { flex: 1; }
+.ef-checkbox-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ef-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+
 /* ============ INPUTS / SELECT ============ */
 
 .ef-form-group input,
@@ -78,9 +97,9 @@
 
 /* ============ FORM ACTIONS ============ */
 
-.ef-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.ef-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .ef-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.ef-action-btns { display: flex; gap: 12px; align-items: center; }
+.ef-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 
 .ef-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .ef-cancel-btn:hover { border-color: #bbb; color: #333; }
@@ -102,14 +121,13 @@
 @media (max-width: 768px) {
   .ef-form-card { padding: 20px 16px; gap: 20px; }
 
-  .ef-form-actions { flex-direction: column; align-items: stretch; }
-  .ef-action-btns { flex-direction: column-reverse; align-items: stretch; }
-  .ef-cancel-btn,
-  .ef-save-btn { width: 100%; justify-content: center; }
+
 }
 
 @media (max-width: 480px) {
   .ef-form-card { padding: 16px 12px; }
+  .ef-inline-flex { flex-wrap: wrap; }
+  .ef-inline-flex input { min-width: 0; width: 100%; }
 }
 
 /* ============ LOADING ============ */

@@ -48,14 +48,24 @@
 .eeq-form-group select { height: 48px; padding: 0 16px; }
 .eeq-form-group select { cursor: pointer; appearance: auto; }
 .eeq-form-group textarea { padding: 14px 16px; resize: vertical; min-height: 120px; line-height: 1.65; }
+
+.eeq-form-group input:disabled,
+.eeq-form-group select:disabled,
+.eeq-form-group textarea:disabled {
+  background: #f2f2f0;
+  color: #9a958a;
+  border-color: #e7e2d8;
+  cursor: not-allowed;
+  opacity: 1;
+}
 .eeq-form-group input:focus,
 .eeq-form-group select:focus,
 .eeq-form-group textarea:focus { border-color: var(--color-accent); background: #fff; box-shadow: 0 0 0 4px var(--color-accent-glow); }
 .eeq-form-group input::placeholder,
 .eeq-form-group textarea::placeholder { color: #bbb; }
-.eeq-form-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
+.eeq-form-actions { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-top: 4px; flex-wrap: wrap; }
 .eeq-req-note { margin: 0; font-family: var(--font-body); font-size: var(--fs-hint); color: #bbb; }
-.eeq-action-btns { display: flex; gap: 12px; align-items: center; }
+.eeq-action-btns { display: flex; margin-left: auto; gap: 12px; align-items: center; }
 .eeq-cancel-btn { display: flex; align-items: center; gap: 7px; padding: 12px 24px; border: 1.5px solid #ddd; background: #fff; border-radius: var(--radius-sm); font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; color: #666; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .eeq-cancel-btn:hover { border-color: #bbb; color: #333; }
 .eeq-save-btn { display: flex; align-items: center; gap: 9px; padding: 12px 26px; border: none; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
@@ -86,21 +96,7 @@
     gap: 20px;
   }
 
-  .eeq-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
 
-  .eeq-action-btns {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .eeq-cancel-btn,
-  .eeq-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 @media (max-width: 480px) {
   .eeq-form-card {

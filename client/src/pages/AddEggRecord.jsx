@@ -5,9 +5,8 @@ import {
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddEggRecord.css";
-
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/egg-records`;
-const FLOCKS_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/flocks`;
+import { createEggRecord } from "../api/eggRecord";
+import { listFlocks } from "../api/flockProfile";
 
 const SIZE_FIELDS = [
   { name: "peewee",     label: "Peewee" },
@@ -19,10 +18,12 @@ const SIZE_FIELDS = [
 ];
 const COUNT_FIELDS = [...SIZE_FIELDS, { name: "crackedEggs", label: "Cracked Eggs" }];
 
-// Fixed list of 12 cages (C-01 … C-12)
-const CAGES = Array.from({ length: 12 }, (_, i) => `C-${String(i + 1).padStart(2, "0")}`);
-
-const flockCages = (f) => f?.assignedCages || (f?.cageId ? [f.cageId] : []);
+// Local calendar date, not UTC -- toISOString() reports the wrong day
+// during early-morning hours in timezones ahead of UTC (e.g. PH).
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
 // Production status badge from Hen-Day %
 function productionStatus(rate) {
@@ -35,12 +36,12 @@ function productionStatus(rate) {
 
 export default function AddEggRecord() {
   const navigate = useNavigate();
+  const today = localToday();
 
   const [formData, setFormData] = useState({
     batchId: "",
-    cageId: "",
     currentQuantity: "",
-    collectionDate: new Date().toISOString().split("T")[0],
+    collectionDate: today,
     peewee: "", small: "", medium: "", large: "", extraLarge: "", jumbo: "",
     crackedEggs: "",
     remarks: "",
@@ -52,15 +53,18 @@ export default function AddEggRecord() {
   const [flocks, setFlocks]   = useState([]);
 
   useEffect(() => {
-    fetch(FLOCKS_API)
-      .then((r) => r.json())
+    listFlocks()
       .then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || []))
       .catch(() => setFlocks([]));
   }, []);
 
-  const batchOptions = [...new Set(flocks.map((f) => f.batchId).filter(Boolean))];
-  const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
-  const cageOptions = CAGES;
+  // Only Active flocks are eligible for a new Egg Record -- Culled is
+  // terminal, and Quarantined always means "still under Ongoing
+  // Quarantine" (Flock.status only becomes Active again through the
+  // Quarantine Release workflow, so this one check always stays in
+  // sync without needing a separate Quarantine lookup).
+  const eligibleFlocks = flocks.filter((f) => f.status === "Active");
+  const batchOptions = [...new Set(eligibleFlocks.map((f) => f.batchId).filter(Boolean))];
 
   const num = (v) => parseInt(v, 10) || 0;
 
@@ -78,14 +82,23 @@ export default function AddEggRecord() {
   const henDayDisplay = henDayRate == null ? "--" : `${henDayRate.toFixed(2)}%`;
   const status = productionStatus(henDayRate);
 
-  // whole-number-only handler for egg counts
+  const eggTotalExceeded = currentBirds != null && totalEggs > currentBirds;
+
+  // Whole-number-only handler for egg counts -- rejects anything that
+  // isn't plain digits (so "1e5", "1.5", "-3" etc. never get through),
+  // rather than parsing first and clamping after, which would silently
+  // accept scientific notation as a large number.
   const handleCountChange = (e) => {
     const { name, value } = e.target;
     if (value === "") return setFormData((p) => ({ ...p, [name]: "" }));
-    const n = Math.max(0, Math.floor(Number(value)));
-    if (Number.isNaN(n)) return;
-    setFormData((p) => ({ ...p, [name]: String(n) }));
+    if (!/^\d+$/.test(value)) return;
+    setFormData((p) => ({ ...p, [name]: value }));
     setError("");
+  };
+
+  const handleCountPaste = (e) => {
+    const text = e.clipboardData.getData("text");
+    if (!/^\d+$/.test(text)) e.preventDefault();
   };
 
   const handleChange = (e) => {
@@ -94,14 +107,13 @@ export default function AddEggRecord() {
     setError("");
   };
 
-  // Selecting a batch auto-fills cage + current birds; resets cage
+  // Selecting a batch auto-fills current birds
   const handleBatchChange = (e) => {
     const batchId = e.target.value;
     const flock = flocks.find((f) => f.batchId === batchId);
     setFormData((prev) => ({
       ...prev,
       batchId,
-      cageId: "",
       currentQuantity: flock?.currentQuantity ?? "",
     }));
     setError("");
@@ -109,26 +121,29 @@ export default function AddEggRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+
+    if (formData.collectionDate > today) {
+      setError("Collection Date cannot be a future date.");
+      return;
+    }
+    if (eggTotalExceeded) {
+      setError(`Total eggs: ${totalEggs}. Current chickens: ${currentBirds}. Please reduce the egg quantities.`);
+      return;
+    }
+
     setSaving(true); setError(""); setSuccess("");
     try {
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData, goodEggs, totalEggs,
-          henDayPercent: henDayRate == null ? null : henDayRate,
-          productionStatus: status?.label ?? null,
-        }),
+      await createEggRecord({
+        ...formData, goodEggs, totalEggs,
+        henDayPercent: henDayRate == null ? null : henDayRate,
+        productionStatus: status?.label ?? null,
       });
-      const data = await res.json();
-      if (data.success !== false) {
-        setSuccess("Egg record saved successfully!");
-        setTimeout(() => navigate("/records/egg"), 1200);
-      } else {
-        setError(data.message || "Failed to save record.");
-      }
-    } catch {
-      setError("Cannot connect to server. Please try again.");
+      setSuccess("Egg record saved successfully!");
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+      setTimeout(() => navigate("/records/egg"), 1200);
+    } catch (err) {
+      setError(err?.message || "Cannot connect to server. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -163,22 +178,12 @@ export default function AddEggRecord() {
                 <option value="">Select Batch</option>
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
-             
-            </div>
-
-            <div className="aer-form-group">
-              <label>Cage <span className="aer-req">*</span></label>
-              <select name="cageId" value={formData.cageId} onChange={handleChange} required>
-                <option value="">Select Cage</option>
-                {cageOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-           
+              <small>Only Active batches are eligible for Egg Record.</small>
             </div>
 
             <div className="aer-form-group">
               <label> Date <span className="aer-req">*</span></label>
-              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} required />
-
+              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} max={today} required />
             </div>
           </div>
 
@@ -194,14 +199,21 @@ export default function AddEggRecord() {
               <div className="aer-form-group" key={f.name}>
                 <label>{f.label}</label>
                 <input
-                  type="number" min="0" step="1" name={f.name}
+                  type="text" inputMode="numeric" name={f.name}
                   value={formData[f.name]} onChange={handleCountChange}
-                  onKeyDown={(e) => ["-", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                  onPaste={handleCountPaste}
+                  onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
                   placeholder="0"
                 />
               </div>
             ))}
           </div>
+
+          {eggTotalExceeded && (
+            <div className="aer-error-banner">
+              Total eggs: {totalEggs}. Current chickens: {currentBirds}. Please reduce the egg quantities.
+            </div>
+          )}
 
           {/* ADDITIONAL INFORMATION */}
           <div className="aer-section-header">
@@ -239,7 +251,7 @@ export default function AddEggRecord() {
 
             <div className="aer-result-card">
               <h4>Total Eggs</h4>
-              <div className="aer-result-value">{totalEggs}</div>
+              <div className="aer-result-value" style={eggTotalExceeded ? { color: "#d94f4f" } : undefined}>{totalEggs}</div>
               <p>Good Eggs + Cracked Eggs</p>
             </div>
 
@@ -258,7 +270,7 @@ export default function AddEggRecord() {
                     background: status.bg, color: status.color,
                     padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
                   }}>
-                    {status.dot} {status.label}
+                    {status.label}
                   </span>
                 ) : "--"}
               </div>
@@ -274,8 +286,8 @@ export default function AddEggRecord() {
               <button type="button" className="aer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="aer-save-btn" disabled={saving}>
-                <FiSave /> {saving ? "Saving..." : "Save Egg Record"}
+              <button type="submit" className="aer-save-btn" disabled={saving || eggTotalExceeded}>
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

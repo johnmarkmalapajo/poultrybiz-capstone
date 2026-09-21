@@ -5,64 +5,26 @@ import {
 } from "react-icons/fi";
 import "./AuditLogs.css";
 import PageLayout from "../components/PageLayout";
-
-/* ─────────────────────────────────────────────────────────────
-   INLINE AUDIT STORE (read-only history). Shared key with Archive.
-     import { logAudit } from "../pages/AuditLogs";
-────────────────────────────────────────────────────────────── */
-const L_KEY = "pb_audit_logs";
-const _read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const _write = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)); } catch { /* ignore */ } };
-const _uid = () => "log_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+import { listAuditLogs } from "../api/auditLog";
+import { useTableSort, sortIndicator } from "../hooks/useTableSort";
+import { usePagination } from "../hooks/usePagination";
+import TablePagination from "../components/TablePagination";
+import "../components/TablePagination.css";
 
 function normalize(e) {
-  if (e.user || e.module) {
-    return {
-      id: e.id || _uid(),
-      at: e.at || new Date().toISOString(),
-      user: e.user || "System",
-      role: e.role || "Admin",
-      module: e.module || "—",
-      action: e.action || "—",
-      description: e.description || "",
-      prev: e.prev ?? null,
-      next: e.next ?? null,
-    };
-  }
-  const detail = e.detail || "";
-  let action = "—";
-  if (/archived/i.test(detail)) action = "Archived";
-  else if (/restored/i.test(detail)) action = "Restored";
-  const m = detail.match(/(?:archived|restored)\s+(.+?)\s+"/i);
   return {
-    id: e.id || _uid(),
-    at: e.at || new Date().toISOString(),
-    user: e.by || "Admin",
-    role: "Admin",
-    module: m ? m[1] : "Archive",
-    action,
-    description: detail,
-    prev: null, next: null,
+    id: e.id || e._id,
+    at: e.at || e.createdAt || new Date().toISOString(),
+    user: e.user || "System",
+    role: e.role || "Owner",
+    module: e.module || "—",
+    action: e.action || "—",
+    description: e.description || "",
+    prev: e.prev ?? null,
+    next: e.next ?? null,
   };
 }
 
-function seed() {
-  // No demo/mock audit logs — entries appear ONLY from real user actions.
-}
-
-export function logAudit({ user = "System", role = "Admin", module = "—", action = "—", description = "", prev = null, next = null }) {
-  const rec = { id: _uid(), at: new Date().toISOString(), user, role, module, action, description, prev, next };
-  const a = _read(L_KEY);
-  a.unshift(rec);
-  _write(L_KEY, a);
-  return rec;
-}
-export function getAuditLogs() {
-  seed();
-  return _read(L_KEY).map(normalize).sort((a, b) => new Date(b.at) - new Date(a.at));
-}
-
-/* action → badge style */
 const ACTION_STYLE = {
   Added:    { bg: "#eaf7f1", color: "#2e9e6b" },
   Edited:   { bg: "#eef3fc", color: "#3a7bd5" },
@@ -74,7 +36,7 @@ const ACTION_STYLE = {
   Logout:   { bg: "#f0efec", color: "#7a7469" },
 };
 const actionStyle = (a) => ACTION_STYLE[a] || { bg: "#f0efec", color: "#7a7469" };
-const ROLE_STYLE = { Admin: { bg: "#fdf3e3", color: "#c8930c" }, Farmer: { bg: "#eef3fc", color: "#3a7bd5" } };
+const ROLE_STYLE = { Owner: { bg: "#fdf3e3", color: "#c8930c" }, Farmer: { bg: "#eef3fc", color: "#3a7bd5" } };
 
 const fmtDT = (iso) => {
   const d = new Date(iso);
@@ -88,7 +50,9 @@ const uniq = (arr) => [...new Set(arr.filter(Boolean))];
 
 export default function AuditLogs({ embedded = false, onBack }) {
   const navigate = useNavigate();
-  const [logs] = useState(() => getAuditLogs());
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [fUser, setFUser] = useState("All");
   const [fModule, setFModule] = useState("All");
@@ -98,6 +62,27 @@ export default function AuditLogs({ embedded = false, onBack }) {
   const [showFilter, setShowFilter] = useState(false);
   const [selected, setSelected] = useState(null);
   const filterRef = useRef(null);
+
+  useEffect(() => {
+    const fetchLogs = () => {
+      setLoading(true);
+      setError("");
+      listAuditLogs()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data.records || data.data || [];
+          setLogs(list.map(normalize).sort((a, b) => new Date(b.at) - new Date(a.at)));
+        })
+        .catch((err) => { setLogs([]); setError(err?.message || "Couldn't load audit logs."); })
+        .finally(() => setLoading(false));
+    };
+    fetchLogs();
+    window.addEventListener("pb_data_changed", fetchLogs);
+    window.addEventListener("focus", fetchLogs);
+    return () => {
+      window.removeEventListener("pb_data_changed", fetchLogs);
+      window.removeEventListener("focus", fetchLogs);
+    };
+  }, []);
 
   useEffect(() => {
     const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
@@ -121,6 +106,21 @@ export default function AuditLogs({ embedded = false, onBack }) {
         && (!fDate || dayKey(l.at) === fDate);
     });
   }, [logs, search, fUser, fModule, fAction, fRole, fDate]);
+
+  const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
+  const sortAccessor = (row, col) => {
+    if (col === "at") return row.at || "";
+    if (col === "user") return row.user || "";
+    if (col === "role") return row.role || "";
+    if (col === "module") return row.module || "";
+    if (col === "action") return row.action || "";
+    return "";
+  };
+  const sorted = sortData(filtered, sortAccessor);
+  const pager = usePagination(sorted.length);
+  useEffect(() => { pager.setPage(1); }, [search, fUser, fModule, fAction, fRole, fDate]);
+  const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -172,7 +172,7 @@ export default function AuditLogs({ embedded = false, onBack }) {
                     <div className="al-filter-group">
                       <label className="al-filter-label">Role</label>
                       <select className="al-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                        <option value="All">All Roles</option><option>Admin</option><option>Farmer</option>
+                        <option value="All">All Roles</option><option>Owner</option><option>Farmer</option>
                       </select>
                     </div>
                     <div className="al-filter-group">
@@ -211,6 +211,8 @@ export default function AuditLogs({ embedded = false, onBack }) {
           </div>
         )}
 
+        {error && <div className="pb-error-banner">{error}</div>}
+
         <div className="al-stats-grid">
           <div className="al-stat-card">
             <div className="al-stat-icon gold"><FiFileText /></div>
@@ -230,11 +232,18 @@ export default function AuditLogs({ embedded = false, onBack }) {
           <table className="al-table">
             <thead>
               <tr>
-                <th>Date &amp; Time</th><th>User</th><th>Role</th><th>Module</th><th>Action</th><th>Description</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("at")}>Date &amp; Time{sortIndicator("at", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("user")}>User{sortIndicator("user", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("role")}>Role{sortIndicator("role", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("module")}>Module{sortIndicator("module", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("action")}>Action{sortIndicator("action", sortColumn, sortDirection)}</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan="6" className="al-empty-state">Loading audit logs...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="al-empty-state">
                     <div className="al-empty-content">
@@ -244,9 +253,9 @@ export default function AuditLogs({ embedded = false, onBack }) {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map((l) => {
+              ) : pageRows.map((l) => {
                 const a = actionStyle(l.action);
-                const r = ROLE_STYLE[l.role] || ROLE_STYLE.Admin;
+                const r = ROLE_STYLE[l.role] || ROLE_STYLE.Owner;
                 return (
                   <tr key={l.id} onClick={() => setSelected(l)} style={{ cursor: "pointer" }}>
                     <td className="al-dt">{fmtDT(l.at)}</td>
@@ -261,15 +270,22 @@ export default function AuditLogs({ embedded = false, onBack }) {
             </tbody>
           </table>
 
-          <div className="al-table-footer">
-            Showing {filtered.length} entries
-          </div>
+          <TablePagination
+            page={pager.page}
+            setPage={pager.setPage}
+            rowsPerPage={pager.rowsPerPage}
+            setRowsPerPage={pager.setRowsPerPage}
+            totalPages={pager.totalPages}
+            startIndex={pager.startIndex}
+            endIndex={pager.endIndex}
+            totalItems={pager.totalItems}
+          />
         </div>
 
-      {/* Details modal */}
+      {}
       {selected && (() => {
         const a = actionStyle(selected.action);
-        const r = ROLE_STYLE[selected.role] || ROLE_STYLE.Admin;
+        const r = ROLE_STYLE[selected.role] || ROLE_STYLE.Owner;
         return (
           <div className="al-overlay" onClick={() => setSelected(null)}>
             <div className="al-modal" onClick={(e) => e.stopPropagation()}>
