@@ -2,7 +2,6 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 const { createAuditLog } = require("./auditController");
 const { createNotification } = require("./notificationController");
 const Personnel = require("../models/Personnel");
@@ -276,44 +275,48 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
-
     const resetLink =
       `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
-    await transporter.sendMail({
-      from: `"PoultryBiz" <${process.env.MAIL_USER}>`,
-      to: user.email,
-      subject: "Reset Your Password — PoultryBiz",
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #eee;">
-          <h2 style="color:#3b2008;">Reset Your Password</h2>
-          <p>Hi <strong>${user.name}</strong>,</p>
+    const emailRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "PoultryBiz <onboarding@resend.dev>",
+        to: [user.email],
+        subject: "Reset Your Password — PoultryBiz",
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #eee;">
+            <h2 style="color:#3b2008;">Reset Your Password</h2>
+            <p>Hi <strong>${user.name}</strong>,</p>
 
-          <p>
-            Click the button below to reset your password.
-            This link expires in <strong>1 hour</strong>.
-          </p>
+            <p>
+              Click the button below to reset your password.
+              This link expires in <strong>1 hour</strong>.
+            </p>
 
-          <a
-            href="${resetLink}"
-            style="display:inline-block;margin:24px 0;padding:14px 32px;background:#e8a020;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;"
-          >
-            Reset Password
-          </a>
+            <a
+              href="${resetLink}"
+              style="display:inline-block;margin:24px 0;padding:14px 32px;background:#e8a020;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;"
+            >
+              Reset Password
+            </a>
 
-          <p style="color:#888;font-size:12px;">
-            If you didn't request this, ignore this email.
-          </p>
-        </div>
-      `,
+            <p style="color:#888;font-size:12px;">
+              If you didn't request this, ignore this email.
+            </p>
+          </div>
+        `,
+      }),
     });
+
+    if (!emailRes.ok) {
+      const errBody = await emailRes.text();
+      throw new Error(`Resend API error: ${emailRes.status} ${errBody}`);
+    }
 
     return res.json({
       success: true,
