@@ -229,9 +229,10 @@ export default function ViewPersonnel() {
   const name = getName(record);
   const canEditRecord = isOwner;
 
-  const ASSIGN_TASK_HIDDEN_CATEGORIES = ["Flock Profile", "Sales Record", "Expense Record", "Personnel", "Visitor's Log", "User & Roles", "Archive", "Audit Logs"];
+  const ASSIGN_TASK_HIDDEN_CATEGORIES = ["Sales Record", "Expense Record", "Personnel", "Visitor's Log", "User & Roles", "Archive", "Audit Logs"];
   const myAccessibleCategories = getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel })
-    .filter((c) => !ASSIGN_TASK_HIDDEN_CATEGORIES.includes(c));
+    .filter((c) => !ASSIGN_TASK_HIDDEN_CATEGORIES.includes(c))
+    .filter((c) => isTargetOwner || c !== "Flock Profile");
   const openTaskModal = () => {
     setTaskFormError("");
     setTaskForm({ title: "", type: myAccessibleCategories[0] || "", priority: "Medium", due: "" });
