@@ -40,7 +40,7 @@ export default function Visitors() {
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
 
   const [qrOpen, setQrOpen] = useState(false);
-  const CHECKIN_URL = (typeof window !== "undefined" ? window.location.origin : "") + "/visitor/check-in";
+  const CHECKIN_URL = (typeof window !== "undefined" ? window.location.origin : "") + "/visitor/register";
   const STATION_QR =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(CHECKIN_URL);
 
@@ -115,7 +115,7 @@ export default function Visitors() {
     contact: farmInfo.farmContact,
     email: farmInfo.farmEmail,
     logoUrl: farmInfo.farmLogo
-      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`)
+      ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `http://localhost:5000${farmInfo.farmLogo}`)
       : "",
     period: periodLabel,
     fields: [],
