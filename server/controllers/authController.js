@@ -278,17 +278,18 @@ exports.forgotPassword = async (req, res) => {
     const resetLink =
       `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
-    const emailRes = await fetch("https://api.resend.com/emails", {
+    const emailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+        "Accept": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
       },
       body: JSON.stringify({
-        from: "PoultryBiz <onboarding@resend.dev>",
-        to: [user.email],
+        sender: { name: "PoultryBiz", email: process.env.MAIL_USER },
+        to: [{ email: user.email, name: user.name }],
         subject: "Reset Your Password — PoultryBiz",
-        html: `
+        htmlContent: `
           <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #eee;">
             <h2 style="color:#3b2008;">Reset Your Password</h2>
             <p>Hi <strong>${user.name}</strong>,</p>
@@ -315,7 +316,7 @@ exports.forgotPassword = async (req, res) => {
 
     if (!emailRes.ok) {
       const errBody = await emailRes.text();
-      throw new Error(`Resend API error: ${emailRes.status} ${errBody}`);
+      throw new Error(`Brevo API error: ${emailRes.status} ${errBody}`);
     }
 
     return res.json({
