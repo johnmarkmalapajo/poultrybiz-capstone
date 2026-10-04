@@ -16,6 +16,7 @@ export default function EditSalesRecord() {
   const [dateOfSale, setDateOfSale] = useState("");
   const [customers, setCustomers]   = useState([]);
   const [customerId, setCustomerId] = useState("");
+  const [recordBuyerName, setRecordBuyerName] = useState("");
   const [newCustomer, setNewCustomer] = useState({ name: "" });
   const [items, setItems]           = useState([emptyItem()]);
   const [originalItemsBySize, setOriginalItemsBySize] = useState({});
@@ -58,6 +59,7 @@ export default function EditSalesRecord() {
         if (r) {
           setDateOfSale((r.dateOfSale || "").split("T")[0] || "");
           setCustomerId(r.customer?._id || r.customer || "");
+          setRecordBuyerName(r.customer?.name || r.buyer || "");
 
           const loadedItems = Array.isArray(r.items) && r.items.length > 0
             ? r.items.map((it) => ({
@@ -201,6 +203,11 @@ export default function EditSalesRecord() {
                 required
               >
                 <option value="">Select buyer/customer</option>
+                {customerId &&
+                  customerId !== NEW_CUSTOMER_VALUE &&
+                  !customers.some((c) => c._id === customerId) && (
+                    <option value={customerId}>{recordBuyerName || "Current buyer"}</option>
+                  )}
                 {customers.map((c) => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
