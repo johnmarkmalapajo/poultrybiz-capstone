@@ -1,29 +1,48 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX } from "react-icons/fi";
+import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX, FiUserPlus } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditSalesRecord.css";
-import { getSalesRecord, updateSalesRecord } from "../api/salesRecord";
+import { getSalesRecord, updateSalesRecord, getEggStockSummary } from "../api/salesRecord";
+import { listCustomers } from "../api/customers";
+import SaleItemsEditor, { emptyItem, validateItems, eggsEquivalentOf } from "../components/SaleItemsEditor";
+
+const NEW_CUSTOMER_VALUE = "__new__";
 
 export default function EditSalesRecord() {
   const navigate = useNavigate();
   const { id }   = useParams();
 
-  const [formData, setFormData] = useState({
-    dateOfSale:   "",
-    buyer:        "",
-    quantitySold: "",
-    eggSize:      "",
-    unitPrice:    "",
-    notes:        "",
-  });
+  const [dateOfSale, setDateOfSale] = useState("");
+  const [customers, setCustomers]   = useState([]);
+  const [customerId, setCustomerId] = useState("");
+  const [newCustomer, setNewCustomer] = useState({ name: "" });
+  const [items, setItems]           = useState([emptyItem()]);
+  const [originalItemsBySize, setOriginalItemsBySize] = useState({});
+  const [remarks, setRemarks]       = useState("");
+  const [stockByType, setStockByType] = useState({});
 
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
-  const [success, setSuccess]   = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Fetch existing record
+  useEffect(() => {
+    listCustomers()
+      .then((d) => setCustomers(d.customers || []))
+      .catch(() => setCustomers([]));
+  }, []);
+
+  useEffect(() => {
+    getEggStockSummary()
+      .then((d) => {
+        const map = {};
+        (d.summary || []).forEach((s) => { map[s.eggSize] = s.available; });
+        setStockByType(map);
+      })
+      .catch(() => setStockByType({}));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -32,22 +51,32 @@ export default function EditSalesRecord() {
       setError("");
       try {
         const data = await getSalesRecord(id);
-
         if (cancelled) return;
 
-        // Backend response shape can vary — accept { data }, { record },
-        // or the record itself returned directly.
         const r = data?.data || data?.record || (data && !data.message ? data : null);
 
         if (r) {
-          setFormData({
-            dateOfSale:   (r.dateOfSale || "").split("T")[0] || "",
-            buyer:        r.buyer || "",
-            quantitySold: r.quantitySold ?? "",
-            eggSize:      r.eggSize || "",
-            unitPrice:    r.unitPrice ?? "",
-            notes:        r.notes || "",
+          setDateOfSale((r.dateOfSale || "").split("T")[0] || "");
+          setCustomerId(r.customer?._id || r.customer || "");
+
+          const loadedItems = Array.isArray(r.items) && r.items.length > 0
+            ? r.items.map((it) => ({
+                eggSize: it.eggSize || "",
+                unit: it.unit || "Pieces",
+                quantitySold: it.quantitySold != null ? String(it.quantitySold) : "",
+                unitPrice: it.unitPrice != null ? String(it.unitPrice) : "",
+              }))
+            : [emptyItem()];
+          setItems(loadedItems);
+
+          const bySize = {};
+          loadedItems.forEach((it) => {
+            if (!it.eggSize) return;
+            bySize[it.eggSize] = (bySize[it.eggSize] || 0) + eggsEquivalentOf(it);
           });
+          setOriginalItemsBySize(bySize);
+
+          setRemarks(r.remarks || "");
         } else {
           setError(data?.message || "Failed to load record.");
         }
@@ -62,24 +91,59 @@ export default function EditSalesRecord() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const totalAmount =
-    formData.quantitySold && formData.unitPrice
-      ? (parseFloat(formData.quantitySold) * parseFloat(formData.unitPrice)).toFixed(2)
-      : "0.00";
+  const isNewCustomer = customerId === NEW_CUSTOMER_VALUE;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setError("");
-  };
+  const anyStockExceeded = (() => {
+    const requestedBySize = {};
+    items.forEach((it) => {
+      if (!it.eggSize) return;
+      requestedBySize[it.eggSize] = (requestedBySize[it.eggSize] || 0) + eggsEquivalentOf(it);
+    });
+    return Object.entries(requestedBySize).some(([size, requested]) => {
+      const base = stockByType[size];
+      if (base == null) return false;
+      const effective = base + (originalItemsBySize[size] || 0);
+      return requested > effective;
+    });
+  })();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError("");
-    setSuccess("");
+    if (saving) return;
+
+    if (!customerId) {
+      setError("Please select a Buyer/Customer, or add a new one.");
+      return;
+    }
+    if (isNewCustomer && !newCustomer.name.trim()) {
+      setError("Please enter the new customer's name.");
+      return;
+    }
+    const itemsError = validateItems(items);
+    if (itemsError) {
+      setError(itemsError);
+      return;
+    }
+    if (anyStockExceeded) {
+      setError("One or more egg sets exceed current available stock. Please adjust the quantities.");
+      return;
+    }
+
+    const payload = {
+      dateOfSale,
+      items: items.map((it) => ({
+        eggSize: it.eggSize,
+        unit: it.unit,
+        quantitySold: parseFloat(it.quantitySold) || 0,
+        unitPrice: parseFloat(it.unitPrice) || 0,
+      })),
+      remarks,
+      ...(isNewCustomer ? { newCustomer } : { customerId }),
+    };
+
+    setSaving(true); setError(""); setSuccess("");
     try {
-      await updateSalesRecord(id, { ...formData, totalAmount: parseFloat(totalAmount) });
+      await updateSalesRecord(id, payload);
       setSuccess("Sales record updated successfully!");
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/sales-transactions/sales"), 1200);
@@ -90,37 +154,27 @@ export default function EditSalesRecord() {
     }
   };
 
+  const breadcrumbItems = [
+    { label: "SALES AND TRANSACTIONS", path: "/sales-transactions" },
+    { label: "SALES RECORD", path: "/sales-transactions/sales" },
+    { label: "EDIT SALES RECORD" },
+  ];
+
   if (loading) {
     return (
-      <PageLayout
-        background="#f4f4f2"
-        breadcrumbItems={[
-          { label: "SALES AND TRANSACTIONS", path: "/sales-transactions" },
-          { label: "SALES RECORD", path: "/sales-transactions/sales" },
-          { label: "EDIT SALES RECORD" },
-        ]}
-      >
+      <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
         <div className="esr-loading">Loading sales record...</div>
       </PageLayout>
     );
   }
 
   return (
-    <PageLayout
-      background="#f4f4f2"
-      breadcrumbItems={[
-        { label: "SALES AND TRANSACTIONS", path: "/sales-transactions" },
-        { label: "SALES RECORD", path: "/sales-transactions/sales" },
-        { label: "EDIT SALES RECORD" },
-      ]}
-    >
-        {/* Banners */}
+    <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
         {success && <div className="esr-success-banner">{success}</div>}
         {error   && <div className="esr-error-banner">{error}</div>}
 
         <form className="esr-form-card" onSubmit={handleSubmit}>
 
-          {/* BASIC INFORMATION */}
           <div className="esr-section-header">
             <FiInfo />
             <h3>BASIC INFORMATION</h3>
@@ -132,9 +186,8 @@ export default function EditSalesRecord() {
               <label>Date of Sale <span className="req">*</span></label>
               <input
                 type="date"
-                name="dateOfSale"
-                value={formData.dateOfSale}
-                onChange={handleChange}
+                value={dateOfSale}
+                onChange={(e) => setDateOfSale(e.target.value)}
                 required
               />
               <small>Select the date of the sale.</small>
@@ -142,88 +195,50 @@ export default function EditSalesRecord() {
 
             <div className="esr-form-group">
               <label>Buyer / Customer <span className="req">*</span></label>
-              <input
-                type="text"
-                name="buyer"
-                value={formData.buyer}
-                onChange={handleChange}
-                placeholder="Enter buyer name"
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
                 required
-              />
-              <small>Enter existing buyer or add a new one.</small>
+              >
+                <option value="">Select buyer/customer</option>
+                {customers.map((c) => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
+                <option value={NEW_CUSTOMER_VALUE}>+ New Customer</option>
+              </select>
+              <small>Previously recorded customers appear here automatically.</small>
             </div>
           </div>
 
-          {/* SALE DETAILS */}
+          {isNewCustomer && (
+            <div className="esr-form-grid">
+              <div className="esr-form-group">
+                <label>Customer Name <span className="req">*</span></label>
+                <input
+                  type="text"
+                  value={newCustomer.name}
+                  onChange={(e) => setNewCustomer({ name: e.target.value })}
+                  placeholder="e.g. Juan Dela Cruz"
+                  required
+                />
+                <small><FiUserPlus /> This customer will be saved and available for future sales.</small>
+              </div>
+            </div>
+          )}
+
           <div className="esr-section-header">
             <FiShoppingCart />
             <h3>SALE DETAILS</h3>
             <div className="esr-line" />
           </div>
 
-          <div className="esr-form-grid">
-            <div className="esr-form-group">
-              <label>Quantity Sold (Trays) <span className="req">*</span></label>
-              <div className="esr-input-with-unit">
-                <input
-                  type="number"
-                  min="1"
-                  name="quantitySold"
-                  value={formData.quantitySold}
-                  onChange={handleChange}
-                  placeholder="Enter quantity"
-                  required
-                />
-                <span className="esr-unit-badge">trays</span>
-              </div>
-              <small>Enter the number of trays sold.</small>
-            </div>
+          <SaleItemsEditor
+            items={items}
+            onChange={setItems}
+            stockByType={stockByType}
+            originalItemsBySize={originalItemsBySize}
+          />
 
-            <div className="esr-form-group">
-              <label>Egg Size <span className="req">*</span></label>
-              <select name="eggSize" value={formData.eggSize} onChange={handleChange} required>
-                <option value="">Select egg size</option>
-                {["Small", "Medium", "Large", "Extra Large", "Jumbo"].map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <small>Select the egg size category.</small>
-            </div>
-
-            <div className="esr-form-group">
-              <label>Unit Price (Per Tray) <span className="req">*</span></label>
-              <div className="esr-input-with-prefix">
-                <span className="esr-prefix">₱</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  name="unitPrice"
-                  value={formData.unitPrice}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-              <small>Enter the selling price per tray.</small>
-            </div>
-
-            <div className="esr-form-group">
-              <label>Total Amount</label>
-              <div className="esr-input-with-prefix">
-                <span className="esr-prefix">₱</span>
-                <input
-                  type="text"
-                  value={totalAmount}
-                  readOnly
-                  className="esr-readonly"
-                />
-              </div>
-              <small>Automatically computed (Quantity × Unit Price).</small>
-            </div>
-          </div>
-
-          {/* ADDITIONAL DETAILS */}
           <div className="esr-section-header">
             <FiFileText />
             <h3>ADDITIONAL DETAILS (OPTIONAL)</h3>
@@ -231,18 +246,16 @@ export default function EditSalesRecord() {
           </div>
 
           <div className="esr-form-group esr-full-width">
-            <label>Notes</label>
+            <label>Remarks</label>
             <textarea
               rows="5"
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
               placeholder="Enter any notes or additional information..."
             />
             <small>Add any remarks about this sale (optional).</small>
           </div>
 
-          {/* Actions */}
           <div className="esr-form-actions">
             <p className="esr-required-note">* Fields with an asterisk are required.</p>
             <div className="esr-action-btns">
@@ -254,7 +267,7 @@ export default function EditSalesRecord() {
               >
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="esr-save-btn" disabled={saving}>
+              <button type="submit" className="esr-save-btn" disabled={saving || anyStockExceeded}>
                 <FiSave />
                 {saving ? "Saving..." : "Update Record"}
               </button>
