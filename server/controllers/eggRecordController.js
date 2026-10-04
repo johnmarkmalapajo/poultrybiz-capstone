@@ -145,6 +145,23 @@ exports.createEggRecord = async (req, res) => {
       });
     }
 
+    const dateStr = toDateOnly(collectionDate);
+    const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+    const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+
+    const duplicate = await EggRecord.findOne({
+      batchId,
+      isArchived: false,
+      collectionDate: { $gte: dayStart, $lte: dayEnd },
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: `This batch in this day is already collected. Batch ${batchId} already has an egg record for ${dateStr}.`,
+      });
+    }
+
     const birdsAtCollection = flock.currentQuantity;
 
     const computed = computeEggStats(
@@ -339,6 +356,24 @@ exports.updateEggRecord = async (req, res) => {
         message: flock.status === "Culled"
           ? "This batch has been Culled and is no longer eligible for Egg Record."
           : "This batch is still under Quarantine and is not yet eligible for Egg Record.",
+      });
+    }
+
+    const dateStr = toDateOnly(collectionDate);
+    const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+    const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+
+    const duplicate = await EggRecord.findOne({
+      _id: { $ne: record._id },
+      batchId,
+      isArchived: false,
+      collectionDate: { $gte: dayStart, $lte: dayEnd },
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: `This batch in this day is already collected. Batch ${batchId} already has an egg record for ${dateStr}.`,
       });
     }
 

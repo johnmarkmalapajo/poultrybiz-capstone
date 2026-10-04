@@ -5,7 +5,7 @@ import {
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddEggRecord.css";
-import { createEggRecord } from "../api/eggRecord";
+import { createEggRecord, listEggRecords } from "../api/eggRecord";
 import { listFlocks } from "../api/flockProfile";
 
 const SIZE_FIELDS = [
@@ -51,11 +51,18 @@ export default function AddEggRecord() {
   const [error, setError]     = useState("");
   const [success, setSuccess] = useState("");
   const [flocks, setFlocks]   = useState([]);
+  const [eggRecords, setEggRecords] = useState([]);
 
   useEffect(() => {
     listFlocks()
       .then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || []))
       .catch(() => setFlocks([]));
+  }, []);
+
+  useEffect(() => {
+    listEggRecords()
+      .then((data) => setEggRecords(data.records || []))
+      .catch(() => setEggRecords([]));
   }, []);
 
   // Only Active flocks are eligible for a new Egg Record -- Culled is
@@ -83,6 +90,16 @@ export default function AddEggRecord() {
   const status = productionStatus(henDayRate);
 
   const eggTotalExceeded = currentBirds != null && totalEggs > currentBirds;
+
+  // An egg record already exists for this exact batch + collection date.
+  const isDuplicateBatchDate =
+    !!formData.batchId &&
+    !!formData.collectionDate &&
+    eggRecords.some(
+      (r) =>
+        r.batchId === formData.batchId &&
+        (r.collectionDate || "").slice(0, 10) === formData.collectionDate
+    );
 
   // Whole-number-only handler for egg counts -- rejects anything that
   // isn't plain digits (so "1e5", "1.5", "-3" etc. never get through),
@@ -125,6 +142,10 @@ export default function AddEggRecord() {
 
     if (formData.collectionDate > today) {
       setError("Collection Date cannot be a future date.");
+      return;
+    }
+    if (isDuplicateBatchDate) {
+      setError("This batch in this day is already collected. Please choose a different batch or date.");
       return;
     }
     if (eggTotalExceeded) {
@@ -186,6 +207,12 @@ export default function AddEggRecord() {
               <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} max={today} required />
             </div>
           </div>
+
+          {isDuplicateBatchDate && (
+            <div className="aer-error-banner">
+              This batch in this day is already collected. Please choose a different batch or date.
+            </div>
+          )}
 
           {/* EGG COLLECTION */}
           <div className="aer-section-header">
@@ -286,7 +313,7 @@ export default function AddEggRecord() {
               <button type="button" className="aer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="aer-save-btn" disabled={saving || eggTotalExceeded}>
+              <button type="submit" className="aer-save-btn" disabled={saving || eggTotalExceeded || isDuplicateBatchDate}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
