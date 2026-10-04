@@ -11,9 +11,17 @@ import { listHealthOptions } from "../api/healthOptions";
 const NEW_VALUE = "__new__";
 const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
 
+// Local calendar date, not UTC -- toISOString() reports the wrong day
+// during early-morning hours in timezones ahead of UTC (e.g. PH).
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
 export default function EditMortalityRecord() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const today = localToday();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -97,6 +105,7 @@ export default function EditMortalityRecord() {
   );
   const numDead = Number(formData.numberOfMortality) || 0;
   const exceedsBirds = formData.batchId !== "" && numDead > currentBirds;
+  const isFutureDate = formData.date !== "" && String(formData.date).slice(0, 10) > today;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -108,6 +117,7 @@ export default function EditMortalityRecord() {
     e.preventDefault();
     if (saving) return;
     if (!isAutomaticallyGenerated) {
+      if (isFutureDate) return setError("Date cannot be a future date.");
       if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
       if (numDead < 1) return setError("Enter at least 1 dead chicken.");
       if (isDuplicate) return setError("A mortality record already exists for this Batch + Date.");
@@ -188,7 +198,10 @@ export default function EditMortalityRecord() {
 
             <div className="emr-form-group">
               <label>Date <span className="emr-req">*</span></label>
-              <input type="date" name="date" value={formData.date ? String(formData.date).slice(0,10) : ""} onChange={handleChange} required disabled={isAutomaticallyGenerated} />
+              <input type="date" name="date" value={formData.date ? String(formData.date).slice(0,10) : ""} onChange={handleChange} max={today} required disabled={isAutomaticallyGenerated} />
+              {!isAutomaticallyGenerated && isFutureDate && (
+                <small style={{ color: "#c0392b" }}>Date cannot be a future date.</small>
+              )}
             </div>
 
             <div className="emr-form-group">
@@ -276,7 +289,7 @@ export default function EditMortalityRecord() {
               <button type="button" className="emr-cancel-btn" onClick={() => navigate("/records/mortality")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="emr-save-btn" disabled={saving || (!isAutomaticallyGenerated && (isDuplicate || exceedsBirds))}>
+              <button type="submit" className="emr-save-btn" disabled={saving || (!isAutomaticallyGenerated && (isDuplicate || exceedsBirds || isFutureDate))}>
                 <FiSave /> Update Record
               </button>
             </div>

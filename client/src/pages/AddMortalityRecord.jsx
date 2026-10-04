@@ -11,8 +11,16 @@ import { listHealthOptions } from "../api/healthOptions";
 const NEW_VALUE = "__new__";
 const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
 
+// Local calendar date, not UTC -- toISOString() reports the wrong day
+// during early-morning hours in timezones ahead of UTC (e.g. PH).
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
 export default function AddMortalityRecord() {
   const navigate = useNavigate();
+  const today = localToday();
 
   const [formData, setFormData] = useState({
     date: "",
@@ -83,6 +91,7 @@ export default function AddMortalityRecord() {
   const isDisease = formData.causeOfDeath === "Disease";
   const numDead = Number(formData.numberOfMortality) || 0;
   const exceedsBirds = formData.batchId !== "" && numDead > currentBirds;
+  const isFutureDate = formData.date !== "" && formData.date > today;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -95,6 +104,7 @@ export default function AddMortalityRecord() {
     e.preventDefault();
     if (saving) return;
 
+    if (isFutureDate) return setError("Date cannot be a future date.");
     if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
     if (numDead < 1) return setError("Enter at least 1 dead chicken.");
     if (isDuplicate)
@@ -162,7 +172,10 @@ export default function AddMortalityRecord() {
 
             <div className="amr-form-group">
               <label>Date <span className="amr-req">*</span></label>
-              <input type="date" name="date" value={formData.date} onChange={handleChange} required />
+              <input type="date" name="date" value={formData.date} onChange={handleChange} max={today} required />
+              {isFutureDate && (
+                <small style={{ color: "#c0392b" }}>Date cannot be a future date.</small>
+              )}
             </div>
 
             <div className="amr-form-group">
@@ -241,7 +254,7 @@ export default function AddMortalityRecord() {
               <button type="button" className="amr-cancel-btn" onClick={() => navigate("/records/mortality")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="amr-save-btn" disabled={isDuplicate || exceedsBirds || saving}>
+              <button type="submit" className="amr-save-btn" disabled={isDuplicate || exceedsBirds || isFutureDate || saving}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
