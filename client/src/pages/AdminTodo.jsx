@@ -189,14 +189,16 @@ const viewingArchived = status === "Archived";
   const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
   const activeFilters = (status !== "All" ? 1 : 0) + (priority !== "All" ? 1 : 0);
 
-  const categoryOptionsFor = () =>
-    getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel });
+  const categoryOptionsFor = (personal = isPersonal) => {
+    const all = getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel });
+    return personal ? all : all.filter((c) => c !== "Flock Profile");
+  };
 
   const openAdd = () => {
     setEditingTask(null);
     setIsPersonal(false);
     const defaultFarmerId = farmers[0]?.id || "";
-    setForm({ title: "", type: categoryOptionsFor(defaultFarmerId)[0], priority: "Medium", due: "", farmerId: defaultFarmerId });
+    setForm({ title: "", type: categoryOptionsFor(false)[0], priority: "Medium", due: "", farmerId: defaultFarmerId });
     setModalOpen(true);
   };
   const openEdit = (t) => { setEditingTask(t); setForm({ title: t.title, type: t.type, priority: t.priority, due: t.dueDate, farmerId: t.personnelId }); setModalOpen(true); };
@@ -453,7 +455,11 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
 
               {!editingTask && (
                 <div className="todo-field" style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                  <input type="checkbox" id="isPersonalTask" checked={isPersonal} onChange={(e) => setIsPersonal(e.target.checked)} style={{ width: 16, height: 16, margin: 0, marginTop: 2, flexShrink: 0 }} />
+                  <input type="checkbox" id="isPersonalTask" checked={isPersonal} onChange={(e) => {
+                    const personal = e.target.checked;
+                    setIsPersonal(personal);
+                    setForm((f) => ({ ...f, type: categoryOptionsFor(personal)[0] || f.type }));
+                  }} style={{ width: 16, height: 16, margin: 0, marginTop: 2, flexShrink: 0 }} />
                   <label htmlFor="isPersonalTask" style={{ display: "inline", margin: 0, cursor: "pointer", lineHeight: 1.3 }}>Personal task (for myself)</label>
                 </div>
               )}
@@ -463,7 +469,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                   <label>Assign To{editingTask && !canReassignEditingTask && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#a06a1a", background: "#fdf2e6", padding: "2px 8px", borderRadius: 20 }}>Locked</span>}</label>
                   <select value={form.farmerId} disabled={!!editingTask && !canReassignEditingTask} onChange={(e) => {
                     const farmerId = e.target.value;
-                    setForm({ ...form, farmerId, type: categoryOptionsFor(farmerId)[0] });
+                    setForm({ ...form, farmerId, type: categoryOptionsFor(false)[0] });
                   }}>
                     <option value="">Select a Farmer…</option>
                     {farmers.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -523,7 +529,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                   )}
                 </div>
               )}
-              <div className="todo-field"><label>Category</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{categoryOptionsFor(form.farmerId).map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="todo-field"><label>Category</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{categoryOptionsFor(isPersonal).map((c) => <option key={c}>{c}</option>)}</select></div>
               <div className="todo-field"><label>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
               <div className="todo-field"><label>Due Date</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
             </div>

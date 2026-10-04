@@ -68,7 +68,7 @@ const getImage = (r) => {
 
   return avatar.startsWith("http")
     ? avatar
-    : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${avatar}`;
+    : `http://localhost:5000${avatar}`;
 };
 const getInitials = (name) =>
   (name && name !== "—" ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
@@ -229,7 +229,7 @@ export default function ViewPersonnel() {
   const name = getName(record);
   const canEditRecord = isOwner;
 
-  const ASSIGN_TASK_HIDDEN_CATEGORIES = ["Sales Record", "Expense Record", "Personnel", "Visitor's Log", "User & Roles", "Archive", "Audit Logs"];
+  const ASSIGN_TASK_HIDDEN_CATEGORIES = ["Flock Profile", "Sales Record", "Expense Record", "Personnel", "Visitor's Log", "User & Roles", "Archive", "Audit Logs"];
   const myAccessibleCategories = getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel })
     .filter((c) => !ASSIGN_TASK_HIDDEN_CATEGORIES.includes(c));
   const openTaskModal = () => {
