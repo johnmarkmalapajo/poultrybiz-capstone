@@ -70,14 +70,25 @@ import PendingApproval from './pages/PendingApproval';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/visitor/register',
+  '/attendance/check-in',
+]
+
 function RouteGate({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
   const hasToken = !!localStorage.getItem('token')
-  const [ready, setReady] = useState(location.pathname === '/' || hasToken)
+  const isPublicPath = PUBLIC_PATHS.includes(location.pathname)
+  const [ready, setReady] = useState(isPublicPath || hasToken)
 
   useEffect(() => {
-    if (location.pathname !== '/' && !hasToken) {
+    if (!isPublicPath && !hasToken) {
       sessionStorage.setItem('pb_intended_path', location.pathname + location.search)
       navigate('/', { replace: true })
     }
