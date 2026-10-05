@@ -137,7 +137,7 @@ export default function AdminTodo() {
     if (!highlightId || tasks.length === 0) return;
     const target = tasks.find((t) => t._id === highlightId);
     if (target) {
-      const targetTab = target.source === "assigned" ? "assigned" : "all";
+      const targetTab = (target.source === "assigned" || target.source === "personal") ? "assigned" : "all";
       if (targetTab !== sourceTab) {
         setSourceTab(targetTab);
         return;      }
@@ -151,7 +151,9 @@ export default function AdminTodo() {
 const viewingArchived = status === "Archived";
   const inSourceTab = (t) => {
     if (sourceTab === "all") return true;
-    if (sourceTab === "assigned") return t.source === "assigned";
+    // "Assigned Tasks" = tasks the Owner assigned to Farmers + the personal
+    // tasks Farmers created for themselves (so the Owner can follow up on both).
+    if (sourceTab === "assigned") return t.source === "assigned" || t.source === "personal";
     return t.source === "own-personal";  };
   const filtered = useMemo(() => tasks.filter((t) => {
     if (!inSourceTab(t)) return false;
@@ -284,16 +286,35 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
   await loadAll();
 };
 
+  // Check / uncheck a task. Works for all three kinds of rows the Owner sees:
+  // tasks assigned to Farmers, Farmers' personal tasks, and the Owner's own.
+  const applyDone = async (t, markDone) => {
+    try {
+      setError("");
+      if (t.source === "own-personal") {
+        await updatePersonalTodoById(t._id, { status: markDone ? "Completed" : "Pending" }, user?.id);
+      } else if (t.source === "personal") {
+        await updatePersonalTodoById(t._id, { status: markDone ? "Completed" : "Pending" }, user?.id);
+        await refreshOthersPersonalTodos();
+      } else {
+        await setAssignedTaskDoneById(t.personnelId, t._id, markDone);
+      }
+    } catch (err) {
+      setError(err?.message || "Couldn't update this task. Please try again.");
+    }
+  };
+
+  const toggleDone = (t) => {
+    if (t.displayStatus === "Completed") applyDone(t, false);
+    else setConfirm({ type: "complete", task: t });
+  };
+
   const runConfirm = async () => {
     if (!confirm) return;
     if (confirm.type === "delete") {
       await deleteAssignedTaskById(confirm.task.personnelId, confirm.task._id);
     } else if (confirm.type === "complete") {
-      if (confirm.task.isOwnPersonal) {
-        await updatePersonalTodoById(confirm.task._id, { status: "Completed" }, user?.id);
-      } else {
-        await setAssignedTaskDoneById(confirm.task.personnelId, confirm.task._id, true);
-      }
+      await applyDone(confirm.task, true);
     }
     setConfirm(null);
     await loadAll();
@@ -389,11 +410,10 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                 const farmerName = t.farmerName || "Unknown";
                 const isPersonal = t.source === "personal";
                 const isOwnPersonal = t.source === "own-personal";
-                const isOwnTask = !isPersonal && !isOwnPersonal && String(t.farmerId) === String(user?.id);
                 const canManageAssigned = !isPersonal && !isOwnPersonal && isOwner;
                 return (
                   <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
-                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : isPersonal ? <span className="todo-archived-tag" title="Personal to-do — view only">Personal</span> : isOwnPersonal ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => done ? updatePersonalTodoById(t._id, { status: "Pending" }, user?.id) : setConfirm({ type: "complete", task: { ...t, isOwnPersonal: true } })} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span> : (isOwnTask && canManageAssigned) ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => done ? setAssignedTaskDoneById(t.personnelId, t._id, false) : setConfirm({ type: "complete", task: t })} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span> : <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? "Completed by Farmer" : "Not yet completed — only the assigned Farmer can mark this done"}>{done && <FiCheck />}</span>}</td>
+                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : (isOwnPersonal || isOwner) ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggleDone(t)} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span> : <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? "Completed" : "Not yet completed"}>{done && <FiCheck />}</span>}</td>
                     <td><span className="todo-task-title">{t.title}</span></td>
                     <td>{t.type}</td>
                     <td>{farmerName}</td>

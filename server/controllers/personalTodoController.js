@@ -124,7 +124,10 @@ exports.updatePersonalTodo = async (req, res) => {
       });
     }
 
-    if (String(existing.user) !== String(req.user.id)) {
+    const isMine = String(existing.user) === String(req.user.id);
+    const ownerCheckingFarmerTask = !isMine && req.user.role === "Owner";
+
+    if (!isMine && !ownerCheckingFarmerTask) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to edit this personal task.",
@@ -138,9 +141,22 @@ exports.updatePersonalTodo = async (req, res) => {
       });
     }
 
+    // The Owner can only check / uncheck (mark done or pending) a Farmer's
+    // personal task -- every other field stays editable by its creator only.
+    let updateData = req.body;
+    if (ownerCheckingFarmerTask) {
+      if (!req.body.status) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only mark a Farmer's personal task as done or pending.",
+        });
+      }
+      updateData = { status: req.body.status };
+    }
+
     const todo = await PersonalTodo.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
       }
@@ -162,6 +178,18 @@ exports.updatePersonalTodo = async (req, res) => {
         : `Updated personal to-do "${todo.title}".`,
     });
 
+    // Keep the linked PersonnelTask (created alongside every personal task)
+    // in step with the personal task's completion state.
+    if (updateData.status) {
+      await PersonnelTask.findOneAndUpdate(
+        { linkedPersonalTodo: todo._id },
+        {
+          status: updateData.status,
+          completedDate: updateData.status === "Completed" ? new Date() : null,
+        }
+      );
+    }
+
     if (req.body.status === "Completed" && req.user?.role === "Farmer") {
       await createNotification({
         title: "Personal Task Completed",
@@ -170,6 +198,19 @@ exports.updatePersonalTodo = async (req, res) => {
         type: "alert",
         priority: "Normal",
         roles: ["Owner"],
+      });
+    }
+
+    if (ownerCheckingFarmerTask && req.body.status === "Completed") {
+      await createNotification({
+        title: "Personal Task Marked Done",
+        description: `${req.user.name} marked your personal task "${todo.title}" as completed.`,
+        category: "task",
+        type: "alert",
+        priority: "Normal",
+        userId: existing.user,
+        referenceId: todo._id,
+        referenceModel: "PersonalTodo",
       });
     }
 
