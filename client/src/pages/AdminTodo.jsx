@@ -75,7 +75,7 @@ export default function AdminTodo() {
       source: "personal",
       title: t.title,
       type: t.type,
-      farmerName: `${t.user?.name || "Unknown"} (own)`,
+      farmerName: t.user?.name || "Unknown",
     }));
     const mine = getCachedPersonalTodos().map((t) => ({
       ...t,
