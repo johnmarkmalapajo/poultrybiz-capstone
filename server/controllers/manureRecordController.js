@@ -4,8 +4,31 @@ const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
 const Archive = require("../models/Archive");
 
+// Plain digits only -- rejects negatives, decimals, "1e5", etc.
+const isWholeNumber = (v) => /^\d+$/.test(String(v ?? "").trim());
+
+const validateWholeNumbers = (body, { requireQuantity }) => {
+  const q = body.quantityCollected;
+  if (q === undefined || q === null || String(q).trim() === "") {
+    if (requireQuantity) return "Quantity of Manure Collected is required.";
+  } else if (!isWholeNumber(q)) {
+    return "Quantity of Manure Collected must be a whole number (no negative numbers or decimals).";
+  }
+
+  const f = body.fertilizerHarvested;
+  if (f !== undefined && f !== null && String(f).trim() !== "" && !isWholeNumber(f)) {
+    return "Fertilizer Harvested must be a whole number (no negative numbers or decimals).";
+  }
+  return null;
+};
+
 exports.createManureRecord = async (req, res) => {
   try {
+    const numberError = validateWholeNumbers(req.body, { requireQuantity: true });
+    if (numberError) {
+      return res.status(400).json({ success: false, message: numberError });
+    }
+
     const { methodOfHandling, newMethodOfHandling, endUse, newEndUse, ...rest } = req.body;
 
     const resolvedMethodOfHandling = newMethodOfHandling && newMethodOfHandling.trim()
@@ -95,6 +118,11 @@ exports.getManureRecord = async (req, res) => {
 
 exports.updateManureRecord = async (req, res) => {
   try {
+    const numberError = validateWholeNumbers(req.body, { requireQuantity: false });
+    if (numberError) {
+      return res.status(400).json({ success: false, message: numberError });
+    }
+
     const { methodOfHandling, newMethodOfHandling, endUse, newEndUse, ...rest } = req.body;
 
     const resolvedMethodOfHandling = newMethodOfHandling && newMethodOfHandling.trim()

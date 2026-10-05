@@ -66,9 +66,26 @@ export default function AddManureRecord() {
   };
   const [saving, setSaving] = useState(false);
 
+  // Whole numbers only -- rejects anything that isn't plain digits (so
+  // "-5", "1.5", "1e5" never get through), instead of parsing then clamping.
+  const handleQuantityChange = (e) => {
+    const { name, value } = e.target;
+    if (value !== "" && !/^\d+$/.test(value)) return;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
+  };
+  const handleQuantityPaste = (e) => {
+    const text = e.clipboardData.getData("text");
+    if (!/^\d+$/.test(text)) e.preventDefault();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
+    if (!/^\d+$/.test(String(formData.quantityCollected))) {
+      setError("Quantity of Manure Collected must be a whole number (no negative numbers or decimals).");
+      return;
+    }
     if (formData.date && formData.date > todayStr()) {
       setError("Date cannot be a future date.");
       return;
@@ -148,8 +165,10 @@ export default function AddManureRecord() {
             <div className="amn-form-group">
               <label>Quantity of Manure Collected <span className="amn-req">*</span></label>
               <div className="amn-input-unit">
-                <input type="number" min="0" name="quantityCollected" value={formData.quantityCollected}
-                  onChange={handleChange} placeholder="Enter quantity" required />
+                <input type="text" inputMode="numeric" name="quantityCollected" value={formData.quantityCollected}
+                  onChange={handleQuantityChange} onPaste={handleQuantityPaste}
+                  onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                  placeholder="Enter quantity" required />
                 <span className="amn-unit">kg</span>
               </div>
             </div>
