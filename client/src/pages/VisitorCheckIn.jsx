@@ -4,7 +4,8 @@ import "./VisitorCheckIn.css";
 import { registerVisitorCheckIn } from "../api/visitorLog";
 import logo from "../assets/logo.png";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const _ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => _ymd();
 
 // Biosecurity questions (Yes/No)
 const BIO_QUESTIONS = [

@@ -1,3 +1,9 @@
+// Run the whole backend on Philippine time. Render servers default to UTC,
+// which made "today" roll over at 8:00 AM PH time -- so before 8 AM, today's
+// date was rejected as a "future date" by the date checks. Must be set
+// before anything else uses Date.
+process.env.TZ = "Asia/Manila";
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");

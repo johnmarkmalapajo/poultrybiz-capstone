@@ -27,7 +27,8 @@ const fullName = (p) =>
   p?.profile?.fullName || p?.fullName || p?.name || "this personnel";
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
-const today = () => new Date().toISOString().slice(0, 10);
+const _ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => _ymd();
 
 export default function AddTask() {
   const navigate = useNavigate();

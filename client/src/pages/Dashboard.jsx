@@ -211,10 +211,11 @@ function Dashboard() {
   const [trendRange, setTrendRange] = useState("week");
 
   const filterByRange = (trend, range) => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const todayISO = ymd(new Date());
     if (range === "today") return trend.filter((t) => t.date === todayISO);
     if (range === "week") {
-      const floor = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+      const floor = ymd(new Date(Date.now() - 6 * 86400000));
       return trend.filter((t) => t.date >= floor);
     }
     return trend.filter((t) => t.date.startsWith(todayISO.slice(0, 7)));  };

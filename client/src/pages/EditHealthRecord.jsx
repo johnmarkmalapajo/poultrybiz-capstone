@@ -84,7 +84,7 @@ export default function EditHealthRecord() {
   const [vets, setVets] = useState([]);
 
   const isDiagnosis = recordType === "Diagnosis";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`; })();
 
   useEffect(() => {
     if (isDiagnosis || diagnosisId || !batchId) {
