@@ -1,4 +1,5 @@
 const WasteRecord = require("../models/WasteRecord");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 // =====================================================
@@ -7,6 +8,10 @@ const { createArchiveEntry } = require("./archiveController");
 
 exports.createWasteRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const record = await WasteRecord.create(req.body);
 
     await createAuditLog({
@@ -94,6 +99,10 @@ exports.getWasteRecord = async (req, res) => {
 
 exports.updateWasteRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const record = await WasteRecord.findByIdAndUpdate(
       req.params.id,
       req.body,

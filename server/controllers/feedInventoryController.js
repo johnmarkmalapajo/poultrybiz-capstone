@@ -1,4 +1,5 @@
 const FeedInventory = require("../models/FeedInventory");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const Archive = require("../models/Archive");
@@ -38,6 +39,10 @@ const convertToSacks = (quantity, unit) => {
 
 exports.createFeedInventory = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const {
       date,
       feedType,
@@ -143,6 +148,10 @@ exports.getFeedInventory = async (req, res) => {
 
 exports.updateFeedInventory = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const existingRecord = await FeedInventory.findById(req.params.id);
 
     if (!existingRecord) {

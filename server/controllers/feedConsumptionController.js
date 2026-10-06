@@ -1,4 +1,5 @@
 const FeedConsumption = require("../models/FeedConsumption");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const FeedInventory = require("../models/FeedInventory");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
@@ -19,6 +20,10 @@ const getQuantityInKg = (quantity, unit) => {
 
 exports.createFeedConsumption = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const feedType = String(req.body.feedType || "")
       .trim()
       .toLowerCase();
@@ -202,6 +207,10 @@ exports.getFeedConsumption = async (req, res) => {
 
 exports.updateFeedConsumption = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const record = await FeedConsumption.findByIdAndUpdate(
       req.params.id,
       req.body,

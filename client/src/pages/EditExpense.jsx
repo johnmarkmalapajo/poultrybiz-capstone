@@ -112,7 +112,12 @@ export default function EditExpense() {
   }, [id]);
 
   const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    setForm((f) => {
+      let value = e.target.value;
+      // iOS date pickers ignore the `max` attribute, so enforce it here too.
+      if (e.target.type === "date" && e.target.max && value > e.target.max) value = e.target.max;
+      return { ...f, [e.target.name]: value };
+    });
 
   const handleFeedSetChange = (index, field, value) => {
     setFeedSets((current) =>
@@ -301,7 +306,7 @@ export default function EditExpense() {
           <div className="ee-form-grid">
             <div className="ee-form-group">
               <label>{isFeedPurchase ? "Date Purchased" : "Expense Date"} <span className="req">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} required />
+              <input type="date" name="date" value={form.date} onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
             </div>
 
             <div className="ee-form-group">

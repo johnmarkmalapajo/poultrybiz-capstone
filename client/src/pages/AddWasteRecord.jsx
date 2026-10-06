@@ -44,9 +44,13 @@ export default function AddWasteRecord() {
 
   const [error, setError] = useState("");
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
+    if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError("");
+    setError(futureBlocked ? "Date cannot be a future date." : "");
   };
   const [saving, setSaving] = useState(false);
 
@@ -97,7 +101,7 @@ export default function AddWasteRecord() {
           <div className="awr-form-grid">
             <div className="awr-form-group">
               <label>Date <span className="awr-req">*</span></label>
-              <input type="date" name="date" value={formData.date} onChange={handleChange} required />
+              <input type="date" name="date" value={formData.date} onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
             </div>
 
             <div className="awr-form-group">

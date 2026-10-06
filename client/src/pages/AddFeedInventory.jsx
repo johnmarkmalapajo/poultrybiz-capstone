@@ -39,7 +39,10 @@ export default function AddFeedInventory() {
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    if (e.target.type === "date" && e.target.max && value > e.target.max) value = e.target.max;
     setForm((f) => {
       // Quantity Out auto-fills from Feed Consumption totals for the chosen feed type
       if (name === "feedType") {
@@ -94,7 +97,7 @@ export default function AddFeedInventory() {
           <div className="afi-form-grid">
             <div className="afi-form-group">
               <label>Date Purchased <span className="afi-req">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} required />
+              <input type="date" name="date" value={form.date} onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
             </div>
 
             <div className="afi-form-group">

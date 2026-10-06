@@ -1,4 +1,5 @@
 const ManureRecord = require("../models/ManureRecord");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
@@ -24,6 +25,10 @@ const validateWholeNumbers = (body, { requireQuantity }) => {
 
 exports.createManureRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const numberError = validateWholeNumbers(req.body, { requireQuantity: true });
     if (numberError) {
       return res.status(400).json({ success: false, message: numberError });
@@ -118,6 +123,10 @@ exports.getManureRecord = async (req, res) => {
 
 exports.updateManureRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const numberError = validateWholeNumbers(req.body, { requireQuantity: false });
     if (numberError) {
       return res.status(400).json({ success: false, message: numberError });

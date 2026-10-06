@@ -1,4 +1,5 @@
 const ExpenseRecord = require("../models/ExpenseRecord");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const FeedInventory = require("../models/FeedInventory");
 const Equipment = require("../models/Equipment");
 const { createAuditLog } = require("./auditController");
@@ -158,6 +159,10 @@ exports.uploadReceipt = async (req, res) => {
 
 exports.createExpenseRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const { equipmentId, ...payload } = req.body;
     const record = await ExpenseRecord.create(payload);
 
@@ -278,6 +283,10 @@ exports.getExpenseRecord = async (req, res) => {
 
 exports.updateExpenseRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.date)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
+
     const { equipmentId, ...updates } = req.body;
 
     const record = await ExpenseRecord.findByIdAndUpdate(
