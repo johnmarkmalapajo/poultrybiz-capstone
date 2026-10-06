@@ -16,12 +16,18 @@ exports.checkAttendance = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // "Today" in Philippine time (UTC+8), regardless of the server's clock.
+    // The day is stored as UTC-midnight of the PH date (so 2026-10-06 shows as
+    // 2026-10-06), and looked up with a PH-day range so records saved under the
+    // older convention are still found (no duplicate check-ins).
+    const phDate = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const today = new Date(`${phDate}T00:00:00.000Z`);
+    const dayStart = new Date(`${phDate}T00:00:00+08:00`);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     let attendance = await Attendance.findOne({
       personnel: personnel._id,
-      date: today,
+      date: { $gte: dayStart, $lt: dayEnd },
     });
 
     if (!attendance) {
@@ -53,6 +59,7 @@ exports.checkAttendance = async (req, res) => {
       return res.json({
         success: true,
         message: "Checked in successfully.",
+        action: "check-in",
         attendance,
       });
     }
@@ -72,6 +79,7 @@ exports.checkAttendance = async (req, res) => {
       return res.json({
         success: true,
         message: "Checked out successfully.",
+        action: "check-out",
         attendance,
       });
     }

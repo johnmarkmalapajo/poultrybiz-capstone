@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiClock, FiCalendar, FiLogIn, FiAlertCircle } from "react-icons/fi";
 import "./QRCheckIn.css";
@@ -59,46 +59,61 @@ export default function QRCheckIn() {
 
   const [error, setError] = useState("");
 
-  const checkIn = async () => {
+  const fmtTime = (d) =>
+    new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const fmtDate = (d) =>
+    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  // The same scan endpoint toggles: 1st scan of the day = check-in, 2nd = check-out.
+  // The server tells us which one happened, so the screen can say so.
+  const record = async () => {
     if (!user) return;
-    const t = new Date();
-    const time = t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    const date = t.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     try {
-  const result = await createAttendance();
+      const result = await createAttendance();
+      const att = result?.attendance || {};
+      const isOut =
+        result?.action === "check-out" ||
+        (result?.action == null && /out/i.test(result?.message || ""));
+      const when = isOut ? (att.timeOut || new Date()) : (att.timeIn || new Date());
+      const state = {
+        name: user.name,
+        action: isOut ? "out" : "in",
+        time: fmtTime(when),
+        date: fmtDate(when),
+      };
+      try { sessionStorage.setItem("pb_qr_last", JSON.stringify({ uid: user.id, ts: Date.now(), state })); } catch (e) { /* ignore */ }
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch (e) { /* ignore */ }
+      setDone(state);
+    } catch (err) {
+      const msg = err?.message || "Couldn't record your attendance.";
+      if (/already completed/i.test(msg)) {
+        const now = new Date();
+        setDone({ name: user.name, action: "completed", time: fmtTime(now), date: fmtDate(now) });
+      } else {
+        setError(msg);
+      }
+    }
+  };
 
-  try {
-    window.dispatchEvent(new Event("pb_data_changed"));
-  } catch (e) { /* ignore */ }
-
-  setDone({
-    name: user.name,
-    time,
-    date,
-    checkOut: result?.attendance?.timeOut || null,
-  });
-} catch (err) {
-  setError(err?.message || "Couldn't record your attendance.");
-}
-  }
-
-  // ── AUTO check-in on scan ──
+  // ── AUTO record on scan ──
   // Logged in + QR scanned = attendance is recorded automatically (no button).
-  // If they already checked in today, show that record instead of duplicating.
+  // A page refresh within a few seconds re-shows the last result instead of
+  // scanning again, so a refresh can't accidentally turn a check-in into a check-out.
+  const started = useRef(false);
   useEffect(() => {
-    if (!user || done) return;
-    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    getPersonnelAttendance(user.id)
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data.records || data.data || [];
-        const existing = list.find((e) => e.date === today) || null;
-        if (existing) {
-          setDone({ name: user.name, time: existing.timeIn || existing.timestamp, date: existing.date, already: true });
-        } else {
-          checkIn();
+    if (!user || done || started.current) return;
+    started.current = true;
+    try {
+      const raw = sessionStorage.getItem("pb_qr_last");
+      if (raw) {
+        const last = JSON.parse(raw);
+        if (last && last.uid === user.id && Date.now() - last.ts < 20000) {
+          setDone(last.state);
+          return;
         }
-      })
-      .catch(() => checkIn()); // if we can't check for an existing entry, still try to check in
+      }
+    } catch (e) { /* ignore */ }
+    record();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user && user.id]);
 
@@ -168,7 +183,13 @@ export default function QRCheckIn() {
         ) : (
           <div className="qc-success">
             <div className="qc-success-icon"><FiCheckCircle /></div>
-            <h2>{done.already ? "Already Checked In Today" : "You're Checked In!"}</h2>
+            <h2>
+              {done.action === "out"
+                ? "You're Checked Out!"
+                : done.action === "completed"
+                ? "Attendance Already Completed Today"
+                : "You're Checked In!"}
+            </h2>
             <div className="qc-success-name">{done.name}</div>
             <div className="qc-success-meta">
               <span><FiClock /> {done.time}</span>
@@ -182,4 +203,3 @@ export default function QRCheckIn() {
     </div>
   );
 }
-
