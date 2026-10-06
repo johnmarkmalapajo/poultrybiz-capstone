@@ -343,7 +343,10 @@ export default function AddFeedConsumption() {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    if (e.target.type === "date" && e.target.max && value > e.target.max) value = e.target.max;
 
     if (name === "quantityUnit") {
       setForm((current) => ({

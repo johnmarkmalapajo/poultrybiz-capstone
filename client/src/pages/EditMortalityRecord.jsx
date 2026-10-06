@@ -108,9 +108,13 @@ export default function EditMortalityRecord() {
   const isFutureDate = formData.date !== "" && String(formData.date).slice(0, 10) > today;
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
+    if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError("");
+    setError(futureBlocked ? "Date cannot be a future date." : "");
   };
 
   const handleSubmit = async (e) => {

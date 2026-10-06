@@ -439,7 +439,7 @@ export default function EditHealthRecord() {
               </div>
               <div className="ehr-form-group">
                 <label>Date <span className="ehr-req">*</span></label>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} max={today} required />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value > today ? today : e.target.value)} max={today} required />
               </div>
             </div>
 

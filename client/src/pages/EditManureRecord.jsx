@@ -68,9 +68,13 @@ export default function EditManureRecord() {
   const personResponsible = user?.name || user?.fullName || formData.personResponsible || "";
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
+    if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError("");
+    setError(futureBlocked ? "Date cannot be a future date." : "");
   };
 
   // Whole numbers only -- rejects anything that isn't plain digits (so

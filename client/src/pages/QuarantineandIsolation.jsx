@@ -946,7 +946,7 @@ export default function QuarantineIsolation() {
                         <div className="qi-progress-field">
                           <label>Date</label>
                           <input type="date" max={today} value={progForm.date}
-                            onChange={(e) => setProgForm((p) => ({ ...p, date: e.target.value }))} />
+                            onChange={(e) => setProgForm((p) => ({ ...p, date: e.target.value > today ? today : e.target.value }))} />
                         </div>
                         <div className="qi-progress-field">
                           <label>Recovered</label>
