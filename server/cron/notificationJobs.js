@@ -10,7 +10,7 @@ const User = require("../models/User");
 const { createNotification } = require("../controllers/notificationController");
 
 const ALL_ROLES = ["Owner", "Farmer"];
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 function startOfToday() {
   const d = new Date();

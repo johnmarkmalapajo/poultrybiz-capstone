@@ -494,7 +494,7 @@ exports.updateIsolationProgress = async (req, res) => {
         );
       }
 
-      const updateDate = date || new Date().toISOString().slice(0, 10);
+      const updateDate = date || new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
       record.recovered += recoveredNum;
       record.deceased += deceasedNum;
