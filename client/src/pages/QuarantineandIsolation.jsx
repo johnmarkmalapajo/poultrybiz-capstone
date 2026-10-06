@@ -946,7 +946,11 @@ export default function QuarantineIsolation() {
                         <div className="qi-progress-field">
                           <label>Date</label>
                           <input type="date" max={today} value={progForm.date}
-                            onChange={(e) => setProgForm((p) => ({ ...p, date: e.target.value > today ? today : e.target.value }))} />
+                            onChange={(e) => {
+                              const blocked = e.target.value > today;
+                              setProgForm((p) => ({ ...p, date: blocked ? today : e.target.value }));
+                              setProgError(blocked ? "Date cannot be a future date." : "");
+                            }} />
                         </div>
                         <div className="qi-progress-field">
                           <label>Recovered</label>

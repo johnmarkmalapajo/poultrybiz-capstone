@@ -439,7 +439,11 @@ export default function EditHealthRecord() {
               </div>
               <div className="ehr-form-group">
                 <label>Date <span className="ehr-req">*</span></label>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value > today ? today : e.target.value)} max={today} required />
+                <input type="date" value={date} onChange={(e) => {
+                    const blocked = e.target.value > today;
+                    setDate(blocked ? today : e.target.value);
+                    setError(blocked ? "Date cannot be a future date." : "");
+                  }} max={today} required />
               </div>
             </div>
 

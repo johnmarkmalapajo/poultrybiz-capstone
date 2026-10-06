@@ -1,4 +1,5 @@
 const Visitor = require("../models/Visitor");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const VisitorLog = require("../models/VisitorLog");
 const Biosecurity = require("../models/Biosecurity");
 const Archive = require("../models/Archive");
@@ -9,6 +10,9 @@ const { createArchiveEntry } = require("./archiveController");
 exports.registerVisitor = async (req, res) => {
   try {
     const { visitor, log, biosecurity } = req.body;
+    if (isFutureDate(log && log.dateOfVisit)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
 
     let visitorRecord = await Visitor.findOne({
       fullName: visitor.fullName,

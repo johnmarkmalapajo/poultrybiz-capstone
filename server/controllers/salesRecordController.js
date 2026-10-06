@@ -1,4 +1,5 @@
 const SalesRecord = require("../models/SalesRecord");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const Customer = require("../models/Customer");
 const EggRecord = require("../models/EggRecord");
 const ExpenseRecord = require("../models/ExpenseRecord");
@@ -198,6 +199,9 @@ exports.checkNetLoss = checkNetLoss;
 
 exports.createSalesRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.dateOfSale)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
     const customer = await resolveCustomer(req.body);
     const items = computeItems(req.body.items);
 
@@ -297,6 +301,9 @@ exports.getSalesRecord = async (req, res) => {
 
 exports.updateSalesRecord = async (req, res) => {
   try {
+    if (isFutureDate(req.body.dateOfSale)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
     const existing = await SalesRecord.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({ success: false, message: "Sales record not found." });

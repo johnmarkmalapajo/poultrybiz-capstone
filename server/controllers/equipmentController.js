@@ -1,4 +1,5 @@
 const Equipment = require("../models/Equipment");
+const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const Archive = require("../models/Archive");
@@ -15,6 +16,9 @@ const EXPENSE_OWNED_EQUIPMENT_FIELDS = [
 
 exports.createEquipment = async (req, res) => {
   try {
+    if (isFutureDate(req.body.dateAcquired)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
     const { itemNo, expenseRecordId, ...payload } = req.body;
     const record = await Equipment.create(payload);
 
@@ -91,6 +95,9 @@ exports.getEquipment = async (req, res) => {
 
 exports.updateEquipment = async (req, res) => {
   try {
+    if (isFutureDate(req.body.dateAcquired)) {
+      return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
+    }
     const { itemNo, expenseRecordId, ...updates } = req.body;
 
     const existing = await Equipment.findById(req.params.id);

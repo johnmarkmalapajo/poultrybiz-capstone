@@ -94,7 +94,14 @@ export default function AddQuarantineIsolation() {
     const { name } = e.target;
     let value = e.target.value;
     // iOS date pickers ignore the `max` attribute, so enforce it here too.
-    if (e.target.type === "date" && e.target.max && value > e.target.max) value = e.target.max;
+    if (e.target.type === "date") {
+      if (e.target.max && value > e.target.max) {
+        value = e.target.max;
+        setError("Date cannot be a future date.");
+      } else {
+        setError("");
+      }
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 

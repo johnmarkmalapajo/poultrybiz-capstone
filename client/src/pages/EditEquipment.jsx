@@ -23,6 +23,11 @@ const blockInvalidNumberPaste = (e) => {
   }
 };
 
+const todayStr = () => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+};
+
 export default function EditEquipment() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -88,7 +93,16 @@ export default function EditEquipment() {
   }, []);
 
   const handleChange = (e) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore `max`, so enforce it here and tell the user.
+    if (e.target.type === "date" && e.target.max && value > e.target.max) {
+      value = e.target.max;
+      setForm((f) => ({ ...f, [name]: value }));
+      setError("Date cannot be a future date.");
+      return;
+    }
+    setForm((f) => ({ ...f, [name]: value }));
     setError("");
   };
 
@@ -181,7 +195,7 @@ export default function EditEquipment() {
 
             <div className="eeq-form-group">
               <label>Unit <span className="eeq-req">*</span></label>
-              <select name="unit" value={form.unit} onChange={handleChange} disabled={isLinked} required>
+              <select name="unit" value={form.unit} onChange={handleChange} max={todayStr()} disabled={isLinked} required>
                 <option value="">Select unit</option>
                 {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>

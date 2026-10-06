@@ -23,6 +23,11 @@ const blockInvalidNumberPaste = (e) => {
   }
 };
 
+const todayStr = () => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+};
+
 export default function AddEquipment() {
   const navigate = useNavigate();
   const { canSeeFinancials, role } = useUser();
@@ -80,8 +85,20 @@ export default function AddEquipment() {
   fetchCustodians();
 }, []);
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore `max`, so enforce it here and tell the user.
+    if (e.target.type === "date") {
+      if (e.target.max && value > e.target.max) {
+        value = e.target.max;
+        setError("Date cannot be a future date.");
+      } else {
+        setError("");
+      }
+    }
+    setForm((f) => ({ ...f, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -225,7 +242,7 @@ export default function AddEquipment() {
             {isOwner && (
               <div className="aeq-form-group">
                 <label>Date Acquired <span className="aeq-req">*</span></label>
-                <input type="date" name="dateAcquired" value={form.dateAcquired} onChange={handleChange} required />
+                <input type="date" name="dateAcquired" value={form.dateAcquired} onChange={handleChange} max={todayStr()} required />
               </div>
             )}
 

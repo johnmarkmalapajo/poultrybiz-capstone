@@ -32,9 +32,19 @@ export default function VisitorCheckIn() {
     poultry48h: "", cleanClothes: "", entryDisinfection: "", fluSymptoms: "",
   });
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const set = (k, v) => {
+    if (k === "dateOfVisit") {
+      if (v > today()) {
+        v = today();
+        setError("Date cannot be a future date.");
+      } else {
+        setError("");
+      }
+    }
+    setForm((f) => ({ ...f, [k]: v }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -128,7 +138,7 @@ export default function VisitorCheckIn() {
         <div className="vc-section-head"><FiClipboard /> Visit Information</div>
         <div className="vc-field">
           <label><FiCalendar /> Date of Visit <span className="req">*</span></label>
-          <input type="date" value={form.dateOfVisit} onChange={(e) => set("dateOfVisit", e.target.value)} required />
+          <input type="date" value={form.dateOfVisit} max={today()} onChange={(e) => set("dateOfVisit", e.target.value)} required />
         </div>
         <div className="vc-field">
           <label>Purpose of Visit <span className="req">*</span></label>

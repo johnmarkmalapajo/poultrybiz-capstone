@@ -57,8 +57,17 @@ export default function AddSalesRecord() {
     );
   })();
 
+  const todayStr = () => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (dateOfSale && dateOfSale > todayStr()) {
+      setError("Date cannot be a future date.");
+      return;
+    }
     if (loading) return;
 
     if (!customerId) {
@@ -130,7 +139,17 @@ export default function AddSalesRecord() {
               <input
                 type="date"
                 value={dateOfSale}
-                onChange={(e) => setDateOfSale(e.target.value)}
+                max={todayStr()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v > todayStr()) {
+                    setDateOfSale(todayStr());
+                    setError("Date cannot be a future date.");
+                  } else {
+                    setDateOfSale(v);
+                    setError("");
+                  }
+                }}
                 required
               />
               <small>Select the date of the sale.</small>

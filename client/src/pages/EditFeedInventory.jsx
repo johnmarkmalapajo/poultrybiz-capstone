@@ -92,7 +92,14 @@ export default function EditFeedInventory() {
     const { name } = event.target;
     let value = event.target.value;
     // iOS date pickers ignore the `max` attribute, so enforce it here too.
-    if (event.target.type === "date" && event.target.max && value > event.target.max) value = event.target.max;
+    if (event.target.type === "date") {
+      if (event.target.max && value > event.target.max) {
+        value = event.target.max;
+        setError("Date cannot be a future date.");
+      } else {
+        setError("");
+      }
+    }
 
     if (name === "quantity") {
       if (value === "") {

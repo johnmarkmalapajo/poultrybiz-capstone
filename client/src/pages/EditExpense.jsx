@@ -111,13 +111,20 @@ export default function EditExpense() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const handleChange = (e) =>
-    setForm((f) => {
-      let value = e.target.value;
-      // iOS date pickers ignore the `max` attribute, so enforce it here too.
-      if (e.target.type === "date" && e.target.max && value > e.target.max) value = e.target.max;
-      return { ...f, [e.target.name]: value };
-    });
+  const handleChange = (e) => {
+    const { name } = e.target;
+    let value = e.target.value;
+    // iOS date pickers ignore the `max` attribute, so enforce it here too.
+    if (e.target.type === "date") {
+      if (e.target.max && value > e.target.max) {
+        value = e.target.max;
+        setError("Date cannot be a future date.");
+      } else {
+        setError("");
+      }
+    }
+    setForm((f) => ({ ...f, [name]: value }));
+  };
 
   const handleFeedSetChange = (index, field, value) => {
     setFeedSets((current) =>
