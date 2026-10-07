@@ -252,12 +252,10 @@ export default function EditFeedConsumption() {
           const numericQuantity =
             Number(quantityConsumed);
 
-          if (
-            quantityUnit === "sacks" &&
-            Number.isFinite(numericQuantity)
-          ) {
-            quantityConsumed =
-              Math.floor(numericQuantity);
+          if (Number.isFinite(numericQuantity)) {
+            quantityConsumed = String(
+              Math.round(numericQuantity * 100) / 100
+            );
           }
         }
 
@@ -309,21 +307,13 @@ export default function EditFeedConsumption() {
         return;
       }
 
-      const numericValue = Number(value);
-
-      if (Number.isNaN(numericValue)) {
+      if (!/^\d*\.?\d{0,2}$/.test(value)) {
         return;
       }
 
       setForm((current) => ({
         ...current,
-        quantityConsumed:
-          current.quantityUnit === "sacks"
-            ? Math.max(
-                0,
-                Math.floor(numericValue)
-              )
-            : Math.max(0, numericValue),
+        quantityConsumed: value,
       }));
 
       return;
@@ -409,21 +399,11 @@ export default function EditFeedConsumption() {
     );
 
     if (
-      form.quantityConsumed === "" ||
+      !/^(\d+(\.\d{1,2})?|\.\d{1,2})$/.test(String(form.quantityConsumed)) ||
       quantity <= 0
     ) {
       setError(
-        "Please enter a valid quantity consumed."
-      );
-      return;
-    }
-
-    if (
-      form.quantityUnit === "sacks" &&
-      !Number.isInteger(quantity)
-    ) {
-      setError(
-        "Sack quantity must be a whole number."
+        "Please enter a valid quantity greater than 0 (up to 2 decimal places)."
       );
       return;
     }
@@ -618,11 +598,7 @@ export default function EditFeedConsumption() {
               <input
                 type="number"
                 min="0"
-                step={
-                  form.quantityUnit === "sacks"
-                    ? "1"
-                    : "0.01"
-                }
+                step="0.01"
                 name="quantityConsumed"
                 value={form.quantityConsumed}
                 onChange={handleChange}

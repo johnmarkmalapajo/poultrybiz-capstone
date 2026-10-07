@@ -8,6 +8,7 @@ const PersonnelTask = require("../models/PersonnelTask");
 const Personnel = require("../models/Personnel");
 const User = require("../models/User");
 const { createNotification } = require("../controllers/notificationController");
+const { QUARANTINE_DAYS, isQuarantineComplete } = require("../utils/dateGuard");
 
 const ALL_ROLES = ["Owner", "Farmer"];
 const todayStr = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -48,67 +49,107 @@ async function eggProductionCheck({ stage, title, message, priority, isFinalAler
   }
 }
 
+const SCHEDULE_OVERDUE_DAYS = 7;
+
+const shiftDay = (day, offset) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+
+const formatDay = (day) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+const dueScheduleWindow = () => {
+  const today = todayStr();
+  return { today, earliest: shiftDay(today, -SCHEDULE_OVERDUE_DAYS) };
+};
+
+async function notifyDueHealthSchedules(record) {
+  if (!record || record.archived) return;
+
+  const isDiagnosis = record.recordType === "Diagnosis";
+  const { today, earliest } = dueScheduleWindow();
+  const dueDays = [...new Set((record.schedules || []).map((s) => String(s).slice(0, 10)))]
+    .filter((day) => day >= earliest && day <= today);
+
+  const label = isDiagnosis ? "Diagnosis Follow-up" : "Medication/Vaccination";
+  const code = isDiagnosis ? record.diagnosisCode : record.medicationCode;
+  const drug = !isDiagnosis && record.vaccineOrDrug ? ` (${record.vaccineOrDrug})` : "";
+
+  for (const day of dueDays) {
+    const overdue = day < today;
+    await createNotification({
+      title: `Scheduled Reminder: ${label} ${overdue ? "Overdue" : "Due Today"}`,
+      description: `${label} schedule${code ? ` ${code}` : ""}${drug} for Batch ${record.batchId} ${overdue ? "was due on" : "is due today,"} ${formatDay(day)}.`,
+      category: "health",
+      type: "reminder",
+      priority: overdue ? "Warning" : "Normal",
+      roles: ALL_ROLES,
+      referenceId: record._id,
+      referenceModel: "HealthRecord",
+      sourceId: `${isDiagnosis ? "sched_diag" : "sched_vax"}_${record._id}_${day}`,
+    });
+  }
+}
+
 async function vaccinationCheck() {
+  const { today, earliest } = dueScheduleWindow();
   const due = await HealthRecord.find({
-    recordType: "Vaccination",
+    recordType: { $ne: "Diagnosis" },
     archived: false,
-    nextSchedule: { $lte: endOfToday() },
+    schedules: { $elemMatch: { $gte: earliest, $lte: today } },
   });
 
   for (const rec of due) {
-    if (!rec.nextSchedule) continue;
-    const overdue = new Date(rec.nextSchedule) < startOfToday();
-    await createNotification({
-      title: overdue ? "Vaccination Overdue" : "Vaccination Due Today",
-      description: `Vaccination due for Batch ${rec.batchId} on ${new Date(rec.nextSchedule).toLocaleDateString()}.`,
-      category: "health",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `vax_${rec.batchId}_${new Date(rec.nextSchedule).toISOString().slice(0, 10)}`,
-    });
+    await notifyDueHealthSchedules(rec);
   }
 }
 
 async function diagnosisScheduleCheck() {
+  const { today, earliest } = dueScheduleWindow();
   const due = await HealthRecord.find({
     recordType: "Diagnosis",
     archived: false,
-    nextSchedule: { $lte: endOfToday() },
+    schedules: { $elemMatch: { $gte: earliest, $lte: today } },
   });
 
   for (const rec of due) {
-    if (!rec.nextSchedule) continue;
-    await createNotification({
-      title: "Diagnosis Follow-up Due",
-      description: `Diagnosis follow-up for Batch ${rec.batchId} is due.`,
-      category: "health",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `diag_${rec.batchId}_${new Date(rec.nextSchedule).toISOString().slice(0, 10)}`,
-    });
+    await notifyDueHealthSchedules(rec);
   }
 }
 
+async function notifyQuarantineReady(record, startDate) {
+  if (!record || record.status !== "Ongoing" || record.archived) return;
+  if (!isQuarantineComplete(startDate)) return;
+
+  const start = String(startDate).slice(0, 10);
+  await createNotification({
+    title: "Quarantine Period Completed",
+    description: `Batch ${record.batchId} has completed its ${QUARANTINE_DAYS}-day quarantine (started ${formatDay(start)}). It can now be released: change its quarantine status from Ongoing to Released.`,
+    category: "quarantine",
+    type: "reminder",
+    priority: "Normal",
+    roles: ALL_ROLES,
+    referenceId: record._id,
+    referenceModel: "QuarantineIsolation",
+    sourceId: `quarantine_ready_${record._id}`,
+  });
+}
+
 async function quarantineCheck() {
-  const ready = await QuarantineIsolation.find({
+  const ongoing = await QuarantineIsolation.find({
     recordType: "Quarantine",
     status: "Ongoing",
     archived: false,
-    releasedDate: { $lte: endOfToday() },
   });
+  if (!ongoing.length) return;
 
-  for (const rec of ready) {
-    await createNotification({
-      title: "Quarantine Completed",
-      description: `The 7-day quarantine period for Batch ${rec.batchId} has ended. Please review the batch and change its quarantine status from Ongoing to Released.`,
-      category: "quarantine",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `quarantine_${rec._id}`,
-    });
+  const flocks = await Flock.find({ batchId: { $in: ongoing.map((r) => r.batchId) } }).select("batchId dateAcquired");
+  const startByBatch = new Map(flocks.map((f) => [f.batchId, f.dateAcquired ? f.dateAcquired.toISOString().slice(0, 10) : ""]));
+
+  for (const rec of ongoing) {
+    await notifyQuarantineReady(rec, startByBatch.get(rec.batchId));
   }
 }
 
@@ -272,4 +313,4 @@ function registerNotificationCronJobs() {
   console.log("Notification cron jobs registered.");
 }
 
-module.exports = { registerNotificationCronJobs };
+module.exports = { registerNotificationCronJobs, notifyDueHealthSchedules, notifyQuarantineReady };

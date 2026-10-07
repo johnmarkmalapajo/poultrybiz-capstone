@@ -729,17 +729,51 @@ export default function QuarantineIsolation() {
                       <td>{r.vitaminsGiven || "—"}</td>
                       <td>{r.releasedDate || "—"}</td>
                       <td>
-                        <select
-                          className={`qi-status-select ${statusClass(r.status)}`}
-                          value={r.status}
-                          disabled={r.status !== "Ongoing" || !canEdit}
-                          onChange={(e) => {
-                            if (e.target.value === "Released") setPendingRelease(r);
-                          }}
-                        >
-                          <option value="Ongoing">Ongoing</option>
-                          <option value="Released" disabled={r.status !== "Ongoing"}>Released</option>
-                        </select>
+                        {(() => {
+                          // 14-day quarantine: status stays read-only until the period is over.
+                          const locked = r.status === "Ongoing" && r.canRelease === false;
+                          // Dropdown arrow only when the status can actually be changed:
+                          // hidden while still in quarantine (locked) and once already Released.
+                          const interactive = r.status === "Ongoing" && !locked && canEdit;
+                          const staticPill = interactive
+                            ? undefined
+                            : {
+                                appearance: "none",
+                                WebkitAppearance: "none",
+                                MozAppearance: "none",
+                                backgroundImage: "none",
+                                cursor: "default",
+                                opacity: 1,
+                              };
+                          const total = r.quarantineDays || 14;
+                          const lockedTip = locked
+                            ? `Locked until ${r.quarantineEndDate} (${r.daysRemaining} day${r.daysRemaining === 1 ? "" : "s"} remaining)`
+                            : undefined;
+                          return (
+                            <>
+                              <select
+                                className={`qi-status-select ${statusClass(r.status)}`}
+                                value={r.status}
+                                disabled={r.status !== "Ongoing" || !canEdit || locked}
+                                title={lockedTip}
+                                style={staticPill}
+                                onChange={(e) => {
+                                  if (e.target.value === "Released") setPendingRelease(r);
+                                }}
+                              >
+                                <option value="Ongoing">Ongoing</option>
+                                <option value="Released" disabled={r.status !== "Ongoing" || locked}>Released</option>
+                              </select>
+                              {r.status === "Ongoing" && r.canRelease !== undefined && (
+                                <small style={{ display: "block", marginTop: 4, fontSize: 11, color: locked ? "#8a6d00" : "#2e7d32", fontWeight: 600 }}>
+                                  {locked
+                                    ? `Day ${Math.min(r.daysElapsed, total)} of ${total} \u2022 ${r.daysRemaining} day${r.daysRemaining === 1 ? "" : "s"} left`
+                                    : `${total}-day quarantine complete \u2022 Ready to release`}
+                                </small>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))
