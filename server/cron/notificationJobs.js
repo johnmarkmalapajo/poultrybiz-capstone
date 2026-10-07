@@ -8,6 +8,7 @@ const PersonnelTask = require("../models/PersonnelTask");
 const Personnel = require("../models/Personnel");
 const User = require("../models/User");
 const { createNotification } = require("../controllers/notificationController");
+const { QUARANTINE_DAYS, isQuarantineComplete } = require("../utils/dateGuard");
 
 const ALL_ROLES = ["Owner", "Farmer"];
 const todayStr = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -118,24 +119,37 @@ async function diagnosisScheduleCheck() {
   }
 }
 
+async function notifyQuarantineReady(record, startDate) {
+  if (!record || record.status !== "Ongoing" || record.archived) return;
+  if (!isQuarantineComplete(startDate)) return;
+
+  const start = String(startDate).slice(0, 10);
+  await createNotification({
+    title: "Quarantine Period Completed",
+    description: `Batch ${record.batchId} has completed its ${QUARANTINE_DAYS}-day quarantine (started ${formatDay(start)}). It can now be released: change its quarantine status from Ongoing to Released.`,
+    category: "quarantine",
+    type: "reminder",
+    priority: "Normal",
+    roles: ALL_ROLES,
+    referenceId: record._id,
+    referenceModel: "QuarantineIsolation",
+    sourceId: `quarantine_ready_${record._id}`,
+  });
+}
+
 async function quarantineCheck() {
-  const ready = await QuarantineIsolation.find({
+  const ongoing = await QuarantineIsolation.find({
     recordType: "Quarantine",
     status: "Ongoing",
     archived: false,
-    releasedDate: { $lte: endOfToday() },
   });
+  if (!ongoing.length) return;
 
-  for (const rec of ready) {
-    await createNotification({
-      title: "Quarantine Completed",
-      description: `The 7-day quarantine period for Batch ${rec.batchId} has ended. Please review the batch and change its quarantine status from Ongoing to Released.`,
-      category: "quarantine",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `quarantine_${rec._id}`,
-    });
+  const flocks = await Flock.find({ batchId: { $in: ongoing.map((r) => r.batchId) } }).select("batchId dateAcquired");
+  const startByBatch = new Map(flocks.map((f) => [f.batchId, f.dateAcquired ? f.dateAcquired.toISOString().slice(0, 10) : ""]));
+
+  for (const rec of ongoing) {
+    await notifyQuarantineReady(rec, startByBatch.get(rec.batchId));
   }
 }
 
@@ -299,4 +313,4 @@ function registerNotificationCronJobs() {
   console.log("Notification cron jobs registered.");
 }
 
-module.exports = { registerNotificationCronJobs, notifyDueHealthSchedules };
+module.exports = { registerNotificationCronJobs, notifyDueHealthSchedules, notifyQuarantineReady };

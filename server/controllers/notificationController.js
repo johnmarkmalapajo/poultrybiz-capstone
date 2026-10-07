@@ -48,8 +48,21 @@ const createNotification = async ({
     console.error("Create Notification Error:", error);
   }
 };
+// Throttled so the quarantine check runs at most once every 5 minutes, no matter how often
+// the notification bell polls. Covers the case where the server was asleep at the cron time.
+let lastQuarantineCheck = 0;
+
 exports.getNotifications = async (req, res) => {
   try {
+    if (Date.now() - lastQuarantineCheck > 5 * 60 * 1000) {
+      lastQuarantineCheck = Date.now();
+      try {
+        await require("../utils/quarantine").notifyReadyQuarantines();
+      } catch (e) {
+        console.error("Quarantine readiness check failed:", e);
+      }
+    }
+
     // Personal notifications (userId set) only ever go to that exact
     // person. Broadcast notifications (userId null) go to everyone whose
     // role is in `roles`, or to everyone if `roles` is empty.

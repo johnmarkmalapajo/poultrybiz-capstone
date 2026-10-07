@@ -9,6 +9,7 @@ const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
 const { createNotification } = require("./notificationController");
 const Archive = require("../models/Archive");
+const { quarantineInfo, quarantineStartOf, phDateOf, notifyReadyQuarantines } = require("../utils/quarantine");
 
 const computeVitaminsGiven = async (batchId) => {
   const records = await HealthRecord.find({
@@ -34,6 +35,10 @@ const withVitaminsGiven = async (record) => {
   }
   const flockForDate = await Flock.findOne({ batchId: obj.batchId }).select("dateAcquired");
   obj.dateAcquired = flockForDate?.dateAcquired ? toDateOnly(flockForDate.dateAcquired) : "";
+  if (obj.recordType === "Quarantine") {
+    // 14-day quarantine: tells the UI whether the status may be changed yet.
+    Object.assign(obj, quarantineInfo(quarantineStartOf(obj, flockForDate?.dateAcquired)));
+  }
   return obj;
 };
 
@@ -235,6 +240,9 @@ exports.getAllQuarantineRecords = async (req, res) => {
 
     const enriched = await Promise.all(records.map(withVitaminsGiven));
 
+    // Raise the "ready for release" notification for any batch that just finished its 14 days.
+    notifyReadyQuarantines().catch((e) => console.error("notifyReadyQuarantines failed:", e));
+
     return res.json({
       success: true,
       count: enriched.length,
@@ -419,9 +427,20 @@ exports.updateQuarantineStatus = async (req, res) => {
         throw Object.assign(new Error("Linked Flock Profile was not found."), { status: 400 });
       }
 
+      // The status is locked until the full quarantine period (14 days) is over.
+      const qInfo = quarantineInfo(quarantineStartOf(record, flock.dateAcquired));
+      if (!qInfo.canRelease) {
+        throw Object.assign(
+          new Error(
+            `Batch ${record.batchId} is still in quarantine. Its status can only be changed after ${qInfo.quarantineDays} days ` +
+            `(available on ${qInfo.quarantineEndDate}, ${qInfo.daysRemaining} day${qInfo.daysRemaining === 1 ? "" : "s"} remaining).`
+          ),
+          { status: 400 }
+        );
+      }
+
       record.status = "Released";
-      const now = new Date();
-      record.releasedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      record.releasedDate = phDateOf(new Date());
       await record.save({ session });
 
       flock.status = "Active";

@@ -20,18 +20,20 @@ const getTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// Blocks "-", "+", "e"/"E", "." from being typed into the Quantity
-// Consumed input — it must be a whole non-negative number, no decimals.
-const blockInvalidIntegerKeys = (e) => {
-  if (["-", "+", "e", "E", "."].includes(e.key)) {
+// Blocks "-", "+", "e"/"E" from being typed into the Quantity Consumed
+// input — it must be a non-negative number with up to 2 decimal places.
+const QUANTITY_PATTERN = /^(\d+(\.\d{1,2})?|\.\d{1,2})$/;
+
+const blockInvalidQuantityKeys = (e) => {
+  if (["-", "+", "e", "E"].includes(e.key)) {
     e.preventDefault();
   }
 };
 
-// Rejects anything pasted that isn't purely digits (no decimals, no signs).
-const blockInvalidIntegerPaste = (e) => {
+// Rejects anything pasted that isn't a plain number with up to 2 decimals.
+const blockInvalidQuantityPaste = (e) => {
   const text = e.clipboardData.getData("text");
-  if (!/^\d*$/.test(text)) {
+  if (!/^\d*\.?\d{0,2}$/.test(text)) {
     e.preventDefault();
   }
 };
@@ -337,8 +339,8 @@ export default function AddFeedConsumption() {
       ).toLocaleString()} sacks`;
     }
 
-    return `${Math.round(
-      availableStockInSelectedUnit
+    return `${(
+      Math.round(availableStockInSelectedUnit * 100) / 100
     ).toLocaleString()} kg`;
   };
 
@@ -429,12 +431,10 @@ export default function AddFeedConsumption() {
     }
 
     if (
-      !form.quantityConsumed ||
-      Number.isNaN(Number(form.quantityConsumed)) ||
-      !Number.isInteger(Number(form.quantityConsumed)) ||
+      !QUANTITY_PATTERN.test(String(form.quantityConsumed)) ||
       Number(form.quantityConsumed) <= 0
     ) {
-      setError("Please enter a valid whole-number quantity.");
+      setError("Please enter a valid quantity greater than 0 (up to 2 decimal places).");
       return;
     }
 
@@ -587,12 +587,12 @@ export default function AddFeedConsumption() {
     <input
       type="number"
       min="0"
-      step="1"
+      step="0.01"
       name="quantityConsumed"
       value={form.quantityConsumed}
       onChange={handleChange}
-      onKeyDown={blockInvalidIntegerKeys}
-      onPaste={blockInvalidIntegerPaste}
+      onKeyDown={blockInvalidQuantityKeys}
+      onPaste={blockInvalidQuantityPaste}
       placeholder="Enter quantity"
       required
     />
