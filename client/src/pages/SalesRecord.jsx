@@ -2,15 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
-  FiEdit2, FiArchive, FiDollarSign,
+  FiEdit2, FiDollarSign,
   FiTrendingUp, FiMaximize,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
-import { archiveRow } from "../archiveRow";
-import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
-import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import "./SalesRecord.css";
 import { listSalesRecords } from "../api/salesRecord";
 import { getFarmInfo } from "../api/profile";
@@ -27,12 +24,15 @@ const summarizeSizes = (items) => {
 
 export default function SalesRecord() {
   const navigate = useNavigate();
-  const { canEdit, canArchive, user } = useUser();
+  const { canEdit } = useUser();
 
   const [records, setRecords] = useState([]);
   const [search, setSearch]   = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ eggSize: "All", dateFrom: "", dateTo: "" });
+  const defaultFilters = { eggSize: "All", period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" };
+  const [filters, setFilters] = useState(defaultFilters);
+  const [draft, setDraft] = useState(defaultFilters);
+  const [filterApplied, setFilterApplied] = useState(false);
   const filterRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
@@ -65,9 +65,6 @@ export default function SalesRecord() {
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
   }, []);
 
-  const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ eggSize: "All", dateFrom: "", dateTo: "" });
-  const activeFilterCount = Object.values(filters).filter((v) => v && v !== "All").length;
 
   useEffect(() => {
     const onClick = (e) => {
@@ -77,17 +74,77 @@ export default function SalesRecord() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } =
-    useArchiveConfirm(() => fetchRecords(search));
+  const handleFilterChange = (key, value) => setDraft((f) => ({ ...f, [key]: value }));
+  const clearFilters = () => { setDraft(defaultFilters); setFilters(defaultFilters); setFilterApplied(false); };
+  const applyFilters = () => {
+    if (draft.period === "custom") {
+      const today = todayStr();
+      if (draft.dateFrom && draft.dateFrom > today) {
+        setError("Start date cannot be a future date.");
+        return;
+      }
+      if (draft.dateTo && draft.dateTo > today) {
+        setError("End date cannot be a future date.");
+        return;
+      }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
+        setError("Start date cannot be later than end date.");
+        return;
+      }
+    }
+    setError("");
+    setFilters(draft);
+    setFilterApplied(true);
+    setShowFilter(false);
+  };
+  const openFilterPanel = () => { setDraft(filters); setShowFilter((s) => !s); };
+  const activeFilterCount =
+    (filterApplied && filters.period !== "all" ? 1 : 0) +
+    (filterApplied && filters.eggSize !== "All" ? 1 : 0);
 
-  const handleArchive = (r) => {
-    requestArchive({
-      module: "Sales Records",
-      moduleKey: "pb_sales",
-      record: r,
-      name: r.buyer || `Sale ${r.dateOfSale || ""}`.trim(),
-      user: (user && (user.fullName || user.name)) || "Owner",
-    });
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const todayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const saleDate = (r) => (r.dateOfSale ? String(r.dateOfSale).slice(0, 10) : "");
+
+  const isoWeekOf = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return "";
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (target.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNum + 3);
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+    return `${target.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  };
+
+  const yearOptions = [...new Set(
+    records.map((r) => { const d = new Date(saleDate(r)); return isNaN(d) ? null : String(d.getFullYear()); }).filter(Boolean)
+  )].sort((a, b) => b - a);
+
+  const monthOptions = [...new Set(
+    records
+      .filter((r) => draft.year === "All" || String(new Date(saleDate(r)).getFullYear()) === draft.year)
+      .map((r) => { const d = new Date(saleDate(r)); return isNaN(d) ? null : MONTH_NAMES[d.getMonth()]; })
+      .filter(Boolean)
+  )].sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+
+  const matchesDatePeriod = (r, f) => {
+    if (f.period === "all") return true;
+    const date = saleDate(r);
+    const d = new Date(date);
+    const recYear = isNaN(d) ? null : String(d.getFullYear());
+    const recMonth = isNaN(d) ? null : MONTH_NAMES[d.getMonth()];
+    if (f.period === "today") return date === todayStr();
+    if (f.period === "week") return !!f.week && isoWeekOf(date) === f.week;
+    if (f.period === "month") return f.year !== "All" && f.month !== "All" && recYear === f.year && recMonth === f.month;
+    if (f.period === "year") return f.year !== "All" && recYear === f.year;
+    if (f.period === "custom") return (!f.dateFrom || date >= f.dateFrom) && (!f.dateTo || date <= f.dateTo);
+    return true;
   };
 
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
@@ -95,9 +152,10 @@ export default function SalesRecord() {
 
   const filtered = records.filter(
     (r) =>
-      (filters.eggSize === "All" || (r.items || []).some((i) => i.eggSize === filters.eggSize)) &&
-      (!filters.dateFrom || (r.dateOfSale || "") >= filters.dateFrom) &&
-      (!filters.dateTo || (r.dateOfSale || "") <= filters.dateTo)
+      !filterApplied || (
+        (filters.eggSize === "All" || (r.items || []).some((i) => i.eggSize === filters.eggSize)) &&
+        matchesDatePeriod(r, filters)
+      )
   );
 
   const liveStats = {
@@ -133,16 +191,25 @@ export default function SalesRecord() {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [search, filters]);
+  useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
-  const periodLabel = filters.dateFrom && filters.dateTo
-    ? `${filters.dateFrom} – ${filters.dateTo}`
-    : filters.dateFrom
-      ? `From ${filters.dateFrom}`
-      : filters.dateTo
-        ? `Until ${filters.dateTo}`
-        : "All Time";
+  const STAT_SPAN_LABELS = { all: "All Records", today: "Today", week: "Weekly", month: "Monthly", year: "Yearly", custom: "Custom Range" };
+  const statSpanLabel = STAT_SPAN_LABELS[filterApplied ? filters.period : "all"] || "All Records";
+
+  const periodLabel = (() => {
+    if (!filterApplied || filters.period === "all") return "All Records";
+    if (filters.period === "today") return "Today";
+    if (filters.period === "week" && filters.week) return filters.week;
+    if (filters.period === "month" && filters.month !== "All" && filters.year !== "All") return `${filters.month} ${filters.year}`;
+    if (filters.period === "year" && filters.year !== "All") {
+      return filters.year === String(new Date().getFullYear()) ? "This Year" : `Year ${filters.year}`;
+    }
+    if (filters.period === "custom" && (filters.dateFrom || filters.dateTo)) {
+      return `${filters.dateFrom || "—"} – ${filters.dateTo || "—"}`;
+    }
+    return "All Records";
+  })();
 
   const exportMeta = {
     farmName: farmInfo.farmName,
@@ -154,7 +221,7 @@ export default function SalesRecord() {
       : "",
     period: periodLabel,
     fields: [
-      ...(filters.eggSize !== "All" ? [{ label: "Egg Size", value: filters.eggSize }] : []),
+      ...(filterApplied && filters.eggSize !== "All" ? [{ label: "Egg Size", value: filters.eggSize }] : []),
     ],
   };
 
@@ -213,7 +280,7 @@ export default function SalesRecord() {
 
             <div className="sr-btn-group">
               <div className="sr-filter-wrap" ref={filterRef}>
-                <button className="sr-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="sr-toolbar-btn" onClick={openFilterPanel}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="sr-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -222,32 +289,106 @@ export default function SalesRecord() {
                   <div className="sr-filter-dropdown">
                     <div className="sr-filter-dropdown-header">
                       <span>Filter Records</span>
-                      <button className="sr-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    <div className="sr-filter-group">
-                      <label className="sr-filter-label">Egg Size</label>
-                      <select
-                        className="sr-filter-select"
-                        value={filters.eggSize}
-                        onChange={(e) => handleFilterChange("eggSize", e.target.value)}
-                      >
-                        <option value="All">All Sizes</option>
-                        {eggSizeOptions.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="sr-filter-group">
-                      <label className="sr-filter-label">Report Period</label>
-                      <div className="sr-filter-date-range">
-                        <input type="date" className="sr-filter-select" value={filters.dateFrom}
-                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                        <span>to</span>
-                        <input type="date" className="sr-filter-select" value={filters.dateTo}
-                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                    <div className="sr-filter-section-label">Date Filter</div>
+                    <div className="sr-filter-row">
+                      <div className="sr-filter-group">
+                        <label className="sr-filter-label">Date Period</label>
+                        <select
+                          className="sr-filter-select"
+                          value={draft.period}
+                          onChange={(e) => handleFilterChange("period", e.target.value)}
+                        >
+                          <option value="all">All Records</option>
+                          <option value="today">Today</option>
+                          <option value="week">Week</option>
+                          <option value="month">Month</option>
+                          <option value="year">Year</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
                       </div>
+
+                      {draft.period === "week" && (
+                        <div className="sr-filter-group">
+                          <label className="sr-filter-label">Week</label>
+                          <input
+                            type="week"
+                            className="sr-filter-select"
+                            value={draft.week}
+                            onChange={(e) => handleFilterChange("week", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      {draft.period === "month" && (
+                        <div className="sr-filter-group">
+                          <label className="sr-filter-label">Month</label>
+                          <select
+                            className="sr-filter-select"
+                            value={draft.month}
+                            onChange={(e) => handleFilterChange("month", e.target.value)}
+                          >
+                            <option value="All">Select Month</option>
+                            {monthOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {(draft.period === "month" || draft.period === "year") && (
+                        <div className="sr-filter-group">
+                          <label className="sr-filter-label">Year</label>
+                          <select
+                            className="sr-filter-select"
+                            value={draft.year}
+                            onChange={(e) => handleFilterChange("year", e.target.value)}
+                          >
+                            <option value="All">Select Year</option>
+                            {yearOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {draft.period === "custom" && (
+                      <div className="sr-filter-group">
+                        <label className="sr-filter-label">Start Date / End Date</label>
+                        <div className="sr-filter-date-range">
+                          <input type="date" className="sr-filter-select" value={draft.dateFrom}
+                            max={draft.dateTo || todayStr()}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                          <span>to</span>
+                          <input type="date" className="sr-filter-select" value={draft.dateTo}
+                            min={draft.dateFrom || undefined} max={todayStr()}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="sr-filter-section-label">Filters</div>
+                    <div className="sr-filter-row">
+                      <div className="sr-filter-group">
+                        <label className="sr-filter-label">Egg Size</label>
+                        <select
+                          className="sr-filter-select"
+                          value={draft.eggSize}
+                          onChange={(e) => handleFilterChange("eggSize", e.target.value)}
+                        >
+                          <option value="All">All Sizes</option>
+                          {eggSizeOptions.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="sr-filter-actions">
+                      <button className="sr-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="sr-filter-apply" onClick={applyFilters}>Apply</button>
                     </div>
                   </div>
                 )}
@@ -263,8 +404,8 @@ export default function SalesRecord() {
                 moduleLabel="Sales Record"
                 enablePreview
                 filters={{
-                  ...(filters.eggSize !== "All" ? { "Egg Size": filters.eggSize } : {}),
-                  ...(periodLabel !== "All Time" ? { "Report Period": periodLabel } : {}),
+                  ...(filterApplied && filters.eggSize !== "All" ? { "Egg Size": filters.eggSize } : {}),
+                  ...(filterApplied && filters.period !== "all" ? { "Report Period": periodLabel } : {}),
                 }}
                 className="sr-toolbar-btn"
               />
@@ -273,18 +414,6 @@ export default function SalesRecord() {
         </div>
 
         {}
-        {activeFilterCount > 0 && (
-          <div className="sr-active-filters">
-            {Object.entries(filters).map(([key, value]) =>
-              value && value !== "All" ? (
-                <span key={key} className="sr-active-filter-tag">
-                  {key === "eggSize" ? "Egg Size" : key === "dateFrom" ? "From" : "To"}: {value}
-                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
-                </span>
-              ) : null
-            )}
-          </div>
-        )}
 
         {}
         <div className="sr-stats-grid">
@@ -293,7 +422,7 @@ export default function SalesRecord() {
             <div>
               <h3>{formatPeso(liveStats.totalRevenue)}</h3>
               <p>Total Revenue</p>
-              <span>All Records</span>
+              <span>{statSpanLabel}</span>
             </div>
           </div>
 
@@ -302,7 +431,7 @@ export default function SalesRecord() {
             <div>
               <h3>{formatEggs(liveStats.totalEggsSold)}</h3>
               <p>Total Eggs Sold</p>
-              <span>All Records</span>
+              <span>{statSpanLabel}</span>
             </div>
           </div>
         </div>
@@ -362,11 +491,6 @@ export default function SalesRecord() {
                               <FiEdit2 />
                             </button>
                           )}
-                          {canArchive && (
-                            <button className="sr-action-btn archive" title="Archive" onClick={() => handleArchive(r)}>
-                              <FiArchive />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -387,8 +511,6 @@ export default function SalesRecord() {
             totalItems={pager.totalItems}
           />
         </div>
-
-      <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
     </PageLayout>
   );
 }

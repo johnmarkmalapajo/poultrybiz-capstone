@@ -674,7 +674,8 @@
 
 }
 
-.pm-btn-view {
+.pm-btn-view,
+.pm-btn-archive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -705,6 +706,20 @@
   border-color: var(--border, #e4e0d8);
   color: var(--text-second, #6b6457);
   background: #fff;
+}
+
+.pm-btn-archive:hover {
+  border-color: var(--icon-blue, #3a7bd5);
+  color: var(--icon-blue, #3a7bd5);
+  background: var(--icon-blue-bg, #eef4fc);
+}
+
+@media (max-width: 480px) {
+  .pm-btn-view,
+  .pm-btn-archive {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .qr-overlay {

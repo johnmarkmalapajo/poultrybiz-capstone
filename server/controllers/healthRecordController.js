@@ -7,6 +7,7 @@ const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { createNotification } = require("./notificationController");
 const { resolveHealthOption, resolveVeterinarian } = require("./healthOptionController");
+const { notifyDueHealthSchedules } = require("../cron/notificationJobs");
 const Archive = require("../models/Archive");
 
 const getFlock = async (batchId) => {
@@ -66,6 +67,10 @@ const enrichDiagnosis = async (record) => {
   if (record.recordType !== "Diagnosis") return record;
   const obj = record.toObject ? record.toObject() : record;
   obj.treatmentApplied = await computeTreatmentApplied(record._id);
+  obj.schedules = diagnosisOwnSchedules(record);
+  // A Diagnosis' Schedule comes ONLY from its own schedules list — an old
+  // nextSchedule value copied from Medication/Vaccination is ignored.
+  obj.nextSchedule = soonestUpcoming(obj.schedules);
   return obj;
 };
 
@@ -112,13 +117,55 @@ const soonestUpcoming = (schedules) => {
   return past[0];
 };
 
-const syncDiagnosisSchedule = async (diagnosisId) => {
-  if (!diagnosisId) return;
-  const treatments = await HealthRecord.find({ diagnosisId, archived: false });
-  const allDates = treatments.flatMap((t) => t.schedules || []);
-  const next = soonestUpcoming(allDates);
-  await HealthRecord.findByIdAndUpdate(diagnosisId, { nextSchedule: next });
+// Diagnosis and Medication/Vaccination are two independent schedule
+// systems. Each record's nextSchedule is derived ONLY from its own
+// `schedules` list — never from, or written to, the other record type.
+const diagnosisOwnSchedules = (record) => [...(record.schedules || [])];
+
+// An Isolation event is ongoing only while its currentStatus is "In
+// Isolation" (or the legacy empty value). Once all birds are resolved it
+// becomes Recovered / Deceased / Completed and is treated as finished.
+const ONGOING_ISOLATION_STATUSES = ["", "In Isolation"];
+
+// Keeps the linked Isolation record's Symptoms/Reasons in sync with its
+// Diagnosis: the latest Vet Diagnosis when one is recorded, otherwise the
+// Presumptive Diagnosis. Only the Isolation event this Diagnosis belongs to
+// (same isolationId AND Batch ID) is touched, and only while it is still
+// ongoing — a finished Isolation keeps its final Symptoms/Reasons.
+const syncIsolationSymptomsFromDiagnosis = async (diagnosis) => {
+  if (!diagnosis?.isolationId) return;
+  const symptoms =
+    String(diagnosis.vetDiagnosis || "").trim() ||
+    String(diagnosis.presumptiveDiagnosis || "").trim();
+  if (!symptoms) return;
+  await QuarantineIsolation.updateOne(
+    {
+      _id: diagnosis.isolationId,
+      recordType: "Isolation",
+      batchId: diagnosis.batchId,
+      currentStatus: { $in: ONGOING_ISOLATION_STATUSES },
+      symptoms: { $ne: symptoms },
+    },
+    { symptoms },
+  );
 };
+
+// One Diagnosis ID can be linked to only one active Medication/Vaccination
+// record. Returns the existing linked record (or null). `excludeId` skips
+// the record being restored/edited itself.
+const findTreatmentForDiagnosis = (diagnosisId, excludeId = null) =>
+  HealthRecord.findOne({
+    diagnosisId,
+    recordType: { $ne: "Diagnosis" },
+    archived: false,
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+  }).select("medicationCode");
+
+const duplicateDiagnosisMessage = (diagnosisCode, medicationCode) =>
+  `Diagnosis ${diagnosisCode || ""} is already linked to Medication/Vaccination record ${medicationCode || ""}. Edit that record instead of creating a new one.`
+    .replace(/\s+/g, " ");
+
+const isDuplicateKeyError = (error) => error?.code === 11000;
 
 const createHealthRecord = async (req, res) => {
   try {
@@ -185,6 +232,16 @@ const createHealthRecord = async (req, res) => {
       }
     } else if (diagnosisId) {
       diagnosis = await HealthRecord.findOne({ _id: diagnosisId, recordType: "Diagnosis", batchId });
+    }
+
+    if (diagnosis) {
+      const existingTreatment = await findTreatmentForDiagnosis(diagnosis._id);
+      if (existingTreatment) {
+        return res.status(409).json({
+          success: false,
+          message: duplicateDiagnosisMessage(diagnosis.diagnosisCode, existingTreatment.medicationCode),
+        });
+      }
     }
 
     const {
@@ -254,7 +311,7 @@ const createHealthRecord = async (req, res) => {
       remarks,
     });
 
-    await syncDiagnosisSchedule(diagnosis?._id);
+    await notifyDueHealthSchedules(record);
 
     await createAuditLog({
       user: req.user.name,
@@ -273,6 +330,13 @@ const createHealthRecord = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (isDuplicateKeyError(error) && error.keyPattern?.diagnosisId) {
+      return res.status(409).json({
+        success: false,
+        message: "This Diagnosis ID is already linked to another Medication/Vaccination record.",
+      });
+    }
 
     return res.status(error.status || 500).json({
       success: false,
@@ -365,7 +429,15 @@ const updateHealthRecord = async (req, res) => {
     const previousData = healthRecord.toObject();
 
     if (healthRecord.recordType === "Diagnosis") {
-      const { symptomsObserved, newSymptomsObserved, presumptiveDiagnosis, newPresumptiveDiagnosis, vetDiagnosis, newVetDiagnosis, remarks, nextSchedule } = req.body;
+      const { symptomsObserved, newSymptomsObserved, presumptiveDiagnosis, newPresumptiveDiagnosis, vetDiagnosis, newVetDiagnosis, remarks, addSchedule } = req.body;
+
+      const recordDay = healthRecord.date ? new Date(healthRecord.date).toISOString().slice(0, 10) : "";
+      if (addSchedule && recordDay && String(addSchedule).slice(0, 10) < recordDay) {
+        return res.status(400).json({
+          success: false,
+          message: "The new schedule cannot be earlier than the record date.",
+        });
+      }
 
       const presumptiveDiagnosisChanged =
         (presumptiveDiagnosis != null && presumptiveDiagnosis !== healthRecord.presumptiveDiagnosis) ||
@@ -396,16 +468,21 @@ const updateHealthRecord = async (req, res) => {
       healthRecord.presumptiveDiagnosis = resolvedPresumptiveDiagnosis ?? healthRecord.presumptiveDiagnosis;
       healthRecord.vetDiagnosis = resolvedVetDiagnosis ?? healthRecord.vetDiagnosis;
       healthRecord.remarks = remarks ?? healthRecord.remarks;
-      healthRecord.nextSchedule = nextSchedule ?? healthRecord.nextSchedule;
+
+      if (addSchedule) {
+        const ownSchedules = diagnosisOwnSchedules(healthRecord);
+        const day = String(addSchedule).slice(0, 10);
+        healthRecord.schedules = ownSchedules.includes(day) ? ownSchedules : [...ownSchedules, day];
+      }
+      // Always recomputed from the Diagnosis' own schedules, which also clears
+      // any old value that was copied from Medication/Vaccination records.
+      healthRecord.nextSchedule = soonestUpcoming(diagnosisOwnSchedules(healthRecord));
 
       await healthRecord.save();
 
-      if (resolvedPresumptiveDiagnosis && resolvedPresumptiveDiagnosis.trim() && resolvedPresumptiveDiagnosis !== previousData.presumptiveDiagnosis && healthRecord.isolationId) {
-        await QuarantineIsolation.findOneAndUpdate(
-          { _id: healthRecord.isolationId },
-          { symptoms: resolvedPresumptiveDiagnosis },
-        );
-      }
+      await syncIsolationSymptomsFromDiagnosis(healthRecord);
+
+      await notifyDueHealthSchedules(healthRecord);
 
       await createAuditLog({
         user: req.user.name,
@@ -508,9 +585,7 @@ const updateHealthRecord = async (req, res) => {
 
     await healthRecord.save();
 
-    if (healthRecord.diagnosisId) {
-      await syncDiagnosisSchedule(healthRecord.diagnosisId);
-    }
+    await notifyDueHealthSchedules(healthRecord);
 
     await createAuditLog({
       user: req.user.name,
@@ -642,6 +717,17 @@ const restoreHealthRecord = async (req, res) => {
       });
     }
 
+    if (healthRecord.recordType !== "Diagnosis" && healthRecord.diagnosisId) {
+      const existingTreatment = await findTreatmentForDiagnosis(healthRecord.diagnosisId, healthRecord._id);
+      if (existingTreatment) {
+        const linkedDiagnosis = await HealthRecord.findById(healthRecord.diagnosisId).select("diagnosisCode");
+        return res.status(409).json({
+          success: false,
+          message: `Cannot restore — Diagnosis ${linkedDiagnosis?.diagnosisCode || ""} is already linked to Medication/Vaccination record ${existingTreatment.medicationCode || ""}.`.replace(/\s+/g, " "),
+        });
+      }
+    }
+
     healthRecord.archived = false;
     healthRecord.archivedAt = null;
 
@@ -668,6 +754,13 @@ const restoreHealthRecord = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (isDuplicateKeyError(error) && error.keyPattern?.diagnosisId) {
+      return res.status(409).json({
+        success: false,
+        message: "Cannot restore — this Diagnosis ID is already linked to another Medication/Vaccination record.",
+      });
+    }
 
     return res.status(500).json({
       success: false,

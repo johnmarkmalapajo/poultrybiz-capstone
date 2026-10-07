@@ -233,18 +233,25 @@ export default function FlockProfile() {
     return "All Records";
   })();
 
+  // Total Current Birds is a live headcount: the stored current quantity of
+  // every non-Culled flock (archived flocks are already excluded by the API).
+  // It deliberately ignores the date/search/batch filters and never falls
+  // back to the purchased quantity.
+  const totalCurrentBirds = flocks
+    .filter((f) => f.status !== "Culled")
+    .reduce((sum, f) => sum + (Number(f.currentQuantity) || 0), 0);
+
   const stats = (() => {
     const n = filtered.length;
-    let birds = 0, mrSum = 0, ageDaysSum = 0;
+    let mrSum = 0, ageDaysSum = 0;
     filtered.forEach((f) => {
-      const { cb, mr, ageW } = computeFlock(f);
-      birds += cb;
+      const { mr, ageW } = computeFlock(f);
       mrSum += mr;
       ageDaysSum += (ageW || 0) * 7;
     });
     return {
       total: n,
-      birds,
+      birds: totalCurrentBirds,
       avgMortality: n ? mrSum / n : 0,
       avgAge: n ? Math.round(ageDaysSum / n) : 0,
     };
@@ -547,7 +554,7 @@ export default function FlockProfile() {
             <div>
               <h3>{stats.birds.toLocaleString()}</h3>
               <p>Total Current Birds</p>
-              <span>{statCardSpanLabel}</span>
+              <span>CURRENT</span>
             </div>
           </div>
           <div className="fp-stat-card">

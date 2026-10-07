@@ -1,5 +1,5 @@
 const MODULE_REGISTRY = [
-  { name: "Flock Profile", group: "records" },
+  { name: "Flock Profile", group: "ownerOnly" },
   { name: "Egg Record", group: "records" },
   { name: "Health Record", group: "records" },
   { name: "Mortality Record", group: "records" },

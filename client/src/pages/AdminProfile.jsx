@@ -39,11 +39,15 @@ export default function AdminProfile({ embedded = false, onBack }) {
   const [error, setError] = useState("");
   const [pendingLogoFile, setPendingLogoFile] = useState(null);
   const [pendingLogoPreview, setPendingLogoPreview] = useState("");
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState("");
+  const avatarPreviewRef = useRef("");
   const [showPass, setShowPass] = useState(false);
   const fileRef = useRef(null);
   const logoFileRef = useRef(null);
   const toastRef = useRef(null);
   useEffect(() => () => clearTimeout(toastRef.current), []);
+  useEffect(() => () => { if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current); }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -57,41 +61,31 @@ export default function AdminProfile({ embedded = false, onBack }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved) || !!pendingAvatarFile || !!pendingLogoFile;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-const onPickPhoto = async (e) => {
-  const file = e.target.files?.[0];
+  const clearPendingAvatar = () => {
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    avatarPreviewRef.current = "";
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview("");
+  };
 
-  if (!file) return;
+  // Selecting a photo only previews it locally — it is uploaded and
+  // persisted when Save Changes is clicked.
+  const onPickPhoto = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
 
-  try {
-    setSaving(true);
+    if (!file) return;
 
-    const result = await uploadAvatar(file);
-
-    const avatar = result.avatar;
-
-    setSaved((prev) => ({
-      ...prev,
-      avatar,
-    }));
-
-    setForm((prev) => ({
-      ...prev,
-      avatar,
-    }));
-
-    updateStoredUser({ avatar });
-
-    flash("Profile picture updated successfully.");
-
-  } catch (err) {
-    setError(err.message || "Unable to upload profile picture.");
-  } finally {
-    setSaving(false);
-  }
-};
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    const preview = URL.createObjectURL(file);
+    avatarPreviewRef.current = preview;
+    setPendingAvatarFile(file);
+    setPendingAvatarPreview(preview);
+    setError("");
+  };
 
   const flash = (m) => { setToast(m); clearTimeout(toastRef.current); toastRef.current = setTimeout(() => setToast(""), 3000); };
 
@@ -112,6 +106,11 @@ const onPickLogo = (e) => {
     }
     setSaving(true); setError("");
     try {
+      let avatar = form.avatar;
+      if (pendingAvatarFile) {
+        const result = await uploadAvatar(pendingAvatarFile);
+        avatar = result.avatar;
+      }
       let farmLogo = form.farmLogo;
       if (pendingLogoFile) {
         const result = await uploadFarmLogo(pendingLogoFile);
@@ -119,16 +118,17 @@ const onPickLogo = (e) => {
       }
       const payload = {
         fullName: form.fullName, email: form.email, phone: form.phone, address: form.address,
-        avatar: form.avatar, language: form.language, timezone: form.timezone,
+        avatar, language: form.language, timezone: form.timezone,
         emailNotif: form.emailNotif, loginAlerts: form.loginAlerts,
         farmName: form.farmName, farmLocation: form.farmLocation,
         farmContact: form.farmContact, farmEmail: form.farmEmail,
       };
       const updated = await updateMyProfile(payload);
-      const p = { ...form, ...(updated?.record || updated?.data || updated || {}), farmLogo };
+      const p = { ...form, avatar, ...(updated?.record || updated?.data || updated || {}), farmLogo };
       if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
       setPendingLogoFile(null);
       setPendingLogoPreview("");
+      clearPendingAvatar();
       setSaved(p);
       setForm(p);
       updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
@@ -143,6 +143,7 @@ const onPickLogo = (e) => {
     if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
     setPendingLogoFile(null);
     setPendingLogoPreview("");
+    clearPendingAvatar();
     setForm(saved);
   };
 
@@ -163,9 +164,11 @@ const onPickLogo = (e) => {
           {}
           <div className="pf-card pf-side">
             <div className="pf-avatar-wrap">
-              <div className="pf-avatar">{form.avatar ? 
+              <div className="pf-avatar">{pendingAvatarPreview || form.avatar ? 
                 <img src={
-                  form.avatar?.startsWith("http")
+                  pendingAvatarPreview
+                  ? pendingAvatarPreview
+                  : form.avatar?.startsWith("http")
                   ? form.avatar
                   : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.avatar}`
                 }
@@ -174,7 +177,7 @@ const onPickLogo = (e) => {
               : <FiUser />
               }
               </div>
-              <button className="pf-cam" onClick={() => fileRef.current?.click()} aria-label="Change photo"><FiCamera /></button>
+              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label="Change photo"><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
             </div>
             <h3 className="pf-name">{form.fullName || "—"}</h3>

@@ -7,7 +7,6 @@ export const getExpenseRecord    = (id)      => apiGet(`${PATH}/${id}`);
 export const createExpenseRecord = (payload) => apiPost(PATH, payload);
 export const updateExpenseRecord = (id, payload) => apiPut(`${PATH}/${id}`, payload);
 export const deleteExpenseRecord = (id)      => apiDelete(`${PATH}/${id}`);
-export const archiveExpenseRecord = (id) => apiPut(`${PATH}/${id}/archive`, {});
 export const restoreExpenseRecord = (id) => apiPut(`${PATH}/${id}/restore`, {});
 
 export const uploadReceipt = async (file) => {

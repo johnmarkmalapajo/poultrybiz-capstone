@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle, FiPlus, FiUserPlus } from "react-icons/fi";
+import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle, FiUserPlus, FiCalendar } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
+import SchedulePanel from "../components/SchedulePanel";
 import "./EditHealthRecord.css";
 import { getHealthRecord, updateHealthRecord } from "../api/healthRecord";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
@@ -45,7 +46,10 @@ export default function EditHealthRecord() {
   const [treatmentApplied, setTreatmentApplied] = useState("");
   const [treatments, setTreatments] = useState([]);
   const [date, setDate] = useState("");
-  const [nextSchedule, setNextSchedule] = useState("");
+  // Diagnosis Schedule — belongs only to this Diagnosis record.
+  const [diagnosisSchedules, setDiagnosisSchedules] = useState([]);
+  const [addingDiagnosisSchedule, setAddingDiagnosisSchedule] = useState(false);
+  const [diagnosisScheduleDraft, setDiagnosisScheduleDraft] = useState("");
   const [remarks, setRemarks] = useState("");
 
   const [symptomsObserved, setSymptomsObserved] = useState("");
@@ -111,7 +115,6 @@ export default function EditHealthRecord() {
         setRecordType(rec.recordType || "Diagnosis");
         setBatchId(rec.batchId || "");
         setDate(d(rec.date));
-        setNextSchedule(d(rec.nextSchedule));
         setRemarks(rec.remarks || "");
 
         if (rec.recordType === "Diagnosis") {
@@ -126,6 +129,7 @@ export default function EditHealthRecord() {
           setTreatmentApplied(rec.treatmentApplied || "");
           setTreatments(rec.treatments || []);
           setTargetAge(rec.targetAge || "");
+          setDiagnosisSchedules(rec.schedules || []);
         } else {
           setDiagnosisId(rec.diagnosisId || "");
           setDiagnosisCode(rec.diagnosisCode || "");
@@ -169,10 +173,28 @@ export default function EditHealthRecord() {
   const unitChoices = [...new Set([...UNITS, ...unitOptions])];
   const frequencyChoices = [...new Set([...FREQUENCIES, ...frequencyOptions])];
 
+  // Medication/Vaccination Schedule draft (this treatment record only).
   const scheduleInvalid = scheduleDraft && date && scheduleDraft < date;
+  // Diagnosis Schedule draft (this Diagnosis record only).
+  const diagnosisScheduleInvalid = diagnosisScheduleDraft && date && diagnosisScheduleDraft < date;
+
+  const handleAddDiagnosisSchedule = () => {
+    setAddingDiagnosisSchedule(true);
+    setDiagnosisScheduleDraft("");
+  };
+
+  const handleCancelDiagnosisSchedule = () => {
+    setAddingDiagnosisSchedule(false);
+    setDiagnosisScheduleDraft("");
+  };
 
   const handleAddSchedule = () => {
     setAddingSchedule(true);
+    setScheduleDraft("");
+  };
+
+  const handleCancelSchedule = () => {
+    setAddingSchedule(false);
     setScheduleDraft("");
   };
 
@@ -194,12 +216,16 @@ export default function EditHealthRecord() {
         setError("Please enter the new Vet Diagnosis.");
         return;
       }
+      if (diagnosisScheduleDraft && diagnosisScheduleInvalid) {
+        setError("The new schedule cannot be earlier than the record date.");
+        return;
+      }
       payload = {
         ...(symptomsObserved === NEW_VALUE
           ? { newSymptomsObserved: newSymptomsObserved.trim() }
           : { symptomsObserved }),
         remarks,
-        nextSchedule: nextSchedule || undefined,
+        addSchedule: addingDiagnosisSchedule && diagnosisScheduleDraft ? diagnosisScheduleDraft : undefined,
         ...(presumptiveDiagnosis === NEW_VALUE
           ? { newPresumptiveDiagnosis: newPresumptiveDiagnosis.trim() }
           : { presumptiveDiagnosis }),
@@ -309,16 +335,36 @@ export default function EditHealthRecord() {
                 <input type="text" value={numberMortality} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Schedule</label>
-                <input type="date" min={date || undefined} value={nextSchedule} onChange={(e) => setNextSchedule(e.target.value)} />
-                <small>Synced from linked Medication/Vaccination records.</small>
-              </div>
-              <div className="ehr-form-group">
                 <label>Treatment Applied</label>
                 <input type="text" value={treatmentApplied || "—"} disabled />
                 <small>Aggregated from linked Medication/Vaccination records.</small>
               </div>
             </div>
+
+            <div className="ehr-section-header">
+              <FiCalendar />
+              <h3>Schedule</h3>
+              <div className="ehr-line" />
+            </div>
+
+            <SchedulePanel
+              schedules={diagnosisSchedules.map(d)}
+              action="Diagnosis follow-up"
+              emptyText="No schedules yet."
+              addable
+              adding={addingDiagnosisSchedule}
+              onStartAdd={handleAddDiagnosisSchedule}
+              onCancelAdd={handleCancelDiagnosisSchedule}
+              input={{
+                id: "ehr-diagnosis-schedule",
+                label: "New Schedule Date",
+                value: diagnosisScheduleDraft,
+                min: date || undefined,
+                onChange: setDiagnosisScheduleDraft,
+                error: diagnosisScheduleInvalid ? "Cannot be earlier than the record date." : "",
+                hint: "Existing schedules are kept. The new date is saved when you click Update Record.",
+              }}
+            />
 
             <div className="ehr-section-header">
               <FiActivity />
@@ -576,29 +622,29 @@ export default function EditHealthRecord() {
             </div>
 
             <div className="ehr-section-header">
-              <FiActivity />
-              <h3>Schedules</h3>
+              <FiCalendar />
+              <h3>Schedule</h3>
               <div className="ehr-line" />
             </div>
 
-            <div className="ehr-form-group ehr-full-width">
-              {schedules.length > 0 ? (
-                schedules.map((s, i) => <div key={i} className="ehr-char-count">{d(s)}</div>)
-              ) : (
-                <small>No schedules yet.</small>
-              )}
-              {!addingSchedule ? (
-                <button type="button" className="ehr-cancel-btn" style={{ marginTop: 8 }} onClick={handleAddSchedule}>
-                  <FiPlus /> Add Schedule
-                </button>
-              ) : (
-                <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "center" }}>
-                  <input type="date" min={date || undefined} value={scheduleDraft} onChange={(e) => setScheduleDraft(e.target.value)} />
-                  {scheduleInvalid && <small style={{ color: "#c0392b" }}>Cannot be earlier than the record date.</small>}
-                </div>
-              )}
-              <small>Existing schedules are preserved — this adds a new follow-up date without removing old ones.</small>
-            </div>
+            <SchedulePanel
+              schedules={schedules.map(d)}
+              action={vaccineOrDrug || "Medication/Vaccination"}
+              emptyText="No schedules yet."
+              addable
+              adding={addingSchedule}
+              onStartAdd={handleAddSchedule}
+              onCancelAdd={handleCancelSchedule}
+              input={{
+                id: "ehr-new-schedule",
+                label: "New Schedule Date",
+                value: scheduleDraft,
+                min: date || undefined,
+                onChange: setScheduleDraft,
+                error: scheduleInvalid ? "Cannot be earlier than the record date." : "",
+                hint: "Existing schedules are kept. The new date is saved when you click Update Record.",
+              }}
+            />
 
             <div className="ehr-section-header">
               <FiFileText />

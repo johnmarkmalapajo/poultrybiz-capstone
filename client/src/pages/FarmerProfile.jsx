@@ -45,10 +45,14 @@ export default function FarmerProfile({ embedded = false, onBack }) {
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState("");
   const fileRef = useRef(null);
   const toastRef = useRef(null);
+  const avatarPreviewRef = useRef("");
 
   useEffect(() => () => clearTimeout(toastRef.current), []);
+  useEffect(() => () => { if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current); }, []);
 
   useEffect(() => {
   setLoading(true);
@@ -71,41 +75,33 @@ export default function FarmerProfile({ embedded = false, onBack }) {
     form.fullName !== saved.fullName ||
     form.email !== saved.email ||
     form.phone !== saved.phone ||
-    form.avatar !== saved.avatar;
+    form.avatar !== saved.avatar ||
+    !!pendingAvatarFile;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const onPickPhoto = async (e) => {
-  const file = e.target.files?.[0];
+  const clearPendingAvatar = () => {
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    avatarPreviewRef.current = "";
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview("");
+  };
 
-  if (!file) return;
+  // Selecting a photo only previews it locally — it is uploaded and
+  // persisted when Save Changes is clicked.
+  const onPickPhoto = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
 
-  try {
-    setSaving(true);
+    if (!file) return;
 
-    const result = await uploadAvatar(file);
-
-    const avatar = result.avatar;
-
-    setSaved((prev) => ({
-      ...prev,
-      avatar,
-    }));
-
-    setForm((prev) => ({
-      ...prev,
-      avatar,
-    }));
-
-    updateStoredUser({ avatar });
-
-    flash("Profile picture updated successfully.");
-  } catch (err) {
-    setError(err.message || "Unable to upload profile picture.");
-  } finally {
-    setSaving(false);
-  }
-};
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+    const preview = URL.createObjectURL(file);
+    avatarPreviewRef.current = preview;
+    setPendingAvatarFile(file);
+    setPendingAvatarPreview(preview);
+    setError("");
+  };
 
   const flash = (msg) => {
     setToast(msg);
@@ -120,8 +116,14 @@ export default function FarmerProfile({ embedded = false, onBack }) {
     }
     setSaving(true); setError("");
     try {
-      const updated = await updateMyProfile({ fullName: form.fullName, email: form.email, phone: form.phone, avatar: form.avatar });
-      const p = { ...form, ...(updated?.record || updated?.data || updated || {}) };
+      let avatar = form.avatar;
+      if (pendingAvatarFile) {
+        const result = await uploadAvatar(pendingAvatarFile);
+        avatar = result.avatar;
+      }
+      const updated = await updateMyProfile({ fullName: form.fullName, email: form.email, phone: form.phone, avatar });
+      const p = { ...form, avatar, ...(updated?.record || updated?.data || updated || {}) };
+      clearPendingAvatar();
       setSaved(p);
       setForm(p);
       updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
@@ -134,7 +136,10 @@ export default function FarmerProfile({ embedded = false, onBack }) {
     }
   };
 
-  const onCancel = () => setForm(saved);
+  const onCancel = () => {
+    clearPendingAvatar();
+    setForm(saved);
+  };
 
   const st = STATUS_STYLE[saved.employmentStatus] || STATUS_STYLE["Active"];
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
@@ -154,18 +159,20 @@ export default function FarmerProfile({ embedded = false, onBack }) {
           <div className="pf-card pf-side">
             <div className="pf-avatar-wrap">
               <div className="pf-avatar">
-                {form.avatar ? 
+                {pendingAvatarPreview || form.avatar ? 
                 <img
                   src={
-                    form.avatar
-                      ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.avatar}`
-                      : ""
+                    pendingAvatarPreview
+                      ? pendingAvatarPreview
+                      : form.avatar?.startsWith("http")
+                        ? form.avatar
+                        : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${form.avatar}`
                   }
                   alt="Profile"
               /> : 
               <FiUser />}
               </div>
-              <button className="pf-cam" onClick={() => fileRef.current?.click()} aria-label="Change photo"><FiCamera /></button>
+              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label="Change photo"><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
             </div>
             <h3 className="pf-name">{form.fullName || "—"}</h3>

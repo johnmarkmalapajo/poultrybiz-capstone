@@ -114,7 +114,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/records" element={<Records />} />
-        <Route path="/records/flock" element={<FlockProfile />} />
+        <Route path="/records/flock" element={<ProtectedRoute allow={["Owner"]}><FlockProfile /></ProtectedRoute>} />
         <Route path="/records/flock/add" element={<ProtectedRoute allow={["Owner"]}><AddFlock /></ProtectedRoute>} />
         <Route path="/records/flock/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditFlock /></ProtectedRoute>} />
         <Route path="/inventory" element={<Inventory />} />
@@ -164,7 +164,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/owner/todo" element={<ProtectedRoute allow={["Owner"]}><AdminTodo /></ProtectedRoute>} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/batch-summary/:batchId" element={<BatchSummary />} />
+        <Route path="/batch-summary/:batchId" element={<ProtectedRoute allow={["Owner"]}><BatchSummary /></ProtectedRoute>} />
         <Route path="/pending-approval" element={<PendingApproval />} />
 
 

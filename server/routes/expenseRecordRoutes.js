@@ -7,7 +7,6 @@ const {
   getArchivedExpenseRecords,
   getExpenseRecord,
   updateExpenseRecord,
-  archiveExpenseRecord,
   restoreExpenseRecord,
   deleteExpenseRecord,
   uploadReceipt,
@@ -29,7 +28,6 @@ router.post(
 );
 
 router.put("/:id", protect, updateExpenseRecord);
-router.put("/:id/archive", protect, archiveExpenseRecord);
 router.put("/:id/restore", protect, restoreExpenseRecord);
 
 router.delete("/:id", protect, deleteExpenseRecord);

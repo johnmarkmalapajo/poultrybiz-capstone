@@ -83,8 +83,9 @@
 
 .ahr-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px 28px;
+  min-width: 0;
 }
 
 /* ==========================
@@ -130,6 +131,8 @@
 .ahr-form-group select,
 .ahr-form-group textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
   border: 1.5px solid #e2e2e2;
   border-radius: var(--radius-sm);
@@ -165,6 +168,24 @@
   border-color: var(--color-accent);
   background: #fff;
   box-shadow: 0 0 0 4px var(--color-accent-glow);
+}
+
+/* Native date pickers (iOS Safari / Android Chrome) keep an intrinsic
+   minimum width and ignore width:100% unless their default appearance is
+   reset — that is what pushed date fields past the screen edge on mobile. */
+.ahr-form-group input[type="date"] {
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 46px;
+}
+
+.ahr-form-group input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.ahr-form-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 
 .ahr-form-group input::placeholder,
@@ -258,7 +279,7 @@
 @media (max-width: 1024px) {
 
   .ahr-form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ahr-full-width {
@@ -291,5 +312,31 @@
 
   .ahr-form-card {
     padding: 16px 12px;
+  }
+
+  .ahr-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ahr-action-btns {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .ahr-cancel-btn,
+  .ahr-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ahr-form-group > div[style*="flex"] {
+    flex-wrap: wrap;
+  }
+
+  .ahr-form-group > div[style*="flex"] > * {
+    flex: 1 1 100% !important;
   }
 }

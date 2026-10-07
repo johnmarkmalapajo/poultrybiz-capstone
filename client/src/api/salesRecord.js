@@ -8,5 +8,4 @@ export const getEggStockSummary = () => apiGet(`${PATH}/egg-stock`);
 export const createSalesRecord = (payload) => apiPost(PATH, payload);
 export const updateSalesRecord = (id, payload) => apiPut(`${PATH}/${id}`, payload);
 export const deleteSalesRecord = (id)      => apiDelete(`${PATH}/${id}`);
-export const archiveSalesRecord = (id) => apiPut(`${PATH}/${id}/archive`, {});
 export const restoreSalesRecord = (id) => apiPut(`${PATH}/${id}/restore`, {});

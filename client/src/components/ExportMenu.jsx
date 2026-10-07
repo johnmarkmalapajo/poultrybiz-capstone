@@ -14,7 +14,8 @@ export default function ExportMenu({ rows = [], name = "export", title = "Poultr
   const exportedBy = { name: user?.name || "Unknown", role: isOwner ? "Owner" : (user?.role || "") };
   const pdfExportedBy = isOwner ? exportedBy : null;
 
-  if (!canExportModule(role, moduleLabel || title)) return null;
+  // Export is Owner-only for every module — Farmers never see the button.
+  if (!canExportModule(role)) return null;
 
   const build = () => {
     if (!rows || !rows.length) return { headers: [], data: [] };

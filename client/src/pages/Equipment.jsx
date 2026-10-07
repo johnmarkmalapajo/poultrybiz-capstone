@@ -45,7 +45,10 @@ export default function Equipment() {
   }, []);
 
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ condition: "All", dateFrom: "", dateTo: "" });
+  const defaultFilters = { condition: "All", period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" };
+  const [filters, setFilters] = useState(defaultFilters);
+  const [draft, setDraft] = useState(defaultFilters);
+  const [filterApplied, setFilterApplied] = useState(false);
   const filterRef = useRef(null);
 
   useEffect(() => {
@@ -56,18 +59,87 @@ export default function Equipment() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ condition: "All", dateFrom: "", dateTo: "" });
-  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
+  const handleFilterChange = (key, value) => setDraft((f) => ({ ...f, [key]: value }));
+  const clearFilters = () => { setDraft(defaultFilters); setFilters(defaultFilters); setFilterApplied(false); };
+  const applyFilters = () => {
+    if (draft.period === "custom") {
+      const today = todayStr();
+      if (draft.dateFrom && draft.dateFrom > today) {
+        setError("Start date cannot be a future date.");
+        return;
+      }
+      if (draft.dateTo && draft.dateTo > today) {
+        setError("End date cannot be a future date.");
+        return;
+      }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
+        setError("Start date cannot be later than end date.");
+        return;
+      }
+    }
+    setError("");
+    setFilters(draft);
+    setFilterApplied(true);
+    setShowFilter(false);
+  };
+  const openFilterPanel = () => { setDraft(filters); setShowFilter((s) => !s); };
+  const activeFilterCount =
+    (filterApplied && filters.period !== "all" ? 1 : 0) +
+    (filterApplied && filters.condition !== "All" ? 1 : 0);
+
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const todayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  // Equipment dates arrive as full ISO timestamps; the Date Filter compares
+  // calendar dates ("YYYY-MM-DD"), same as Flock Profile.
+  const acquiredDate = (r) => (r.dateAcquired ? String(r.dateAcquired).slice(0, 10) : "");
+
+  const isoWeekOf = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return "";
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (target.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNum + 3);
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+    return `${target.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  };
+
+  const yearOptions = [...new Set(
+    records.map((r) => { const d = new Date(acquiredDate(r)); return isNaN(d) ? null : String(d.getFullYear()); }).filter(Boolean)
+  )].sort((a, b) => b - a);
+
+  const monthOptions = [...new Set(
+    records
+      .filter((r) => draft.year === "All" || String(new Date(acquiredDate(r)).getFullYear()) === draft.year)
+      .map((r) => { const d = new Date(acquiredDate(r)); return isNaN(d) ? null : MONTH_NAMES[d.getMonth()]; })
+      .filter(Boolean)
+  )].sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+
+  const matchesDatePeriod = (r, f) => {
+    if (f.period === "all") return true;
+    const date = acquiredDate(r);
+    const d = new Date(date);
+    const recYear = isNaN(d) ? null : String(d.getFullYear());
+    const recMonth = isNaN(d) ? null : MONTH_NAMES[d.getMonth()];
+    if (f.period === "today") return date === todayStr();
+    if (f.period === "week") return !!f.week && isoWeekOf(date) === f.week;
+    if (f.period === "month") return f.year !== "All" && f.month !== "All" && recYear === f.year && recMonth === f.month;
+    if (f.period === "year") return f.year !== "All" && recYear === f.year;
+    if (f.period === "custom") return (!f.dateFrom || date >= f.dateFrom) && (!f.dateTo || date <= f.dateTo);
+    return true;
+  };
 
   const filtered = records.filter((r) => {
     const matchSearch =
       r.name?.toLowerCase().includes(search.toLowerCase()) ||
       r.itemNo?.toLowerCase().includes(search.toLowerCase());
-    const matchCondition = filters.condition === "All" || r.condition === filters.condition;
-    const matchDate =
-      (!filters.dateFrom || (r.dateAcquired || "") >= filters.dateFrom) &&
-      (!filters.dateTo || (r.dateAcquired || "") <= filters.dateTo);
+    const matchCondition = !filterApplied || filters.condition === "All" || r.condition === filters.condition;
+    const matchDate = !filterApplied || matchesDatePeriod(r, filters);
     return matchSearch && matchCondition && matchDate;
   });
 
@@ -87,7 +159,7 @@ export default function Equipment() {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [search, filters]);
+  useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
   const totalItems = filtered.length;
@@ -97,13 +169,19 @@ export default function Equipment() {
 
   const peso = (n) => `₱${Number(n || 0).toLocaleString()}`;
 
-  const periodLabel = filters.dateFrom && filters.dateTo
-    ? `${filters.dateFrom} – ${filters.dateTo}`
-    : filters.dateFrom
-      ? `From ${filters.dateFrom}`
-      : filters.dateTo
-        ? `Until ${filters.dateTo}`
-        : "All Time";
+  const periodLabel = (() => {
+    if (!filterApplied || filters.period === "all") return "All Records";
+    if (filters.period === "today") return "Today";
+    if (filters.period === "week" && filters.week) return filters.week;
+    if (filters.period === "month" && filters.month !== "All" && filters.year !== "All") return `${filters.month} ${filters.year}`;
+    if (filters.period === "year" && filters.year !== "All") {
+      return filters.year === String(new Date().getFullYear()) ? "This Year" : `Year ${filters.year}`;
+    }
+    if (filters.period === "custom" && (filters.dateFrom || filters.dateTo)) {
+      return `${filters.dateFrom || "—"} – ${filters.dateTo || "—"}`;
+    }
+    return "All Records";
+  })();
 
   const exportMeta = {
     farmName: farmInfo.farmName,
@@ -114,7 +192,7 @@ export default function Equipment() {
       ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`)
       : "",
     period: periodLabel,
-    fields: filters.condition !== "All" ? [{ label: "Condition", value: filters.condition }] : [],
+    fields: filterApplied && filters.condition !== "All" ? [{ label: "Condition", value: filters.condition }] : [],
   };
 
   const exportSummary = filtered.length
@@ -173,7 +251,7 @@ export default function Equipment() {
             <div className="eq-btn-group">
               {}
               <div className="eq-filter-wrap" ref={filterRef}>
-                <button className="eq-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="eq-toolbar-btn" onClick={openFilterPanel}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="eq-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -182,32 +260,106 @@ export default function Equipment() {
                   <div className="eq-filter-dropdown">
                     <div className="eq-filter-dropdown-header">
                       <span>Filter Records</span>
-                      <button className="eq-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    <div className="eq-filter-group">
-                      <label className="eq-filter-label">Condition</label>
-                      <select
-                        className="eq-filter-select"
-                        value={filters.condition}
-                        onChange={(e) => handleFilterChange("condition", e.target.value)}
-                      >
-                        <option value="All">All Conditions</option>
-                        {CONDITION_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="eq-filter-group">
-                      <label className="eq-filter-label">Report Period</label>
-                      <div className="eq-filter-date-range">
-                        <input type="date" className="eq-filter-select" value={filters.dateFrom}
-                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                        <span>to</span>
-                        <input type="date" className="eq-filter-select" value={filters.dateTo}
-                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                    <div className="eq-filter-section-label">Date Filter</div>
+                    <div className="eq-filter-row">
+                      <div className="eq-filter-group">
+                        <label className="eq-filter-label">Date Period</label>
+                        <select
+                          className="eq-filter-select"
+                          value={draft.period}
+                          onChange={(e) => handleFilterChange("period", e.target.value)}
+                        >
+                          <option value="all">All Records</option>
+                          <option value="today">Today</option>
+                          <option value="week">Week</option>
+                          <option value="month">Month</option>
+                          <option value="year">Year</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
                       </div>
+
+                      {draft.period === "week" && (
+                        <div className="eq-filter-group">
+                          <label className="eq-filter-label">Week</label>
+                          <input
+                            type="week"
+                            className="eq-filter-select"
+                            value={draft.week}
+                            onChange={(e) => handleFilterChange("week", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      {draft.period === "month" && (
+                        <div className="eq-filter-group">
+                          <label className="eq-filter-label">Month</label>
+                          <select
+                            className="eq-filter-select"
+                            value={draft.month}
+                            onChange={(e) => handleFilterChange("month", e.target.value)}
+                          >
+                            <option value="All">Select Month</option>
+                            {monthOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {(draft.period === "month" || draft.period === "year") && (
+                        <div className="eq-filter-group">
+                          <label className="eq-filter-label">Year</label>
+                          <select
+                            className="eq-filter-select"
+                            value={draft.year}
+                            onChange={(e) => handleFilterChange("year", e.target.value)}
+                          >
+                            <option value="All">Select Year</option>
+                            {yearOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {draft.period === "custom" && (
+                      <div className="eq-filter-group">
+                        <label className="eq-filter-label">Start Date / End Date</label>
+                        <div className="eq-filter-date-range">
+                          <input type="date" className="eq-filter-select" value={draft.dateFrom}
+                            max={draft.dateTo || todayStr()}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                          <span>to</span>
+                          <input type="date" className="eq-filter-select" value={draft.dateTo}
+                            min={draft.dateFrom || undefined} max={todayStr()}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="eq-filter-section-label">Filters</div>
+                    <div className="eq-filter-row">
+                      <div className="eq-filter-group">
+                        <label className="eq-filter-label">Condition</label>
+                        <select
+                          className="eq-filter-select"
+                          value={draft.condition}
+                          onChange={(e) => handleFilterChange("condition", e.target.value)}
+                        >
+                          <option value="All">All Conditions</option>
+                          {CONDITION_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="eq-filter-actions">
+                      <button className="eq-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="eq-filter-apply" onClick={applyFilters}>Apply</button>
                     </div>
                   </div>
                 )}
@@ -223,8 +375,8 @@ export default function Equipment() {
                 moduleLabel="Equipment & Tools"
                 enablePreview
                 filters={{
-                  ...(filters.condition !== "All" ? { "Condition": filters.condition } : {}),
-                  ...(periodLabel !== "All Time" ? { "Report Period": periodLabel } : {}),
+                  ...(filterApplied && filters.condition !== "All" ? { "Condition": filters.condition } : {}),
+                  ...(filterApplied && filters.period !== "all" ? { "Report Period": periodLabel } : {}),
                 }}
                 className="eq-toolbar-btn"
               />
@@ -237,13 +389,17 @@ export default function Equipment() {
         {}
         {activeFilterCount > 0 && (
           <div className="eq-active-filters">
-            {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
-                <span key={key} className="eq-active-filter-tag">
-                  {key === "condition" ? "Condition" : key === "dateFrom" ? "From" : key === "dateTo" ? "To" : key}: {value}
-                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
-                </span>
-              ) : null
+            {filters.condition !== "All" && (
+              <span className="eq-active-filter-tag">
+                Condition: {filters.condition}
+                <button onClick={() => { const next = { ...filters, condition: "All" }; setFilters(next); setDraft(next); }}>✕</button>
+              </span>
+            )}
+            {filters.period !== "all" && (
+              <span className="eq-active-filter-tag">
+                Date: {periodLabel}
+                <button onClick={() => { const next = { ...filters, period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" }; setFilters(next); setDraft(next); }}>✕</button>
+              </span>
             )}
           </div>
         )}

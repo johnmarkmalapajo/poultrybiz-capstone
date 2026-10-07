@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle, FiUserPlus } from "react-icons/fi";
+import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle, FiUserPlus, FiCalendar } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
+import SchedulePanel from "../components/SchedulePanel";
 import "./AddHealthRecord.css";
 import { createHealthRecord, listHealthRecords } from "../api/healthRecord";
 import { listFlocks } from "../api/flockProfile";
@@ -55,6 +56,9 @@ export default function AddHealthRecord() {
   const [diagnoses, setDiagnoses] = useState([]);
   const [nextMedicationId, setNextMedicationId] = useState("MED-001");
   const [quarantineMedicationByBatch, setQuarantineMedicationByBatch] = useState({});
+  // Diagnosis _id -> Medication ID of the record already linked to it. A
+  // Diagnosis can be linked to only one Medication/Vaccination record.
+  const [medicationByDiagnosis, setMedicationByDiagnosis] = useState({});
   const [quarantineRecords, setQuarantineRecords] = useState([]);
   const [routeOptions, setRouteOptions] = useState([]);
   const [unitOptions, setUnitOptions] = useState([]);
@@ -63,6 +67,7 @@ export default function AddHealthRecord() {
   const [vets, setVets] = useState([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addingSchedule, setAddingSchedule] = useState(false);
 
   useEffect(() => {
     listFlocks()
@@ -75,6 +80,13 @@ export default function AddHealthRecord() {
         // Existing quarantine-only Medication/Vaccination records (no
         // Diagnosis link) -- while a batch is still Ongoing Quarantine,
         // only one of these may exist for it.
+        setMedicationByDiagnosis(
+          Object.fromEntries(
+            all
+              .filter((r) => r.recordType !== "Diagnosis" && r.diagnosisId)
+              .map((r) => [String(r.diagnosisId?._id || r.diagnosisId), r.medicationCode || "an existing record"])
+          )
+        );
         setQuarantineMedicationByBatch(
           Object.fromEntries(
             all
@@ -117,6 +129,11 @@ export default function AddHealthRecord() {
   const isBatchInQuarantine = !!formData.batchId && !!ongoingQuarantineRecord;
   const existingQuarantineMedication = isBatchInQuarantine ? quarantineMedicationByBatch[formData.batchId] : null;
   const batchDiagnoses = diagnoses.filter((d) => d.batchId === formData.batchId);
+  const selectedDiagnosis = batchDiagnoses.find((d) => d._id === formData.diagnosisId);
+  const linkedMedicationCode = !isBatchInQuarantine && formData.diagnosisId ? medicationByDiagnosis[formData.diagnosisId] : null;
+  const duplicateDiagnosisMessage = linkedMedicationCode
+    ? `Diagnosis ${selectedDiagnosis?.diagnosisCode || ""} is already linked to Medication/Vaccination record ${linkedMedicationCode}. Edit that record instead of creating a new one.`.replace(/\s+/g, " ")
+    : "";
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
   const targetAgePreview = selectedFlock ? computeAgeWeeks(selectedFlock.dateAcquired) : "";
   // While a batch is still under Ongoing Quarantine, birds administered
@@ -161,6 +178,7 @@ export default function AddHealthRecord() {
     if (!formData.batchId) return setError("Please select a Batch ID.");
     if (existingQuarantineMedication) return setError(`A Medication/Vaccination record already exists for this batch while it's in Quarantine (${existingQuarantineMedication.medicationCode}). Edit that record instead.`);
     if (!isBatchInQuarantine && !formData.diagnosisId) return setError("This batch is not in Quarantine, so please select the Diagnosis this record belongs to.");
+    if (duplicateDiagnosisMessage) return setError(duplicateDiagnosisMessage);
     if (dateInvalid) return setError("Date cannot be in the future.");
     if (scheduleInvalid) return setError("Schedule cannot be earlier than the record Date.");
     const effectiveBirdsAdministered = isBatchInQuarantine ? maxBirdsAllowed : formData.numberOfBirdsAdministered;
@@ -262,12 +280,15 @@ export default function AddHealthRecord() {
                   <select name="diagnosisId" value={formData.diagnosisId} onChange={handleChange} required>
                     <option value="">Select Diagnosis ID</option>
                     {batchDiagnoses.map((d) => (
-                      <option key={d._id} value={d._id}>
+                      <option key={d._id} value={d._id} disabled={!!medicationByDiagnosis[d._id]}>
                         {d.diagnosisCode || "—"}
+                        {medicationByDiagnosis[d._id] ? ` — already linked (${medicationByDiagnosis[d._id]})` : ""}
                       </option>
                     ))}
                   </select>
-                  <small>A treatment/vaccination is always linked to a specific Diagnosis, never Batch ID alone.</small>
+                  {duplicateDiagnosisMessage
+                    ? <small style={{ color: "#c0392b" }}>{duplicateDiagnosisMessage}</small>
+                    : <small>A treatment/vaccination is always linked to a specific Diagnosis, never Batch ID alone. Each Diagnosis ID can be linked to only one record.</small>}
                 </div>
               )
             )}
@@ -418,18 +439,29 @@ export default function AddHealthRecord() {
           </div>
 
           <div className="ahr-section-header">
-            <FiActivity />
-            <h3>Scheduling</h3>
+            <FiCalendar />
+            <h3>Schedule</h3>
             <div className="ahr-line" />
           </div>
 
-          <div className="ahr-form-grid">
-            <div className="ahr-form-group">
-              <label>Schedule</label>
-              <input type="date" name="nextSchedule" value={formData.nextSchedule} min={formData.date || undefined} onChange={handleChange} />
-              {scheduleInvalid && <small style={{ color: "#c0392b" }}>Cannot be earlier than the record date.</small>}
-            </div>
-          </div>
+          <SchedulePanel
+            schedules={formData.nextSchedule ? [formData.nextSchedule] : []}
+            action={formData.vaccineOrDrug || "Medication/Vaccination"}
+            emptyText="No schedules yet."
+            addable
+            adding={addingSchedule}
+            onStartAdd={() => setAddingSchedule(true)}
+            onCancelAdd={() => { setAddingSchedule(false); setFormData((prev) => ({ ...prev, nextSchedule: "" })); }}
+            input={{
+              id: "ahr-next-schedule",
+              label: "New Schedule Date",
+              value: formData.nextSchedule,
+              min: formData.date || undefined,
+              onChange: (value) => setFormData((prev) => ({ ...prev, nextSchedule: value })),
+              error: scheduleInvalid ? "Cannot be earlier than the record date." : "",
+              hint: "Optional. The new date is saved when you click Save Record.",
+            }}
+          />
 
           <div className="ahr-section-header">
             <FiFileText />
@@ -450,7 +482,7 @@ export default function AddHealthRecord() {
               <button type="button" className="ahr-cancel-btn" onClick={() => navigate(`/records/health?tab=vaccination`)}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="ahr-save-btn" disabled={saving || scheduleInvalid || dateInvalid || !!existingQuarantineMedication}>
+              <button type="submit" className="ahr-save-btn" disabled={saving || scheduleInvalid || dateInvalid || !!existingQuarantineMedication || !!duplicateDiagnosisMessage}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>

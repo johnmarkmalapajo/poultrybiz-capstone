@@ -575,16 +575,21 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: var(--surface, #fff);
-  border: 1.5px solid var(--border, #e4e0d8);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 100;
-  min-width: 300px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 380px;
+  min-width: 340px;
+  max-width: 380px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #e4e0d8);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-sizing: border-box;
 }
 
 .sr-filter-dropdown-header {
@@ -597,14 +602,59 @@
   color: var(--text-primary, #1e1c18);
 }
 
+.sr-filter-section-label {
+  font-family: var(--font-display, "Poppins", sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold-dark, #c8930c);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border, #e4e0d8);
+}
+
+.sr-filter-dropdown-header + .sr-filter-section-label {
+  border-top: none;
+  padding-top: 0;
+}
+
+.sr-filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sr-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e4e0d8);
+}
+
 .sr-filter-clear {
   background: none;
-  border: none;
-  color: var(--gold);
+  border: 1.5px solid var(--border, #e4e0d8);
+  color: var(--text-second, #6b6457);
+  font-family: var(--font-display, "Poppins", sans-serif);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 9px 16px;
   cursor: pointer;
-  padding: 0;
+}
+
+.sr-filter-apply {
+  background: var(--gold, #E4AF1F);
+  border: 1.5px solid var(--gold, #E4AF1F);
+  color: #fff;
+  font-family: var(--font-display, "Poppins", sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 9px 20px;
+  cursor: pointer;
 }
 
 .sr-filter-group {
@@ -817,4 +867,27 @@
 
 .sr-sortable-th:hover {
   color: var(--gold, #e4af1f);
+}
+
+
+@media (max-width: 480px) {
+  .sr-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sr-filter-date-range {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .sr-filter-date-range span {
+    text-align: center;
+  }
+
+  .sr-filter-date-range input[type="date"] {
+    flex: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
