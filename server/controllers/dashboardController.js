@@ -132,6 +132,13 @@ exports.getDashboardSummary = async (req, res) => {
         HealthRecord.countDocuments({
           archived: false,
           nextSchedule: { $gte: todayStart, $lte: sevenDaysOut },
+          // Each record type counts only its OWN schedules: Diagnosis records
+          // without Diagnosis schedules (old values copied from
+          // Medication/Vaccination) are excluded.
+          $or: [
+            { recordType: { $ne: "Diagnosis" } },
+            { "schedules.0": { $exists: true } },
+          ],
         }),
       ]),
 

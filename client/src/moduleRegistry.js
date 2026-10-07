@@ -1,5 +1,5 @@
 export const MODULE_REGISTRY = [
-  { name: "Flock Profile", group: "records", route: "/records/flock" },
+  { name: "Flock Profile", group: "ownerOnly", route: "/records/flock" },
   { name: "Egg Record", group: "records", route: "/records/egg" },
   { name: "Health Record", group: "records", route: "/records/health" },
   { name: "Mortality Record", group: "records", route: "/records/mortality" },

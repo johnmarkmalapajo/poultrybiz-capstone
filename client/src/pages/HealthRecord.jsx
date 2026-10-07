@@ -6,6 +6,7 @@ import {
   FiActivity, FiClipboard, FiDroplet,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
+import { ScheduleList } from "../components/SchedulePanel";
 import { useUser } from "../hooks/useUser";
 import ExportMenu from "../components/ExportMenu";
 import { getFarmInfo } from "../api/profile";
@@ -680,8 +681,12 @@ export default function HealthRecord() {
                     <div className="hr-view-kv"><small>Age</small><p>{viewRecord.targetAge || "—"}</p></div>
                     <div className="hr-view-kv"><small>Number of Birds Affected</small><p>{viewRecord.numberOfBirdsAffected ?? "—"}</p></div>
                     <div className="hr-view-kv"><small>Number Mortality</small><p>{viewRecord.numberMortality ?? "—"}</p></div>
-                    <div className="hr-view-kv"><small>Schedule</small><p>{fmtDate(viewRecord.nextSchedule)}</p></div>
                     <div className="hr-view-kv"><small>Treatment Applied</small><p>{viewRecord.treatmentApplied || "—"}</p></div>
+                  </div>
+
+                  <div className="hr-view-col">
+                    <h4 className="hr-view-col-title">Schedule</h4>
+                    <ScheduleList compact schedules={viewRecord.schedules || []} emptyText="No schedules yet." />
                   </div>
 
                   <div className="hr-view-col">
@@ -726,10 +731,8 @@ export default function HealthRecord() {
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Schedules</h4>
-                    {viewRecord.schedules?.length
-                      ? viewRecord.schedules.map((s, i) => <div className="hr-view-kv" key={i}><p>{fmtDate(s)}</p></div>)
-                      : <div className="hr-view-kv"><p>—</p></div>}
+                    <h4 className="hr-view-col-title">Schedule</h4>
+                    <ScheduleList compact schedules={viewRecord.schedules || []} emptyText="No schedules yet." />
                   </div>
 
                   <div className="hr-view-col">

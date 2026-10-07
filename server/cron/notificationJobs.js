@@ -48,46 +48,73 @@ async function eggProductionCheck({ stage, title, message, priority, isFinalAler
   }
 }
 
-async function vaccinationCheck() {
-  const due = await HealthRecord.find({
-    recordType: "Vaccination",
-    archived: false,
-    nextSchedule: { $lte: endOfToday() },
-  });
+const SCHEDULE_OVERDUE_DAYS = 7;
 
-  for (const rec of due) {
-    if (!rec.nextSchedule) continue;
-    const overdue = new Date(rec.nextSchedule) < startOfToday();
+const shiftDay = (day, offset) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+
+const formatDay = (day) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+const dueScheduleWindow = () => {
+  const today = todayStr();
+  return { today, earliest: shiftDay(today, -SCHEDULE_OVERDUE_DAYS) };
+};
+
+async function notifyDueHealthSchedules(record) {
+  if (!record || record.archived) return;
+
+  const isDiagnosis = record.recordType === "Diagnosis";
+  const { today, earliest } = dueScheduleWindow();
+  const dueDays = [...new Set((record.schedules || []).map((s) => String(s).slice(0, 10)))]
+    .filter((day) => day >= earliest && day <= today);
+
+  const label = isDiagnosis ? "Diagnosis Follow-up" : "Medication/Vaccination";
+  const code = isDiagnosis ? record.diagnosisCode : record.medicationCode;
+  const drug = !isDiagnosis && record.vaccineOrDrug ? ` (${record.vaccineOrDrug})` : "";
+
+  for (const day of dueDays) {
+    const overdue = day < today;
     await createNotification({
-      title: overdue ? "Vaccination Overdue" : "Vaccination Due Today",
-      description: `Vaccination due for Batch ${rec.batchId} on ${new Date(rec.nextSchedule).toLocaleDateString()}.`,
+      title: `Scheduled Reminder: ${label} ${overdue ? "Overdue" : "Due Today"}`,
+      description: `${label} schedule${code ? ` ${code}` : ""}${drug} for Batch ${record.batchId} ${overdue ? "was due on" : "is due today,"} ${formatDay(day)}.`,
       category: "health",
       type: "reminder",
-      priority: "Low",
+      priority: overdue ? "Warning" : "Normal",
       roles: ALL_ROLES,
-      sourceId: `vax_${rec.batchId}_${new Date(rec.nextSchedule).toISOString().slice(0, 10)}`,
+      referenceId: record._id,
+      referenceModel: "HealthRecord",
+      sourceId: `${isDiagnosis ? "sched_diag" : "sched_vax"}_${record._id}_${day}`,
     });
   }
 }
 
-async function diagnosisScheduleCheck() {
+async function vaccinationCheck() {
+  const { today, earliest } = dueScheduleWindow();
   const due = await HealthRecord.find({
-    recordType: "Diagnosis",
+    recordType: { $ne: "Diagnosis" },
     archived: false,
-    nextSchedule: { $lte: endOfToday() },
+    schedules: { $elemMatch: { $gte: earliest, $lte: today } },
   });
 
   for (const rec of due) {
-    if (!rec.nextSchedule) continue;
-    await createNotification({
-      title: "Diagnosis Follow-up Due",
-      description: `Diagnosis follow-up for Batch ${rec.batchId} is due.`,
-      category: "health",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `diag_${rec.batchId}_${new Date(rec.nextSchedule).toISOString().slice(0, 10)}`,
-    });
+    await notifyDueHealthSchedules(rec);
+  }
+}
+
+async function diagnosisScheduleCheck() {
+  const { today, earliest } = dueScheduleWindow();
+  const due = await HealthRecord.find({
+    recordType: "Diagnosis",
+    archived: false,
+    schedules: { $elemMatch: { $gte: earliest, $lte: today } },
+  });
+
+  for (const rec of due) {
+    await notifyDueHealthSchedules(rec);
   }
 }
 
@@ -272,4 +299,4 @@ function registerNotificationCronJobs() {
   console.log("Notification cron jobs registered.");
 }
 
-module.exports = { registerNotificationCronJobs };
+module.exports = { registerNotificationCronJobs, notifyDueHealthSchedules };

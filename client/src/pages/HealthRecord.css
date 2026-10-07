@@ -948,6 +948,8 @@
 .hr-filter-date-range input[type="date"] {
   flex:1;
   min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
   cursor:pointer;
 }
 
@@ -966,6 +968,13 @@
 
   .hr-filter-date-range span {
     text-align:center;
+  }
+
+  /* Stacked vertically, flex:1 would act on height and collapse the
+     inputs — give each date input its full width and normal height. */
+  .hr-filter-date-range input[type="date"] {
+    flex:none;
+    width:100%;
   }
 
 }

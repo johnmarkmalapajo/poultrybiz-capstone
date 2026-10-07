@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
+import { useUser } from "../hooks/useUser";
 import "./Records.css";
 
 const cards = [
-  { id: "flock",      label: "Flock Profile",          emoji: "🐔", description: "Manage your flock batches and bird info",        color: "#e8a020", bg: "#fff8ec", path: "/records/flock" },
+  { id: "flock",      label: "Flock Profile",          emoji: "🐔", description: "Manage your flock batches and bird info",        color: "#e8a020", bg: "#fff8ec", path: "/records/flock", ownerOnly: true },
   { id: "egg",        label: "Egg Record",             emoji: "🥚", description: "Log daily egg harvests and size distribution",   color: "#5aab6e", bg: "#edf7f0", path: "/records/egg" },
   { id: "health",     label: "Health Record",          emoji: "🏥", description: "Track treatments, vaccines, and vet visits",     color: "#e05555", bg: "#fdf0f0", path: "/records/health" },
   { id: "mortality",  label: "Mortality Record",       emoji: "📋", description: "Record and monitor bird mortality data",         color: "#4a90d9", bg: "#eef4fc", path: "/records/mortality" },
@@ -13,11 +14,13 @@ const cards = [
 
 export default function Records() {
   const navigate = useNavigate();
+  const { isOwner } = useUser();
+  const visibleCards = cards.filter((card) => !card.ownerOnly || isOwner);
 
   return (
     <PageLayout breadcrumbItems={[{ label: "RECORDS" }]}>
       <div className="records-grid">
-        {cards.map((card, i) => (
+        {visibleCards.map((card, i) => (
           <button
             key={card.id}
             className="record-card"

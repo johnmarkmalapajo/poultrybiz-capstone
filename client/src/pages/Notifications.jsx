@@ -99,6 +99,9 @@ export default function Notifications() {
       return;
     }
     const r = CATEGORIES[n.category]?.redirect;
+    // Flock Profile is Owner-only — Farmers can read these alerts but are
+    // not redirected into the module.
+    if (r === "/records/flock" && role !== "Owner") return;
     if (r) navigate(r);
   };
 

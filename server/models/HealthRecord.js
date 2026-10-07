@@ -214,6 +214,23 @@ const healthRecordSchema = new mongoose.Schema(
   }
 );
 
+// One Diagnosis can be linked to only ONE active Medication/Vaccination
+// record. Diagnosis records themselves keep diagnosisId = null, so only
+// treatment records that actually reference a Diagnosis are constrained.
+// This is the database-level guard against duplicates from double submits
+// or concurrent API requests; the controller checks first for a clear message.
+healthRecordSchema.index(
+  { diagnosisId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      diagnosisId: { $type: "objectId" },
+      archived: false,
+    },
+    name: "unique_active_treatment_per_diagnosis",
+  }
+);
+
 module.exports =
   mongoose.models.HealthRecord ||
   mongoose.model("HealthRecord", healthRecordSchema);

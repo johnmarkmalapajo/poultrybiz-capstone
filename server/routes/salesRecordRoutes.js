@@ -6,7 +6,6 @@ const {
   getSalesRecords,
   getSalesRecord,
   updateSalesRecord,
-  archiveSalesRecord,
   restoreSalesRecord,
   deleteSalesRecord,
   getEggStockSummary,
@@ -23,8 +22,6 @@ router.get("/:id", protect, getSalesRecord);
 router.post("/", protect, createSalesRecord);
 
 router.put("/:id", protect, updateSalesRecord);
-
-router.put("/:id/archive", protect, archiveSalesRecord);
 
 router.put("/:id/restore", protect, restoreSalesRecord);
 

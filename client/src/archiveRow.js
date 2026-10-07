@@ -6,11 +6,11 @@ import { archiveWasteRecord, restoreWasteRecord, deleteWasteRecord, archiveManur
 import { archiveFeedInventory, restoreFeedInventory, deleteFeedInventory } from "./api/feedInventory";
 import { archiveFeedConsumption, restoreFeedConsumption, deleteFeedConsumption } from "./api/feedConsumption";
 import { archiveEquipment, restoreEquipment, deleteEquipment } from "./api/equipmentTools";
-import { archiveExpenseRecord, restoreExpenseRecord, deleteExpenseRecord } from "./api/expenseRecord";
+import { restoreExpenseRecord, deleteExpenseRecord } from "./api/expenseRecord";
 import { archivePersonnel, restorePersonnel, deletePersonnel } from "./api/personnelManpower";
 import { archiveVisitor, restoreVisitor, deleteVisitor } from "./api/visitorLog";
 import { archiveFlock, restoreFlock, deleteFlock } from "./api/flockProfile";
-import { archiveSalesRecord, restoreSalesRecord, deleteSalesRecord } from "./api/salesRecord";
+import { restoreSalesRecord, deleteSalesRecord } from "./api/salesRecord";
 import { restoreUser } from "./api/users";
 import { restoreAssignedTaskById, deleteAssignedTaskById, restorePersonalTodoById, deletePersonalTodoById } from "./todoStore";
 
@@ -25,11 +25,9 @@ export const ARCHIVE_FN_BY_MODULE_KEY = {
   pb_feed_inventory: (id) => archiveFeedInventory(id),
   pb_feed_consumption: (id) => archiveFeedConsumption(id),
   pb_equipment: (id) => archiveEquipment(id),
-  pb_expenses: (id) => archiveExpenseRecord(id),
   pb_personnel: (id) => archivePersonnel(id),
   pb_visitors: (id) => archiveVisitor(id),
   pb_batches: (id) => archiveFlock(id),
-  pb_sales: (id) => archiveSalesRecord(id),
 };
 
 export const RESTORE_FN_BY_MODULE_KEY = {

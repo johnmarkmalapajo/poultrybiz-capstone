@@ -205,6 +205,9 @@ exports.createFlock = async (req, res) => {
   }
 };
 
+const FARMER_FLOCK_LOOKUP_FIELDS =
+  "batchId breed dateAcquired quantityPurchased currentQuantity status";
+
 exports.getAllFlocks = async (req, res) => {
   try {
     const {
@@ -236,7 +239,15 @@ exports.getAllFlocks = async (req, res) => {
       if (Object.keys(filter.dateAcquired).length === 0) delete filter.dateAcquired;
     }
 
-    const flocks = await Flock.find(filter).sort({ createdAt: -1 });
+    // Flock Profile is Owner-only. Other roles (Farmer) only receive the
+    // minimal batch lookup fields their own modules (Egg, Health, Mortality,
+    // Quarantine, Manure, Feed Consumption) need for batch dropdowns and
+    // bird-count validation — never the full Flock Profile record.
+    const query = Flock.find(filter).sort({ createdAt: -1 });
+    if (req.user.role !== "Owner") {
+      query.select(FARMER_FLOCK_LOOKUP_FIELDS);
+    }
+    const flocks = await query;
 
     res.json({
       success: true,

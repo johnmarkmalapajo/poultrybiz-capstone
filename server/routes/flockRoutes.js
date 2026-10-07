@@ -23,7 +23,7 @@ router.get("/", protect, getAllFlocks);
 
 router.get("/archived", protect, ownerOnly, getArchivedFlocks);
 
-router.get("/:id", protect, getFlockById);
+router.get("/:id", protect, ownerOnly, getFlockById);
 
 router.post("/", protect, ownerOnly, createFlock);
 

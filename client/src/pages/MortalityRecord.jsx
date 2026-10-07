@@ -29,6 +29,7 @@ export default function MortalityRecord() {
   const [filters, setFilters] = useState(defaultFilters);
   const [draft, setDraft] = useState(defaultFilters);
   const [filterApplied, setFilterApplied] = useState(false);
+  const [filterError, setFilterError] = useState("");
   const filterRef = useRef(null);
 
   const [records, setRecords] = useState([]);
@@ -67,53 +68,108 @@ export default function MortalityRecord() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const handleFilterChange = (key, value) => setDraft((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => { setDraft(defaultFilters); setFilters(defaultFilters); setFilterApplied(false); };
-
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const pad2 = (n) => String(n).padStart(2, "0");
 
   const todayStr = () => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
   };
 
-  const isoWeekOf = (dateStr) => {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return "";
-    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const dayNum = (target.getDay() + 6) % 7;
-    target.setDate(target.getDate() - dayNum + 3);
-    const firstThursday = new Date(target.getFullYear(), 0, 4);
-    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
-    return `${target.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  // Records are stored as calendar dates ("YYYY-MM-DD"). Read the parts
+  // straight from the string so no timezone conversion can shift a record
+  // into the previous/next day, month, or year.
+  const dateParts = (dateStr) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateStr || ""));
+    return m ? { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) } : null;
   };
+
+  // ISO-8601 week ("YYYY-Www") — same format as <input type="week">.
+  const isoWeekOf = (dateStr) => {
+    const p = dateParts(dateStr);
+    if (!p) return "";
+    const t = new Date(Date.UTC(p.y, p.m - 1, p.d));
+    const dayNum = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+    return `${t.getUTCFullYear()}-W${pad2(weekNum)}`;
+  };
+
+  const currentYear = () => String(new Date().getFullYear());
+  const currentMonth = () => MONTH_NAMES[new Date().getMonth()];
 
   const matchesDatePeriod = (r, f) => {
     if (f.period === "all") return true;
-    const d = new Date(r.date);
-    const recYear = isNaN(d) ? null : String(d.getFullYear());
-    const recMonth = isNaN(d) ? null : MONTH_NAMES[d.getMonth()];
-    if (f.period === "today") return r.date === todayStr();
-    if (f.period === "week") return !!f.week && isoWeekOf(r.date) === f.week;
+    const p = dateParts(r.date);
+    if (!p) return false;
+    const recDate = `${p.y}-${pad2(p.m)}-${pad2(p.d)}`;
+    const recYear = String(p.y);
+    const recMonth = MONTH_NAMES[p.m - 1];
+    if (f.period === "today") return recDate === todayStr();
+    if (f.period === "week") return !!f.week && isoWeekOf(recDate) === f.week;
     if (f.period === "month") return f.year !== "All" && f.month !== "All" && recYear === f.year && recMonth === f.month;
     if (f.period === "year") return f.year !== "All" && recYear === f.year;
-    if (f.period === "custom") return (!f.dateFrom || r.date >= f.dateFrom) && (!f.dateTo || r.date <= f.dateTo);
+    if (f.period === "custom") return (!f.dateFrom || recDate >= f.dateFrom) && (!f.dateTo || recDate <= f.dateTo);
     return true;
   };
 
+  // Switching the Date Period pre-fills its required value with the current
+  // week / month / year so the selection is never left empty (an empty
+  // selection used to silently match zero records).
+  const handleFilterChange = (key, value) => {
+    setFilterError("");
+    setDraft((f) => {
+      const next = { ...f, [key]: value };
+      if (key === "period") {
+        if (value === "week" && !next.week) next.week = isoWeekOf(todayStr());
+        if (value === "month") {
+          if (next.year === "All") next.year = currentYear();
+          if (next.month === "All") next.month = currentMonth();
+        }
+        if (value === "year" && next.year === "All") next.year = currentYear();
+      }
+      return next;
+    });
+  };
+
+  const clearFilters = () => {
+    setFilterError("");
+    setDraft(defaultFilters);
+    setFilters(defaultFilters);
+    setFilterApplied(false);
+  };
+
   const applyFilters = () => {
+    const today = todayStr();
+    if (draft.period === "week" && !draft.week) { setFilterError("Please select a week."); return; }
+    if (draft.period === "month" && (draft.month === "All" || draft.year === "All")) { setFilterError("Please select a month and year."); return; }
+    if (draft.period === "year" && draft.year === "All") { setFilterError("Please select a year."); return; }
     if (draft.period === "custom") {
-      const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (!draft.dateFrom && !draft.dateTo) { setFilterError("Please select a start date or end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setFilterError("Start date cannot be a future date."); return; }
+      if (draft.dateTo && draft.dateTo > today) { setFilterError("End date cannot be a future date."); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setFilterError("Start date cannot be later than end date."); return; }
     }
-    setError("");
-    setFilters(draft);
-    setFilterApplied(true);
+    // Keep only the values that belong to the chosen period so a value left
+    // over from a previously selected period can never leak into the result.
+    const next = {
+      ...defaultFilters,
+      batchId: draft.batchId,
+      period: draft.period,
+      ...(draft.period === "week" ? { week: draft.week } : {}),
+      ...(draft.period === "month" ? { month: draft.month, year: draft.year } : {}),
+      ...(draft.period === "year" ? { year: draft.year } : {}),
+      ...(draft.period === "custom" ? { dateFrom: draft.dateFrom, dateTo: draft.dateTo } : {}),
+    };
+    setFilterError("");
+    setDraft(next);
+    setFilters(next);
+    setFilterApplied(next.period !== "all" || next.batchId !== "All");
     setShowFilter(false);
   };
-  const openFilterPanel = () => { setDraft(filters); setShowFilter((s) => !s); };
+  const openFilterPanel = () => { setFilterError(""); setDraft(filters); setShowFilter((s) => !s); };
   const activeFilterCount =
     (filterApplied && filters.period !== "all" ? 1 : 0) +
     (filterApplied && filters.batchId !== "All" ? 1 : 0);
@@ -121,18 +177,25 @@ export default function MortalityRecord() {
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
   const batchOptions = uniq(records.map((r) => r.batchId));
 
-  const yearOptions = uniq(
-    records.map((r) => { const d = new Date(r.date); return isNaN(d) ? null : String(d.getFullYear()); })
-  ).sort((a, b) => b - a);
+  const yearOptions = uniq([
+    ...records.map((r) => { const p = dateParts(r.date); return p ? String(p.y) : null; }),
+    draft.year !== "All" ? draft.year : null,
+  ]).sort((a, b) => b - a);
 
-  const monthOptions = uniq(
-    records
-      .filter((r) => draft.year === "All" || String(new Date(r.date).getFullYear()) === draft.year)
-      .map((r) => { const d = new Date(r.date); return isNaN(d) ? null : MONTH_NAMES[d.getMonth()]; })
-  ).sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+  const monthOptions = uniq([
+    ...records
+      .filter((r) => { const p = dateParts(r.date); return p && (draft.year === "All" || String(p.y) === draft.year); })
+      .map((r) => MONTH_NAMES[dateParts(r.date).m - 1]),
+    draft.month !== "All" ? draft.month : null,
+  ]).sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+
+  const searchTerm = search.trim().toLowerCase();
+  const matchesSearch = (r) =>
+    !searchTerm ||
+    [r.batchId, r.mortalityId, r.causeOfDeath].some((v) => String(v || "").toLowerCase().includes(searchTerm));
 
   const filtered = records.filter((r) =>
-    r.batchId?.toLowerCase().includes(search.toLowerCase()) &&
+    matchesSearch(r) &&
     (!filterApplied || (
       (filters.batchId === "All" || r.batchId === filters.batchId) &&
       matchesDatePeriod(r, filters)
@@ -155,7 +218,7 @@ export default function MortalityRecord() {
   const batchesInView = uniq(filtered.map((r) => r.batchId));
 
   const totalRecords = filtered.length;
-  const totalDeaths = filtered.reduce((sum, r) => sum + (r.numberOfMortality || 0), 0);
+  const totalDeaths = filtered.reduce((sum, r) => sum + (Number(r.numberOfMortality) || 0), 0);
   const batchesAffected = batchesInView.length;
 
   const statCardSpanLabel = (() => {
@@ -183,7 +246,7 @@ export default function MortalityRecord() {
       ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`)
       : "",
     period: periodLabel,
-    fields: filters.batchId !== "All" ? [{ label: "Batch ID", value: filters.batchId }] : [],
+    fields: filterApplied && filters.batchId !== "All" ? [{ label: "Batch ID", value: filters.batchId }] : [],
   };
 
   const exportSummary = filtered.length
@@ -310,30 +373,34 @@ export default function MortalityRecord() {
                     )}
 
                     <div className="mr-filter-section-label">Filters</div>
-                    <div className="mr-filter-group">
-                      <label className="mr-filter-label">Batch ID</label>
-                      <select
-                        className="mr-filter-select"
-                        value={draft.batchId}
-                        onChange={(e) => handleFilterChange("batchId", e.target.value)}
-                      >
-                        <option value="All">All Batches</option>
-                        {batchOptions.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                    <div className="mr-filter-row">
+                      <div className="mr-filter-group">
+                        <label className="mr-filter-label">Batch ID</label>
+                        <select
+                          className="mr-filter-select"
+                          value={draft.batchId}
+                          onChange={(e) => handleFilterChange("batchId", e.target.value)}
+                        >
+                          <option value="All">All Batches</option>
+                          {batchOptions.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
+                    {filterError && <div className="mr-filter-error">{filterError}</div>}
+
                     <div className="mr-filter-actions">
-                      <button className="mr-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="mr-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button type="button" className="mr-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button type="button" className="mr-filter-apply" onClick={applyFilters}>Apply</button>
                     </div>
                   </div>
                 )}
               </div>
 
               <ExportMenu
-                rows={filtered}
+                rows={sorted}
                 columns={[
                   { key: "mortalityId", label: "Mortality ID" },
                   { key: "date", label: "Date" },
@@ -349,7 +416,7 @@ export default function MortalityRecord() {
                 moduleLabel="Mortality Record"
                 enablePreview
                 filters={{
-                  ...(filters.batchId !== "All" ? { "Batch ID": filters.batchId } : {}),
+                  ...(filterApplied && filters.batchId !== "All" ? { "Batch ID": filters.batchId } : {}),
                   ...(filterApplied && filters.period !== "all" ? { "Report Period": periodLabel } : {}),
                 }}
                 className="mr-toolbar-btn"

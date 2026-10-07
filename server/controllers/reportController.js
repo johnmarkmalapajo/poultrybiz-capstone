@@ -22,11 +22,10 @@ exports.logReportExport = async (req, res) => {
     }
 
     // Role-Based Export Permission System — never trust the frontend
-    // alone; a Farmer calling this endpoint directly for a module they
-    // aren't authorized to export (Personnel, Visitors, Sales, Expenses,
-    // Users & Roles, Audit Logs, etc.) is rejected here regardless of
-    // what the UI would have shown them.
-    if (!canExportModule(req.user.role, module)) {
+    // alone; Export is Owner-only, so a Farmer calling this endpoint
+    // directly for ANY module is rejected here regardless of what the
+    // UI would have shown them.
+    if (!canExportModule(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to export this report.",

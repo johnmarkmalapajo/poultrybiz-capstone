@@ -1,0 +1,257 @@
+/* SchedulePanel.css — compact Schedule list for Health Record forms.
+   Matches the record form styles: Poppins labels, Lato text, #e2e2e2
+   borders, #fafafa fields, 8px radius, gold accent used sparingly. */
+
+.pb-sched {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---------- List ---------- */
+
+.pb-sched-table {
+  width: 100%;
+  min-width: 0;
+  border: 1.5px solid #ebebeb;
+  border-radius: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pb-sched-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr) 96px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-top: 1px solid #f0f0f0;
+  font-family: "Lato", sans-serif;
+  font-size: 14px;
+  color: #2d2d2d;
+}
+
+.pb-sched-row:first-child {
+  border-top: none;
+}
+
+.pb-sched-row-head {
+  padding: 9px 16px;
+  background: #fafafa;
+  font-family: "Poppins", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.pb-sched-date {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pb-sched-action {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #666;
+}
+
+.pb-sched-row.is-done .pb-sched-date,
+.pb-sched-row.is-done .pb-sched-action {
+  color: #aaa;
+}
+
+.pb-sched-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Poppins", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pb-sched-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pb-sched-status.is-next,
+.pb-sched-status.is-today { color: #c8930c; }
+.pb-sched-status.is-upcoming { color: #2e9e6b; }
+.pb-sched-status.is-done { color: #aaa; }
+
+.pb-sched-empty {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1.5px dashed #e2e2e2;
+  border-radius: 8px;
+  font-family: "Lato", sans-serif;
+  font-size: 13px;
+  color: #aaa;
+}
+
+/* Compact variant — read-only list in the view modal (Date + Status) */
+.pb-sched-table.compact .pb-sched-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.pb-sched-empty.compact {
+  padding: 0;
+  border: none;
+  font-size: 13.5px;
+  color: inherit;
+}
+
+/* ---------- Date field + button ---------- */
+
+.pb-sched-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pb-sched-field label {
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d2d2d;
+}
+
+.pb-sched-field-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pb-sched-field input[type="date"] {
+  display: block;
+  flex: 0 1 260px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border: 1.5px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  font-family: "Lato", sans-serif;
+  font-size: 14px;
+  color: #2d2d2d;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.pb-sched-field input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.pb-sched-field input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+.pb-sched-field input[type="date"]:focus {
+  border-color: #E4AF1F;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(228, 175, 31, 0.12);
+}
+
+.pb-sched-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  align-self: flex-start;
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 20px;
+  box-sizing: border-box;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.pb-sched-btn:hover {
+  border-color: #bbb;
+  color: #333;
+}
+
+.pb-sched-hint,
+.pb-sched-error {
+  font-family: "Lato", sans-serif;
+  line-height: 1.5;
+}
+
+.pb-sched-hint {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.pb-sched-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0392b;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 480px) {
+  .pb-sched-row-head {
+    display: none;
+  }
+
+  .pb-sched-row:not(.pb-sched-row-head) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date status"
+      "action action";
+    row-gap: 2px;
+    padding: 10px 12px;
+  }
+
+  .pb-sched-row .pb-sched-date { grid-area: date; }
+  .pb-sched-row .pb-sched-status { grid-area: status; }
+  .pb-sched-row .pb-sched-action { grid-area: action; font-size: 13px; }
+
+  .pb-sched-row:nth-child(2) {
+    border-top: none;
+  }
+
+  .pb-sched-field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pb-sched-field input[type="date"] {
+    flex: none;
+    width: 100%;
+  }
+
+  .pb-sched-btn {
+    width: 100%;
+    align-self: stretch;
+  }
+}
