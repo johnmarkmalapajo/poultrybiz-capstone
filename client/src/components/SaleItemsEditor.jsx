@@ -173,7 +173,7 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
               <div className={`sie-stock-status ${exceeds ? "sie-stock-status-error" : ""}`}>
                 <span>Available: <strong>{avail} eggs</strong></span>
                 <span>Requested: <strong>{requested} eggs</strong></span>
-                <span>Remaining: <strong>{avail - requested} eggs</strong></span>
+                <span>Remaining: <strong>{Math.max(0, avail - requested)} eggs</strong></span>
               </div>
             )}
 
