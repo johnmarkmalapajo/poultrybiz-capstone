@@ -128,6 +128,15 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Owner only: the code printed in the official Attendance QR. It
+    // identifies the farm's attendance station -- it is not a login
+    // credential. Hidden from normal user queries.
+    attendanceQrToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: true,

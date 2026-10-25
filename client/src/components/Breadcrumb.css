@@ -78,8 +78,13 @@
 }
 .pb-hamburger:hover { background: #c8930c; }
 
-@media (max-width: 768px) {
+/* Hamburger shows whenever the sidebar is a drawer — same query as the
+   drawer rules in Sidebar.css (phones, tablets in portrait, phones in
+   landscape). */
+@media (max-width: 768px), (max-width: 1100px) and (orientation: portrait), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
   .pb-hamburger { display: flex; }
+}
+@media (max-width: 768px) {
   .pb-breadcrumb { font-size: 14px; gap: 6px; }
 }
 @media (max-width: 480px) {
@@ -99,10 +104,10 @@
    page's own layout is completely unaffected by the sidebar's
    state either way. Only the sidebar itself slides.
 
-   Desktop is untouched — this rule only exists inside this
-   ≤768px media query.
+   Desktop and tablets in landscape are untouched — this rule only
+   applies inside the drawer media query (same as Sidebar.css).
    ============================================================ */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1100px) and (orientation: portrait), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
   .sidebar {
     position: fixed !important;
     top: 0 !important;

@@ -13,8 +13,7 @@ import { listSalesRecords } from "../api/salesRecord";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const summarizeSizes = (items) => {
   if (!items || !items.length) return "—";
@@ -400,7 +399,7 @@ export default function SalesRecord() {
                 name="sales-record"
                 title="Sales Performance Report"
                 meta={exportMeta}
-                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Sales Record"
                 enablePreview
                 filters={{
@@ -440,7 +439,8 @@ export default function SalesRecord() {
         {error && <div className="sr-error-banner">{error}</div>}
 
         {}
-        <div className="sr-table-wrapper">
+        <TableSection className="sr-table-wrapper">
+          <TableScroll>
           {loading ? (
             <div className="sr-loading">Loading sales records...</div>
           ) : (
@@ -500,17 +500,18 @@ export default function SalesRecord() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
     </PageLayout>
   );
 }

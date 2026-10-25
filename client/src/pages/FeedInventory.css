@@ -446,14 +446,16 @@
   background: var(--surface);
   border-radius: 16px;
   border: 1px solid var(--border);
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   flex: none !important;
   min-height: 0 !important;
-  overflow: auto;
   max-height: none !important;
-  overflow-y: hidden !important;
+  /* Card only, never a scroll container: the table scrolls inside
+     <TableScroll> (.tp-table-scroll) and <TablePagination> sits
+     below it as a sibling, so swiping moves the columns only. */
+  overflow: visible !important;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .fi-table {
@@ -544,7 +546,7 @@
   align-items: center;
 }
 
-.fi-btn-edit, .fi-btn-archive {
+.fi-btn-archive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -558,12 +560,6 @@
   font-size: 14px;
   padding: 0;
   transition: border-color 0.2s, color 0.2s, background 0.2s;
-}
-
-.fi-btn-edit:hover {
-  border-color: var(--gold);
-  color: var(--gold);
-  background: var(--gold-light);
 }
 
 .fi-btn-archive:hover {
@@ -654,7 +650,7 @@
     font-size: 11px;
   }
 
-  .fi-btn-edit, .fi-btn-archive {
+  .fi-btn-archive {
     width: 28px;
     height: 28px;
   }
@@ -743,6 +739,7 @@
     left:0 !important;
     right:auto !important;
     max-width:calc(100vw - 40px) !important;
+    box-sizing:border-box;
   }
 
 }
@@ -775,4 +772,220 @@
 
 .fi-sortable-th:hover {
   color: var(--gold, #E4AF1F);
+}
+
+.fi-toolbar-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fi-toolbar-btn:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-second);
+}
+
+.fi-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.fi-modal {
+  width: min(480px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+}
+
+.fi-modal * {
+  box-sizing: border-box;
+}
+
+.fi-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px;
+  background: var(--gold-light);
+  border-bottom: 1px solid rgba(228, 175, 31, 0.25);
+}
+
+.fi-modal-head h3 {
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 800;
+  color: #47321C;
+}
+
+.fi-modal-close {
+  display: flex;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: #47321C;
+  cursor: pointer;
+}
+
+.fi-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.fi-modal-body .pb-error-banner {
+  margin-bottom: 0;
+}
+
+.fi-modal-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-second);
+}
+
+.fi-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fi-modal-field label {
+  font-family: var(--font-head);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-second);
+}
+
+.fi-modal-field input,
+.fi-modal-field select {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 13px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fafafa;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.fi-modal-field input:focus,
+.fi-modal-field select:focus {
+  border-color: var(--gold);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--gold-glow);
+}
+
+.fi-modal-field small {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.fi-modal-field small.fi-modal-error {
+  font-weight: 600;
+  color: #c0392b;
+}
+
+.fi-modal-input-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 8px;
+}
+
+.fi-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+}
+
+.fi-modal-cancel,
+.fi-modal-save {
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.fi-modal-cancel {
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-second);
+}
+
+.fi-modal-cancel:hover {
+  background: #f7f6f3;
+}
+
+.fi-modal-save {
+  border: none;
+  background: var(--gold);
+  color: #fff;
+}
+
+.fi-modal-save:hover {
+  background: var(--gold-dark);
+}
+
+.fi-modal-cancel:disabled,
+.fi-modal-save:disabled,
+.fi-modal-close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .fi-toolbar-right > .fi-settings-btn {
+    width: 100% !important;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .fi-modal-overlay {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .fi-modal-head,
+  .fi-modal-body,
+  .fi-modal-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .fi-modal-input-group {
+    grid-template-columns: minmax(0, 1fr) 96px;
+  }
+
+  .fi-modal-foot {
+    flex-direction: column-reverse;
+  }
+
+  .fi-modal-cancel,
+  .fi-modal-save {
+    width: 100%;
+  }
 }

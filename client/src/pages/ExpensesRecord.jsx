@@ -14,8 +14,7 @@ import { API_BASE } from "../api/client";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const CATEGORY_OPTIONS = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -46,6 +45,25 @@ const RECEIPT_LABELS = {
 
 const getReceiptLabel = (category) =>
   RECEIPT_LABELS[category] || "Receipt";
+
+const formatExpenseDate = (value) =>
+  value ? new Date(value).toISOString().split("T")[0] : "—";
+
+const feedUnitLabel = (unit) =>
+  /^(kg|kilogram)/i.test(String(unit || "")) ? "kg" : "sacks";
+
+const getExpenseDetails = (r) => {
+  if (r.category === "Feed Purchase" && Array.isArray(r.feedSets) && r.feedSets.length) {
+    return r.feedSets
+      .map((fs) => `${fs.feedType || "Feed"} – ${Number(fs.quantity) || 0} ${feedUnitLabel(fs.unit)}`)
+      .join("; ");
+  }
+  if (r.category === "Equipment" && r.equipmentName) {
+    const qty = Number(r.quantity) ? `${Number(r.quantity)} ${r.unit || ""}`.trim() : "";
+    return [r.equipmentName, qty].filter(Boolean).join(" – ");
+  }
+  return r.description || "—";
+};
 
 export default function ExpensesRecord() {
   const navigate = useNavigate();
@@ -246,6 +264,26 @@ export default function ExpensesRecord() {
       ]
     : [];
 
+  const exportColumns = [
+    { key: "date", label: "Expense Date" },
+    { key: "category", label: "Category" },
+    { key: "details", label: "Details" },
+    { key: "supplier", label: "Supplier" },
+    { key: "amount", label: "Amount" },
+    { key: "receipt", label: "Receipt" },
+    { key: "remarks", label: "Remarks" },
+  ];
+
+  const exportRows = sorted.map((r) => ({
+    date: formatExpenseDate(r.date),
+    category: r.category || "—",
+    details: getExpenseDetails(r),
+    supplier: r.supplier || "—",
+    amount: formatPeso(r.amount),
+    receipt: r.receipt ? getReceiptLabel(r.category) : "—",
+    remarks: r.remarks || "—",
+  }));
+
   return (
     <PageLayout
       background="#f7f6f3"
@@ -389,11 +427,12 @@ export default function ExpensesRecord() {
               </div>
 
               <ExportMenu
-                rows={filtered}
+                rows={exportRows}
+                columns={exportColumns}
                 name="expenses-record"
                 title="Farm Expense Report"
                 meta={exportMeta}
-                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Expense Record"
                 enablePreview
                 filters={{
@@ -448,7 +487,8 @@ export default function ExpensesRecord() {
         {error && <div className="er-error-banner" style={{ display: "block" }}>{error}</div>}
 
         {}
-        <div className="er-table-wrapper">
+        <TableSection className="er-table-wrapper">
+          <TableScroll>
           {loading ? (
             <div className="er-loading">Loading expense records...</div>
           ) : (
@@ -515,17 +555,18 @@ export default function ExpensesRecord() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       {viewRecord && (
         <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>

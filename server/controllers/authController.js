@@ -1,10 +1,11 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { createAuditLog } = require("./auditController");
 const { createNotification } = require("./notificationController");
 const Personnel = require("../models/Personnel");
+const { sendServerError } = require("../utils/dbStatus");
+const { issueSessionToken, revokeSession } = require("../utils/authSession");
 
 exports.checkFirstAccount = async (req, res) => {
   try {
@@ -77,18 +78,7 @@ exports.signup = async (req, res) => {
     }
 
     if (isFirstUser) {
-      const token = jwt.sign(
-        {
-          id: user._id,
-          name: user.name,
-          role: user.role,
-          status: user.status,
-        },
-        process.env.JWT_SECRET,
-        {
-         expiresIn: "7d",
-        }
-      );
+      const token = await issueSessionToken(user);
 
       return res.json({
         success: true,
@@ -197,37 +187,9 @@ exports.login = async (req, res) => {
         description: `${user.name} logged into the system.`,
       });
 
-    const token = jwt.sign(
-      {
-       id: user._id,
-       name: user.name,
-       role: user.role,
-       status: user.status,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
-    );
+    const token = await issueSessionToken(user);
 
     const personnel = await Personnel.findOne({ user: user._id });
-
-    console.log("USER ID:", user._id.toString());
-    console.log("PERSONNEL:", personnel);
-
-    console.log({
-  success: true,
-  token,
-  user: {
-    id: user._id,
-    personnelId: personnel?._id || null,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    status: user.status,
-  },
-});
-
 
     return res.json({
       success: true,
@@ -244,12 +206,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Login Error:", error);
-
-    return res.json({
-      success: false,
-      message: "Login failed.",
-    });
+    return sendServerError(res, error, "Login Error", "Login failed.");
   }
 };
 
@@ -381,6 +338,9 @@ exports.resetPassword = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
+    // End this login's server session so the token stops working now.
+    await revokeSession(req.authSession?.jti, "logout");
+
     await createAuditLog({
       user: req.user.name,
       role: req.user.role,

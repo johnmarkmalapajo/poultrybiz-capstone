@@ -14,8 +14,8 @@ const {
 } = require("../controllers/manureRecordController");
 
 // GET
-router.get("/", getAllManureRecords);
-router.get("/:id", getManureRecord);
+router.get("/", protect, getAllManureRecords);
+router.get("/:id", protect, getManureRecord);
 
 // CREATE
 router.post("/", protect, createManureRecord);

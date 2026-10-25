@@ -6,6 +6,7 @@ import "./EditMortalityRecord.css";
 import { getMortalityRecord, updateMortalityRecord, listMortalityRecords } from "../api/mortalityRecord";
 import { listFlocks } from "../api/flockProfile";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
+import { mortalityBatchOptions } from "../mortalityBatchOptions";
 import { listHealthOptions } from "../api/healthOptions";
 
 const NEW_VALUE = "__new__";
@@ -35,6 +36,7 @@ export default function EditMortalityRecord() {
 
   const [flocks, setFlocks] = useState([]);
   const [isolationRecords, setIsolationRecords] = useState([]);
+  const [originalBatchId, setOriginalBatchId] = useState("");
   const [mortRecords, setMortRecords] = useState([]);
   const [error, setError] = useState("");
   const [newCauseOfDeath, setNewCauseOfDeath] = useState("");
@@ -54,6 +56,7 @@ export default function EditMortalityRecord() {
         const json = await getMortalityRecord(id);
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
+        setOriginalBatchId(rec.batchId || "");
       } catch (err) {
         setError(err?.message || "Couldn't load this record.");
       } finally {
@@ -75,13 +78,7 @@ export default function EditMortalityRecord() {
       .catch(() => setMortRecords([]));
   }, []);
 
-  const isolationBatchIds = new Set(isolationRecords.map((r) => r.batchId));
-  const batchOptions = [...new Set(
-    flocks
-      .filter((f) => f.status === "Active" && !isolationBatchIds.has(f.batchId))
-      .map((f) => f.batchId)
-      .filter(Boolean)
-  )];
+  const batchOptions = mortalityBatchOptions(flocks, isolationRecords, originalBatchId);
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
 
   const purchaseQty = Number(selectedFlock?.quantityPurchased) || 0;

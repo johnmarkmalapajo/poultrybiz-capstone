@@ -1,91 +1,238 @@
-/* TablePagination.css — shared pagination styling, reused by any module
-   that adopts the shared table architecture. */
+/* TablePagination.css — shared styles for TableSection, TableScroll and
+   TablePagination (components/TablePagination.jsx). Every module uses
+   these classes; modules keep only their own card look (background,
+   border, radius, shadow) on their .xx-table-wrapper class.
 
+   Hierarchy:
+     section.tp-table-section          card — never scrolls
+       div.tp-table-scroll             the ONLY horizontal scroller
+       footer.tp-pagination-footer     sibling after the scroller
+         nav.tp-pagination
+
+   The footer's layout responds to its OWN width (container queries), so
+   it adapts to the real content width with or without the sidebar. The
+   base (no container-query) styles are the compact phone layout, so
+   older browsers still get a layout that fits. */
+
+/* ── Table section (the card) ──────────────────────────────────────── */
+.tp-table-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ── Horizontal scroller: table header + rows only ─────────────────── */
+.tp-table-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  /* The card does not clip its children, so the scroller rounds the
+     table's own corners to match the card. */
+  border-radius: inherit;
+}
+.tp-table-scroll:not(:last-child) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ── Pagination footer (PaginationContainer) ──────────────────────── */
+.tp-pagination-footer {
+  container-type: inline-size;
+  container-name: tp-footer;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px 12px;
+  background: #fcfaf5;
+  border-top: 1px solid var(--border, #e4e0d8);
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  font-family: var(--font-display, "Poppins", sans-serif);
+}
+
+/* ── Pagination bar (PaginationComponent) — compact base layout ────── */
 .tp-pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 14px 4px 4px;
-  font-family: "Poppins", sans-serif;
-  font-size: 12.5px;
-  color: #8a8478;
-  border-top: 1px solid #eee6d8;
-  margin-top: 8px;
+  gap: 8px 12px;
+  min-width: 0;
 }
 
-.tp-summary { white-space: nowrap; }
-
-.tp-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.tp-summary {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-second, #6b6457);
+}
+.tp-summary strong {
+  font-weight: 600;
+  color: #47321C;
 }
 
-.tp-rows-label {
-  display: flex;
+.tp-size {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text-second, #6b6457);
   white-space: nowrap;
 }
-
-.tp-rows-select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1.5px solid #e4e0d8;
-  font-size: 12.5px;
-  color: #47321C;
-  background: #fff;
-}
-
-.tp-nav-btn {
-  padding: 6px 14px;
+.tp-size-select {
+  height: 30px;
+  padding: 0 6px;
   border-radius: 8px;
-  border: 1.5px solid #e4e0d8;
+  border: 1.5px solid var(--border, #e4e0d8);
   background: #fff;
   color: #47321C;
+  font: inherit;
   font-weight: 600;
-  font-size: 12.5px;
   cursor: pointer;
 }
-.tp-nav-btn:hover:not(:disabled) { border-color: var(--gold, #E4AF1F); }
-.tp-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.tp-page-numbers { display: flex; align-items: center; gap: 4px; }
-
-.tp-page-btn {
-  min-width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1.5px solid transparent;
-  background: transparent;
-  color: #8a8478;
-  font-weight: 600;
-  font-size: 12.5px;
-  cursor: pointer;
+.tp-size-select:focus-visible {
+  outline: 2px solid var(--gold, #E4AF1F);
+  outline-offset: 1px;
 }
-.tp-page-btn:hover { background: #faf5e8; }
-.tp-page-btn.active {
-  background: var(--gold, #E4AF1F);
-  color: #fff;
+
+/* Phone layout: page numbers on their own centred row, then
+   « ‹ Previous | Next › » underneath, all inside the card width. */
+.tp-nav {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  grid-template-areas:
+    "pages pages pages pages"
+    "first prev  next  last";
+  align-items: center;
+  gap: 8px 6px;
 }
-.tp-page-dots {
-  min-width: 20px;
-  height: 30px;
+.tp-nav > .tp-btn-edge:first-child { grid-area: first; }
+.tp-nav > .tp-btn-step:nth-child(2) { grid-area: prev; }
+.tp-nav > .tp-pages { grid-area: pages; }
+.tp-nav > .tp-btn-step:nth-child(4) { grid-area: next; }
+.tp-nav > .tp-btn-edge:last-child { grid-area: last; }
+
+.tp-pages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Buttons — same treatment as PoultryBiz's outline buttons */
+.tp-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #a39e94;
-  font-weight: 600;
+  gap: 4px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border, #e4e0d8);
+  background: #fff;
+  color: #47321C;
+  font: inherit;
   font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tp-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.tp-btn-icon { padding: 0; }
+.tp-btn:hover:not(:disabled) {
+  border-color: var(--gold, #E4AF1F);
+  background: var(--gold-light, #fdf3e3);
+}
+.tp-btn:focus-visible {
+  outline: 2px solid var(--gold, #E4AF1F);
+  outline-offset: 1px;
+}
+.tp-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* Mobile — stack summary above controls, and let page numbers wrap
-   instead of overflowing the screen */
-@media (max-width: 640px) {
-  .tp-pagination { flex-direction: column; align-items: flex-start; }
-  .tp-controls { width: 100%; justify-content: space-between; }
-  .tp-page-numbers { flex-wrap: wrap; }
+.tp-page {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-second, #6b6457);
+}
+.tp-page.is-active,
+.tp-page.is-active:hover:not(:disabled) {
+  background: var(--gold, #E4AF1F);
+  border-color: var(--gold, #E4AF1F);
+  color: #fff;
+  cursor: default;
+}
+
+.tp-dots {
+  min-width: 18px;
+  text-align: center;
+  color: var(--text-muted, #a39e94);
+  font-weight: 600;
+  font-size: 12.5px;
+  user-select: none;
+}
+
+/* ── Wider footers ─────────────────────────────────────────────────── */
+
+/* Enough room for the whole navigation on one row (icon-only steps). */
+@container tp-footer (min-width: 440px) {
+  .tp-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tp-pages { flex-wrap: nowrap; }
+  .tp-btn-step .tp-btn-text { display: none; }
+  .tp-btn-step { width: 32px; padding: 0; }
+}
+
+/* Room for the "Previous" / "Next" labels. */
+@container tp-footer (min-width: 600px) {
+  .tp-btn-step .tp-btn-text { display: inline; }
+  .tp-btn-step { width: auto; padding: 0 12px; }
+  .tp-nav { justify-content: flex-end; }
+}
+
+/* Laptop / desktop: record count, rows-per-page and navigation on one
+   aligned row. */
+@container tp-footer (min-width: 900px) {
+  .tp-pagination-footer { padding: 12px 18px; }
+  .tp-pagination { flex-wrap: nowrap; gap: 16px; }
+  .tp-summary { flex: 1 1 auto; white-space: nowrap; }
+  .tp-nav { flex: 0 0 auto; }
+}
+
+/* Phone: icon-only Previous / Next only when even the stacked row
+   is too narrow for the labels. */
+@container tp-footer (max-width: 300px) {
+  .tp-btn-step .tp-btn-text { display: none; }
+  .tp-size-text { display: none; }
 }

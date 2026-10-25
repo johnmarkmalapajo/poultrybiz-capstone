@@ -1,52 +1,53 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiCheckCircle, FiClock, FiCalendar, FiLogIn, FiAlertCircle } from "react-icons/fi";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { FiCheckCircle, FiClock, FiCalendar, FiLogIn, FiAlertCircle, FiInfo, FiRefreshCw } from "react-icons/fi";
 import "./QRCheckIn.css";
-import { createAttendance, getPersonnelAttendance } from "../api/personnelManpower";
+import { createAttendance } from "../api/personnelManpower";
+import { getToken, loginUrl } from "../api/session";
 import logo from "../assets/logo.png";
 
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
 
-// Read the logged-in account from localStorage (tolerant to your auth schema).
-// When a personnel scans the QR they're already logged in, so their name fills
-// in automatically — no dropdown needed. Adjust the keys/fields to match your auth.
-const getLoggedInUser = () => {
-  const keys = ["pb_user", "user", "currentUser", "authUser", "loggedInUser"];
-  for (const k of keys) {
-    try {
-      const raw = localStorage.getItem(k);
-      if (!raw) continue;
-      const u = JSON.parse(raw);
-      const name =
-        u.fullName || u.name ||
-        [u.firstName, u.lastName].filter(Boolean).join(" ") ||
-        u.username || "";
-      const id = u._id || u.id || u.personnelId || u.userId || name;
-      const role = u.position || u.role || u.accountRole || u.userRole || "Personnel";
-      if (name || id) return { id, name: name || "Personnel", role };
-    } catch (e) { /* ignore */ }
+const fmtTime = (d) =>
+  new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+const fmtDate = (d) =>
+  new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+// Display-only name while the request is running. The backend identifies the
+// person from the session token -- this value is never sent as identity.
+const storedUserName = () => {
+  try {
+    const u = JSON.parse(localStorage.getItem("user") || "null");
+    return u?.name || "";
+  } catch {
+    return "";
   }
-  return null;
 };
 
-const RETURN_PATH = "/attendance/check-in";
+const RESULT_TITLES = {
+  "check-in": "You're Checked In!",
+  "check-out": "You're Checked Out!",
+  "already-checked-in": "Already Checked In",
+  "already-checked-out": "Already Checked Out",
+  completed: "Attendance Already Completed Today",
+};
 
 export default function QRCheckIn() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const qr = searchParams.get("qr") || "";
+  const hasToken = !!getToken();
+
+  // Path to come back to after logging in (keeps the QR code, no credentials).
+  const returnPath = `/attendance/check-in${qr ? `?qr=${encodeURIComponent(qr)}` : ""}`;
+
   const [now, setNow] = useState(new Date());
-  const [done, setDone] = useState(null); // { name, time, date }
-
-  const user = getLoggedInUser(); // no demo fallback — identity must come from a real login
-
-  // ── Login-gate: if nobody is logged in on this device, send them to login
-  //    first, then bring them back here to check in. ──
-  useEffect(() => {
-    if (!user) {
-      try { localStorage.setItem("pb_post_login_redirect", RETURN_PATH); } catch (e) { /* ignore */ }
-      navigate(`/login?redirect=${encodeURIComponent(RETURN_PATH)}`, { replace: true });
-    }
-  }, [user, navigate]);
+  const [status, setStatus] = useState(!qr ? "invalid" : hasToken ? "recording" : "login");
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const inFlight = useRef(false);
+  const started = useRef(false);
 
   // Live clock
   useEffect(() => {
@@ -54,152 +55,186 @@ export default function QRCheckIn() {
     return () => clearInterval(t);
   }, []);
 
+  const showResult = useCallback((data) => {
+    const att = data?.attendance || {};
+    const action = data?.action || "check-in";
+    const when =
+      action === "check-out" || action === "already-checked-out"
+        ? att.timeOut || new Date()
+        : att.timeIn || new Date();
+
+    setResult({
+      action,
+      message: data?.message || "",
+      name: data?.person?.name || storedUserName(),
+      role: data?.person?.position || data?.person?.role || "",
+      time: fmtTime(when),
+      date: fmtDate(when),
+    });
+    setStatus("done");
+
+    try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+  }, []);
+
+  const showError = useCallback((err) => {
+    if (err?.status === 401) {
+      // api/client.js has already cleared the session and is opening Login,
+      // which returns here afterwards.
+      setStatus("login");
+    } else if (err?.body?.code === "ATTENDANCE_COMPLETED") {
+      const att = err.body.attendance || {};
+      setResult({
+        action: "completed",
+        message: err.message,
+        name: err.body.person?.name || storedUserName(),
+        role: err.body.person?.position || err.body.person?.role || "",
+        time: att.timeOut ? fmtTime(att.timeOut) : "",
+        date: fmtDate(att.timeOut || new Date()),
+      });
+      setStatus("done");
+    } else if (err?.body?.code === "INVALID_QR") {
+      setError(err.message);
+      setStatus("invalid");
+    } else {
+      setError(err?.message || "Couldn't record your attendance. Please try again.");
+      setStatus("error");
+    }
+  }, []);
+
+  // One request at a time; the backend also ignores repeated scans.
+  const record = useCallback(() => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+
+    createAttendance(qr)
+      .then(showResult, showError)
+      .finally(() => {
+        inFlight.current = false;
+      });
+  }, [qr, showResult, showError]);
+
+  // On open: no login -> go to Login first (attendance is never recorded
+  // before login). Logged in -> record automatically; the backend validates
+  // the session and the QR code. The ref keeps React Strict Mode's second
+  // effect run from sending a second request.
+  useEffect(() => {
+    if (started.current || !qr) return;
+    started.current = true;
+
+    if (!hasToken) {
+      navigate(loginUrl(returnPath, "attendance"), { replace: true });
+      return;
+    }
+
+    record();
+  }, [qr, hasToken, navigate, record, returnPath]);
+
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 
-  const [error, setError] = useState("");
-
-  const fmtTime = (d) =>
-    new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  const fmtDate = (d) =>
-    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
-  // The same scan endpoint toggles: 1st scan of the day = check-in, 2nd = check-out.
-  // The server tells us which one happened, so the screen can say so.
-  const record = async () => {
-    if (!user) return;
-    try {
-      const result = await createAttendance();
-      const att = result?.attendance || {};
-      const isOut =
-        result?.action === "check-out" ||
-        (result?.action == null && /out/i.test(result?.message || ""));
-      const when = isOut ? (att.timeOut || new Date()) : (att.timeIn || new Date());
-      const state = {
-        name: user.name,
-        action: isOut ? "out" : "in",
-        time: fmtTime(when),
-        date: fmtDate(when),
-      };
-      try { sessionStorage.setItem("pb_qr_last", JSON.stringify({ uid: user.id, ts: Date.now(), state })); } catch (e) { /* ignore */ }
-      try { window.dispatchEvent(new Event("pb_data_changed")); } catch (e) { /* ignore */ }
-      setDone(state);
-    } catch (err) {
-      const msg = err?.message || "Couldn't record your attendance.";
-      if (/already completed/i.test(msg)) {
-        const now = new Date();
-        setDone({ name: user.name, action: "completed", time: fmtTime(now), date: fmtDate(now) });
-      } else {
-        setError(msg);
-      }
-    }
-  };
-
-  // ── AUTO record on scan ──
-  // Logged in + QR scanned = attendance is recorded automatically (no button).
-  // A page refresh within a few seconds re-shows the last result instead of
-  // scanning again, so a refresh can't accidentally turn a check-in into a check-out.
-  const started = useRef(false);
-  useEffect(() => {
-    if (!user || done || started.current) return;
-    started.current = true;
-    try {
-      const raw = sessionStorage.getItem("pb_qr_last");
-      if (raw) {
-        const last = JSON.parse(raw);
-        if (last && last.uid === user.id && Date.now() - last.ts < 20000) {
-          setDone(last.state);
-          return;
-        }
-      }
-    } catch (e) { /* ignore */ }
-    record();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user && user.id]);
+  const isRepeat = result && /^already|completed/.test(result.action);
 
   return (
     <div className="qc-page">
-      {!user ? (
-        <div className="qc-card">
-          <div className="qc-header">
-            <div className="qc-logo"><img src="assets/logo.png" alt="PoultryBiz" style={{ width: 40, height: 40, objectFit: "contain" }} /></div>
-            <div className="qc-brand"><h1>PoultryBiz</h1><p>Attendance Check-In</p></div>
-          </div>
-          <div className="qc-notice">
-            <FiAlertCircle />
-            <div>
-              <strong>Login required</strong>
-              <p>Please log in to your account first to check in. You'll be identified from your account and time-stamped automatically.</p>
-            </div>
-          </div>
-          <button className="qc-btn" onClick={() => navigate(`/login?redirect=${encodeURIComponent(RETURN_PATH)}`)}>
-            <FiLogIn /> Log In to Check In
-          </button>
-        </div>
-      ) : (
       <div className="qc-card">
-
-        {/* Brand header */}
         <div className="qc-brand">
-          <div className="qc-logo"><img src={logo} alt="PoultryBiz" style={{ width: 55, height: 55, objectFit: "contain" }} /></div>
+          <div className="qc-logo">
+            <img src={logo} alt="PoultryBiz" />
+          </div>
           <div>
             <h1>PoultryBiz</h1>
             <p>Attendance Check-In</p>
           </div>
         </div>
 
-        {!done ? (
+        {status === "invalid" && (
+          <div className="qc-notice qc-notice-error" role="alert">
+            <FiAlertCircle />
+            <div>
+              <strong>Invalid attendance QR code</strong>
+              <p>{error || "This link is missing the farm's attendance code. Please scan the official QR code provided by the Owner."}</p>
+            </div>
+          </div>
+        )}
+
+        {status === "login" && (
           <>
-            {/* Live clock */}
+            <div className="qc-notice" role="status">
+              <FiInfo />
+              <div>
+                <strong>Login required</strong>
+                <p>Log in to your account to record your attendance. You'll come back here automatically afterwards.</p>
+              </div>
+            </div>
+            <button className="qc-btn" onClick={() => navigate(loginUrl(returnPath, "attendance"))}>
+              <FiLogIn /> Log In to Continue
+            </button>
+          </>
+        )}
+
+        {(status === "recording" || status === "error") && (
+          <>
             <div className="qc-clock">
               <div className="qc-time"><FiClock /> {timeStr}</div>
               <div className="qc-date"><FiCalendar /> {dateStr}</div>
             </div>
 
-            {user ? (
-              <>
-                {/* Auto-detected logged-in personnel (no dropdown) */}
-                <div className="qc-preview">
-                  <span className="qc-avatar">{initials(user.name)}</span>
-                  <div>
-                    <div className="qc-preview-name">{user.name}</div>
-                    <div className="qc-preview-role">{user.role}</div>
-                  </div>
+            {storedUserName() && (
+              <div className="qc-preview">
+                <span className="qc-avatar">{initials(storedUserName())}</span>
+                <div>
+                  <div className="qc-preview-name">{storedUserName()}</div>
+                  <div className="qc-preview-role">Logged-in account</div>
                 </div>
-
-                {error ? (
-                  <div className="pb-error-banner">{error}</div>
-                ) : (
-                  <p className="qc-hint">Recording your attendance…</p>
-                )}
-              </>
-            ) : (
-              <div className="qc-notice">
-                <FiAlertCircle />
-                <span>Please log in first, then scan the QR to check in.</span>
               </div>
             )}
+
+            {status === "recording" ? (
+              <p className="qc-hint" role="status">
+                <span className="qc-spinner" aria-hidden="true" /> Recording your attendance…
+              </p>
+            ) : (
+              <>
+                <div className="qc-notice qc-notice-error" role="alert">
+                  <FiAlertCircle />
+                  <div>
+                    <strong>Attendance not recorded</strong>
+                    <p>{error}</p>
+                  </div>
+                </div>
+                <button
+                  className="qc-btn"
+                  onClick={() => {
+                    setError("");
+                    setStatus("recording");
+                    record();
+                  }}
+                >
+                  <FiRefreshCw /> Try Again
+                </button>
+              </>
+            )}
           </>
-        ) : (
-          <div className="qc-success">
-            <div className="qc-success-icon"><FiCheckCircle /></div>
-            <h2>
-              {done.action === "out"
-                ? "You're Checked Out!"
-                : done.action === "completed"
-                ? "Attendance Already Completed Today"
-                : "You're Checked In!"}
-            </h2>
-            <div className="qc-success-name">{done.name}</div>
-            <div className="qc-success-meta">
-              <span><FiClock /> {done.time}</span>
-              <span><FiCalendar /> {done.date}</span>
-            </div>
-          </div>
         )}
 
+        {status === "done" && result && (
+          <div className={`qc-success ${isRepeat ? "qc-success-repeat" : ""}`} role="status">
+            <div className="qc-success-icon">
+              {isRepeat ? <FiInfo /> : <FiCheckCircle />}
+            </div>
+            <h2>{RESULT_TITLES[result.action] || "Attendance Recorded"}</h2>
+            <div className="qc-success-name">{result.name}</div>
+            {result.role && <div className="qc-success-role">{result.role}</div>}
+            {(result.time || result.date) && (
+              <div className="qc-success-meta">
+                {result.time && <span><FiClock /> {result.time}</span>}
+                {result.date && <span><FiCalendar /> {result.date}</span>}
+              </div>
+            )}
+            {isRepeat && result.message && <p className="qc-success-note">{result.message}</p>}
+          </div>
+        )}
       </div>
-      )}
     </div>
   );
 }

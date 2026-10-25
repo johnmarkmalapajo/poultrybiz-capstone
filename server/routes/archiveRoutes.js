@@ -8,7 +8,7 @@ const {
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
 
-router.get("/", protect, getArchivedRecords);
+router.get("/", protect, ownerOnly, getArchivedRecords);
 
 router.delete("/:id", protect, ownerOnly, deleteArchiveEntry);
 

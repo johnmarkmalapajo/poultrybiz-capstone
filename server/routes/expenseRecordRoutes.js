@@ -12,24 +12,25 @@ const {
   uploadReceipt,
 } = require("../controllers/expenseRecordController");
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect, ownerOnly } = require("../middleware/authMiddleware");
 const uploadReceiptMiddleware = require("../middleware/receiptUpload");
 
-router.get("/", protect, getExpenseRecords);
-router.get("/archived", protect, getArchivedExpenseRecords);
-router.get("/:id", protect, getExpenseRecord);
+router.get("/", protect, ownerOnly, getExpenseRecords);
+router.get("/archived", protect, ownerOnly, getArchivedExpenseRecords);
+router.get("/:id", protect, ownerOnly, getExpenseRecord);
 
-router.post("/", protect, createExpenseRecord);
+router.post("/", protect, ownerOnly, createExpenseRecord);
 router.post(
   "/upload-receipt",
   protect,
+  ownerOnly,
   uploadReceiptMiddleware.single("receipt"),
   uploadReceipt
 );
 
-router.put("/:id", protect, updateExpenseRecord);
-router.put("/:id/restore", protect, restoreExpenseRecord);
+router.put("/:id", protect, ownerOnly, updateExpenseRecord);
+router.put("/:id/restore", protect, ownerOnly, restoreExpenseRecord);
 
-router.delete("/:id", protect, deleteExpenseRecord);
+router.delete("/:id", protect, ownerOnly, deleteExpenseRecord);
 
 module.exports = router;

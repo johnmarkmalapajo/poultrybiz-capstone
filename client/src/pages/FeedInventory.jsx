@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import {
   FiArchive,
   FiBox,
-  FiEdit2,
   FiFilter,
   FiPlus,
   FiSearch,
+  FiSettings,
+  FiX,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import { useUser } from "../hooks/useUser";
@@ -14,24 +15,80 @@ import ExportMenu from "../components/ExportMenu";
 import "./FeedInventory.css";
 import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
 import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
-import { listFeedInventory } from "../api/feedInventory";
-import { listFeedConsumption } from "../api/feedConsumption";
+import {
+  listFeedInventory,
+  updateFeedStockSetting,
+} from "../api/feedInventory";
+import {
+  useFeedStock,
+  formatFeedNumber,
+  feedQuantityToKg,
+} from "../hooks/useFeedStock";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
 
-const FEED_SACK_WEIGHT_KG = 50;
+const THRESHOLD_UNITS = ["kg", "sacks"];
 
-const LOW_STOCK_THRESHOLD = 100;
-const CRITICAL_STOCK_THRESHOLD = 50;
+const EMPTY_SETTINGS_FORM = {
+  feedType: "",
+  sackWeightKg: "",
+  lowStockThreshold: "",
+  thresholdUnit: "kg",
+};
+const MAX_SACK_WEIGHT_KG = 1000;
+const DECIMAL_PATTERN = /^\d+(\.\d{1,2})?$/;
+
+const blockInvalidNumberKeys = (event) => {
+  if (["-", "+", "e", "E"].includes(event.key)) {
+    event.preventDefault();
+  }
+};
+
+const validateStockSetting = (draft) => {
+  const errors = {};
+  const sackWeight = String(draft.sackWeightKg ?? "").trim();
+  const threshold = String(draft.lowStockThreshold ?? "").trim();
+
+  if (
+    !DECIMAL_PATTERN.test(sackWeight) ||
+    Number(sackWeight) <= 0 ||
+    Number(sackWeight) > MAX_SACK_WEIGHT_KG
+  ) {
+    errors.sackWeightKg = `Enter a weight greater than 0 and up to ${MAX_SACK_WEIGHT_KG} kg.`;
+  }
+
+  if (!DECIMAL_PATTERN.test(threshold)) {
+    errors.lowStockThreshold = "Enter a threshold of 0 or more.";
+  }
+
+  if (!THRESHOLD_UNITS.includes(draft.thresholdUnit)) {
+    errors.thresholdUnit = "Choose kg or sacks.";
+  }
+
+  return errors;
+};
 
 export default function FeedInventory() {
   const navigate = useNavigate();
-  const { canEdit, canArchive, role } = useUser();
+  const { canArchive, role, isOwner } = useUser();
+
+  const {
+    stock,
+    loading: stockLoading,
+    error: stockError,
+    setStock,
+    stockFor,
+  } = useFeedStock();
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState(EMPTY_SETTINGS_FORM);
+  const [settingsErrors, setSettingsErrors] = useState({});
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState("");
 
   const {
     pending: archivePending,
@@ -42,7 +99,6 @@ export default function FeedInventory() {
 
   const [search, setSearch] = useState("");
   const [records, setRecords] = useState([]);
-  const [consumed, setConsumed] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -91,62 +147,13 @@ export default function FeedInventory() {
       setError("");
 
       try {
-        const [inventoryResponse, consumptionResponse] =
-          await Promise.all([
-            listFeedInventory(),
-            listFeedConsumption(),
-          ]);
-
-        const inventoryData = normalizeResponse(inventoryResponse);
-        const consumptionData =
-          normalizeResponse(consumptionResponse);
+        const inventoryData = normalizeResponse(
+          await listFeedInventory()
+        );
 
         setRecords(inventoryData.map((r) => ({ ...r, date: r.date ? String(r.date).slice(0, 10) : r.date })));
-
-const consumptionMap = {};
-
-consumptionData.forEach((record) => {
-  const feedType = String(record?.feedType || "")
-    .trim()
-    .toLowerCase();
-
-  const quantityConsumed =
-    Number(record?.quantityConsumed) || 0;
-
-  const quantityUnit = String(
-    record?.quantityUnit || "kg"
-  )
-    .trim()
-    .toLowerCase();
-
-  if (!feedType || quantityConsumed <= 0) {
-    return;
-  }
-
-  let quantityConsumedKg = quantityConsumed;
-
-  if (quantityUnit === "sacks") {
-    quantityConsumedKg =
-      quantityConsumed * FEED_SACK_WEIGHT_KG;
-  }
-
-  if (feedType === "layer feed") {
-    consumptionMap["Layer Feed"] =
-      (consumptionMap["Layer Feed"] || 0) +
-      quantityConsumedKg;
-  }
-
-  if (feedType === "grower feed") {
-    consumptionMap["Grower Feed"] =
-      (consumptionMap["Grower Feed"] || 0) +
-      quantityConsumedKg;
-  }
-});
-
-setConsumed(consumptionMap);
       } catch (err) {
         setRecords([]);
-        setConsumed({});
         setError(
           err?.message || "Couldn't load feed inventory."
         );
@@ -256,62 +263,14 @@ setConsumed(consumptionMap);
       .filter(Boolean)
   )].sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
 
-  const normalizeFeedType = (value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase();
+  const layerStock = stockFor("Layer Feed");
+  const growerStock = stockFor("Grower Feed");
 
-const totalQuantityInByType = records.reduce(
-  (stock, record) => {
-    const feedType = normalizeFeedType(record?.feedType);
-    const quantityIn = Number(record?.quantityIn) || 0;
+  const currentLayerStockWhole = Math.floor(layerStock?.availableSacks || 0);
+  const currentGrowerStockWhole = Math.floor(growerStock?.availableSacks || 0);
 
-    if (feedType === "layer feed") {
-      stock.layer += quantityIn;
-    } else if (feedType === "grower feed") {
-      stock.grower += quantityIn;
-    }
-
-    return stock;
-  },
-  {
-    layer: 0,
-    grower: 0,
-  }
-);
-
-const totalConsumedByTypeKg = {
-  layer: Number(consumed["Layer Feed"]) || 0,
-  grower: Number(consumed["Grower Feed"]) || 0,
-};
-
-const consumedLayerSacks =
-  totalConsumedByTypeKg.layer / FEED_SACK_WEIGHT_KG;
-
-const consumedGrowerSacks =
-  totalConsumedByTypeKg.grower / FEED_SACK_WEIGHT_KG;
-
-const currentLayerStockSacks = Math.max(
-  0,
-  totalQuantityInByType.layer - consumedLayerSacks
-);
-
-const currentGrowerStockSacks = Math.max(
-  0,
-  totalQuantityInByType.grower - consumedGrowerSacks
-);
-
-const currentLayerStockWhole =
-  Math.max(0, Math.floor(currentLayerStockSacks));
-
-const currentGrowerStockWhole =
-  Math.max(0, Math.floor(currentGrowerStockSacks));
-
-  const currentLayerStockKg =
-    currentLayerStockSacks * FEED_SACK_WEIGHT_KG;
-
-  const currentGrowerStockKg =
-    currentGrowerStockSacks * FEED_SACK_WEIGHT_KG;
+  const currentLayerStockKg = layerStock?.availableKg || 0;
+  const currentGrowerStockKg = growerStock?.availableKg || 0;
 
   const displayRecords = records
     .map((record) => ({
@@ -396,31 +355,11 @@ const currentGrowerStockWhole =
     pager.endIndex
   );
 
-  const criticalTypes = [];
+  const outOfStockItems = stock.filter((item) => item.isOut);
+  const lowStockItems = stock.filter((item) => item.isLow && !item.isOut);
 
-  if (currentLayerStockKg <= CRITICAL_STOCK_THRESHOLD) {
-    criticalTypes.push("Layer Feed");
-  }
-
-  if (currentGrowerStockKg <= CRITICAL_STOCK_THRESHOLD) {
-    criticalTypes.push("Grower Feed");
-  }
-
-  const lowTypes = [];
-
-  if (
-    currentLayerStockKg > CRITICAL_STOCK_THRESHOLD &&
-    currentLayerStockKg <= LOW_STOCK_THRESHOLD
-  ) {
-    lowTypes.push("Layer Feed");
-  }
-
-  if (
-    currentGrowerStockKg > CRITICAL_STOCK_THRESHOLD &&
-    currentGrowerStockKg <= LOW_STOCK_THRESHOLD
-  ) {
-    lowTypes.push("Grower Feed");
-  }
+  const describeThreshold = (item) =>
+    `${formatFeedNumber(item.lowStockThreshold)} ${item.thresholdUnit}`;
 
   const periodLabel =
     filters.dateFrom && filters.dateTo
@@ -496,6 +435,119 @@ const currentGrowerStockWhole =
     status: record.status,
   }));
 
+  const settingsFormFor = (item) =>
+    item
+      ? {
+          feedType: item.feedType,
+          sackWeightKg: String(item.sackWeightKg),
+          lowStockThreshold: String(item.lowStockThreshold),
+          thresholdUnit: item.thresholdUnit,
+        }
+      : EMPTY_SETTINGS_FORM;
+
+  const openSettings = () => {
+    setSettingsForm(settingsFormFor(stock[0]));
+    setSettingsErrors({});
+    setSettingsMessage("");
+    setShowSettings(true);
+  };
+
+  const closeSettings = () => {
+    if (savingSettings) return;
+
+    setShowSettings(false);
+    setSettingsErrors({});
+  };
+
+  const handleSettingsFeedType = (feedType) => {
+    setSettingsForm(settingsFormFor(stockFor(feedType)));
+    setSettingsErrors({});
+  };
+
+  const handleSettingChange = (field, value) => {
+    if (field !== "thresholdUnit" && !/^\d*\.?\d{0,2}$/.test(value)) {
+      return;
+    }
+
+    setSettingsForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setSettingsErrors((current) => ({
+      ...current,
+      [field]: "",
+      form: "",
+    }));
+  };
+
+  const saveSettings = async (event) => {
+    event.preventDefault();
+
+    if (savingSettings) return;
+
+    const errors = validateStockSetting(settingsForm);
+
+    if (Object.keys(errors).length > 0) {
+      setSettingsErrors(errors);
+      return;
+    }
+
+    setSavingSettings(true);
+
+    try {
+      const json = await updateFeedStockSetting({
+        feedType: settingsForm.feedType,
+        sackWeightKg: settingsForm.sackWeightKg,
+        lowStockThreshold: settingsForm.lowStockThreshold,
+        thresholdUnit: settingsForm.thresholdUnit,
+      });
+
+      if (json?.stock) {
+        setStock((current) =>
+          current.map((entry) =>
+            entry.feedKey === json.stock.feedKey ? json.stock : entry
+          )
+        );
+      }
+
+      setSettingsMessage(
+        json?.message || `Low stock alert settings for ${settingsForm.feedType} saved.`
+      );
+      setSettingsErrors({});
+      setShowSettings(false);
+    } catch (err) {
+      setSettingsErrors({
+        ...(err?.body?.errors || {}),
+        form: err?.message || "Couldn't save the settings.",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showSettings) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !savingSettings) {
+        setShowSettings(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showSettings, savingSettings]);
+
+  const selectedSettingsStock = stockFor(settingsForm.feedType);
+
+  const thresholdPreviewKg = feedQuantityToKg(
+    Number(settingsForm.lowStockThreshold) || 0,
+    settingsForm.thresholdUnit,
+    settingsForm.sackWeightKg
+  );
+
   const handleAddNewFeeds = () => {
     navigate(
       "/sales-transactions/expenses/add?category=Feed%20Purchase"
@@ -505,12 +557,6 @@ const currentGrowerStockWhole =
   const handleEmptyAdd = () => {
     navigate(
       "/sales-transactions/expenses/add?category=Feed%20Purchase"
-    );
-  };
-
-  const handleEdit = (record) => {
-    navigate(
-      `/inventory/feed-inventory/edit/${record._id}`
     );
   };
 
@@ -541,6 +587,20 @@ const currentGrowerStockWhole =
           )}
 
         <div className="fi-toolbar-right">
+          {isOwner && (
+            <button
+              type="button"
+              className="fi-toolbar-btn fi-settings-btn"
+              onClick={openSettings}
+              disabled={stockLoading || stock.length === 0}
+              title="Low Stock Alert Settings"
+              aria-haspopup="dialog"
+            >
+              <FiSettings />
+              Low Stock Alerts
+            </button>
+          )}
+
           <div className="fi-search-box">
             <FiSearch />
 
@@ -553,6 +613,7 @@ const currentGrowerStockWhole =
               }
             />
           </div>
+
 
           <div className="fi-btn-group">
             <div
@@ -717,6 +778,7 @@ const currentGrowerStockWhole =
               pdfExtra={{
                 period: exportMeta.period,
                 summary: exportSummary,
+                hideApprovalAndTagline: true,
               }}
               moduleLabel="Feed Inventory"
               enablePreview
@@ -734,48 +796,11 @@ const currentGrowerStockWhole =
               }}
               className="fi-toolbar-btn"
             />
+
           </div>
         </div>
       </div>
 
-      {activeFilterCount > 0 && (
-        <div className="fi-active-filters">
-          {Object.entries(filters).map(
-            ([key, value]) =>
-              value !== "All" &&
-              value !== "" && (
-                <span
-                  key={key}
-                  className="fi-active-filter-tag"
-                >
-                  {key === "feedType"
-                    ? "Feed Type"
-                    : key === "dateFrom"
-                      ? "From"
-                      : key === "dateTo"
-                        ? "To"
-                        : key}
-                  : {value}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleFilterChange(
-                        key,
-                        key === "dateFrom" ||
-                          key === "dateTo"
-                          ? ""
-                          : "All"
-                      )
-                    }
-                  >
-                    ✕
-                  </button>
-                </span>
-              )
-          )}
-        </div>
-      )}
 
       {error && (
         <div className="pb-error-banner">
@@ -783,19 +808,35 @@ const currentGrowerStockWhole =
         </div>
       )}
 
-      {!loading && criticalTypes.length > 0 && (
+      {stockError && (
         <div className="pb-error-banner">
-          ⛔ Critical Stock: {criticalTypes.join(", ")} at
-          or below {CRITICAL_STOCK_THRESHOLD} kg. Restock
+          {stockError}
+        </div>
+      )}
+
+      {settingsMessage && (
+        <div className="pb-success-banner">
+          {settingsMessage}
+        </div>
+      )}
+
+      {!stockLoading && outOfStockItems.length > 0 && (
+        <div className="pb-error-banner">
+          ⛔ Out of Stock: {outOfStockItems.map((item) => item.feedType).join(", ")}. Restock
           immediately.
         </div>
       )}
 
-      {!loading && lowTypes.length > 0 && (
+      {!stockLoading && lowStockItems.length > 0 && (
         <div className="pb-warning-banner">
-          ⚠️ Low Stock: {lowTypes.join(", ")} at or below{" "}
-          {LOW_STOCK_THRESHOLD} kg. Consider restocking
-          soon.
+          ⚠️ Low Stock:{" "}
+          {lowStockItems
+            .map(
+              (item) =>
+                `${item.feedType} (${formatFeedNumber(item.availableKg)} kg left, threshold ${describeThreshold(item)})`
+            )
+            .join(", ")}
+          . Consider restocking soon.
         </div>
       )}
 
@@ -829,7 +870,8 @@ const currentGrowerStockWhole =
         </div>
       </div>
 
-      <div className="fi-table-wrapper">
+      <TableSection className="fi-table-wrapper">
+        <TableScroll>
         <table className="fi-table">
           <thead>
             <tr>
@@ -958,19 +1000,6 @@ const currentGrowerStockWhole =
 
                   <td>
                     <div className="fi-actions">
-                      {canEdit && (
-                        <button
-                          type="button"
-                          className="fi-btn-edit"
-                          title="Edit"
-                          onClick={() =>
-                            handleEdit(record)
-                          }
-                        >
-                          <FiEdit2 />
-                        </button>
-                      )}
-
                       {canArchive && (
                         <button
                           type="button"
@@ -1000,17 +1029,165 @@ const currentGrowerStockWhole =
           </tbody>
         </table>
 
+        </TableScroll>
         <TablePagination
-          page={pager.page}
-          setPage={pager.setPage}
-          rowsPerPage={pager.rowsPerPage}
-          setRowsPerPage={pager.setRowsPerPage}
+          currentPage={pager.page}
           totalPages={pager.totalPages}
+          pageSize={pager.rowsPerPage}
+          totalRecords={pager.totalItems}
           startIndex={pager.startIndex}
           endIndex={pager.endIndex}
-          totalItems={pager.totalItems}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setRowsPerPage}
         />
-      </div>
+      </TableSection>
+
+      {isOwner && showSettings && (
+        <div className="fi-modal-overlay" onClick={closeSettings}>
+          <form
+            className="fi-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fi-settings-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={saveSettings}
+            noValidate
+          >
+            <div className="fi-modal-head">
+              <h3 id="fi-settings-title">Low Stock Alert Settings</h3>
+              <button
+                type="button"
+                className="fi-modal-close"
+                onClick={closeSettings}
+                aria-label="Close"
+                disabled={savingSettings}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="fi-modal-body">
+              <p className="fi-modal-note">
+                An alert is sent when the available stock of a feed type reaches or falls below its minimum threshold.
+              </p>
+
+              {settingsErrors.form && (
+                <div className="pb-error-banner">
+                  {settingsErrors.form}
+                </div>
+              )}
+
+              <div className="fi-modal-field">
+                <label htmlFor="fi-settings-feed-type">Feed Type</label>
+                <select
+                  id="fi-settings-feed-type"
+                  value={settingsForm.feedType}
+                  onChange={(event) => handleSettingsFeedType(event.target.value)}
+                  disabled={savingSettings}
+                >
+                  {stock.map((item) => (
+                    <option key={item.feedKey} value={item.feedType}>
+                      {item.feedType}
+                    </option>
+                  ))}
+                </select>
+                {selectedSettingsStock && (
+                  <small>
+                    Available: {formatFeedNumber(selectedSettingsStock.availableKg)} kg (
+                    {formatFeedNumber(selectedSettingsStock.availableSacks)} sacks)
+                    {selectedSettingsStock.isOut
+                      ? " · Out of stock"
+                      : selectedSettingsStock.isLow
+                        ? " · Low stock"
+                        : ""}
+                  </small>
+                )}
+              </div>
+
+              <div className="fi-modal-field">
+                <label htmlFor="fi-settings-threshold">Minimum Stock Threshold</label>
+                <div className="fi-modal-input-group">
+                  <input
+                    id="fi-settings-threshold"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={settingsForm.lowStockThreshold}
+                    onKeyDown={blockInvalidNumberKeys}
+                    onChange={(event) => handleSettingChange("lowStockThreshold", event.target.value)}
+                    placeholder="Enter minimum stock"
+                    disabled={savingSettings}
+                  />
+                  <select
+                    value={settingsForm.thresholdUnit}
+                    onChange={(event) => handleSettingChange("thresholdUnit", event.target.value)}
+                    aria-label="Stock unit"
+                    disabled={savingSettings}
+                  >
+                    {THRESHOLD_UNITS.map((unit) => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </div>
+                {settingsErrors.lowStockThreshold || settingsErrors.thresholdUnit ? (
+                  <small className="fi-modal-error">
+                    {settingsErrors.lowStockThreshold || settingsErrors.thresholdUnit}
+                  </small>
+                ) : (
+                  <small>
+                    {settingsForm.thresholdUnit === "sacks"
+                      ? `≈ ${formatFeedNumber(thresholdPreviewKg)} kg using the weight per sack below.`
+                      : "Threshold is measured in kilograms."}
+                  </small>
+                )}
+              </div>
+
+              <div className="fi-modal-field">
+                <label htmlFor="fi-settings-sack-weight">Weight per Sack (kg)</label>
+                <input
+                  id="fi-settings-sack-weight"
+                  type="number"
+                  min="0.01"
+                  max={MAX_SACK_WEIGHT_KG}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={settingsForm.sackWeightKg}
+                  onKeyDown={blockInvalidNumberKeys}
+                  onChange={(event) => handleSettingChange("sackWeightKg", event.target.value)}
+                  placeholder="e.g. 50"
+                  disabled={savingSettings}
+                />
+                {settingsErrors.sackWeightKg ? (
+                  <small className="fi-modal-error">{settingsErrors.sackWeightKg}</small>
+                ) : (
+                  <small>
+                    Converts sacks to kg for new purchases and consumption. Existing records keep the weight they were saved with.
+                  </small>
+                )}
+              </div>
+            </div>
+
+            <div className="fi-modal-foot">
+              <button
+                type="button"
+                className="fi-modal-cancel"
+                onClick={closeSettings}
+                disabled={savingSettings}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="fi-modal-save"
+                disabled={savingSettings}
+              >
+                {savingSettings ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <ArchiveConfirmModal
         pending={archivePending}

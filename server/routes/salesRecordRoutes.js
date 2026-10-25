@@ -11,20 +11,20 @@ const {
   getEggStockSummary,
 } = require("../controllers/salesRecordController");
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect, ownerOnly } = require("../middleware/authMiddleware");
 
-router.get("/", protect, getSalesRecords);
+router.get("/", protect, ownerOnly, getSalesRecords);
 
-router.get("/egg-stock", protect, getEggStockSummary);
+router.get("/egg-stock", protect, ownerOnly, getEggStockSummary);
 
-router.get("/:id", protect, getSalesRecord);
+router.get("/:id", protect, ownerOnly, getSalesRecord);
 
-router.post("/", protect, createSalesRecord);
+router.post("/", protect, ownerOnly, createSalesRecord);
 
-router.put("/:id", protect, updateSalesRecord);
+router.put("/:id", protect, ownerOnly, updateSalesRecord);
 
-router.put("/:id/restore", protect, restoreSalesRecord);
+router.put("/:id/restore", protect, ownerOnly, restoreSalesRecord);
 
-router.delete("/:id", protect, deleteSalesRecord);
+router.delete("/:id", protect, ownerOnly, deleteSalesRecord);
 
 module.exports = router;

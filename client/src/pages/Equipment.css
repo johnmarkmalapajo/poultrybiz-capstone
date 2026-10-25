@@ -182,7 +182,6 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: 380px;
   min-width: 340px;
   max-width: 380px;
   max-height: 80vh;
@@ -192,7 +191,6 @@
   border: 1.5px solid var(--border, #e4e0d8);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  box-sizing: border-box;
 }
 
 .eq-filter-dropdown-header {
@@ -448,14 +446,16 @@
   background: var(--surface);
   border-radius: 16px;
   border: 1px solid var(--border);
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   flex: none !important;
   min-height: 0 !important;
-  overflow: auto;
   max-height: none !important;
-  overflow-y: hidden !important;
+  /* Card only, never a scroll container: the table scrolls inside
+     <TableScroll> (.tp-table-scroll) and <TablePagination> sits
+     below it as a sibling, so swiping moves the columns only. */
+  overflow: visible !important;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .eq-table {
@@ -745,6 +745,7 @@
     left:0 !important;
     right:auto !important;
     max-width:calc(100vw - 40px) !important;
+    box-sizing:border-box;
   }
 
 }

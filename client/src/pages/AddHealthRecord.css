@@ -254,7 +254,7 @@
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
-.ahr-save-btn:hover {
+.ahr-save-btn:hover:not(:disabled) {
   background: var(--color-accent-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(228, 175, 31, 0.3);
@@ -314,29 +314,43 @@
     padding: 16px 12px;
   }
 
-  .ahr-form-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ahr-action-btns {
-    width: 100%;
-    margin-left: 0;
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .ahr-cancel-btn,
-  .ahr-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
   .ahr-form-group > div[style*="flex"] {
     flex-wrap: wrap;
   }
 
   .ahr-form-group > div[style*="flex"] > * {
     flex: 1 1 100% !important;
+  }
+}
+
+/* ==========================
+   ACTION BUTTONS — SMALL SCREENS
+   Same row as the Flock Profile form (Cancel + Save/Update side by side,
+   right-aligned). The buttons may only shrink, never wrap their text or
+   stack, so they always fit inside the form on narrow phones.
+========================== */
+
+@media (max-width: 480px) {
+  .ahr-action-btns {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .ahr-cancel-btn,
+  .ahr-save-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 360px) {
+  .ahr-cancel-btn,
+  .ahr-save-btn {
+    padding: 12px 14px;
+    font-size: 13px;
   }
 }

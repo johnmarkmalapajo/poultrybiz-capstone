@@ -35,8 +35,15 @@ export const restorePersonnel = (id) =>
 export const getPersonnelAttendance = (id, params) =>
   apiGet(`${PATH}/${id}/attendance`, params);
 
-export const createAttendance = () =>
-  apiPost("/api/v1/attendance/check");
+// Records attendance for the logged-in account. `qr` is the code from the
+// official attendance QR; the backend checks it and identifies the person
+// from the session, never from this request.
+export const createAttendance = (qr) =>
+  apiPost("/api/v1/attendance/check", { qr });
+
+// Owner only: the official attendance QR code.
+export const getAttendanceQr = () =>
+  apiGet("/api/v1/attendance/qr");
 
 export const updateAttendance = (attendanceId, payload) =>
   apiPut(`${PATH}/attendance/${attendanceId}`, payload);

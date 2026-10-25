@@ -4,13 +4,16 @@ import { FiSave, FiX, FiFileText, FiUpload, FiInfo, FiTrash2 } from "react-icons
 import PageLayout from "../components/PageLayout";
 import "./EditExpense.css";
 import { getExpenseRecord, updateExpenseRecord, uploadReceipt } from "../api/expenseRecord";
+import {
+  useFeedStock,
+  feedQuantityToKg,
+  sackWeightHint,
+} from "../hooks/useFeedStock";
 
 const CATEGORIES = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
   "Equipment", "Transportation", "Miscellaneous",
 ];
-
-const FEED_SACK_WEIGHT_KG = 50;
 
 const blockInvalidNumberKeys = (e) => {
   if (["-", "+", "e", "E"].includes(e.key)) {
@@ -50,6 +53,17 @@ export default function EditExpense() {
   });
 
   const [feedSets, setFeedSets] = useState([createFeedSet()]);
+  const [savedFeedSets, setSavedFeedSets] = useState([]);
+  const { sackWeightFor } = useFeedStock();
+
+  const feedSetSackWeight = (feedSet) => {
+    const saved = savedFeedSets.find((item) => item._id && item._id === feedSet._id);
+
+    return saved &&
+      saved.feedType.trim().toLowerCase() === String(feedSet.feedType || "").trim().toLowerCase()
+      ? saved.sackWeightKg
+      : sackWeightFor(feedSet.feedType);
+  };
 
   const isEquipment = form.category === "Equipment";
   const isFeedPurchase = form.category === "Feed Purchase";
@@ -90,10 +104,19 @@ export default function EditExpense() {
           if (Array.isArray(rec.feedSets) && rec.feedSets.length > 0) {
             setFeedSets(
               rec.feedSets.map((fs) => ({
+                _id: fs._id,
                 feedType: fs.feedType || "",
                 unit: fs.unit || "Sacks",
                 quantity: fs.quantity ?? "",
                 unitPrice: fs.unitPrice ?? "",
+              }))
+            );
+
+            setSavedFeedSets(
+              rec.feedSets.map((fs) => ({
+                _id: fs._id,
+                feedType: fs.feedType || "",
+                sackWeightKg: fs.sackWeightKg,
               }))
             );
           }
@@ -151,13 +174,11 @@ export default function EditExpense() {
     0
   );
 
-  const totalQuantityKg = feedSets.reduce((total, fs) => {
-    const quantity = Number(fs.quantity || 0);
-    if (fs.unit === "Sacks") {
-      return total + quantity * FEED_SACK_WEIGHT_KG;
-    }
-    return total + quantity;
-  }, 0);
+  const totalQuantityKg = feedSets.reduce(
+    (total, fs) =>
+      total + feedQuantityToKg(fs.quantity, fs.unit, feedSetSackWeight(fs)),
+    0
+  );
 
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -232,6 +253,7 @@ export default function EditExpense() {
             receipt: uploadedReceiptPath,
             amount: feedPurchaseTotal,
             feedSets: feedSets.map((fs) => ({
+              ...(fs._id ? { _id: fs._id } : {}),
               feedType: fs.feedType,
               unit: fs.unit,
               quantity: Number(fs.quantity),
@@ -462,9 +484,7 @@ export default function EditExpense() {
                         </select>
                       </div>
                       <small className="ee-unit-equivalent">
-                        {fs.unit === "Sacks"
-                          ? "1 sack is equal to 50 kg."
-                          : "50 kg is equal to 1 sack."}
+                        {sackWeightHint(fs.unit, feedSetSackWeight(fs))}
                       </small>
                     </div>
 

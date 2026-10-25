@@ -2,6 +2,9 @@
 // Every resource file in src/api/ builds its requests through this module,
 // and every page calls a resource file — never fetch()/axios() directly.
 
+// Login-session helpers (same folder: src/api/session.js).
+import { getToken, endSessionAndGoToLogin } from "./session";
+
 // Base URL comes from VITE_API_URL only. Falls back to the same local
 // backend the (untouched) auth pages already point at, so this layer talks
 // to the same server during local development.
@@ -29,7 +32,7 @@ export class ApiError extends Error {
 }
 
 function authHeaders() {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -50,7 +53,9 @@ export function buildUrl(path, params) {
 // Core request function. Resolves with the parsed JSON body on success (2xx).
 // Throws ApiError on any non-2xx response, network failure, or timeout, with
 // a user-friendly `.message` a page can show directly.
-export async function request(path, { method = "GET", body, params, headers, signal } = {}) {
+export async function request(path, { method = "GET", body, params, headers, signal, authRedirect = true } = {}) {
+  const sentToken = !!getToken();
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   // Let a caller-supplied signal cancel the request too (e.g. component unmount).
@@ -82,6 +87,13 @@ export async function request(path, { method = "GET", body, params, headers, sig
   try { json = await res.json(); } catch { /* empty/non-JSON body is fine for 204s etc. */ }
 
   if (!res.ok) {
+    // The backend rejected the stored login (expired, logged out, idle, or
+    // the account was deactivated): clear it and go to Login, which brings
+    // the user back to this page afterwards.
+    if (res.status === 401 && sentToken && authRedirect) {
+      endSessionAndGoToLogin(json?.code || "SESSION_REQUIRED");
+    }
+
     const backendMessage = json?.message || json?.error;
     throw new ApiError(res.status, backendMessage || STATUS_MESSAGES[res.status] || `Request failed (${res.status}).`, json);
   }

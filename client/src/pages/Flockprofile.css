@@ -443,13 +443,16 @@
   flex: none !important;
   min-height: 0 !important;
   max-height: none !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  -webkit-overflow-scrolling: touch;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  /* Card only, never a scroll container: the table scrolls inside
+     <TableScroll> (.tp-table-scroll) and <TablePagination> sits
+     below it as a sibling, so swiping moves the columns only. */
+  overflow: visible !important;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .fp-table {

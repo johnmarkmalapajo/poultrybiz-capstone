@@ -8,6 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const { requireDatabase } = require("./utils/dbStatus");
 const path = require("path");
 const fs = require("fs");
 const personnelRoutes = require("./routes/personnelRoutes");
@@ -19,14 +20,20 @@ connectDB();
 
 const app = express();
 
+const configuredOrigins = [process.env.CLIENT_URL, process.env.FRONTEND_URL]
+  .filter(Boolean)
+  .flatMap((value) => value.split(","))
+  .map((value) => value.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://localhost:3000",
-  process.env.FRONTEND_URL,
-].filter(Boolean);
+  ...configuredOrigins,
+];
 
 app.use(
   cors({
@@ -38,7 +45,12 @@ app.use(
       }
 
       console.log("Blocked Origin:", origin);
-      return callback(new Error("Not allowed by CORS"));
+
+      const error = new Error(`Origin ${origin} is not allowed by CORS. Add it to CLIENT_URL in server/.env.`);
+      error.status = 403;
+      error.expose = true;
+
+      return callback(error);
     },
     credentials: true,
   })
@@ -77,6 +89,8 @@ app.use("/uploads", express.static(uploadDir));
 
 const VERSION = process.env.API_VERSION || "v1";
 const BASE = `/api/${VERSION}`;
+
+app.use(BASE, requireDatabase);
 
 // ==============================
 // ROUTES
@@ -187,6 +201,27 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
+  });
+});
+
+// ==============================
+// ERROR HANDLER
+// ==============================
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const status = err.status || err.statusCode || 500;
+
+  if (status >= 500) {
+    console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+  }
+
+  return res.status(status).json({
+    success: false,
+    message: err.expose ? err.message : "Something went wrong on the server.",
   });
 });
 

@@ -37,6 +37,12 @@ const feedInventorySchema = new mongoose.Schema(
       default: "sacks",
     },
 
+    sackWeightKg: {
+      type: Number,
+      min: 0.01,
+      default: 50,
+    },
+
     quantityIn: {
       type: Number,
       required: true,

@@ -13,11 +13,11 @@ const {
   getPersonnelAttendance,
 } = require("../controllers/personnelController");
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect, ownerOnly } = require("../middleware/authMiddleware");
 
 
 // Get all personnel
-router.get("/", getAllPersonnel);
+router.get("/", protect, getAllPersonnel);
 
 router.get("/all-tasks", protect, getAllAssignedTasks);
 
@@ -26,7 +26,7 @@ router.get("/all-tasks", protect, getAllAssignedTasks);
 router.get("/:id", protect, getPersonnel);
 
 // Create personnel
-router.post("/", protect, createPersonnel);
+router.post("/", protect, ownerOnly, createPersonnel);
 
 // Update personnel
 router.put("/:id", protect, updatePersonnel);
@@ -41,7 +41,7 @@ router.put("/:id/restore", protect, restorePersonnel);
 router.delete("/:id", protect, deletePersonnel);
 
 //Personnel Attendance
-router.get("/:id/attendance", protect, getPersonnelAttendance);
+router.get("/:id/attendance", protect, ownerOnly, getPersonnelAttendance);
 
 
 module.exports = router;

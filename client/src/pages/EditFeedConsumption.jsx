@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiInfo, FiFileText, FiSave } from "react-icons/fi";
+import { FiInfo, FiFileText, FiSave, FiX } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditFeedConsumption.css";
 import {
@@ -8,10 +8,10 @@ import {
   updateFeedConsumption,
 } from "../api/feedConsumption";
 import { listFlocks } from "../api/flockProfile";
+import { useFeedStock, resolveSackWeight } from "../hooks/useFeedStock";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 const QUANTITY_UNITS = ["sacks", "kg"];
-const FEED_SACK_WEIGHT_KG = 50;
 
 function getFeedPlan(week) {
   if (week == null || isNaN(week) || week < 17) return null;
@@ -183,6 +183,20 @@ export default function EditFeedConsumption() {
     notes: "",
   });
 
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    feedType: "",
+    sackWeightKg: null,
+  });
+
+  const { sackWeightFor } = useFeedStock();
+
+  const sackWeightKg =
+    savedSnapshot.feedType &&
+    savedSnapshot.feedType.trim().toLowerCase() ===
+      form.feedType.trim().toLowerCase()
+      ? resolveSackWeight(savedSnapshot.sackWeightKg)
+      : sackWeightFor(form.feedType);
+
   useEffect(() => {
     const fetchBatches = async () => {
       try {
@@ -252,12 +266,10 @@ export default function EditFeedConsumption() {
           const numericQuantity =
             Number(quantityConsumed);
 
-          if (
-            quantityUnit === "sacks" &&
-            Number.isFinite(numericQuantity)
-          ) {
-            quantityConsumed =
-              Math.floor(numericQuantity);
+          if (Number.isFinite(numericQuantity)) {
+            quantityConsumed = String(
+              Math.round(numericQuantity * 100) / 100
+            );
           }
         }
 
@@ -272,6 +284,11 @@ export default function EditFeedConsumption() {
           quantityConsumed,
           quantityUnit,
           notes: record.notes || "",
+        });
+
+        setSavedSnapshot({
+          feedType: record.feedType || "",
+          sackWeightKg: record.sackWeightKg ?? null,
         });
       } catch (err) {
         setError(
@@ -309,21 +326,13 @@ export default function EditFeedConsumption() {
         return;
       }
 
-      const numericValue = Number(value);
-
-      if (Number.isNaN(numericValue)) {
+      if (!/^\d*\.?\d{0,2}$/.test(value)) {
         return;
       }
 
       setForm((current) => ({
         ...current,
-        quantityConsumed:
-          current.quantityUnit === "sacks"
-            ? Math.max(
-                0,
-                Math.floor(numericValue)
-              )
-            : Math.max(0, numericValue),
+        quantityConsumed: value,
       }));
 
       return;
@@ -409,21 +418,11 @@ export default function EditFeedConsumption() {
     );
 
     if (
-      form.quantityConsumed === "" ||
+      !/^(\d+(\.\d{1,2})?|\.\d{1,2})$/.test(String(form.quantityConsumed)) ||
       quantity <= 0
     ) {
       setError(
-        "Please enter a valid quantity consumed."
-      );
-      return;
-    }
-
-    if (
-      form.quantityUnit === "sacks" &&
-      !Number.isInteger(quantity)
-    ) {
-      setError(
-        "Sack quantity must be a whole number."
+        "Please enter a valid quantity greater than 0 (up to 2 decimal places)."
       );
       return;
     }
@@ -432,18 +431,12 @@ export default function EditFeedConsumption() {
     setSaving(true);
 
     try {
-      const equivalentKg =
-        form.quantityUnit === "sacks"
-          ? quantity * FEED_SACK_WEIGHT_KG
-          : quantity;
-
       const payload = {
         date: form.date,
         batchId: form.batchId,
         feedType: form.feedType,
         quantityConsumed: quantity,
         quantityUnit: form.quantityUnit,
-        equivalentKg,
         ...autoMeta,
         notes: form.notes,
       };
@@ -618,11 +611,7 @@ export default function EditFeedConsumption() {
               <input
                 type="number"
                 min="0"
-                step={
-                  form.quantityUnit === "sacks"
-                    ? "1"
-                    : "0.01"
-                }
+                step="0.01"
                 name="quantityConsumed"
                 value={form.quantityConsumed}
                 onChange={handleChange}
@@ -651,7 +640,7 @@ export default function EditFeedConsumption() {
 
             <small>
               {form.quantityUnit === "sacks"
-                ? "1 sack = 50 kg"
+                ? `1 sack = ${sackWeightKg} kg`
                 : "Quantity is recorded in kilograms."}
             </small>
           </div>
@@ -680,31 +669,32 @@ export default function EditFeedConsumption() {
           </small>
         </div>
 
+        {/* Same layout as the Flock Profile form: required-field note on the
+            left, Cancel and Update grouped on the right. */}
         <div className="efc-form-actions">
-          <button
-            type="button"
-            className="efc-cancel-btn"
-            onClick={() =>
-              navigate(
-                "/inventory/feed-consumption"
-              )
-            }
-            disabled={saving}
-          >
-            Cancel
-          </button>
+          <p className="efc-req-note">Fields with * are required.</p>
+          <div className="efc-action-btns">
+            <button
+              type="button"
+              className="efc-cancel-btn"
+              onClick={() =>
+                navigate(
+                  "/inventory/feed-consumption"
+                )
+              }
+              disabled={saving}
+            >
+              <FiX /> Cancel
+            </button>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="efc-save-btn"
-          >
-            <FiSave />
-
-            {saving
-              ? "Updating..."
-              : "Update Record"}
-          </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="efc-save-btn"
+            >
+              <FiSave /> {saving ? "Updating..." : "Update Record"}
+            </button>
+          </div>
         </div>
       </form>
     </PageLayout>

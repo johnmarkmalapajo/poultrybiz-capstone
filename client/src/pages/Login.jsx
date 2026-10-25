@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import "./Login.css";
+import { SESSION_REASONS, safeRedirectPath } from "../api/session";
 
 const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1`;
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Where to continue after logging in (e.g. the Attendance QR page), and
+  // why the user was sent here. Only same-site paths are accepted.
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"));
+  const reasonMessage = SESSION_REASONS[searchParams.get("reason")] || "";
   const [form, setForm]         = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -47,8 +53,6 @@ export default function Login() {
       });
       const data = await res.json();
 
-      console.log("LOGIN RESPONSE:", data);
-
       if (data.success) {
         const existingUsers = JSON.parse(localStorage.getItem("knownUsers") || "[]");
         const isNewUser = !existingUsers.includes(data.user.id);
@@ -63,7 +67,7 @@ export default function Login() {
 
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        navigate("/dashboard");
+        navigate(redirectTo || "/dashboard", { replace: !!redirectTo });
 
       } else {
         if (data.isPending) {
@@ -85,6 +89,9 @@ export default function Login() {
     <div className="login-bg">
       <div className="login-card">
         <h2 className="login-title">Login</h2>
+        {reasonMessage && !error && (
+          <div className="pb-warning-banner" role="status">{reasonMessage}</div>
+        )}
         <form className="login-form" onSubmit={handleSubmit} noValidate>
 
           <div className="login-field">

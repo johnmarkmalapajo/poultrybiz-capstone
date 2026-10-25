@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const { listBreeds, createBreed } = require("../controllers/breedController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, ownerOnly } = require("../middleware/authMiddleware");
 
 router.get("/", protect, listBreeds);
-router.post("/", protect, createBreed);
+router.post("/", protect, ownerOnly, createBreed);
 
 module.exports = router;

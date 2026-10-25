@@ -67,45 +67,13 @@ import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PendingApproval from './pages/PendingApproval';
 
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-
-const PUBLIC_PATHS = [
-  '/',
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/reset-password',
-  '/visitor/register',
-  '/attendance/check-in',
-]
-
-function RouteGate({ children }) {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const hasToken = !!localStorage.getItem('token')
-  const isPublicPath = PUBLIC_PATHS.includes(location.pathname)
-  const [ready, setReady] = useState(isPublicPath || hasToken)
-
-  useEffect(() => {
-    if (!isPublicPath && !hasToken) {
-      sessionStorage.setItem('pb_intended_path', location.pathname + location.search)
-      navigate('/', { replace: true })
-    }
-    if (!ready) {
-      setReady(true)
-    }
-  }, [])
-
-  if (!ready) return null
-
-  return children
-}
+import AuthGate from './components/AuthGate'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <RouteGate>
+      <AuthGate>
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/login" element={<Login />} />
@@ -118,7 +86,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/records/flock/add" element={<ProtectedRoute allow={["Owner"]}><AddFlock /></ProtectedRoute>} />
         <Route path="/records/flock/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditFlock /></ProtectedRoute>} />
         <Route path="/inventory" element={<Inventory />} />
-        <Route path="/sales-transactions" element={<SalesTransaction />} />
+        <Route path="/sales-transactions" element={<ProtectedRoute allow={["Owner"]}><SalesTransaction /></ProtectedRoute>} />
         <Route path="/sales-transactions/sales" element={<ProtectedRoute allow={["Owner"]}><SalesRecord /></ProtectedRoute>} />
         <Route path="/sales-transactions/sales/add" element={<ProtectedRoute allow={["Owner"]}><AddSalesRecord /></ProtectedRoute>} />
         <Route path="/sales-transactions/sales/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditSalesRecord /></ProtectedRoute>} />
@@ -152,13 +120,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/sales-transactions/expenses/add" element={<ProtectedRoute allow={["Owner"]}><AddExpense /></ProtectedRoute>} />
         <Route path="/sales-transactions/expenses/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditExpense /></ProtectedRoute>} />
         <Route path="/inventory/feed-inventory"          element={<FeedInventory />} />
-        <Route path="/inventory/feed-inventory/add"      element={<AddFeedInventory />} />
-        <Route path="/inventory/feed-inventory/edit/:id" element={<EditFeedInventory />} />
+        <Route path="/inventory/feed-inventory/add"      element={<ProtectedRoute allow={["Owner"]}><AddFeedInventory /></ProtectedRoute>} />
+        <Route path="/inventory/feed-inventory/edit/:id" element={<ProtectedRoute allow={["Owner"]}><EditFeedInventory /></ProtectedRoute>} />
         <Route path="/inventory/feed-consumption"          element={<FeedConsumption />} />
         <Route path="/inventory/feed-consumption/add"      element={<AddFeedConsumption />} />
         <Route path="/inventory/feed-consumption/edit/:id" element={<EditFeedConsumption />} />
         <Route path="/inventory/equipment"          element={<Equipment />} />
-        <Route path="/inventory/equipment/add"      element={<AddEquipment />} />
+        <Route path="/inventory/equipment/add"      element={<ProtectedRoute allow={["Owner"]}><AddEquipment /></ProtectedRoute>} />
         <Route path="/inventory/equipment/edit/:id" element={<EditEquipment />} />
         <Route path="/todo" element={<FarmerTodo />} />
         <Route path="/owner/todo" element={<ProtectedRoute allow={["Owner"]}><AdminTodo /></ProtectedRoute>} />
@@ -175,7 +143,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/profile" element={<Profile />} />
 
       </Routes>
-      </RouteGate>
+      </AuthGate>
     </BrowserRouter>
   </React.StrictMode>,
 )

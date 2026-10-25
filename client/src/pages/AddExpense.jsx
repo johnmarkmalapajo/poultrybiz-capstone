@@ -11,6 +11,11 @@ import {
 import PageLayout from "../components/PageLayout";
 import "./AddExpense.css";
 import { createExpenseRecord, uploadReceipt } from "../api/expenseRecord";
+import {
+  useFeedStock,
+  feedQuantityToKg,
+  sackWeightHint,
+} from "../hooks/useFeedStock";
 
 const CATEGORIES = [
   "Feed Purchase",
@@ -21,8 +26,6 @@ const CATEGORIES = [
   "Transportation",
   "Miscellaneous",
 ];
-
-const FEED_SACK_WEIGHT_KG = 50;
 
 // Blocks "-", "+", "e"/"E" from being typed into number inputs so users
 // can't enter negative amounts/quantities via the keyboard.
@@ -65,6 +68,7 @@ const feedSetSubtotal = (feedSet) =>
 export default function AddExpense() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { sackWeightFor } = useFeedStock();
 
   const presetCategory = searchParams.get("category");
 
@@ -120,18 +124,13 @@ export default function AddExpense() {
   }, [presetCategory]);
 
   const totalQuantityKg = feedSets.reduce(
-    (total, feedSet) => {
-      const quantity = Number(feedSet.quantity || 0);
-
-      if (feedSet.unit === "Sacks") {
-        return (
-          total +
-          quantity * FEED_SACK_WEIGHT_KG
-        );
-      }
-
-      return total + quantity;
-    },
+    (total, feedSet) =>
+      total +
+      feedQuantityToKg(
+        feedSet.quantity,
+        feedSet.unit,
+        sackWeightFor(feedSet.feedType)
+      ),
     0
   );
 
@@ -373,10 +372,11 @@ export default function AddExpense() {
                 );
 
                 const equivalentKg =
-                  feedSet.unit === "Sacks"
-                    ? quantity *
-                      FEED_SACK_WEIGHT_KG
-                    : quantity;
+                  feedQuantityToKg(
+                    quantity,
+                    feedSet.unit,
+                    sackWeightFor(feedSet.feedType)
+                  );
 
                 return {
                   feedType:
@@ -832,10 +832,10 @@ export default function AddExpense() {
                 </div>
 
                 <small className="ae-unit-equivalent">
-                  {feedSets[0].unit ===
-                  "Sacks"
-                    ? "1 sack is equal to 50 kg."
-                    : "50 kg is equal to 1 sack."}
+                  {sackWeightHint(
+                    feedSets[0].unit,
+                    sackWeightFor(feedSets[0].feedType)
+                  )}
                 </small>
               </div>
 
@@ -1074,10 +1074,10 @@ export default function AddExpense() {
                               </div>
 
                               <small className="ae-unit-equivalent">
-                                {feedSet.unit ===
-                                "Sacks"
-                                  ? "1 sack is equal to 50 kg."
-                                  : "50 kg is equal to 1 sack."}
+                                {sackWeightHint(
+                                  feedSet.unit,
+                                  sackWeightFor(feedSet.feedType)
+                                )}
                               </small>
                             </div>
 
@@ -1390,4 +1390,4 @@ export default function AddExpense() {
       </form>
     </PageLayout>
   );
-} 
+}

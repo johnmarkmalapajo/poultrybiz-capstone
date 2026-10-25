@@ -14,8 +14,7 @@ import { listEquipment } from "../api/equipmentTools";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const CONDITION_OPTIONS = ["In Use", "Idle", "For Repair", "For Disposal"];
 
@@ -371,7 +370,7 @@ export default function Equipment() {
                 name="equipment-tools"
                 title="Equipment & Tools Report"
                 meta={exportMeta}
-                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Equipment & Tools"
                 enablePreview
                 filters={{
@@ -386,23 +385,6 @@ export default function Equipment() {
 
         {error && <div className="eq-active-filters" style={{ color: "#d94f4f" }}>{error}</div>}
 
-        {}
-        {activeFilterCount > 0 && (
-          <div className="eq-active-filters">
-            {filters.condition !== "All" && (
-              <span className="eq-active-filter-tag">
-                Condition: {filters.condition}
-                <button onClick={() => { const next = { ...filters, condition: "All" }; setFilters(next); setDraft(next); }}>✕</button>
-              </span>
-            )}
-            {filters.period !== "all" && (
-              <span className="eq-active-filter-tag">
-                Date: {periodLabel}
-                <button onClick={() => { const next = { ...filters, period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" }; setFilters(next); setDraft(next); }}>✕</button>
-              </span>
-            )}
-          </div>
-        )}
 
         <div className="eq-stats-grid">
           <div className="eq-stat-card">
@@ -444,7 +426,8 @@ export default function Equipment() {
           </div>
         </div>
 
-        <div className="eq-table-wrapper">
+        <TableSection className="eq-table-wrapper">
+          <TableScroll>
           <table className="eq-table">
             <thead>
               <tr>
@@ -523,17 +506,18 @@ export default function Equipment() {
             </tbody>
           </table>
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 

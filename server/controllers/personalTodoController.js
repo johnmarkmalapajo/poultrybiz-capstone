@@ -1,4 +1,6 @@
+const mongoose = require("mongoose");
 const PersonalTodo = require("../models/PersonalTodo");
+const User = require("../models/User");
 const Personnel = require("../models/Personnel");
 const PersonnelTask = require("../models/PersonnelTask");
 const { createAuditLog } = require("./auditController");
@@ -30,8 +32,29 @@ exports.getAllPersonalTodos = async (req, res) => {
 
 exports.getPersonalTodos = async (req, res) => {
   try {
+    const requestedUserId = req.query.userId ? String(req.query.userId) : "";
+    let ownerId = req.user.id;
+
+    if (
+      requestedUserId &&
+      requestedUserId !== String(req.user.id) &&
+      req.user.role === "Owner"
+    ) {
+      const target = mongoose.isValidObjectId(requestedUserId)
+        ? await User.findById(requestedUserId).select("role")
+        : null;
+
+      if (!target || target.role !== "Farmer") {
+        return res.status(403).json({
+          message: "You can only view your own personal tasks.",
+        });
+      }
+
+      ownerId = target._id;
+    }
+
     const todos = await PersonalTodo.find({
-      user: req.query.userId,
+      user: ownerId,
       archived: false,
     }).sort({ createdAt: -1 });
 

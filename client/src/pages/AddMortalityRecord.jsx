@@ -6,6 +6,7 @@ import "./AddMortalityRecord.css";
 import { createMortalityRecord, listMortalityRecords } from "../api/mortalityRecord";
 import { listFlocks } from "../api/flockProfile";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
+import { mortalityBatchOptions } from "../mortalityBatchOptions";
 import { listHealthOptions } from "../api/healthOptions";
 
 const NEW_VALUE = "__new__";
@@ -58,13 +59,7 @@ export default function AddMortalityRecord() {
       .catch(() => setMortRecords([]));
   }, []);
 
-  const isolationBatchIds = new Set(isolationRecords.map((r) => r.batchId));
-  const batchOptions = [...new Set(
-    flocks
-      .filter((f) => f.status === "Active" && !isolationBatchIds.has(f.batchId))
-      .map((f) => f.batchId)
-      .filter(Boolean)
-  )];
+  const batchOptions = mortalityBatchOptions(flocks, isolationRecords);
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
   const nextMortalityId = (() => {
     let max = 0;

@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiInfo, FiFileText, FiSave } from "react-icons/fi";
+import { FiInfo, FiFileText, FiSave, FiX } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddFeedConsumption.css";
-import { createFeedConsumption, listFeedConsumption } from "../api/feedConsumption";
-import { listFeedInventory } from "../api/feedInventory";
+import { createFeedConsumption } from "../api/feedConsumption";
 import { listFlocks } from "../api/flockProfile";
+import {
+  useFeedStock,
+  feedQuantityToKg,
+  convertFeedQuantity,
+  sackWeightHint,
+} from "../hooks/useFeedStock";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
-const FEED_SACK_WEIGHT_KG = 50;
 
 // Today's date as YYYY-MM-DD, used as the max for date inputs so users
 // can't pick a future date.
@@ -20,32 +24,22 @@ const getTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// Blocks "-", "+", "e"/"E", "." from being typed into the Quantity
-// Consumed input — it must be a whole non-negative number, no decimals.
-const blockInvalidIntegerKeys = (e) => {
-  if (["-", "+", "e", "E", "."].includes(e.key)) {
+// Blocks "-", "+", "e"/"E" from being typed into the Quantity Consumed
+// input — it must be a non-negative number with up to 2 decimal places.
+const QUANTITY_PATTERN = /^(\d+(\.\d{1,2})?|\.\d{1,2})$/;
+
+const blockInvalidQuantityKeys = (e) => {
+  if (["-", "+", "e", "E"].includes(e.key)) {
     e.preventDefault();
   }
 };
 
-// Rejects anything pasted that isn't purely digits (no decimals, no signs).
-const blockInvalidIntegerPaste = (e) => {
+// Rejects anything pasted that isn't a plain number with up to 2 decimals.
+const blockInvalidQuantityPaste = (e) => {
   const text = e.clipboardData.getData("text");
-  if (!/^\d*$/.test(text)) {
+  if (!/^\d*\.?\d{0,2}$/.test(text)) {
     e.preventDefault();
   }
-};
-
-// Mirrors the backend's stock calculation so the form can warn the user
-// before they even try to submit.
-const getQuantityInKg = (quantity, unit) => {
-  const value = Number(quantity || 0);
-
-  if (String(unit).toLowerCase() === "sacks") {
-    return value * FEED_SACK_WEIGHT_KG;
-  }
-
-  return value;
 };
 
 // ── Feed transition rules by current age (weeks) ──
@@ -150,33 +144,6 @@ function computeConsumedKg(qty, plan) {
   );
 }
 
-// Convert quantity between kg and sacks
-function convertQuantity(value, fromUnit, toUnit) {
-  const quantity = Number(value);
-
-  if (!value || isNaN(quantity)) {
-    return "";
-  }
-
-  if (fromUnit === toUnit) {
-    return String(quantity);
-  }
-
-  if (fromUnit === "kg" && toUnit === "sacks") {
-    return String(
-      Math.round((quantity / FEED_SACK_WEIGHT_KG) * 100) / 100
-    );
-  }
-
-  if (fromUnit === "sacks" && toUnit === "kg") {
-    return String(
-      Math.round(quantity * FEED_SACK_WEIGHT_KG * 100) / 100
-    );
-  }
-
-  return String(quantity);
-}
-
 export default function AddFeedConsumption() {
   const navigate = useNavigate();
 
@@ -184,8 +151,11 @@ export default function AddFeedConsumption() {
   const [saving, setSaving] = useState(false);
   const [flockList, setFlockList] = useState([]);
   const [autoMeta, setAutoMeta] = useState({});
-  const [inventoryRecords, setInventoryRecords] = useState([]);
-  const [consumptionRecords, setConsumptionRecords] = useState([]);
+  const {
+    loading: stockLoading,
+    stockFor,
+    sackWeightFor,
+  } = useFeedStock();
 
   const [form, setForm] = useState({
     date: "",
@@ -228,96 +198,23 @@ export default function AddFeedConsumption() {
     fetchBatches();
   }, []);
 
-  useEffect(() => {
-    const fetchStockData = async () => {
-      try {
-        const [inventoryJson, consumptionJson] =
-          await Promise.all([
-            listFeedInventory(),
-            listFeedConsumption(),
-          ]);
+  const selectedStock = form.feedType ? stockFor(form.feedType) : null;
+  const sackWeightKg = sackWeightFor(form.feedType);
 
-        const inventoryList =
-          inventoryJson.records ||
-          inventoryJson.data ||
-          (Array.isArray(inventoryJson)
-            ? inventoryJson
-            : []);
+  const availableStockKg =
+    form.feedType && !stockLoading
+      ? Number(selectedStock?.availableKg || 0)
+      : null;
 
-        const consumptionList =
-          consumptionJson.records ||
-          consumptionJson.data ||
-          (Array.isArray(consumptionJson)
-            ? consumptionJson
-            : []);
-
-        setInventoryRecords(
-          inventoryList.filter((r) => !r.archived)
-        );
-        setConsumptionRecords(
-          consumptionList.filter((r) => !r.archived)
-        );
-      } catch {
-        setInventoryRecords([]);
-        setConsumptionRecords([]);
-      }
-    };
-
-    fetchStockData();
-  }, []);
-
-  // Stock currently available for the selected feed type, in kg.
-  const availableStockKg = (() => {
-    if (!form.feedType) return null;
-
-    const feedType = form.feedType.trim().toLowerCase();
-
-    const totalPurchasedSacks = inventoryRecords
-      .filter(
-        (r) =>
-          String(r.feedType || "")
-            .trim()
-            .toLowerCase() === feedType
-      )
-      .reduce(
-        (sum, r) => sum + Number(r.quantityIn || 0),
-        0
-      );
-
-    const totalPurchasedKg =
-      totalPurchasedSacks * FEED_SACK_WEIGHT_KG;
-
-    const totalConsumedKg = consumptionRecords
-      .filter(
-        (r) =>
-          String(r.feedType || "")
-            .trim()
-            .toLowerCase() === feedType
-      )
-      .reduce(
-        (sum, r) =>
-          sum +
-          getQuantityInKg(
-            r.quantityConsumed,
-            r.quantityUnit
-          ),
-        0
-      );
-
-    return Math.max(
-      0,
-      totalPurchasedKg - totalConsumedKg
-    );
-  })();
-
-  const requestedKg = getQuantityInKg(
+  const requestedKg = feedQuantityToKg(
     form.quantityConsumed,
-    form.quantityUnit
+    form.quantityUnit,
+    sackWeightKg
   );
 
   const exceedsStock =
     availableStockKg != null &&
-    requestedKg > availableStockKg;
+    Math.round(requestedKg * 100) / 100 > availableStockKg;
 
   // Available stock converted to whichever unit the user currently has
   // selected for Quantity Consumed (sacks or kg).
@@ -325,11 +222,11 @@ export default function AddFeedConsumption() {
     availableStockKg == null
       ? null
       : form.quantityUnit === "sacks"
-      ? availableStockKg / FEED_SACK_WEIGHT_KG
+      ? availableStockKg / sackWeightKg
       : availableStockKg;
 
   const formatAvailableStock = () => {
-    if (availableStockInSelectedUnit == null) return "";
+    if (availableStockInSelectedUnit == null) return "checking...";
 
     if (form.quantityUnit === "sacks") {
       return `${(
@@ -337,8 +234,8 @@ export default function AddFeedConsumption() {
       ).toLocaleString()} sacks`;
     }
 
-    return `${Math.round(
-      availableStockInSelectedUnit
+    return `${(
+      Math.round(availableStockInSelectedUnit * 100) / 100
     ).toLocaleString()} kg`;
   };
 
@@ -358,10 +255,11 @@ export default function AddFeedConsumption() {
     if (name === "quantityUnit") {
       setForm((current) => ({
         ...current,
-        quantityConsumed: convertQuantity(
+        quantityConsumed: convertFeedQuantity(
           current.quantityConsumed,
           current.quantityUnit,
-          value
+          value,
+          sackWeightFor(current.feedType)
         ),
         quantityUnit: value,
       }));
@@ -407,10 +305,11 @@ export default function AddFeedConsumption() {
 
         next.feedType = primaryFeed(plan);
 
-        next.quantityConsumed = convertQuantity(
+        next.quantityConsumed = convertFeedQuantity(
           consumedKg,
           "kg",
-          current.quantityUnit
+          current.quantityUnit,
+          sackWeightFor(next.feedType)
         );
       }
 
@@ -429,12 +328,10 @@ export default function AddFeedConsumption() {
     }
 
     if (
-      !form.quantityConsumed ||
-      Number.isNaN(Number(form.quantityConsumed)) ||
-      !Number.isInteger(Number(form.quantityConsumed)) ||
+      !QUANTITY_PATTERN.test(String(form.quantityConsumed)) ||
       Number(form.quantityConsumed) <= 0
     ) {
-      setError("Please enter a valid whole-number quantity.");
+      setError("Please enter a valid quantity greater than 0 (up to 2 decimal places).");
       return;
     }
 
@@ -587,12 +484,12 @@ export default function AddFeedConsumption() {
     <input
       type="number"
       min="0"
-      step="1"
+      step="0.01"
       name="quantityConsumed"
       value={form.quantityConsumed}
       onChange={handleChange}
-      onKeyDown={blockInvalidIntegerKeys}
-      onPaste={blockInvalidIntegerPaste}
+      onKeyDown={blockInvalidQuantityKeys}
+      onPaste={blockInvalidQuantityPaste}
       placeholder="Enter quantity"
       required
     />
@@ -614,8 +511,10 @@ export default function AddFeedConsumption() {
     }
   >
     {form.feedType
-      ? `Available stock: ${formatAvailableStock()} of ${form.feedType}.`
-      : "1 sack is equal to 50 kg."}
+      ? `Available stock: ${formatAvailableStock()} of ${form.feedType}.${
+          form.quantityUnit === "sacks" ? ` ${sackWeightHint("sacks", sackWeightKg)}` : ""
+        }`
+      : sackWeightHint("sacks", sackWeightKg)}
     {exceedsStock &&
       " Quantity consumed cannot exceed the available feed stock."}
   </small>
@@ -645,25 +544,30 @@ export default function AddFeedConsumption() {
           </small>
         </div>
 
+        {/* Same layout as the Flock Profile form: required-field note on the
+            left, Cancel and Save grouped on the right. */}
         <div className="afc-form-actions">
-          <button
-            type="button"
-            className="afc-cancel-btn"
-            onClick={() =>
-              navigate("/inventory/feed-consumption")
-            }
-          >
-            Cancel
-          </button>
+          <p className="afc-req-note">Fields with * are required.</p>
+          <div className="afc-action-btns">
+            <button
+              type="button"
+              className="afc-cancel-btn"
+              onClick={() =>
+                navigate("/inventory/feed-consumption")
+              }
+              disabled={saving}
+            >
+              <FiX /> Cancel
+            </button>
 
-          <button
-            type="submit"
-            disabled={saving || exceedsStock}
-            className="afc-save-btn"
-          >
-            <FiSave />
-            Save Record
-          </button>
+            <button
+              type="submit"
+              disabled={saving || exceedsStock}
+              className="afc-save-btn"
+            >
+              <FiSave /> {saving ? "Saving..." : "Save Record"}
+            </button>
+          </div>
         </div>
       </form>
     </PageLayout>

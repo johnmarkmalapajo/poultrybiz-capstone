@@ -16,3 +16,5 @@ export const updateFeedInventory = (id, payload) => apiPut(`${PATH}/${id}`, payl
 export const deleteFeedInventory = (id)      => apiDelete(`${PATH}/${id}`);
 export const archiveFeedInventory = (id) => apiPut(`${PATH}/${id}/archive`, {});
 export const restoreFeedInventory = (id) => apiPut(`${PATH}/${id}/restore`, {});
+export const getFeedStock = () => apiGet(`${PATH}/stock`);
+export const updateFeedStockSetting = (payload) => apiPut(`${PATH}/stock-settings`, payload);

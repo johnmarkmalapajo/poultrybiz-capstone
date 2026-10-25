@@ -2,10 +2,11 @@ const Flock = require("../models/Flock");
 const EggRecord = require("../models/EggRecord");
 const SalesRecord = require("../models/SalesRecord");
 const ExpenseRecord = require("../models/ExpenseRecord");
-const FeedInventory = require("../models/FeedInventory");
 const FeedConsumption = require("../models/FeedConsumption");
 const HealthRecord = require("../models/HealthRecord");
 const Equipment = require("../models/Equipment");
+const { getFeedStockSummary, consumptionRecordKg, round2 } = require("../utils/feedStock");
+const { sendServerError } = require("../utils/dbStatus");
 
 const FINANCIAL_ROLES = ["Owner"];
 
@@ -33,9 +34,8 @@ exports.getDashboardSummary = async (req, res) => {
       eggTodayRows,
       eggTrendRows,
       financials,
-      feedPurchasedRows,
-      feedConsumedRows,
-      feedConsumedTodayRows,
+      feedStock,
+      feedConsumedTodayRecords,
       healthCounts,
       equipmentCounts,
     ] = await Promise.all([
@@ -105,18 +105,11 @@ exports.getDashboardSummary = async (req, res) => {
           ])
         : Promise.resolve(null),
 
-      FeedInventory.aggregate([
-        { $match: { archived: false } },
-        { $group: { _id: "$feedType", totalPurchased: { $sum: "$quantityIn" } } },
-      ]),
-      FeedConsumption.aggregate([
-        { $match: { archived: false } },
-        { $group: { _id: "$feedType", totalConsumed: { $sum: "$quantityConsumed" } } },
-      ]),
-      FeedConsumption.aggregate([
-        { $match: { archived: false, date: { $gte: todayStart, $lte: todayEnd } } },
-        { $group: { _id: null, total: { $sum: "$quantityConsumed" } } },
-      ]),
+      getFeedStockSummary(),
+      FeedConsumption.find({
+        archived: false,
+        date: { $gte: todayStart, $lte: todayEnd },
+      }).lean(),
 
       Promise.all([
         HealthRecord.countDocuments({
@@ -166,12 +159,11 @@ exports.getDashboardSummary = async (req, res) => {
       return { date: row._id, count: row.count, sizes };
     });
 
-    const feedConsumedMap = Object.fromEntries(feedConsumedRows.map((r) => [r._id, r.totalConsumed]));
-    const feedStockKg = feedPurchasedRows.reduce(
-      (sum, r) => sum + (r.totalPurchased - (feedConsumedMap[r._id] || 0)),
-      0
+    const trackedFeedStock = feedStock.filter((s) => s.purchasedKg > 0);
+    const feedStockKg = round2(trackedFeedStock.reduce((sum, s) => sum + s.availableKg, 0));
+    const feedConsumedToday = round2(
+      feedConsumedTodayRecords.reduce((sum, r) => sum + consumptionRecordKg(r), 0)
     );
-    const feedConsumedToday = feedConsumedTodayRows[0]?.total || 0;
     const [sickChickens, underTreatment, vaccinationDue] = healthCounts;
     const [operationalEquipment, maintenanceDueEquipment] = equipmentCounts;
 
@@ -201,8 +193,9 @@ exports.getDashboardSummary = async (req, res) => {
       feed: {
         feedStockKg,
         feedConsumedToday,
-        feedLowStock: feedStockKg > 0 && feedStockKg < 500,
-        feedCriticalStock: feedStockKg > 0 && feedStockKg < 150,
+        feedLowStock: trackedFeedStock.some((s) => s.isLow),
+        feedCriticalStock: trackedFeedStock.some((s) => s.isOut),
+        feedLowStockTypes: trackedFeedStock.filter((s) => s.isLow).map((s) => s.feedType),
       },
       health: { sickChickens, underTreatment, vaccinationDue },
       equipment: { operationalEquipment, maintenanceDueEquipment },
@@ -221,8 +214,7 @@ exports.getDashboardSummary = async (req, res) => {
 
     res.json({ success: true, data: payload });
   } catch (err) {
-    console.error("Dashboard summary error:", err);
-    res.status(500).json({ success: false, message: "Couldn't load dashboard data." });
+    return sendServerError(res, err, "Dashboard summary error", "Couldn't load dashboard data.");
   }
 };
 

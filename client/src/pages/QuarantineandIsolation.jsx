@@ -13,12 +13,11 @@ import "./QuarantineandIsolation.css";
 import { archiveRow } from "../archiveRow";
 import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
 import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
-import { listQuarantineRecords, updateQuarantineStatus, updateIsolationProgress, correctIsolationProgress } from "../api/quarantineIsolation";
+import { listQuarantineRecords, updateIsolationProgress, correctIsolationProgress } from "../api/quarantineIsolation";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 export default function QuarantineIsolation() {
   const navigate = useNavigate();
@@ -38,8 +37,6 @@ export default function QuarantineIsolation() {
   );
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
   const [viewRecord, setViewRecord] = useState(null);
-  const [pendingRelease, setPendingRelease] = useState(null);
-  const [releaseSaving, setReleaseSaving] = useState(false);
 
   const [progressRecord, setProgressRecord] = useState(null);
   const [progressMode, setProgressMode] = useState("view");
@@ -71,21 +68,6 @@ export default function QuarantineIsolation() {
     fetchRecords();
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
   }, []);
-
-  const confirmRelease = async () => {
-    if (!pendingRelease || releaseSaving) return;
-    setReleaseSaving(true);
-    try {
-      await updateQuarantineStatus(pendingRelease._id, "Released");
-      setPendingRelease(null);
-      await fetchRecords();
-      try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
-    } catch (err) {
-      setError(err?.message || "Couldn't release this batch from quarantine. Please try again.");
-    } finally {
-      setReleaseSaving(false);
-    }
-  };
 
   const today = (() => {
     const now = new Date();
@@ -603,7 +585,7 @@ export default function QuarantineIsolation() {
                 name={isQuarantine ? "quarantine-record" : "isolation-record"}
                 title={exportTitle}
                 meta={farmMeta}
-                pdfExtra={{ period: farmMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: farmMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel={isQuarantine ? "Quarantine & Isolation — Quarantine" : "Quarantine & Isolation — Isolation"}
                 enablePreview
                 filters={{
@@ -677,7 +659,8 @@ export default function QuarantineIsolation() {
         </div>
 
         {}
-        <div className="qi-table-wrapper">
+        <TableSection className="qi-table-wrapper">
+          <TableScroll>
 
           {}
           {isQuarantine && (
@@ -729,17 +712,7 @@ export default function QuarantineIsolation() {
                       <td>{r.vitaminsGiven || "—"}</td>
                       <td>{r.releasedDate || "—"}</td>
                       <td>
-                        <select
-                          className={`qi-status-select ${statusClass(r.status)}`}
-                          value={r.status}
-                          disabled={r.status !== "Ongoing" || !canEdit}
-                          onChange={(e) => {
-                            if (e.target.value === "Released") setPendingRelease(r);
-                          }}
-                        >
-                          <option value="Ongoing">Ongoing</option>
-                          <option value="Released" disabled={r.status !== "Ongoing"}>Released</option>
-                        </select>
+                        <span className={statusClass(r.status)}>{r.status || "—"}</span>
                       </td>
                     </tr>
                   ))
@@ -840,17 +813,18 @@ export default function QuarantineIsolation() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 
@@ -874,26 +848,6 @@ export default function QuarantineIsolation() {
             </div>
             <div className="pb-confirm-actions">
               <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pendingRelease && (
-        <div className="pb-confirm-overlay" onClick={() => !releaseSaving && setPendingRelease(null)}>
-          <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="pb-confirm-title">Confirm Quarantine Release</h3>
-            <p className="pb-confirm-message">
-              Are you sure you want to release Batch {pendingRelease.batchId} from quarantine?
-              This will automatically set its Flock Profile status to Active.
-            </p>
-            <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setPendingRelease(null)} disabled={releaseSaving}>
-                Cancel
-              </button>
-              <button className="pb-confirm-archive" onClick={confirmRelease} disabled={releaseSaving}>
-                {releaseSaving ? "Releasing..." : "Confirm & Release"}
-              </button>
             </div>
           </div>
         </div>

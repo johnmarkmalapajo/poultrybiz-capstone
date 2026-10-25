@@ -13,11 +13,11 @@ const {
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
 
-router.get("/", getVisitors);
+router.get("/", protect, ownerOnly, getVisitors);
 
-router.get("/:id", getVisitor);
+router.get("/:id", protect, ownerOnly, getVisitor);
 
-router.get("/:id/logs", getVisitorLogs);
+router.get("/:id/logs", protect, ownerOnly, getVisitorLogs);
 
 router.post("/register", registerVisitor);
 

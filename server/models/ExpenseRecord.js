@@ -32,6 +32,12 @@ const feedSetSchema = new mongoose.Schema(
       min: 0,
     },
 
+    sackWeightKg: {
+      type: Number,
+      min: 0.01,
+      default: 50,
+    },
+
     receipt: {
       type: String,
       default: "",

@@ -14,8 +14,7 @@ import { listBreeds } from "../api/breed";
 import "./Flockprofile.css";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 function computeAgeWeeks(dateStr) {
   if (!dateStr) return "";
@@ -576,7 +575,8 @@ export default function FlockProfile() {
         </div>
 
         {}
-        <div className="fp-table-wrapper">
+        <TableSection className="fp-table-wrapper">
+          <TableScroll>
           <table className="fp-table">
             <thead>
               <tr>
@@ -673,17 +673,18 @@ export default function FlockProfile() {
               )}
             </tbody>
           </table>
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       {}
       {confirmArchive && (

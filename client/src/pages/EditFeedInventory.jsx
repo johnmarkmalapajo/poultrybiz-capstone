@@ -7,10 +7,10 @@ import {
   getFeedInventory,
   updateFeedInventory,
 } from "../api/feedInventory";
+import { useFeedStock, resolveSackWeight } from "../hooks/useFeedStock";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 const QUANTITY_UNITS = ["sacks", "kg"];
-const FEED_SACK_WEIGHT_KG = 50;
 
 export default function EditFeedInventory() {
   const navigate = useNavigate();
@@ -29,7 +29,21 @@ export default function EditFeedInventory() {
   const [error, setError] = useState("");
   const [expenseRecordId, setExpenseRecordId] = useState(null);
 
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    feedType: "",
+    sackWeightKg: null,
+  });
+
+  const { sackWeightFor } = useFeedStock();
+
   const isLinked = Boolean(expenseRecordId);
+
+  const sackWeightKg =
+    savedSnapshot.feedType &&
+    savedSnapshot.feedType.trim().toLowerCase() ===
+      form.feedType.trim().toLowerCase()
+      ? resolveSackWeight(savedSnapshot.sackWeightKg)
+      : sackWeightFor(form.feedType);
 
   useEffect(() => {
     const fetchRecord = async () => {
@@ -61,7 +75,7 @@ export default function EditFeedInventory() {
 
           quantity =
             quantityUnit === "kg"
-              ? quantityIn * FEED_SACK_WEIGHT_KG
+              ? quantityIn * resolveSackWeight(record.sackWeightKg)
               : quantityIn;
         }
 
@@ -76,6 +90,11 @@ export default function EditFeedInventory() {
         });
 
         setExpenseRecordId(record.expenseRecordId || null);
+
+        setSavedSnapshot({
+          feedType: record.feedType || "",
+          sackWeightKg: record.sackWeightKg ?? null,
+        });
       } catch (err) {
         setError(
           err?.message || "Couldn't load this feed inventory record."
@@ -146,11 +165,11 @@ export default function EditFeedInventory() {
 
   const equivalentKg =
     form.quantityUnit === "sacks"
-      ? quantity * FEED_SACK_WEIGHT_KG
+      ? quantity * sackWeightKg
       : quantity;
 
   const quantityIn =
-    form.quantityUnit === "sacks" ? quantity : quantity / FEED_SACK_WEIGHT_KG;
+    form.quantityUnit === "sacks" ? quantity : quantity / sackWeightKg;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -367,7 +386,7 @@ export default function EditFeedInventory() {
 
             <small>
               {form.quantityUnit === "sacks"
-                ? "1 sack = 50 kg"
+                ? `1 sack = ${sackWeightKg} kg`
                 : "Quantity is recorded in kilograms."}
             </small>
           </div>

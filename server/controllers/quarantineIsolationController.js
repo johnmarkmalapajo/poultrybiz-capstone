@@ -9,6 +9,8 @@ const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
 const { createNotification } = require("./notificationController");
 const Archive = require("../models/Archive");
+const { QUARANTINE_DAYS } = require("../utils/dateGuard");
+const { describeAutoRelease } = require("../utils/quarantineRelease");
 
 const computeVitaminsGiven = async (batchId) => {
   const records = await HealthRecord.find({
@@ -34,6 +36,15 @@ const withVitaminsGiven = async (record) => {
   }
   const flockForDate = await Flock.findOne({ batchId: obj.batchId }).select("dateAcquired");
   obj.dateAcquired = flockForDate?.dateAcquired ? toDateOnly(flockForDate.dateAcquired) : "";
+  if (obj.recordType === "Quarantine") {
+    // Release is automatic (utils/quarantineRelease.js); these fields are
+    // read-only details for the table.
+    const { autoReleaseDate, releaseBlockedReason } = await describeAutoRelease(obj, obj.dateAcquired);
+    obj.quarantineDays = QUARANTINE_DAYS;
+    obj.releaseEligibleDate = autoReleaseDate;
+    obj.autoReleaseDate = autoReleaseDate;
+    obj.releaseBlockedReason = releaseBlockedReason;
+  }
   return obj;
 };
 
@@ -130,7 +141,7 @@ exports.createQuarantineRecord = async (req, res) => {
       if (ongoingQuarantineForBatch) {
         return res.status(400).json({
           success: false,
-          message: "This batch is still under Ongoing Quarantine and is not yet eligible for Isolation. Release it from Quarantine first.",
+          message: `This batch is still under Ongoing Quarantine and is not yet eligible for Isolation. It is released automatically after completing its ${QUARANTINE_DAYS}-day quarantine.`,
         });
       }
 
@@ -378,7 +389,7 @@ exports.updateQuarantineRecord = async (req, res) => {
 
     return res.status(400).json({
       success: false,
-      message: "Quarantine records cannot be edited directly. Use the Status control to release from quarantine.",
+      message: `Quarantine records cannot be edited directly. They are released automatically after completing the ${QUARANTINE_DAYS}-day quarantine period.`,
     });
   } catch (err) {
     console.error(err);
@@ -387,71 +398,6 @@ exports.updateQuarantineRecord = async (req, res) => {
       success: false,
       message: err.message,
     });
-  }
-};
-
-exports.updateQuarantineStatus = async (req, res) => {
-  const session = await mongoose.startSession();
-  try {
-    let responseRecord = null;
-
-    await session.withTransaction(async () => {
-      const record = await QuarantineIsolation.findById(req.params.id).session(session);
-
-      if (!record) {
-        throw Object.assign(new Error("Record not found."), { status: 404 });
-      }
-      if (record.recordType !== "Quarantine") {
-        throw Object.assign(new Error("This record is not a Quarantine event."), { status: 400 });
-      }
-
-      const { status } = req.body;
-
-      if (status !== "Released") {
-        throw Object.assign(new Error("Status can only be changed to Released."), { status: 400 });
-      }
-      if (record.status !== "Ongoing") {
-        throw Object.assign(new Error(`Cannot release -- current status is ${record.status || "unset"}, not Ongoing.`), { status: 400 });
-      }
-
-      const flock = await Flock.findOne({ batchId: record.batchId }).session(session);
-      if (!flock) {
-        throw Object.assign(new Error("Linked Flock Profile was not found."), { status: 400 });
-      }
-
-      record.status = "Released";
-      const now = new Date();
-      record.releasedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      await record.save({ session });
-
-      flock.status = "Active";
-      flock.updatedBy = req.user.id;
-      await flock.save({ session });
-
-      await createAuditLog({
-        user: req.user.name,
-        role: req.user.role,
-        module: "Quarantine & Isolation",
-        action: "Edited",
-        description: `Released Batch ${record.batchId} from quarantine.`,
-      });
-
-      responseRecord = record;
-    });
-
-    return res.json({
-      success: true,
-      message: "Quarantine released successfully.",
-      record: await withVitaminsGiven(responseRecord),
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(err.status || 500).json({
-      success: false,
-      message: err.status ? err.message : "Unable to update quarantine status.",
-    });
-  } finally {
-    session.endSession();
   }
 };
 

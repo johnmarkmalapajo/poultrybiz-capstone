@@ -22,8 +22,7 @@ import { listEggRecords } from "../api/eggRecord";
 import { listFlocks } from "../api/flockProfile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 export default function EggRecord() {
   const navigate = useNavigate();
@@ -666,7 +665,8 @@ export default function EggRecord() {
           </div>
         </div>
 
-        <div className="egg-table-wrapper">
+        <TableSection className="egg-table-wrapper">
+          <TableScroll>
           <table className="egg-table">
             <thead>
               <tr>
@@ -760,17 +760,18 @@ export default function EggRecord() {
             </tbody>
           </table>
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 

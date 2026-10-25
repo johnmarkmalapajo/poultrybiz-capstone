@@ -59,6 +59,21 @@ const QuarantineIsolationSchema = new mongoose.Schema(
       default: "",
     },
 
+    // "Automatic" when the 14-day release job released this record.
+    // Older, manually released records keep "".
+    releaseMethod: {
+      type: String,
+      enum: ["", "Manual", "Automatic"],
+      default: "",
+    },
+
+    // Set once the automatic release has also updated the Flock Profile
+    // and notified the Owner. While null, the job finishes those steps.
+    releaseFinalizedAt: {
+      type: Date,
+      default: null,
+    },
+
     // -------------------------
     // ISOLATION
     // -------------------------

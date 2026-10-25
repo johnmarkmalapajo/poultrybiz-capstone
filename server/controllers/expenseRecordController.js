@@ -6,8 +6,17 @@ const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { checkNetLoss } = require("./salesRecordController");
 const Archive = require("../models/Archive");
-
-const FEED_SACK_WEIGHT_KG = 50;
+const {
+  normalizeFeedKey,
+  round2,
+  isSackUnit,
+  resolveSackWeight,
+  toKg,
+  toSacks,
+  getFeedStockSetting,
+  computeFeedStock,
+  notifyLowFeedStock,
+} = require("../utils/feedStock");
 
 const mapExpenseToEquipmentFields = (record) => ({
   name: record.equipmentName,
@@ -49,35 +58,77 @@ const syncEquipmentFromExpense = async (record) => {
   );
 };
 
-const convertToKg = (quantity, unit) => {
-  const value = Number(quantity || 0);
+const applyFeedSetSackWeights = async (feedSets, previousFeedSets = []) => {
+  const currentWeights = new Map();
 
-  if (String(unit).toLowerCase() === "sacks") {
-    return value * FEED_SACK_WEIGHT_KG;
+  const currentSackWeight = async (feedType) => {
+    const key = normalizeFeedKey(feedType);
+
+    if (!currentWeights.has(key)) {
+      currentWeights.set(key, (await getFeedStockSetting(feedType)).sackWeightKg);
+    }
+
+    return currentWeights.get(key);
+  };
+
+  const result = [];
+  const matchesById = feedSets.some((feedSet) => feedSet && feedSet._id);
+
+  for (let index = 0; index < feedSets.length; index += 1) {
+    const feedSet = feedSets[index] || {};
+
+    const previous = feedSet._id
+      ? previousFeedSets.find((item) => String(item._id) === String(feedSet._id))
+      : matchesById
+        ? null
+        : previousFeedSets[index];
+
+    const keepsSnapshot =
+      previous &&
+      normalizeFeedKey(previous.feedType) === normalizeFeedKey(feedSet.feedType);
+
+    const sackWeightKg = keepsSnapshot
+      ? resolveSackWeight(previous.sackWeightKg)
+      : await currentSackWeight(feedSet.feedType);
+
+    result.push({
+      ...feedSet,
+      sackWeightKg,
+      equivalentKg: round2(toKg(feedSet.quantity, feedSet.unit || "Sacks", sackWeightKg)),
+    });
   }
 
-  if (String(unit).toLowerCase() === "kilogram") {
-    return value;
-  }
-
-  if (String(unit).toLowerCase() === "kg") {
-    return value;
-  }
-
-  return value;
+  return result;
 };
 
-const convertToSacks = (quantity, unit) => {
-  const value = Number(quantity || 0);
-
-  if (
-    String(unit).toLowerCase() === "kilogram" ||
-    String(unit).toLowerCase() === "kg"
-  ) {
-    return value / FEED_SACK_WEIGHT_KG;
+const prepareFeedPurchase = async (payload, previousFeedSets = []) => {
+  if (payload.category !== "Feed Purchase" || !Array.isArray(payload.feedSets)) {
+    return payload;
   }
 
-  return value;
+  const feedSets = await applyFeedSetSackWeights(payload.feedSets, previousFeedSets);
+
+  return {
+    ...payload,
+    feedSets,
+    totalQuantityKg: round2(
+      feedSets.reduce((sum, feedSet) => sum + feedSet.equivalentKg, 0)
+    ),
+  };
+};
+
+const refreshLowStockAlerts = async (record) => {
+  try {
+    const feedTypes = [
+      ...new Set((record.feedSets || []).map((feedSet) => feedSet.feedType).filter(Boolean)),
+    ];
+
+    for (const feedType of feedTypes) {
+      await notifyLowFeedStock(await computeFeedStock(feedType));
+    }
+  } catch (err) {
+    console.error("Low feed stock check failed:", err.message);
+  }
 };
 
 const createFeedInventoryFromExpense = async (record) => {
@@ -92,9 +143,10 @@ const createFeedInventoryFromExpense = async (record) => {
   for (const feedSet of record.feedSets) {
     const quantity = Number(feedSet.quantity || 0);
     const unit = feedSet.unit || "Sacks";
+    const sackWeightKg = resolveSackWeight(feedSet.sackWeightKg);
 
-    const quantityInSacks = convertToSacks(quantity, unit);
-    const equivalentKg = convertToKg(quantity, unit);
+    const quantityInSacks = toSacks(quantity, unit, sackWeightKg);
+    const equivalentKg = toKg(quantity, unit, sackWeightKg);
 
     await FeedInventory.create({
       expenseRecordId: record._id,
@@ -102,11 +154,8 @@ const createFeedInventoryFromExpense = async (record) => {
       feedType: feedSet.feedType,
       supplier: record.supplier || "",
       quantity,
-      quantityUnit:
-        String(unit).toLowerCase() === "kilogram" ||
-        String(unit).toLowerCase() === "kg"
-          ? "kg"
-          : "sacks",
+      quantityUnit: isSackUnit(unit) ? "sacks" : "kg",
+      sackWeightKg,
       quantityIn: quantityInSacks,
       quantityOut: 0,
       balance: quantityInSacks,
@@ -128,6 +177,7 @@ const reconcileFeedInventoryFromExpense = async (record) => {
   });
 
   await createFeedInventoryFromExpense(record);
+  await refreshLowStockAlerts(record);
 };
 
 exports.uploadReceipt = async (req, res) => {
@@ -163,7 +213,8 @@ exports.createExpenseRecord = async (req, res) => {
       return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
     }
 
-    const { equipmentId, ...payload } = req.body;
+    const { equipmentId, ...body } = req.body;
+    const payload = await prepareFeedPurchase(body);
     const record = await ExpenseRecord.create(payload);
 
     await createFeedInventoryFromExpense(record);
@@ -287,7 +338,16 @@ exports.updateExpenseRecord = async (req, res) => {
       return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
     }
 
-    const { equipmentId, ...updates } = req.body;
+    const { equipmentId, ...body } = req.body;
+
+    const existingRecord = Array.isArray(body.feedSets)
+      ? await ExpenseRecord.findById(req.params.id).lean()
+      : null;
+
+    const updates = await prepareFeedPurchase(
+      body,
+      existingRecord?.feedSets || []
+    );
 
     const record = await ExpenseRecord.findByIdAndUpdate(
       req.params.id,
@@ -457,6 +517,8 @@ exports.deleteExpenseRecord = async (req, res) => {
     await FeedInventory.deleteMany({
       expenseRecordId: record._id,
     });
+
+    await refreshLowStockAlerts(record);
 
     await Archive.findOneAndDelete({
       moduleKey: "pb_expenses",

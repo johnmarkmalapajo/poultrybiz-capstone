@@ -14,8 +14,8 @@ const {
 } = require("../controllers/wasteRecordController");
 
 // GET
-router.get("/", getAllWasteRecords);
-router.get("/:id", getWasteRecord);
+router.get("/", protect, getAllWasteRecords);
+router.get("/:id", protect, getWasteRecord);
 
 // CREATE
 router.post("/", protect, createWasteRecord);

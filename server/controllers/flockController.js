@@ -434,7 +434,7 @@ exports.updateFlockStatus = async (req, res) => {
     if (flock.status === "Quarantined") {
       return res.status(400).json({
         success: false,
-        message: "This batch is still under Quarantine. Its status can only change through the Quarantine Release workflow.",
+        message: "This batch is still under Quarantine. It becomes Active automatically once its 14-day quarantine period is completed.",
       });
     }
 

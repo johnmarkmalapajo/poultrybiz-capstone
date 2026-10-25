@@ -1,0 +1,78 @@
+/* AuthGate.css — shown only while a stored login is being confirmed. */
+
+.pb-auth-gate {
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  background: #FFFDF6;
+  color: #47321C;
+  font-family: "Lato", "Segoe UI", sans-serif;
+}
+
+.pb-auth-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(222, 167, 127, 0.35);
+  border-top-color: #BB8D6B;
+  animation: pb-auth-spin 0.8s linear infinite;
+}
+
+@keyframes pb-auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pb-auth-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #8a7462;
+}
+
+.pb-auth-card {
+  width: 100%;
+  max-width: 380px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid rgba(187, 141, 107, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(71, 50, 28, 0.1);
+  padding: 26px 22px;
+  text-align: center;
+}
+
+.pb-auth-card h2 {
+  margin: 0 0 8px;
+  font-family: "Poppins", sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #47321C;
+}
+
+.pb-auth-card p {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #8a7462;
+}
+
+.pb-auth-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #47321C;
+  color: #FFFDF6;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pb-auth-btn:hover { background: #5a4127; }

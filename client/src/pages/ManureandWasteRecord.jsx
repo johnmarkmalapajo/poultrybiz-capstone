@@ -15,8 +15,7 @@ import { listWasteRecords, listManureRecords } from "../api/wasteManure";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 export default function ManureWasteRecord() {
   const navigate = useNavigate();
@@ -452,7 +451,7 @@ export default function ManureWasteRecord() {
                 name={isManure ? "manure-record" : "waste-record"}
                 title={exportTitle}
                 meta={farmMeta}
-                pdfExtra={{ period: farmMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: farmMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel={isManure ? "Manure & Waste — Manure" : "Manure & Waste — Waste"}
                 enablePreview
                 filters={{
@@ -520,7 +519,8 @@ export default function ManureWasteRecord() {
         </div>
 
         {}
-        <div className="mwr-table-wrapper">
+        <TableSection className="mwr-table-wrapper">
+          <TableScroll>
 
           {}
           {isManure && (
@@ -674,17 +674,18 @@ export default function ManureWasteRecord() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 

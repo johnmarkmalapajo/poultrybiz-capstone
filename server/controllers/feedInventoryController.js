@@ -3,8 +3,20 @@ const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const Archive = require("../models/Archive");
-
-const FEED_SACK_WEIGHT_KG = 50;
+const FeedStockSetting = require("../models/FeedStockSetting");
+const {
+  normalizeFeedKey,
+  resolveSackWeight,
+  toKg,
+  toSacks,
+  getFeedStockSetting,
+  computeFeedStock,
+  getFeedStockSummary,
+  validateFeedStockSetting,
+  notifyLowFeedStock,
+  formatNumber,
+  MAX_SACK_WEIGHT_KG,
+} = require("../utils/feedStock");
 
 const EXPENSE_OWNED_FEED_INVENTORY_FIELDS = [
   "date",
@@ -14,27 +26,20 @@ const EXPENSE_OWNED_FEED_INVENTORY_FIELDS = [
   "quantityUnit",
   "quantityIn",
   "equivalentKg",
+  "sackWeightKg",
   "amount",
 ];
 
-const convertToKg = (quantity, unit) => {
-  const value = Number(quantity || 0);
+const QUANTITY_UNITS = ["sacks", "kg"];
 
-  if (String(unit).toLowerCase() === "sacks") {
-    return value * FEED_SACK_WEIGHT_KG;
+const refreshLowStockAlert = async (feedType) => {
+  try {
+    if (!feedType) return;
+
+    await notifyLowFeedStock(await computeFeedStock(feedType));
+  } catch (err) {
+    console.error("Low feed stock check failed:", err.message);
   }
-
-  return value;
-};
-
-const convertToSacks = (quantity, unit) => {
-  const value = Number(quantity || 0);
-
-  if (String(unit).toLowerCase() === "kg") {
-    return value / FEED_SACK_WEIGHT_KG;
-  }
-
-  return value;
 };
 
 exports.createFeedInventory = async (req, res) => {
@@ -57,8 +62,24 @@ exports.createFeedInventory = async (req, res) => {
     const unit = quantityUnit || "sacks";
     const originalQuantity = Number(quantity || 0);
 
-    const quantityIn = convertToSacks(originalQuantity, unit);
-    const equivalentKg = convertToKg(originalQuantity, unit);
+    if (!QUANTITY_UNITS.includes(unit)) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity unit must be sacks or kg.",
+      });
+    }
+
+    if (!Number.isFinite(originalQuantity) || originalQuantity < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be a valid number of 0 or more.",
+      });
+    }
+
+    const { sackWeightKg } = await getFeedStockSetting(feedType);
+
+    const quantityIn = toSacks(originalQuantity, unit, sackWeightKg);
+    const equivalentKg = toKg(originalQuantity, unit, sackWeightKg);
 
     const record = await FeedInventory.create({
       date,
@@ -66,6 +87,7 @@ exports.createFeedInventory = async (req, res) => {
       supplier: supplier || "",
       quantity: originalQuantity,
       quantityUnit: unit,
+      sackWeightKg,
       quantityIn,
       quantityOut: 0,
       balance: quantityIn,
@@ -82,6 +104,8 @@ exports.createFeedInventory = async (req, res) => {
       action: "Added",
       description: `Added feed inventory '${record.feedType}' (${record.quantity} ${record.quantityUnit}).`,
     });
+
+    await refreshLowStockAlert(record.feedType);
 
     return res.status(201).json({
       success: true,
@@ -190,21 +214,47 @@ exports.updateFeedInventory = async (req, res) => {
         ? Number(quantity)
         : Number(existingRecord.quantity || 0);
 
-    const quantityIn = convertToSacks(originalQuantity, unit);
+    if (!QUANTITY_UNITS.includes(unit)) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity unit must be sacks or kg.",
+      });
+    }
+
+    if (!Number.isFinite(originalQuantity) || originalQuantity < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be a valid number of 0 or more.",
+      });
+    }
+
+    const nextFeedType =
+      feedType !== undefined ? feedType : existingRecord.feedType;
+
+    const feedTypeChanged =
+      normalizeFeedKey(nextFeedType) !==
+      normalizeFeedKey(existingRecord.feedType);
+
+    const sackWeightKg = feedTypeChanged
+      ? (await getFeedStockSetting(nextFeedType)).sackWeightKg
+      : resolveSackWeight(existingRecord.sackWeightKg);
+
+    const quantityIn = toSacks(originalQuantity, unit, sackWeightKg);
 
     const oldQuantityOut = Number(existingRecord.quantityOut || 0);
 
     const balance = Math.max(0, quantityIn - oldQuantityOut);
 
-    const equivalentKg = balance * FEED_SACK_WEIGHT_KG;
+    const equivalentKg = toKg(originalQuantity, unit, sackWeightKg);
 
     const updateData = {
       date: date !== undefined ? date : existingRecord.date,
-      feedType: feedType !== undefined ? feedType : existingRecord.feedType,
+      feedType: nextFeedType,
       supplier:
         supplier !== undefined ? supplier : existingRecord.supplier || "",
       quantity: originalQuantity,
       quantityUnit: unit,
+      sackWeightKg,
       quantityIn,
       quantityOut: oldQuantityOut,
       balance,
@@ -234,6 +284,12 @@ exports.updateFeedInventory = async (req, res) => {
       action: "Edited",
       description: `Updated feed inventory '${record.feedType}' (${record.quantity} ${record.quantityUnit}).`,
     });
+
+    await refreshLowStockAlert(record.feedType);
+
+    if (feedTypeChanged) {
+      await refreshLowStockAlert(existingRecord.feedType);
+    }
 
     return res.json({
       success: true,
@@ -286,6 +342,8 @@ exports.archiveFeedInventory = async (req, res) => {
       action: "Archived",
       description: `Archived feed inventory '${record.feedType}'.`,
     });
+
+    await refreshLowStockAlert(record.feedType);
 
     return res.json({
       success: true,
@@ -374,9 +432,93 @@ exports.deleteFeedInventory = async (req, res) => {
       description: `Deleted feed inventory '${record.feedType}'.`,
     });
 
+    await refreshLowStockAlert(record.feedType);
+
     return res.json({
       success: true,
       message: "Feed inventory deleted successfully.",
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.getFeedStock = async (req, res) => {
+  try {
+    const stock = await getFeedStockSummary();
+
+    return res.json({
+      success: true,
+      stock,
+      limits: {
+        maxSackWeightKg: MAX_SACK_WEIGHT_KG,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.updateFeedStockSetting = async (req, res) => {
+  try {
+    const { errors, isValid, value } = validateFeedStockSetting(req.body);
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: Object.values(errors)[0],
+        errors,
+      });
+    }
+
+    const previous = await getFeedStockSetting(value.feedType);
+
+    await FeedStockSetting.findOneAndUpdate(
+      { feedKey: value.feedKey },
+      {
+        feedType: previous.isDefault ? value.feedType : previous.feedType,
+        feedKey: value.feedKey,
+        sackWeightKg: value.sackWeightKg,
+        lowStockThreshold: value.lowStockThreshold,
+        thresholdUnit: value.thresholdUnit,
+        updatedBy: req.user?.name || "",
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    const stock = await computeFeedStock(value.feedType);
+
+    await createAuditLog({
+      user: req.user.name,
+      role: req.user.role,
+      module: "Feed Inventory",
+      action: "Edited",
+      description: `Updated low stock alert settings for '${stock.feedType}': threshold ${formatNumber(
+        stock.lowStockThreshold
+      )} ${stock.thresholdUnit}, ${formatNumber(stock.sackWeightKg)} kg per sack.`,
+    });
+
+    await notifyLowFeedStock(stock);
+
+    return res.json({
+      success: true,
+      message: `Low stock alert settings for ${stock.feedType} saved.`,
+      stock,
     });
   } catch (err) {
     console.error(err);

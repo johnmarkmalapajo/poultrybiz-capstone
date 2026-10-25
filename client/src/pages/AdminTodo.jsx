@@ -9,8 +9,7 @@ import "./ToDo.css";
 import PageLayout from "../components/PageLayout";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useUser } from "../hooks/useUser";
 import {
   refreshAllAssignedTasks, getCachedAllAssignedTasks,
@@ -376,7 +375,8 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
 
         {error && <p style={{ color: "#d94f4f", fontSize: 13, margin: "0 0 10px" }}>{error}</p>}
 
-        <div className="todo-table-wrapper">
+        <TableSection className="todo-table-wrapper">
+          <TableScroll>
           <table className="todo-table">
             <thead>
               <tr>
@@ -453,17 +453,18 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
             </tbody>
           </table>
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
       
 
       {modalOpen && (

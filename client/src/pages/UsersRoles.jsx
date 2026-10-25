@@ -9,8 +9,7 @@ import "./UsersRoles.css";
 import PageLayout from "../components/PageLayout";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import {
   listUsers, approveUser, rejectUser,
   activateUser, deactivateUser, archiveUser,
@@ -54,6 +53,10 @@ export default function UsersRoles({ embedded = false, onBack }) {
   const [showFilter, setShowFilter] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmStatusChange, setConfirmStatusChange] = useState(null);
+  // Approve/Reject confirmation: { user, action: "approve" | "reject" }
+  const [confirmDecision, setConfirmDecision] = useState(null);
+  const [decisionSaving, setDecisionSaving] = useState(false);
+  const [decisionError, setDecisionError] = useState("");
   const [openMenu, setOpenMenu] = useState(null);  const [toast, setToast] = useState("");
   const toastRef = useRef(null);
   const filterRef = useRef(null);
@@ -155,8 +158,63 @@ const refresh = async () => {
     }
   };
 
-  const approve    = (u) => runAction(() => approveUser(u._id), `Approved ${u.name}`);
-  const reject     = (u) => runAction(() => rejectUser(u._id), `Rejected ${u.name}`);
+  const openDecision = (user, action) => {
+    setDecisionError("");
+    setConfirmDecision({ user, action });
+  };
+
+  const closeDecision = () => {
+    if (decisionSaving) return;
+    setConfirmDecision(null);
+    setDecisionError("");
+  };
+
+  // Sends the existing approve/reject request. The list is refreshed from the
+  // backend only after it succeeds; on failure the modal stays open with the
+  // error so the Owner can retry or cancel.
+  const submitDecision = async () => {
+    const decision = confirmDecision;
+    if (!decision || decisionSaving) return;
+
+    const { user, action } = decision;
+    const isApprove = action === "approve";
+
+    setDecisionSaving(true);
+    setDecisionError("");
+
+    try {
+      if (isApprove) {
+        await approveUser(user._id);
+      } else {
+        await rejectUser(user._id);
+      }
+
+      setConfirmDecision(null);
+      flash(isApprove ? `Approved ${user.name}` : `Rejected ${user.name}`);
+      refresh();
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
+    } catch (err) {
+      setDecisionError(
+        err?.message ||
+          `Couldn't ${isApprove ? "approve" : "reject"} this account. Please try again.`
+      );
+    } finally {
+      setDecisionSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!confirmDecision) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape" && !decisionSaving) {
+        setConfirmDecision(null);
+        setDecisionError("");
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirmDecision, decisionSaving]);
+
   const deactivate = (u) => runAction(() => deactivateUser(u._id), `Deactivated ${u.name}`);
   const activate   = (u) => runAction(() => activateUser(u._id), `Activated ${u.name}`);
   const archive    = (u) => runAction( () => archiveUser(u._id), `Archived ${u.name}` );
@@ -263,7 +321,8 @@ const refresh = async () => {
         })}
       </div>
 
-      <div className="ur-table-wrapper">
+      <TableSection className="ur-table-wrapper">
+        <TableScroll>
         <table className="ur-table">
           <thead>
             <tr>
@@ -311,8 +370,8 @@ const refresh = async () => {
                   <td>
                     <div className="ur-actions">
                         {u.status === "Pending" && currentRole === "Owner" && (<>
-                      <button className="ur-icon-btn approve" onClick={() => approve(u)} title="Approve" aria-label="Approve" > <FiCheck /> </button>
-                      <button className="ur-icon-btn reject" onClick={() => reject(u)} title="Reject" aria-label="Reject" > <FiX /> </button> </>
+                      <button className="ur-icon-btn approve" onClick={() => openDecision(u, "approve")} title="Approve" aria-label="Approve" > <FiCheck /> </button>
+                      <button className="ur-icon-btn reject" onClick={() => openDecision(u, "reject")} title="Reject" aria-label="Reject" > <FiX /> </button> </>
                     )}         
                       {(u.status === "Active" || u.status === "Inactive") &&
                          canManageStatus && (
@@ -349,17 +408,18 @@ const refresh = async () => {
           </tbody>
         </table>
 
+        </TableScroll>
         <TablePagination
-          page={pager.page}
-          setPage={pager.setPage}
-          rowsPerPage={pager.rowsPerPage}
-          setRowsPerPage={pager.setRowsPerPage}
+          currentPage={pager.page}
           totalPages={pager.totalPages}
+          pageSize={pager.rowsPerPage}
+          totalRecords={pager.totalItems}
           startIndex={pager.startIndex}
           endIndex={pager.endIndex}
-          totalItems={pager.totalItems}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setRowsPerPage}
         />
-      </div>
+      </TableSection>
 
       {toast && <div className="ur-toast">{toast}</div>}
 
@@ -371,6 +431,54 @@ const refresh = async () => {
             <div className="ur-modal-btns">
               <button className="ur-mb-cancel" onClick={() => setConfirmArchive(null)}>Cancel</button>
               <button className="ur-mb-confirm" onClick={doArchive}>Archive</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDecision && (
+        <div className="ur-overlay" onClick={closeDecision}>
+          <div
+            className="ur-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ur-decision-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {confirmDecision.action === "approve" ? (
+              <>
+                <h3 id="ur-decision-title">Approve User</h3>
+                <p>
+                  Are you sure you want to approve <strong>"{confirmDecision.user.name}"</strong>'s account?
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 id="ur-decision-title">Reject User</h3>
+                <p>
+                  Are you sure you want to reject <strong>"{confirmDecision.user.name}"</strong>'s account? This action will update the user's approval status.
+                </p>
+              </>
+            )}
+
+            {decisionError && (
+              <div className="pb-error-banner ur-modal-error" role="alert">{decisionError}</div>
+            )}
+
+            <div className="ur-modal-btns">
+              <button className="ur-mb-cancel" onClick={closeDecision} disabled={decisionSaving}>
+                Cancel
+              </button>
+              <button
+                className={`ur-mb-confirm ${confirmDecision.action === "approve" ? "approve" : "reject"}`}
+                onClick={submitDecision}
+                disabled={decisionSaving}
+                aria-busy={decisionSaving}
+              >
+                {decisionSaving
+                  ? confirmDecision.action === "approve" ? "Approving..." : "Rejecting..."
+                  : confirmDecision.action === "approve" ? "Confirm Approval" : "Confirm Rejection"}
+              </button>
             </div>
           </div>
         </div>

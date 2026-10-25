@@ -242,11 +242,18 @@
 }
 
 /* =============================
-   MOBILE DRAWER (≤768px)
-   Covers phones AND small tablets
+   MOBILE DRAWER (hamburger navigation)
+   Used by:
+   - phones and small tablets (width ≤ 768px)
+   - tablets / iPads held in PORTRAIT (width ≤ 1100px, portrait),
+     e.g. 810×1080, 820×1180, 834×1194, 1024×1366
+   - phones held in LANDSCAPE (short screens: height ≤ 500px)
+   Tablets / iPads in LANDSCAPE (e.g. 1024×768, 1180×820, 1366×1024)
+   and laptops/desktops keep the full desktop sidebar.
+   The same query is used in Breadcrumb.css for the hamburger button.
 ============================= */
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1100px) and (orientation: portrait), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
 
   /* Show hamburger wherever it's placed */
   .hamburger-btn {
@@ -273,6 +280,11 @@
     transform: translateX(0);
   }
 
+  /* No shadow while hidden, so it doesn't show as a strip on the left edge */
+  .sidebar:not(.sidebar-open) {
+    box-shadow: none;
+  }
+
   /* Close (X) button inside the drawer */
   .sidebar-close-btn {
     display: flex;
@@ -295,10 +307,10 @@
 }
 
 /* =============================
-   MOBILE SIDEBAR CONTENT SCALING
+   MOBILE SIDEBAR CONTENT SCALING (same drawer query as above)
 ============================= */
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1100px) and (orientation: portrait), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
   .sidebar {
     width: 240px;
     padding: 14px;

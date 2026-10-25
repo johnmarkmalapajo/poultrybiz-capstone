@@ -9,8 +9,7 @@ import { deleteUserPermanently } from "../api/users";
 import { checkDependencies, DEPENDENCY_TYPE_BY_MODULE_KEY } from "../api/dependencies";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const MODULES = [
   "All", "Users","Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption", "Equipment", "Manure Records",
@@ -270,7 +269,8 @@ export default function Archive({ embedded = false, onBack }) {
           </div>
         </div>
 
-        <div className="arc-table-wrapper">
+        <TableSection className="arc-table-wrapper">
+          <TableScroll>
           <table className="arc-table">
             <thead>
               <tr>
@@ -334,17 +334,18 @@ export default function Archive({ embedded = false, onBack }) {
             </tbody>
           </table>
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       {toast && <div className="arc-toast">{toast}</div>}
 

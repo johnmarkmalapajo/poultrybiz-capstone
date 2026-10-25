@@ -23,11 +23,10 @@ import { listFlocks } from "../api/flockProfile";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { feedQuantityToKg } from "../hooks/useFeedStock";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
-const FEED_SACK_WEIGHT_KG = 50;
 
 export default function FeedConsumption() {
   const navigate = useNavigate();
@@ -316,20 +315,13 @@ export default function FeedConsumption() {
   const totalRecords = filtered.length;
 
   const totalConsumed = filtered.reduce(
-    (sum, record) => {
-      const quantity =
-        Number(record.quantityConsumed) || 0;
-
-      const unit = String(
-        record.quantityUnit || "kg"
-      ).toLowerCase();
-
-      const consumedKg = unit.includes("sack")
-        ? quantity * FEED_SACK_WEIGHT_KG
-        : quantity;
-
-      return sum + consumedKg;
-    },
+    (sum, record) =>
+      sum +
+      feedQuantityToKg(
+        record.quantityConsumed,
+        record.quantityUnit || "kg",
+        record.sackWeightKg
+      ),
     0
   );
 
@@ -725,6 +717,7 @@ export default function FeedConsumption() {
               pdfExtra={{
                 period: exportMeta.period,
                 summary: exportSummary,
+                hideApprovalAndTagline: true,
               }}
               moduleLabel="Feed Consumption"
               enablePreview
@@ -817,7 +810,8 @@ export default function FeedConsumption() {
         </div>
       </div>
 
-      <div className="fc-table-wrapper">
+      <TableSection className="fc-table-wrapper">
+        <TableScroll>
         <table className="fc-table">
           <thead>
             <tr>
@@ -1010,19 +1004,18 @@ export default function FeedConsumption() {
           </tbody>
         </table>
 
+        </TableScroll>
         <TablePagination
-          page={pager.page}
-          setPage={pager.setPage}
-          rowsPerPage={pager.rowsPerPage}
-          setRowsPerPage={
-            pager.setRowsPerPage
-          }
+          currentPage={pager.page}
           totalPages={pager.totalPages}
+          pageSize={pager.rowsPerPage}
+          totalRecords={pager.totalItems}
           startIndex={pager.startIndex}
           endIndex={pager.endIndex}
-          totalItems={pager.totalItems}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setRowsPerPage}
         />
-      </div>
+      </TableSection>
 
       <ArchiveConfirmModal
         pending={archivePending}

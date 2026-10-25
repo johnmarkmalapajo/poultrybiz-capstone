@@ -15,9 +15,15 @@ const {
   deleteFeedInventory,
   archiveFeedInventory,
   restoreFeedInventory,
+  getFeedStock,
+  updateFeedStockSetting,
 } = require("../controllers/feedInventoryController");
 
 router.get("/", protect, getAllFeedInventory);
+
+router.get("/stock", protect, getFeedStock);
+
+router.put("/stock-settings", protect, ownerOnly, updateFeedStockSetting);
 
 router.get("/:id", protect, getFeedInventory);
 

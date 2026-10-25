@@ -1,13 +1,14 @@
 const cron = require("node-cron");
+const mongoose = require("mongoose");
 const Flock = require("../models/Flock");
 const EggRecord = require("../models/EggRecord");
 const HealthRecord = require("../models/HealthRecord");
-const QuarantineIsolation = require("../models/QuarantineIsolation");
 const Equipment = require("../models/Equipment");
 const PersonnelTask = require("../models/PersonnelTask");
 const Personnel = require("../models/Personnel");
 const User = require("../models/User");
 const { createNotification } = require("../controllers/notificationController");
+const { runQuarantineAutoRelease } = require("../utils/quarantineRelease");
 
 const ALL_ROLES = ["Owner", "Farmer"];
 const todayStr = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -118,24 +119,24 @@ async function diagnosisScheduleCheck() {
   }
 }
 
-async function quarantineCheck() {
-  const ready = await QuarantineIsolation.find({
-    recordType: "Quarantine",
-    status: "Ongoing",
-    archived: false,
-    releasedDate: { $lte: endOfToday() },
+// Quarantine records are released automatically once they complete the
+// 14-day period (see utils/quarantineRelease.js). The job runs every hour
+// on Philippine time and again whenever the database (re)connects, so a
+// release that came due while the server was off is processed on startup.
+const runQuarantineRelease = (trigger) =>
+  runQuarantineAutoRelease(trigger).catch((e) =>
+    console.error(`Quarantine auto-release (${trigger}) failed:`, e)
+  );
+
+function registerQuarantineReleaseJob() {
+  cron.schedule("0 * * * *", () => runQuarantineRelease("hourly"), {
+    timezone: "Asia/Manila",
   });
 
-  for (const rec of ready) {
-    await createNotification({
-      title: "Quarantine Completed",
-      description: `The 7-day quarantine period for Batch ${rec.batchId} has ended. Please review the batch and change its quarantine status from Ongoing to Released.`,
-      category: "quarantine",
-      type: "reminder",
-      priority: "Low",
-      roles: ALL_ROLES,
-      sourceId: `quarantine_${rec._id}`,
-    });
+  mongoose.connection.on("connected", () => runQuarantineRelease("database connected"));
+
+  if (mongoose.connection.readyState === 1) {
+    runQuarantineRelease("startup");
   }
 }
 
@@ -282,7 +283,6 @@ function registerNotificationCronJobs() {
       pendingApprovalCheck,
       vaccinationCheck,
       diagnosisScheduleCheck,
-      quarantineCheck,
       equipmentCheck,
       taskDueCheck,
       cullingEligibilityCheck,
@@ -295,6 +295,8 @@ function registerNotificationCronJobs() {
       }
     }
   });
+
+  registerQuarantineReleaseJob();
 
   console.log("Notification cron jobs registered.");
 }

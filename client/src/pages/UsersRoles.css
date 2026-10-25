@@ -975,6 +975,52 @@
   color: #fff;
 }
 
+/* Approve / Reject confirmation buttons -- same green and red as the
+   table's approve/reject icon buttons. */
+.ur-mb-confirm.approve {
+  background: var(--icon-green, #2e9e6b);
+  border-color: var(--icon-green, #2e9e6b);
+  color: #fff;
+}
+
+.ur-mb-confirm.approve:hover:not(:disabled) {
+  background: #23805a;
+  border-color: #23805a;
+}
+
+.ur-mb-confirm.reject {
+  background: var(--icon-red, #d94f4f);
+  border-color: var(--icon-red, #d94f4f);
+  color: #fff;
+}
+
+.ur-mb-confirm.reject:hover:not(:disabled) {
+  background: #b93d3d;
+  border-color: #b93d3d;
+}
+
+.ur-mb-cancel:disabled,
+.ur-mb-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ur-modal-error {
+  justify-content: center;
+  text-align: left;
+  margin: -12px 0 16px;
+}
+
+@media (max-width: 400px) {
+  .ur-modal {
+    padding: 26px 18px 18px;
+  }
+
+  .ur-modal-btns {
+    flex-direction: column-reverse;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

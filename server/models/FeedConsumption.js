@@ -31,6 +31,12 @@ const feedConsumptionSchema = new mongoose.Schema(
     required: true,
   },
 
+    sackWeightKg: {
+      type: Number,
+      min: 0.01,
+      default: 50,
+    },
+
     currentAge: {
       type: Number,
       default: null,

@@ -5,18 +5,53 @@ const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { createNotification } = require("./notificationController");
 const Archive = require("../models/Archive");
+const {
+  normalizeFeedKey,
+  round2,
+  resolveSackWeight,
+  toKg,
+  consumptionRecordKg,
+  computeFeedStock,
+  notifyLowFeedStock,
+  formatNumber,
+} = require("../utils/feedStock");
 
-const FEED_SACK_WEIGHT_KG = 50;
+const QUANTITY_UNITS = ["kg", "sacks"];
 
-const getQuantityInKg = (quantity, unit) => {
-  const value = Number(quantity || 0);
+const refreshLowStockAlert = async (feedType) => {
+  try {
+    if (!feedType) return;
 
-  if (String(unit).toLowerCase() === "sacks") {
-    return value * FEED_SACK_WEIGHT_KG;
+    await notifyLowFeedStock(await computeFeedStock(feedType));
+  } catch (err) {
+    console.error("Low feed stock check failed:", err.message);
+  }
+};
+
+const readQuantity = (quantityConsumed, quantityUnit) => {
+  const quantity = Number(quantityConsumed);
+  const unit = String(quantityUnit || "kg").trim().toLowerCase();
+
+  if (!QUANTITY_UNITS.includes(unit)) {
+    return { error: "Quantity unit must be kg or sacks." };
   }
 
-  return value;
+  if (
+    quantityConsumed === "" ||
+    quantityConsumed === null ||
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+    return { error: "Quantity consumed must be a number greater than 0." };
+  }
+
+  return { quantity: round2(quantity), unit };
 };
+
+const stockMessage = (stock) =>
+  `${formatNumber(stock.availableKg)} kg (${formatNumber(
+    stock.availableSacks
+  )} sacks at ${formatNumber(stock.sackWeightKg)} kg/sack)`;
 
 exports.createFeedConsumption = async (req, res) => {
   try {
@@ -24,68 +59,32 @@ exports.createFeedConsumption = async (req, res) => {
       return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
     }
 
-    const feedType = String(req.body.feedType || "")
-      .trim()
-      .toLowerCase();
+    const feedType = String(req.body.feedType || "").trim();
 
-    const inventoryRecords = await FeedInventory.find({
-      archived: false,
-      feedType: {
-        $regex: new RegExp(`^${feedType}$`, "i"),
-      },
-    });
+    if (!feedType) {
+      return res.status(400).json({ success: false, message: "Feed type is required." });
+    }
 
-    const consumptionRecords = await FeedConsumption.find({
-      archived: false,
-      feedType: {
-        $regex: new RegExp(`^${feedType}$`, "i"),
-      },
-    });
-
-    const totalPurchasedSacks = inventoryRecords.reduce(
-      (sum, item) => sum + Number(item.quantityIn || 0),
-      0
-    );
-
-    const totalPurchasedKg =
-      totalPurchasedSacks * FEED_SACK_WEIGHT_KG;
-
-    const totalConsumedKg = consumptionRecords.reduce(
-      (sum, item) =>
-        sum +
-        getQuantityInKg(
-          item.quantityConsumed,
-          item.quantityUnit
-        ),
-      0
-    );
-
-    const availableKg = Math.max(
-      0,
-      totalPurchasedKg - totalConsumedKg
-    );
-
-    const availableSacks =
-      availableKg / FEED_SACK_WEIGHT_KG;
-
-    const requestedKg = getQuantityInKg(
+    const { quantity, unit, error } = readQuantity(
       req.body.quantityConsumed,
       req.body.quantityUnit
     );
 
-    if (requestedKg > availableKg) {
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
+    }
+
+    const stock = await computeFeedStock(feedType);
+
+    const requestedKg = round2(toKg(quantity, unit, stock.sackWeightKg));
+
+    if (requestedKg > stock.availableKg) {
       await createNotification({
         title: "Feed Consumption Blocked",
 
-        description: `An attempt to log ${req.body.quantityConsumed} ${
-          req.body.quantityUnit || "kg"
-        } of ${req.body.feedType} (batch '${
+        description: `An attempt to log ${quantity} ${unit} of ${feedType} (batch '${
           req.body.batchId || "—"
-        }') was blocked — only ${availableKg.toFixed(
-          1
-        )} kg (${availableSacks.toFixed(
-          2
-        )} sacks) of stock is available.`,
+        }') was blocked — only ${stockMessage(stock)} of stock is available.`,
 
         category: "feed",
         type: "alert",
@@ -96,15 +95,19 @@ exports.createFeedConsumption = async (req, res) => {
 
       return res.status(400).json({
         success: false,
-        message: `Quantity consumed exceeds available feed stock. Only ${availableKg.toFixed(
-          1
-        )} kg (${availableSacks.toFixed(
-          2
-        )} sacks) of ${req.body.feedType} is available.`,
+        message: `Quantity consumed exceeds available feed stock. Only ${stockMessage(
+          stock
+        )} of ${feedType} is available.`,
       });
     }
 
-    const record = await FeedConsumption.create(req.body);
+    const record = await FeedConsumption.create({
+      ...req.body,
+      feedType,
+      quantityConsumed: quantity,
+      quantityUnit: unit,
+      sackWeightKg: stock.sackWeightKg,
+    });
 
     await createAuditLog({
       user: req.user.name,
@@ -114,33 +117,7 @@ exports.createFeedConsumption = async (req, res) => {
       description: `Added ${record.quantityConsumed} ${record.quantityUnit || "kg"} feed consumption for batch '${record.batchId}'.`,
     });
 
-    const remainingKg = Math.max(
-      0,
-      availableKg - requestedKg
-    );
-
-    const remainingSacks =
-      remainingKg / FEED_SACK_WEIGHT_KG;
-
-    if (remainingKg < 100) {
-      const isCritical = remainingKg < 50;
-
-      await createNotification({
-        title: isCritical
-          ? "Critical Feed Inventory"
-          : "Low Feed Stock",
-
-        description: `${record.feedType} stock is ${
-          isCritical ? "critically low" : "low"
-        }. ${Math.floor(remainingSacks)} sacks remaining.`,
-
-        category: "feed",
-        type: "alert",
-        priority: isCritical ? "Critical" : "Warning",
-
-        roles: ["Owner", "Farmer"],
-      });
-    }
+    await refreshLowStockAlert(record.feedType);
 
     return res.status(201).json({
       success: true,
@@ -211,21 +188,81 @@ exports.updateFeedConsumption = async (req, res) => {
       return res.status(400).json({ success: false, message: FUTURE_DATE_MESSAGE });
     }
 
-    const record = await FeedConsumption.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const existingRecord = await FeedConsumption.findById(req.params.id);
 
-    if (!record) {
+    if (!existingRecord) {
       return res.status(404).json({
         success: false,
         message: "Feed consumption record not found.",
       });
     }
+
+    const body = { ...req.body };
+    delete body.sackWeightKg;
+
+    const feedType =
+      body.feedType !== undefined
+        ? String(body.feedType || "").trim()
+        : existingRecord.feedType;
+
+    if (!feedType) {
+      return res.status(400).json({ success: false, message: "Feed type is required." });
+    }
+
+    const { quantity, unit, error } = readQuantity(
+      body.quantityConsumed !== undefined
+        ? body.quantityConsumed
+        : existingRecord.quantityConsumed,
+      body.quantityUnit !== undefined
+        ? body.quantityUnit
+        : existingRecord.quantityUnit
+    );
+
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
+    }
+
+    const feedTypeChanged =
+      normalizeFeedKey(feedType) !==
+      normalizeFeedKey(existingRecord.feedType);
+
+    const stock = await computeFeedStock(feedType, {
+      excludeConsumptionId: existingRecord._id,
+    });
+
+    const sackWeightKg = feedTypeChanged
+      ? stock.sackWeightKg
+      : resolveSackWeight(existingRecord.sackWeightKg);
+
+    const requestedKg = round2(toKg(quantity, unit, sackWeightKg));
+    const previousKg = round2(consumptionRecordKg(existingRecord));
+
+    if (
+      (feedTypeChanged || requestedKg > previousKg) &&
+      requestedKg > stock.availableKg
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Quantity consumed exceeds available feed stock. Only ${stockMessage(
+          stock
+        )} of ${feedType} is available.`,
+      });
+    }
+
+    const record = await FeedConsumption.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...body,
+        feedType,
+        quantityConsumed: quantity,
+        quantityUnit: unit,
+        sackWeightKg,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     await createAuditLog({
       user: req.user.name,
@@ -234,6 +271,8 @@ exports.updateFeedConsumption = async (req, res) => {
       action: "Edited",
       description: `Updated feed consumption for batch '${record.batchId}'.`,
     });
+
+    await refreshLowStockAlert(record.feedType);
 
     return res.json({
       success: true,
@@ -334,6 +373,8 @@ exports.restoreFeedConsumption = async (req, res) => {
       action: "Restored",
       description: `Restored feed consumption for batch '${record.batchId}'.`,
     });
+
+    await refreshLowStockAlert(record.feedType);
 
     return res.json({
       success: true,

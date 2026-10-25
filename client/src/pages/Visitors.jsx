@@ -16,8 +16,7 @@ import { listVisitors } from "../api/visitorLog";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const getId = (r) => r._id || r.id;
 const getName = (r) => r.fullName || r.name || "—";
@@ -35,7 +34,10 @@ export default function Visitors() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ dateFrom: "", dateTo: "" });
+  const defaultFilters = { period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" };
+  const [filters, setFilters] = useState(defaultFilters);
+  const [draft, setDraft] = useState(defaultFilters);
+  const [filterApplied, setFilterApplied] = useState(false);
   const filterRef = useRef(null);
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
 
@@ -64,17 +66,82 @@ export default function Visitors() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ dateFrom: "", dateTo: "" });
-  const activeFilterCount = Object.entries(filters).filter(([, v]) => v && v !== "All").length;
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const todayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const isoWeekOf = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return "";
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (target.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNum + 3);
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+    return `${target.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  };
+
+  const getLastVisit = (r) => (r.lastVisitDate ? String(r.lastVisitDate).slice(0, 10) : "");
+
+  const handleFilterChange = (key, value) => setDraft((f) => ({ ...f, [key]: value }));
+  const clearFilters = () => { setDraft(defaultFilters); setFilters(defaultFilters); setFilterApplied(false); };
+  const applyFilters = () => {
+    if (draft.period === "custom") {
+      const today = todayStr();
+      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+    }
+    setError("");
+    setFilters(draft);
+    setFilterApplied(true);
+    setShowFilter(false);
+  };
+  const openFilterPanel = () => { setDraft(filters); setShowFilter((s) => !s); };
+  const activeFilterCount = filterApplied && filters.period !== "all" ? 1 : 0;
+
+  const yearOptions = [...new Set(
+    records.map((r) => { const d = new Date(getLastVisit(r)); return isNaN(d) ? null : String(d.getFullYear()); }).filter(Boolean)
+  )].sort((a, b) => b - a);
+
+  const monthOptions = [...new Set(
+    records
+      .filter((r) => draft.year === "All" || String(new Date(getLastVisit(r)).getFullYear()) === draft.year)
+      .map((r) => { const d = new Date(getLastVisit(r)); return isNaN(d) ? null : MONTH_NAMES[d.getMonth()]; })
+      .filter(Boolean)
+  )].sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+
+  const matchesDatePeriod = (r, f) => {
+    if (f.period === "all") return true;
+    const date = getLastVisit(r);
+    const d = new Date(date);
+    const recYear = isNaN(d) ? null : String(d.getFullYear());
+    const recMonth = isNaN(d) ? null : MONTH_NAMES[d.getMonth()];
+    if (f.period === "today") return date === todayStr();
+    if (f.period === "week") return !!f.week && isoWeekOf(date) === f.week;
+    if (f.period === "month") return f.year !== "All" && f.month !== "All" && recYear === f.year && recMonth === f.month;
+    if (f.period === "year") return f.year !== "All" && recYear === f.year;
+    if (f.period === "custom") return !!date && (!f.dateFrom || date >= f.dateFrom) && (!f.dateTo || date <= f.dateTo);
+    return true;
+  };
+
+  const periodLabel = (() => {
+    if (!filterApplied || filters.period === "all") return "All Records";
+    if (filters.period === "today") return "Today";
+    if (filters.period === "week" && filters.week) return filters.week;
+    if (filters.period === "month" && filters.month !== "All" && filters.year !== "All") return `${filters.month} ${filters.year}`;
+    if (filters.period === "year" && filters.year !== "All") return filters.year;
+    if (filters.period === "custom" && (filters.dateFrom || filters.dateTo)) return `${filters.dateFrom || "—"} – ${filters.dateTo || "—"}`;
+    return "All Records";
+  })();
 
   const matches = (r) => {
     const q = search.toLowerCase();
     const matchSearch = !q || getName(r).toLowerCase().includes(q);
-    const dateStr = r.lastVisitDate ? String(r.lastVisitDate).slice(0, 10) : "";
-    const matchDate =
-      (!filters.dateFrom || (dateStr && dateStr >= filters.dateFrom)) &&
-      (!filters.dateTo || (dateStr && dateStr <= filters.dateTo));
+    const matchDate = !filterApplied || matchesDatePeriod(r, filters);
     return matchSearch && matchDate;
   };
   const visitors = records.filter((r) => !isArchived(r)).filter(matches);
@@ -89,7 +156,7 @@ export default function Visitors() {
   };
   const sortedVisitors = sortData(visitors, sortAccessor);
   const pager = usePagination(sortedVisitors.length);
-  useEffect(() => { pager.setPage(1); }, [search, filters]);
+  useEffect(() => { pager.setPage(1); }, [search, filters, filterApplied]);
   const pageVisitors = sortedVisitors.slice(pager.startIndex, pager.endIndex);
 
   const totalVisitors = visitors.length;
@@ -100,14 +167,6 @@ export default function Visitors() {
     return false;
   };
   const visitsToday = visitors.filter(isToday).length;
-
-  const periodLabel = filters.dateFrom && filters.dateTo
-    ? `${filters.dateFrom} – ${filters.dateTo}`
-    : filters.dateFrom
-      ? `From ${filters.dateFrom}`
-      : filters.dateTo
-        ? `Until ${filters.dateTo}`
-        : "All Time";
 
   const exportMeta = {
     farmName: farmInfo.farmName,
@@ -129,19 +188,23 @@ export default function Visitors() {
       ]
     : [];
 
-  // Export columns/rows mirror the on-screen table exactly (see the
-  // <thead>/<tbody> below) — same fields, same labels, same formatting.
+  // Export columns/rows mirror the on-screen table (see the <thead>/<tbody>
+  // below), plus each visitor's last visit date and total visit count.
   const exportColumns = [
     { key: "name", label: "Full Name" },
     { key: "address", label: "Address" },
     { key: "affiliation", label: "Affiliation / Company" },
     { key: "contact", label: "Contact Number" },
+    { key: "lastVisit", label: "Last Visit" },
+    { key: "visits", label: "Total Visits" },
   ];
-  const exportRows = visitors.map((r) => ({
+  const exportRows = sortedVisitors.map((r) => ({
     name: getName(r),
     address: getAddress(r),
     affiliation: getAffiliation(r),
     contact: getContact(r),
+    lastVisit: r.lastVisitDate ? String(r.lastVisitDate).slice(0, 10) : "—",
+    visits: String(Number(r.visitCount) || 0),
   }));
 
   return (
@@ -167,7 +230,7 @@ export default function Visitors() {
             </div>
             <div className="vt-toolbar-btn-group">
               <div className="vt-filter-wrap" ref={filterRef}>
-                <button className="vt-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="vt-toolbar-btn" onClick={openFilterPanel}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="vt-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -176,18 +239,89 @@ export default function Visitors() {
                   <div className="vt-filter-dropdown">
                     <div className="vt-filter-dropdown-header">
                       <span>Filter Visitors</span>
-                      <button className="vt-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    <div className="vt-filter-group">
-                      <label className="vt-filter-label">Report Period</label>
-                      <div className="vt-filter-date-range">
-                        <input type="date" className="vt-filter-select" value={filters.dateFrom}
-                          onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                        <span>to</span>
-                        <input type="date" className="vt-filter-select" value={filters.dateTo}
-                          onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                    <div className="vt-filter-section-label">Date Filter (Last Visit)</div>
+                    <div className="vt-filter-row">
+                      <div className="vt-filter-group">
+                        <label className="vt-filter-label">Date Period</label>
+                        <select
+                          className="vt-filter-select"
+                          value={draft.period}
+                          onChange={(e) => handleFilterChange("period", e.target.value)}
+                        >
+                          <option value="all">All Records</option>
+                          <option value="today">Today</option>
+                          <option value="week">Week</option>
+                          <option value="month">Month</option>
+                          <option value="year">Year</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
                       </div>
+
+                      {draft.period === "week" && (
+                        <div className="vt-filter-group">
+                          <label className="vt-filter-label">Week</label>
+                          <input
+                            type="week"
+                            className="vt-filter-select"
+                            value={draft.week}
+                            onChange={(e) => handleFilterChange("week", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      {draft.period === "month" && (
+                        <div className="vt-filter-group">
+                          <label className="vt-filter-label">Month</label>
+                          <select
+                            className="vt-filter-select"
+                            value={draft.month}
+                            onChange={(e) => handleFilterChange("month", e.target.value)}
+                          >
+                            <option value="All">Select Month</option>
+                            {monthOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {(draft.period === "month" || draft.period === "year") && (
+                        <div className="vt-filter-group">
+                          <label className="vt-filter-label">Year</label>
+                          <select
+                            className="vt-filter-select"
+                            value={draft.year}
+                            onChange={(e) => handleFilterChange("year", e.target.value)}
+                          >
+                            <option value="All">Select Year</option>
+                            {yearOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {draft.period === "custom" && (
+                      <div className="vt-filter-group">
+                        <label className="vt-filter-label">Start Date / End Date</label>
+                        <div className="vt-filter-date-range">
+                          <input type="date" className="vt-filter-select" value={draft.dateFrom}
+                            max={draft.dateTo || todayStr()}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                          <span>to</span>
+                          <input type="date" className="vt-filter-select" value={draft.dateTo}
+                            min={draft.dateFrom || undefined} max={todayStr()}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="vt-filter-actions">
+                      <button className="vt-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="vt-filter-apply" onClick={applyFilters}>Apply</button>
                     </div>
                   </div>
                 )}
@@ -200,31 +334,17 @@ export default function Visitors() {
                 name="visitors"
                 title="Visitor Log Report"
                 meta={exportMeta}
-                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Visitors"
                 enablePreview
                 filters={{
-                  ...(periodLabel !== "All Time" ? { "Report Period": periodLabel } : {}),
+                  ...(periodLabel !== "All Records" ? { "Report Period": periodLabel } : {}),
                 }}
                 className="vt-toolbar-btn"
               />
             </div>
           </div>
         </div>
-
-        {}
-        {activeFilterCount > 0 && (
-          <div className="vt-active-filters">
-            {Object.entries(filters).map(([key, value]) =>
-              value && value !== "All" ? (
-                <span key={key} className="vt-active-filter-tag">
-                  {key === "dateFrom" ? "From" : "To"}: {value}
-                  <button onClick={() => handleFilterChange(key, key === "dateFrom" || key === "dateTo" ? "" : "All")}>✕</button>
-                </span>
-              ) : null
-            )}
-          </div>
-        )}
 
         {}
         {error && (
@@ -238,7 +358,7 @@ export default function Visitors() {
             <div>
               <h3>{totalVisitors}</h3>
               <p>Total Visitors</p>
-              <span>All Time</span>
+              <span>{periodLabel === "All Records" ? "All Time" : periodLabel}</span>
             </div>
           </div>
           <div className="vt-stat-card">
@@ -246,7 +366,7 @@ export default function Visitors() {
             <div>
               <h3>{visitsThisMonth}</h3>
               <p>Visits This Month</p>
-              <span>All Records</span>
+              <span>{periodLabel}</span>
             </div>
           </div>
           <div className="vt-stat-card">
@@ -254,13 +374,14 @@ export default function Visitors() {
             <div>
               <h3>{visitsToday}</h3>
               <p>Visits Today</p>
-              <span>All Records</span>
+              <span>{periodLabel}</span>
             </div>
           </div>
         </div>
 
         {}
-        <div className="vt-table-wrapper">
+        <TableSection className="vt-table-wrapper">
+          <TableScroll>
           <table className="vt-table">
             <thead>
               <tr>
@@ -318,17 +439,18 @@ export default function Visitors() {
               )}
             </tbody>
           </table>
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       {}
       {qrOpen && (

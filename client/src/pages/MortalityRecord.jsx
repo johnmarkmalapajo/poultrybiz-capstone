@@ -16,8 +16,7 @@ import { listMortalityRecords } from "../api/mortalityRecord";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 export default function MortalityRecord() {
   const navigate = useNavigate();
@@ -412,7 +411,7 @@ export default function MortalityRecord() {
                 name="mortality-record"
                 title="Mortality Monitoring Report"
                 meta={exportMeta}
-                pdfExtra={{ period: exportMeta.period, summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Mortality Record"
                 enablePreview
                 filters={{
@@ -456,7 +455,8 @@ export default function MortalityRecord() {
         </div>
 
         {}
-        <div className="mr-table-wrapper">
+        <TableSection className="mr-table-wrapper">
+          <TableScroll>
           <table className="mr-table">
             <thead>
               <tr>
@@ -532,17 +532,18 @@ export default function MortalityRecord() {
               )}
             </tbody>
           </table>
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 

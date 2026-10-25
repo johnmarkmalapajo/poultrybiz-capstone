@@ -14,11 +14,10 @@ import "./Personnelandmanpower.css";
 import { archiveRow } from "../archiveRow";
 import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
 import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
-import { listPersonnel } from "../api/personnelManpower";
+import { listPersonnel, getAttendanceQr } from "../api/personnelManpower";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 const STATUS_OPTIONS = ["Active", "Inactive"];
 
@@ -70,9 +69,14 @@ export default function PersonnelManpower() {
   const [error, setError] = useState("");
 
   const [qrOpen, setQrOpen] = useState(false);
+  const [qrPath, setQrPath] = useState("");
+  const [qrError, setQrError] = useState("");
 
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ status: "All" });
+  const defaultFilters = { status: "All", period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" };
+  const [filters, setFilters] = useState(defaultFilters);
+  const [draft, setDraft] = useState(defaultFilters);
+  const [filterApplied, setFilterApplied] = useState(false);
   const filterRef = useRef(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
@@ -113,17 +117,88 @@ export default function PersonnelManpower() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const handleFilterChange = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
-  const clearFilters = () => setFilters({ status: "All" });
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "All").length;
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const todayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const isoWeekOf = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return "";
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (target.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNum + 3);
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+    return `${target.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  };
+
+  const getDateHired = (r) => (r.dateHired ? String(r.dateHired).slice(0, 10) : "");
+
+  const handleFilterChange = (key, value) => setDraft((f) => ({ ...f, [key]: value }));
+  const clearFilters = () => { setDraft(defaultFilters); setFilters(defaultFilters); setFilterApplied(false); };
+  const applyFilters = () => {
+    if (draft.period === "custom") {
+      const today = todayStr();
+      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+    }
+    setError("");
+    setFilters(draft);
+    setFilterApplied(true);
+    setShowFilter(false);
+  };
+  const openFilterPanel = () => { setDraft(filters); setShowFilter((s) => !s); };
+  const activeFilterCount =
+    (filterApplied && filters.period !== "all" ? 1 : 0) +
+    (filterApplied && filters.status !== "All" ? 1 : 0);
+
+  const yearOptions = [...new Set(
+    records.map((r) => { const d = new Date(getDateHired(r)); return isNaN(d) ? null : String(d.getFullYear()); }).filter(Boolean)
+  )].sort((a, b) => b - a);
+
+  const monthOptions = [...new Set(
+    records
+      .filter((r) => draft.year === "All" || String(new Date(getDateHired(r)).getFullYear()) === draft.year)
+      .map((r) => { const d = new Date(getDateHired(r)); return isNaN(d) ? null : MONTH_NAMES[d.getMonth()]; })
+      .filter(Boolean)
+  )].sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
+
+  const matchesDatePeriod = (r, f) => {
+    if (f.period === "all") return true;
+    const date = getDateHired(r);
+    const d = new Date(date);
+    const recYear = isNaN(d) ? null : String(d.getFullYear());
+    const recMonth = isNaN(d) ? null : MONTH_NAMES[d.getMonth()];
+    if (f.period === "today") return date === todayStr();
+    if (f.period === "week") return !!f.week && isoWeekOf(date) === f.week;
+    if (f.period === "month") return f.year !== "All" && f.month !== "All" && recYear === f.year && recMonth === f.month;
+    if (f.period === "year") return f.year !== "All" && recYear === f.year;
+    if (f.period === "custom") return !!date && (!f.dateFrom || date >= f.dateFrom) && (!f.dateTo || date <= f.dateTo);
+    return true;
+  };
+
+  const periodLabel = (() => {
+    if (!filterApplied || filters.period === "all") return "All Records";
+    if (filters.period === "today") return "Today";
+    if (filters.period === "week" && filters.week) return filters.week;
+    if (filters.period === "month" && filters.month !== "All" && filters.year !== "All") return `${filters.month} ${filters.year}`;
+    if (filters.period === "year" && filters.year !== "All") return filters.year;
+    if (filters.period === "custom" && (filters.dateFrom || filters.dateTo)) return `${filters.dateFrom || "—"} – ${filters.dateTo || "—"}`;
+    return "All Records";
+  })();
 
   const matches = (r) => {
     const q = search.toLowerCase();
     const matchSearch =
       getName(r).toLowerCase().includes(q) ||
       getPosition(r).toLowerCase().includes(q);
-    const matchStatus = filters.status === "All" || getStatus(r) === filters.status;
-    return matchSearch && matchStatus;
+    const matchStatus = !filterApplied || filters.status === "All" || getStatus(r) === filters.status;
+    const matchDate = !filterApplied || matchesDatePeriod(r, filters);
+    return matchSearch && matchStatus && matchDate;
   };
 
   const owners = records.filter(isOwnerRow).filter(matches);
@@ -141,7 +216,7 @@ export default function PersonnelManpower() {
   const sortedFarmers = sortData(farmers, sortAccessor);
   const activeSorted = activeTab === "owner" ? sortedOwners : sortedFarmers;
   const pager = usePagination(activeSorted.length);
-  useEffect(() => { pager.setPage(1); }, [search, filters, activeTab]);
+  useEffect(() => { pager.setPage(1); }, [search, filters, filterApplied, activeTab]);
   const pageOwners = sortedOwners.slice(pager.startIndex, pager.endIndex);
   const pageFarmers = sortedFarmers.slice(pager.startIndex, pager.endIndex);
 
@@ -150,10 +225,13 @@ export default function PersonnelManpower() {
   const activeCount = allMatching.filter((r) => getStatus(r) === "Active").length;
   const inactiveCount = allMatching.filter((r) => getStatus(r) === "Inactive").length;
 
+  // The PDF lists only the active tab's records, so its summary is
+  // computed from that same list to keep the totals and rows in sync.
+  const exportSource = activeTab === "owner" ? owners : farmers;
   const exportSummary = [
-    { label: "Total Personnel", value: String(total) },
-    { label: "Active", value: String(activeCount) },
-    { label: "Inactive", value: String(inactiveCount) },
+    { label: "Total Personnel", value: String(exportSource.length) },
+    { label: "Active", value: String(exportSource.filter((r) => getStatus(r) === "Active").length) },
+    { label: "Inactive", value: String(exportSource.filter((r) => getStatus(r) === "Inactive").length) },
   ];
 
   const exportMeta = {
@@ -164,23 +242,57 @@ export default function PersonnelManpower() {
     logoUrl: farmInfo.farmLogo
       ? (farmInfo.farmLogo.startsWith("http") ? farmInfo.farmLogo : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${farmInfo.farmLogo}`)
       : "",
-    fields: filters.status !== "All" ? [{ label: "Status", value: filters.status }] : [],
+    period: periodLabel,
+    fields: filterApplied && filters.status !== "All" ? [{ label: "Status", value: filters.status }] : [],
   };
 
   const isOwnerTab = activeTab === "owner";
-  const exportRows = (isOwnerTab ? owners : farmers).map((r) => ({
-    "Full Name": getName(r),
-    "Contact Number": getContact(r),
-    "Position": getDisplayPosition(r),
-    "Status": getStatus(r),
-    "Remarks": getRemarks(r),
+  const exportText = (value) =>
+    value == null || typeof value === "object" || String(value).trim() === "" ? "—" : String(value);
+
+  const exportColumns = [
+    { key: "name", label: "Full Name" },
+    { key: "contact", label: "Contact Number" },
+    { key: "position", label: "Position" },
+    { key: "status", label: "Status" },
+    { key: "remarks", label: "Remarks" },
+  ];
+
+  const exportRows = (isOwnerTab ? sortedOwners : sortedFarmers).map((r) => ({
+    name: exportText(getName(r)),
+    contact: exportText(getContact(r)),
+    position: exportText(getDisplayPosition(r)),
+    status: exportText(getStatus(r)),
+    remarks: exportText(getRemarks(r)),
   }));
 
-  const CHECKIN_URL =
-    (typeof window !== "undefined" ? window.location.origin : "") + "/attendance/check-in";
-  const STATION_QR =
-    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-    encodeURIComponent(CHECKIN_URL);
+  // The official attendance QR points to the check-in page with the farm's
+  // attendance code from the backend (Owner only). It carries no login
+  // details -- the person is identified by their own login when scanning.
+  useEffect(() => {
+    if (!qrOpen || qrPath) return undefined;
+
+    let cancelled = false;
+
+    getAttendanceQr()
+      .then((data) => {
+        if (!cancelled) setQrPath(data?.checkInPath || "");
+      })
+      .catch((err) => {
+        if (!cancelled) setQrError(err?.message || "Couldn't load the attendance QR code.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [qrOpen, qrPath]);
+
+  const CHECKIN_URL = qrPath
+    ? (typeof window !== "undefined" ? window.location.origin : "") + qrPath
+    : "";
+  const STATION_QR = CHECKIN_URL
+    ? "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(CHECKIN_URL)
+    : "";
 
   const statusBadge = (status) => (
     <span className={`status ${String(status).toLowerCase().replace(" ", "-")}`}>{status}</span>
@@ -211,7 +323,7 @@ export default function PersonnelManpower() {
 
             <div className="pm-btn-group">
               <div className="pm-filter-wrap" ref={filterRef}>
-                <button className="pm-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
+                <button className="pm-toolbar-btn" onClick={openFilterPanel}>
                   <FiFilter /> Filter
                   {activeFilterCount > 0 && <span className="pm-filter-count">{activeFilterCount}</span>}
                 </button>
@@ -220,35 +332,122 @@ export default function PersonnelManpower() {
                   <div className="pm-filter-dropdown">
                     <div className="pm-filter-dropdown-header">
                       <span>Filter Records</span>
-                      <button className="pm-filter-clear" onClick={clearFilters}>Clear All</button>
                     </div>
 
-                    <div className="pm-filter-group">
-                      <label className="pm-filter-label">Status</label>
-                      <select
-                        className="pm-filter-select"
-                        value={filters.status}
-                        onChange={(e) => handleFilterChange("status", e.target.value)}
-                      >
-                        <option value="All">All Statuses</option>
-                        {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
+                    <div className="pm-filter-section-label">Date Filter (Date Hired)</div>
+                    <div className="pm-filter-row">
+                      <div className="pm-filter-group">
+                        <label className="pm-filter-label">Date Period</label>
+                        <select
+                          className="pm-filter-select"
+                          value={draft.period}
+                          onChange={(e) => handleFilterChange("period", e.target.value)}
+                        >
+                          <option value="all">All Records</option>
+                          <option value="today">Today</option>
+                          <option value="week">Week</option>
+                          <option value="month">Month</option>
+                          <option value="year">Year</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
+                      </div>
+
+                      {draft.period === "week" && (
+                        <div className="pm-filter-group">
+                          <label className="pm-filter-label">Week</label>
+                          <input
+                            type="week"
+                            className="pm-filter-select"
+                            value={draft.week}
+                            onChange={(e) => handleFilterChange("week", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      {draft.period === "month" && (
+                        <div className="pm-filter-group">
+                          <label className="pm-filter-label">Month</label>
+                          <select
+                            className="pm-filter-select"
+                            value={draft.month}
+                            onChange={(e) => handleFilterChange("month", e.target.value)}
+                          >
+                            <option value="All">Select Month</option>
+                            {monthOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {(draft.period === "month" || draft.period === "year") && (
+                        <div className="pm-filter-group">
+                          <label className="pm-filter-label">Year</label>
+                          <select
+                            className="pm-filter-select"
+                            value={draft.year}
+                            onChange={(e) => handleFilterChange("year", e.target.value)}
+                          >
+                            <option value="All">Select Year</option>
+                            {yearOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {draft.period === "custom" && (
+                      <div className="pm-filter-group">
+                        <label className="pm-filter-label">Start Date / End Date</label>
+                        <div className="pm-filter-date-range">
+                          <input type="date" className="pm-filter-select" value={draft.dateFrom}
+                            max={draft.dateTo || todayStr()}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
+                          <span>to</span>
+                          <input type="date" className="pm-filter-select" value={draft.dateTo}
+                            min={draft.dateFrom || undefined} max={todayStr()}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pm-filter-section-label">Filters</div>
+                    <div className="pm-filter-row">
+                      <div className="pm-filter-group">
+                        <label className="pm-filter-label">Status</label>
+                        <select
+                          className="pm-filter-select"
+                          value={draft.status}
+                          onChange={(e) => handleFilterChange("status", e.target.value)}
+                        >
+                          <option value="All">All Statuses</option>
+                          {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pm-filter-actions">
+                      <button className="pm-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <button className="pm-filter-apply" onClick={applyFilters}>Apply</button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <button className="pm-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
+              <button className="pm-toolbar-btn" onClick={() => { setQrError(""); setQrOpen(true); }}><BsQrCode /> QR Generation</button>
               <ExportMenu
                 rows={exportRows}
+                columns={exportColumns}
                 name={`personnel-${isOwnerTab ? "owner" : "farmers"}`}
                 title="Personnel Management Report"
                 meta={exportMeta}
-                pdfExtra={{ summary: exportSummary }}
+                pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Personnel & Manpower"
                 enablePreview
                 filters={{
-                  ...(filters.status !== "All" ? { "Status": filters.status } : {}),
+                  ...(filterApplied && filters.status !== "All" ? { "Status": filters.status } : {}),
+                  ...(periodLabel !== "All Records" ? { "Report Period": periodLabel } : {}),
                 }}
                 className="pm-toolbar-btn"
               />
@@ -256,21 +455,7 @@ export default function PersonnelManpower() {
           </div>
         </div>
 
-        {error && <div className="pm-active-filters" style={{ color: "#d94f4f" }}>{error}</div>}
-
-        {}
-        {activeFilterCount > 0 && (
-          <div className="pm-active-filters">
-            {Object.entries(filters).map(([key, value]) =>
-              value !== "All" ? (
-                <span key={key} className="pm-active-filter-tag">
-                  {{ status: "Status", position: "Position", shift: "Shift", task: "Task" }[key] || key}: {value}
-                  <button onClick={() => handleFilterChange(key, "All")}>✕</button>
-                </span>
-              ) : null
-            )}
-          </div>
-        )}
+        {error && <div className="pb-error-banner">{error}</div>}
 
         {}
         <div className="pm-stats-grid">
@@ -318,7 +503,8 @@ export default function PersonnelManpower() {
           </button>
         </div>
 
-        <div className="pm-table-wrapper">
+        <TableSection className="pm-table-wrapper">
+          <TableScroll>
 
           {}
           {activeTab === "owner" && (
@@ -418,17 +604,18 @@ export default function PersonnelManpower() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       {}
       {qrOpen && (
@@ -445,15 +632,21 @@ export default function PersonnelManpower() {
 
             <div className="qr-station">
               {}
+              {qrError && <div className="pb-error-banner">{qrError}</div>}
               <div className="qr-frame">
-                <img className="qr-station-img" src={STATION_QR} alt="Attendance QR code" loading="lazy" />
+                {STATION_QR ? (
+                  <img className="qr-station-img" src={STATION_QR} alt="Attendance QR code" loading="lazy" />
+                ) : (
+                  !qrError && <p className="pb-loading-text">Loading QR code...</p>
+                )}
                 <span className="qr-frame-caption">Attendance QR</span>
               </div>
 
               {}
               <button
                 className="qr-download-btn"
-                onClick={() => window.open(STATION_QR, "_blank", "noopener,noreferrer")}
+                onClick={() => STATION_QR && window.open(STATION_QR, "_blank", "noopener,noreferrer")}
+                disabled={!STATION_QR}
               >
                 <FiDownload /> Download QR
               </button>

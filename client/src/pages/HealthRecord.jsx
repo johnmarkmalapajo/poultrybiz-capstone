@@ -16,8 +16,7 @@ import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listHealthRecords } from "../api/healthRecord";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
-import TablePagination from "../components/TablePagination";
-import "../components/TablePagination.css";
+import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 
 export default function HealthRecord() {
   const navigate = useNavigate();
@@ -46,7 +45,11 @@ export default function HealthRecord() {
     listHealthRecords()
       .then((d) => {
         const list = Array.isArray(d) ? d : d.records || d.data || [];
-        setAllRecords(list.map((r) => ({ ...r, date: r.date ? String(r.date).slice(0, 10) : r.date })));
+        const mapped = list.map((r) => ({ ...r, date: r.date ? String(r.date).slice(0, 10) : r.date }));
+        setAllRecords(mapped);
+        const viewId = params.get("view");
+        const linked = viewId ? mapped.find((r) => String(r._id) === viewId) : null;
+        if (linked) setViewRecord(linked);
       })
       .catch((err) => { setAllRecords([]); setError(err?.message || "Couldn't load health records."); })
       .finally(() => setLoading(false));
@@ -490,7 +493,8 @@ export default function HealthRecord() {
         </div>
 
         {}
-        <div className="hr-table-wrapper">
+        <TableSection className="hr-table-wrapper">
+          <TableScroll>
 
           {activeTab === "diagnosis" && (
             <table className="hr-table">
@@ -651,17 +655,18 @@ export default function HealthRecord() {
             </table>
           )}
 
+          </TableScroll>
           <TablePagination
-            page={pager.page}
-            setPage={pager.setPage}
-            rowsPerPage={pager.rowsPerPage}
-            setRowsPerPage={pager.setRowsPerPage}
+            currentPage={pager.page}
             totalPages={pager.totalPages}
+            pageSize={pager.rowsPerPage}
+            totalRecords={pager.totalItems}
             startIndex={pager.startIndex}
             endIndex={pager.endIndex}
-            totalItems={pager.totalItems}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setRowsPerPage}
           />
-        </div>
+        </TableSection>
 
       <ArchiveConfirmModal pending={archivePending} onCancel={cancelArchive} onConfirm={confirmArchive} />
 
