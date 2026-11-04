@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiActivity, FiFileText, FiSave } from "react-icons/fi";
@@ -12,7 +13,7 @@ export default function AddFeedInventory() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    date: "", feedType: "", quantityIn: "", quantityOut: "", notes: "",
+    date: phToday(), feedType: "", quantityIn: "", quantityOut: "", notes: "",
   });
 
   // Total consumed per feed type — drives Quantity Out automatically
@@ -104,7 +105,7 @@ export default function AddFeedInventory() {
           <div className="afi-form-grid">
             <div className="afi-form-group">
               <label>Date Purchased <span className="afi-req">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
+              <input type="date" name="date" value={form.date} onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="afi-form-group">

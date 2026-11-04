@@ -9,6 +9,77 @@ const { createNotification } = require("./notificationController");
 const { resolveBreedName } = require("./breedController");
 const { resolveSupplierName } = require("./supplierController");
 const { generateMortalityId } = require("./mortalityRecordController");
+const { claim, release } = require("../middleware/duplicateGuard");
+
+// A user must wait this long (1 minute) after creating a Flock Profile before creating
+// another one. Enforced here (not only in the UI) from the saved Flock
+// records, plus an atomic marker so simultaneous requests cannot both pass.
+const FLOCK_COOLDOWN_MS = 60 * 1000;
+
+// The cooldown only applies to the SAME batch of birds: same Date Acquired,
+// same Breed and same Supplier as a flock this user just saved. Changing any
+// of those three means a different batch, so there is no cooldown.
+const normText = (v) => String(v ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+const batchSignature = ({ dateAcquired, breed, supplier }) => {
+  const day = dateAcquired ? new Date(dateAcquired) : null;
+  const dateKey = day && !isNaN(day) ? day.toISOString().slice(0, 10) : "";
+  return { dateKey, breedKey: normText(breed), supplierKey: normText(supplier) };
+};
+
+const cooldownKey = (userId, sig) =>
+  `flock-cooldown:${userId}:${sig.dateKey}|${sig.breedKey}|${sig.supplierKey}`;
+
+const NO_COOLDOWN = { active: false, remainingSeconds: 0 };
+
+const getFlockCooldown = async (userId, batch) => {
+  const sig = batchSignature(batch || {});
+  if (!sig.dateKey || !sig.breedKey || !sig.supplierKey) return NO_COOLDOWN;
+
+  const recent = await Flock.find({
+    createdBy: userId,
+    createdAt: { $gte: new Date(Date.now() - FLOCK_COOLDOWN_MS) },
+  })
+    .select("createdAt breed supplier dateAcquired")
+    .sort({ createdAt: -1 });
+
+  const match = recent.find((f) => {
+    const s = batchSignature(f);
+    return (
+      s.dateKey === sig.dateKey &&
+      s.breedKey === sig.breedKey &&
+      s.supplierKey === sig.supplierKey
+    );
+  });
+  if (!match) return NO_COOLDOWN;
+
+  const remainingMs = FLOCK_COOLDOWN_MS - (Date.now() - new Date(match.createdAt).getTime());
+  return remainingMs > 0
+    ? { active: true, remainingSeconds: Math.ceil(remainingMs / 1000) }
+    : NO_COOLDOWN;
+};
+
+const cooldownMessage = (seconds) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const text = m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+  return `Please wait ${text} before adding this same batch again (same date, breed and supplier). Change the date, breed or supplier to add a different batch.`;
+};
+
+exports.getFlockCooldownStatus = async (req, res) => {
+  try {
+    const q = req.query || {};
+    const cd = await getFlockCooldown(req.user.id, {
+      dateAcquired: q.dateAcquired,
+      breed: (q.newBreed && String(q.newBreed).trim()) || q.breed,
+      supplier: (q.newSupplier && String(q.newSupplier).trim()) || q.supplier,
+    });
+    return res.json({ success: true, ...cd, cooldownSeconds: FLOCK_COOLDOWN_MS / 1000 });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Unable to check the flock cooldown." });
+  }
+};
 
 const generateBatchId = async () => {
   const flocks = await Flock.find({ batchId: { $regex: /^F-\d+$/ } })
@@ -91,6 +162,7 @@ const ensureQuarantineRecord = async (flock, req) => {
 };
 
 exports.createFlock = async (req, res) => {
+  let claimedKey = null;
   try {
     const {
       breed,
@@ -101,6 +173,20 @@ exports.createFlock = async (req, res) => {
       dateAcquiredEnd,
       quantityPurchased,
     } = req.body;
+
+    const cooldown = await getFlockCooldown(req.user.id, {
+      dateAcquired,
+      breed: (newBreed && String(newBreed).trim()) || breed,
+      supplier: (newSupplier && String(newSupplier).trim()) || supplier,
+    });
+    if (cooldown.active) {
+      return res.status(429).json({
+        success: false,
+        cooldown: true,
+        remainingSeconds: cooldown.remainingSeconds,
+        message: cooldownMessage(cooldown.remainingSeconds),
+      });
+    }
 
     if (!dateAcquired) {
       return res.status(400).json({
@@ -158,6 +244,22 @@ exports.createFlock = async (req, res) => {
       });
     }
 
+    // Atomic claim: if two requests slip past the check above at the same
+    // moment, only one of them gets the marker.
+    const batch = { dateAcquired, breed: resolvedBreed, supplier: resolvedSupplier };
+    const key = cooldownKey(req.user.id, batchSignature(batch));
+    if (!(await claim(key, FLOCK_COOLDOWN_MS))) {
+      const again = await getFlockCooldown(req.user.id, batch);
+      const secs = again.active ? again.remainingSeconds : FLOCK_COOLDOWN_MS / 1000;
+      return res.status(429).json({
+        success: false,
+        cooldown: true,
+        remainingSeconds: secs,
+        message: cooldownMessage(secs),
+      });
+    }
+    claimedKey = key;
+
     const batchId = await generateBatchId();
     const purchaseQty = Number(quantityPurchased);
 
@@ -190,6 +292,8 @@ exports.createFlock = async (req, res) => {
       next: flock,
     });
 
+    claimedKey = null; // creation succeeded: keep the cooldown marker
+
     res.status(201).json({
       success: true,
       record: flock,
@@ -197,6 +301,9 @@ exports.createFlock = async (req, res) => {
 
   } catch (err) {
     console.error(err);
+
+    // Creation did not complete, so do not make the user wait out a cooldown.
+    if (claimedKey) await release(claimedKey);
 
     res.status(500).json({
       success: false,

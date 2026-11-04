@@ -12,6 +12,7 @@ const {
 } = require("../controllers/salesRecordController");
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, ownerOnly, getSalesRecords);
 
@@ -19,7 +20,7 @@ router.get("/egg-stock", protect, ownerOnly, getEggStockSummary);
 
 router.get("/:id", protect, ownerOnly, getSalesRecord);
 
-router.post("/", protect, ownerOnly, createSalesRecord);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createSalesRecord);
 
 router.put("/:id", protect, ownerOnly, updateSalesRecord);
 

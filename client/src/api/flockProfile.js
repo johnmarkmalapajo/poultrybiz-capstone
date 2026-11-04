@@ -10,6 +10,7 @@ const PATH = "/api/v1/flocks";
 export const listFlocks  = (params) => apiGet(PATH, params);
 export const getFlock    = (id)      => apiGet(`${PATH}/${id}`);
 export const createFlock = (payload) => apiPost(PATH, payload);
+export const getFlockCooldown = (params) => apiGet(`${PATH}/cooldown`, params);
 export const updateFlock = (id, payload) => apiPut(`${PATH}/${id}`, payload);
 export const updateFlockStatus = (id, status) => apiPatch(`${PATH}/${id}/status`, { status });
 export const deleteFlock = (id)      => apiDelete(`${PATH}/${id}`);

@@ -276,7 +276,6 @@ export default function FeedInventory() {
     .map((record) => ({
       ...record,
       quantityInSacks: Number(record?.quantityIn) || 0,
-      status: "Delivered/Received",
     }))
     .sort((a, b) => {
       const dateA = new Date(
@@ -333,10 +332,6 @@ export default function FeedInventory() {
 
     if (column === "quantityIn") {
       return Number(row.quantityIn) || 0;
-    }
-
-    if (column === "status") {
-      return row.status || "";
     }
 
     return "";
@@ -416,10 +411,6 @@ export default function FeedInventory() {
       key: "quantityIn",
       label: "Quantity",
     },
-    {
-      key: "status",
-      label: "Status",
-    },
   ];
 
   const exportRows = filtered.map((record) => ({
@@ -432,7 +423,6 @@ export default function FeedInventory() {
     quantityIn: `${Math.floor(
       Number(record.quantityIn) || 0
     )} sacks`,
-    status: record.status,
   }));
 
   const settingsFormFor = (item) =>
@@ -911,18 +901,6 @@ export default function FeedInventory() {
                 )}
               </th>
 
-              <th
-                className="fi-sortable-th"
-                onClick={() => cycleSort("status")}
-              >
-                Status
-                {sortIndicator(
-                  "status",
-                  sortColumn,
-                  sortDirection
-                )}
-              </th>
-
               <th>Actions</th>
             </tr>
           </thead>
@@ -931,7 +909,7 @@ export default function FeedInventory() {
             {loading ? (
               <tr>
                 <td
-                  colSpan="5"
+                  colSpan="4"
                   className="fi-empty-state"
                 >
                   Loading feed inventory...
@@ -940,7 +918,7 @@ export default function FeedInventory() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan="5"
+                  colSpan="4"
                   className="fi-empty-state"
                 >
                   <div className="fi-empty-content">
@@ -986,16 +964,6 @@ export default function FeedInventory() {
                       Number(record.quantityIn) || 0
                     )}{" "}
                     sacks
-                  </td>
-
-                  <td>
-                    <span
-                      className={`fi-status fi-status-${record.status
-                        .toLowerCase()
-                        .replace(/[\/\s]+/g, "-")}`}
-                    >
-                      {record.status}
-                    </span>
                   </td>
 
                   <td>

@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiFileText, FiSave, FiX } from "react-icons/fi";
@@ -17,11 +18,7 @@ const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 // Today's date as YYYY-MM-DD, used as the max for date inputs so users
 // can't pick a future date.
 const getTodayDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return phToday();
 };
 
 // Blocks "-", "+", "e"/"E" from being typed into the Quantity Consumed
@@ -158,7 +155,7 @@ export default function AddFeedConsumption() {
   } = useFeedStock();
 
   const [form, setForm] = useState({
-    date: "",
+    date: getTodayDateString(),
     batchId: "",
     feedType: "",
     quantityConsumed: "",

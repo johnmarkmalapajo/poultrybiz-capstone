@@ -4,6 +4,7 @@ const router = express.Router();
 
 const {
   createFlock,
+  getFlockCooldownStatus,
   getAllFlocks,
   getFlockById,
   updateFlock,
@@ -18,14 +19,17 @@ const {
   protect,
   ownerOnly,
 } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, getAllFlocks);
 
 router.get("/archived", protect, ownerOnly, getArchivedFlocks);
 
+router.get("/cooldown", protect, ownerOnly, getFlockCooldownStatus);
+
 router.get("/:id", protect, ownerOnly, getFlockById);
 
-router.post("/", protect, ownerOnly, createFlock);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createFlock);
 
 router.put("/:id", protect, ownerOnly, updateFlock);
 

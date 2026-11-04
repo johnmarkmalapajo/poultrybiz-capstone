@@ -12,11 +12,12 @@ const {
 } = require("../controllers/feedConsumptionController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, getAllFeedConsumption);
 router.get("/:id", protect, getFeedConsumption);
 
-router.post("/", protect, createFeedConsumption);
+router.post("/", protect, preventDuplicateSubmission, createFeedConsumption);
 
 router.put("/:id", protect, updateFeedConsumption);
 

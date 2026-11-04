@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,7 +21,7 @@ export default function AddQuarantineIsolation() {
 
   const [formData, setFormData] = useState({
     batchId: "",
-    dateIsolated: "",
+    dateIsolated: phToday(),
     headCount: "",
     location: "",
     symptoms: "",
@@ -83,10 +84,7 @@ export default function AddQuarantineIsolation() {
     ),
   ];
 
-  const today = (() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  })();
+  const today = phToday();
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
   const availableBirds = selectedFlock?.currentQuantity;
 

@@ -60,7 +60,23 @@
 .todo-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 
 /* ===== TABLE (gold header — same as Personnel/FeedInventory) ===== */
-.todo-table-wrapper { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+/* Same as Flock Profile's .fp-table-wrapper: the card keeps its full
+   content height (flex: none) inside PageLayout's .pl-main flex column, so
+   .pl-main is the ONE vertical scroller for the whole page. The card is
+   never a scroll container itself; the table scrolls sideways inside
+   <TableScroll> and the pagination sits below it. */
+.todo-table-wrapper {
+  flex: none;
+  min-height: 0;
+  max-height: none;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  overflow: visible;
+  min-width: 0;
+  max-width: 100%;
+}
 .todo-table { width: 100%; min-width: 820px; border-collapse: collapse; }
 .todo-table thead tr { background: var(--gold-light); border-bottom: 2px solid rgba(228,175,31,0.2); }
 .todo-table th { padding: var(--space-md); font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; color: var(--text-second); text-transform: uppercase; letter-spacing: 0.07em; text-align: left; white-space: nowrap; }

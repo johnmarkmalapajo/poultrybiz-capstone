@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiPackage, FiMapPin, FiFileText, FiSave } from "react-icons/fi";
@@ -24,8 +25,7 @@ const blockInvalidNumberPaste = (e) => {
 };
 
 const todayStr = () => {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  return phToday();
 };
 
 export default function AddEquipment() {
@@ -39,7 +39,7 @@ export default function AddEquipment() {
   const [form, setForm] = useState({
     name: "", description: "", serialNo: "",
     quantity: "", unit: "", condition: "",
-    location: "", custodian: "", dateAcquired: "",
+    location: "", custodian: "", dateAcquired: todayStr(),
     cost: "", remarks: "",
   });
   const [error, setError] = useState("");

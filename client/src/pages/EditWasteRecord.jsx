@@ -4,6 +4,8 @@ import { FiSave, FiX, FiTrash2, FiFileText } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditWasteRecord.css";
 import { getWasteRecord, updateWasteRecord } from "../api/wasteManure";
+import { useWasteOptions, NEW_VALUE, CUSTOM_MAX_LENGTH, validateCustom, normalizeCustom } from "../hooks/useWasteOptions";
+import { phToday } from "../phDate";
 
 export default function EditWasteRecord() {
   const navigate = useNavigate();
@@ -22,6 +24,13 @@ export default function EditWasteRecord() {
   });
 
   const [error, setError] = useState("");
+  const [newWasteType, setNewWasteType] = useState("");
+  const [newDisposalMethod, setNewDisposalMethod] = useState("");
+  // Values already saved on this record stay selectable (custom or legacy).
+  const { wasteTypeOptions, disposalMethodOptions } = useWasteOptions(
+    [formData.wasteType],
+    [formData.disposalMethod]
+  );
 
   useEffect(() => {
     const fetchRecord = async () => {
@@ -53,9 +62,28 @@ export default function EditWasteRecord() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
+
+    if (formData.wasteType === NEW_VALUE) {
+      const msg = validateCustom(newWasteType, "waste type");
+      if (msg) { setError(msg); return; }
+    }
+    if (formData.disposalMethod === NEW_VALUE) {
+      const msg = validateCustom(newDisposalMethod, "disposal method");
+      if (msg) { setError(msg); return; }
+    }
+
     try {
       setSaving(true);
-      await updateWasteRecord(id, formData);
+      setError("");
+      await updateWasteRecord(id, {
+        ...formData,
+        ...(formData.wasteType === NEW_VALUE
+          ? { wasteType: undefined, newWasteType: normalizeCustom(newWasteType) }
+          : {}),
+        ...(formData.disposalMethod === NEW_VALUE
+          ? { disposalMethod: undefined, newDisposalMethod: normalizeCustom(newDisposalMethod) }
+          : {}),
+      });
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       navigate("/records/manure?tab=waste");
     } catch (err) {
@@ -109,20 +137,28 @@ export default function EditWasteRecord() {
               <label>Date <span className="ewr-req">*</span></label>
               <input type="date" name="date"
                 value={formData.date ? String(formData.date).slice(0, 10) : ""}
-                onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
+                onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="ewr-form-group">
               <label>Waste Type <span className="ewr-req">*</span></label>
               <select name="wasteType" value={formData.wasteType} onChange={handleChange} required>
                 <option value="">Select waste type</option>
-                <option value="Dead Birds">Dead Birds</option>
-                <option value="Plastic Waste">Plastic Waste</option>
-                <option value="Feed Bags">Feed Bags</option>
-                <option value="Broken Eggs">Broken Eggs</option>
-                <option value="Chemical Containers">Chemical Containers</option>
-                <option value="Other">Other</option>
+                {wasteTypeOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                <option value={NEW_VALUE}>Others</option>
               </select>
+              {formData.wasteType === NEW_VALUE && (
+                <input
+                  type="text"
+                  className="ewr-others-input"
+                  value={newWasteType}
+                  onChange={(e) => { setNewWasteType(e.target.value); setError(""); }}
+                  placeholder="Enter specific waste type"
+                  maxLength={CUSTOM_MAX_LENGTH}
+                  style={{ marginTop: "8px" }}
+                  required
+                />
+              )}
             </div>
 
             <div className="ewr-form-group">
@@ -144,13 +180,21 @@ export default function EditWasteRecord() {
               <label>Disposal Method <span className="ewr-req">*</span></label>
               <select name="disposalMethod" value={formData.disposalMethod} onChange={handleChange} required>
                 <option value="">Select disposal method</option>
-                <option value="Burial">Burial</option>
-                <option value="Burning">Burning</option>
-                <option value="Recycling">Recycling</option>
-                <option value="Composting">Composting</option>
-                <option value="Disposal">Disposal</option>
-                <option value="Other">Other</option>
+                {disposalMethodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                <option value={NEW_VALUE}>Others</option>
               </select>
+              {formData.disposalMethod === NEW_VALUE && (
+                <input
+                  type="text"
+                  className="ewr-others-input"
+                  value={newDisposalMethod}
+                  onChange={(e) => { setNewDisposalMethod(e.target.value); setError(""); }}
+                  placeholder="Enter specific disposal method"
+                  maxLength={CUSTOM_MAX_LENGTH}
+                  style={{ marginTop: "8px" }}
+                  required
+                />
+              )}
             </div>
 
             <div className="ewr-form-group">

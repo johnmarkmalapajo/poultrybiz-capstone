@@ -18,6 +18,7 @@ const {
   getFeedStock,
   updateFeedStockSetting,
 } = require("../controllers/feedInventoryController");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, getAllFeedInventory);
 
@@ -27,7 +28,7 @@ router.put("/stock-settings", protect, ownerOnly, updateFeedStockSetting);
 
 router.get("/:id", protect, getFeedInventory);
 
-router.post("/", protect, ownerOnly, createFeedInventory);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createFeedInventory);
 
 router.put("/:id", protect, ownerOnly, updateFeedInventory);
 

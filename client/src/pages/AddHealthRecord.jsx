@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiActivity, FiDroplet, FiFileText, FiAlertTriangle, FiUserPlus, FiCalendar } from "react-icons/fi";
@@ -34,7 +35,7 @@ export default function AddHealthRecord() {
   const [formData, setFormData] = useState({
     batchId: "",
     diagnosisId: "",
-    date: "",
+    date: phToday(),
     numberOfBirdsAdministered: "",
     vaccineOrDrug: "",
     routeOfAdmin: "",
@@ -165,8 +166,7 @@ export default function AddHealthRecord() {
   // wrong day during early-morning hours in timezones ahead of UTC
   // (e.g. PH, UTC+8), incorrectly flagging today's own date as future
   // and permanently disabling Save.
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = phToday();
   // The actual Medication/Vaccination Date can't be future -- Schedule
   // (checked above) is a different field and CAN be future.
   const dateInvalid = formData.date && formData.date > today;

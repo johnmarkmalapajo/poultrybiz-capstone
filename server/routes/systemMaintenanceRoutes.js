@@ -9,11 +9,12 @@ const {
   cancelMaintenance,
 } = require("../controllers/systemMaintenanceController");
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/status", getMaintenanceStatus);
 
 router.get("/", protect, ownerOnly, listMaintenance);
-router.post("/", protect, ownerOnly, scheduleMaintenance);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, scheduleMaintenance);
 router.put("/:id", protect, ownerOnly, updateMaintenance);
 router.delete("/:id", protect, ownerOnly, cancelMaintenance);
 

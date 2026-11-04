@@ -14,12 +14,13 @@ const {
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
 const uploadReceiptMiddleware = require("../middleware/receiptUpload");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, ownerOnly, getExpenseRecords);
 router.get("/archived", protect, ownerOnly, getArchivedExpenseRecords);
 router.get("/:id", protect, ownerOnly, getExpenseRecord);
 
-router.post("/", protect, ownerOnly, createExpenseRecord);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createExpenseRecord);
 router.post(
   "/upload-receipt",
   protect,

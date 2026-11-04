@@ -14,6 +14,7 @@ const {
 } = require("../controllers/personnelController");
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 
 // Get all personnel
@@ -26,7 +27,7 @@ router.get("/all-tasks", protect, getAllAssignedTasks);
 router.get("/:id", protect, getPersonnel);
 
 // Create personnel
-router.post("/", protect, ownerOnly, createPersonnel);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createPersonnel);
 
 // Update personnel
 router.put("/:id", protect, updatePersonnel);

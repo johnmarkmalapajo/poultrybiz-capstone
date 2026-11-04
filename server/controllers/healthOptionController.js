@@ -1,7 +1,7 @@
 const HealthOption = require("../models/HealthOption");
 const Veterinarian = require("../models/Veterinarian");
 
-const CATEGORIES = ["symptom", "vetDiagnosis", "route", "unit", "frequency", "observation", "causeOfDeath", "manureMethod", "manureEndUse"];
+const CATEGORIES = ["symptom", "vetDiagnosis", "route", "unit", "frequency", "observation", "causeOfDeath", "manureMethod", "manureEndUse", "wasteType", "disposalMethod"];
 
 exports.listHealthOptions = async (req, res) => {
   try {
@@ -31,8 +31,21 @@ exports.resolveHealthOption = async (category, value) => {
   });
   if (existing) return existing.value;
 
-  const created = await HealthOption.create({ category, value: trimmed });
-  return created.value;
+  try {
+    const created = await HealthOption.create({ category, value: trimmed });
+    return created.value;
+  } catch (err) {
+    // Two requests saved the same new option at once: the unique index let
+    // one win. Return the stored one instead of failing or duplicating.
+    if (err?.code === 11000) {
+      const winner = await HealthOption.findOne({ category, value: trimmed }).collation({
+        locale: "en",
+        strength: 2,
+      });
+      if (winner) return winner.value;
+    }
+    throw err;
+  }
 };
 
 exports.listVeterinarians = async (req, res) => {

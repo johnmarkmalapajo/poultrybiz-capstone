@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,8 +22,7 @@ const COUNT_FIELDS = [...SIZE_FIELDS, { name: "crackedEggs", label: "Cracked Egg
 // Local calendar date, not UTC -- toISOString() reports the wrong day
 // during early-morning hours in timezones ahead of UTC (e.g. PH).
 const localToday = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return phToday();
 };
 
 // Production status badge from Hen-Day %
@@ -71,7 +71,17 @@ export default function AddEggRecord() {
   // Quarantine Release workflow, so this one check always stays in
   // sync without needing a separate Quarantine lookup).
   const eligibleFlocks = flocks.filter((f) => f.status === "Active");
-  const batchOptions = [...new Set(eligibleFlocks.map((f) => f.batchId).filter(Boolean))];
+  // A batch that already has an egg record for the selected date is not
+  // offered again for that date. The list comes from the saved records in
+  // the database, so this holds after a refresh, a new login or another
+  // device, and the batch reappears automatically on the next Philippine date.
+  const recordedBatchIdsForDate = new Set(
+    eggRecords
+      .filter((r) => (r.collectionDate || "").slice(0, 10) === formData.collectionDate)
+      .map((r) => r.batchId)
+  );
+  const allEligibleBatchIds = [...new Set(eligibleFlocks.map((f) => f.batchId).filter(Boolean))];
+  const batchOptions = allEligibleBatchIds.filter((id) => !recordedBatchIdsForDate.has(id));
 
   const num = (v) => parseInt(v, 10) || 0;
 
@@ -124,7 +134,22 @@ export default function AddEggRecord() {
     // iOS date pickers ignore the `max` attribute, so enforce it here too.
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // Changing the date to one where the chosen batch is already recorded
+      // clears the batch, so it cannot be submitted by mistake.
+      if (
+        name === "collectionDate" &&
+        prev.batchId &&
+        eggRecords.some(
+          (r) => r.batchId === prev.batchId && (r.collectionDate || "").slice(0, 10) === value
+        )
+      ) {
+        next.batchId = "";
+        next.currentQuantity = "";
+      }
+      return next;
+    });
     setError(futureBlocked ? "Date cannot be a future date." : "");
   };
 
@@ -142,7 +167,7 @@ export default function AddEggRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (saving) return;
+    if (saving || window.__pbSaving) return;
 
     if (formData.collectionDate > today) {
       setError("Collection Date cannot be a future date.");
@@ -157,19 +182,26 @@ export default function AddEggRecord() {
       return;
     }
 
+    window.__pbSaving = true;
     setSaving(true); setError(""); setSuccess("");
     try {
-      await createEggRecord({
+      const res = await createEggRecord({
         ...formData, goodEggs, totalEggs,
         henDayPercent: henDayRate == null ? null : henDayRate,
         productionStatus: status?.label ?? null,
       });
+      // Take the batch out of the list right away for this date.
+      setEggRecords((prev) => [
+        ...prev,
+        res?.record || { batchId: formData.batchId, collectionDate: formData.collectionDate },
+      ]);
       setSuccess("Egg record saved successfully!");
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/records/egg"), 1200);
     } catch (err) {
       setError(err?.message || "Cannot connect to server. Please try again.");
     } finally {
+      window.__pbSaving = false;
       setSaving(false);
     }
   };
@@ -204,6 +236,9 @@ export default function AddEggRecord() {
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
               <small>Only Active batches are eligible for Egg Record.</small>
+              {allEligibleBatchIds.length > 0 && batchOptions.length === 0 && (
+                <small>All eligible batches already have an egg record for this date.</small>
+              )}
             </div>
 
             <div className="aer-form-group">
@@ -317,7 +352,7 @@ export default function AddEggRecord() {
               <button type="button" className="aer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="aer-save-btn" disabled={saving || eggTotalExceeded || isDuplicateBatchDate}>
+              <button type="submit" className="aer-save-btn" disabled={saving || !!success || eggTotalExceeded || isDuplicateBatchDate}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>

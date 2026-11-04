@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,7 +8,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
-import { listFlocks, createFlock } from "../api/flockProfile";
+import { listFlocks, createFlock, getFlockCooldown } from "../api/flockProfile";
 import { listBreeds, createBreed } from "../api/breed";
 import { listSuppliers, createSupplier } from "../api/supplier";
 import "./Addflock.css";
@@ -26,8 +27,7 @@ const mergeBreeds = (dynamic) => {
 };
 
 const localToday = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return phToday();
 };
 
 function computeAgeWeeksPreview(dateStr) {
@@ -45,7 +45,7 @@ export default function AddFlock() {
   const [formData, setFormData] = useState({
     breed: "",
     supplier: "",
-    dateAcquired: "",
+    dateAcquired: today,
     dateAcquiredEnd: "",
     quantityPurchased: "",
   });
@@ -59,6 +59,44 @@ export default function AddFlock() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Seconds left before another flock may be created (0 = none). The server
+  // is the authority; this only mirrors it so the button can be disabled.
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  // The cooldown belongs to one batch (same date + breed + supplier). Any
+  // change to those fields re-checks the server, and the timer disappears
+  // when the new combination is not one that was just saved.
+  const effBreed = formData.breed === NEW_VALUE ? newBreed.trim() : formData.breed;
+  const effSupplier = formData.supplier === NEW_VALUE ? newSupplier.trim() : formData.supplier;
+
+  useEffect(() => {
+    if (!formData.dateAcquired || !effBreed || !effSupplier) return undefined;
+    let cancelled = false;
+    getFlockCooldown({
+      dateAcquired: formData.dateAcquired,
+      breed: effBreed,
+      supplier: effSupplier,
+    })
+      .then((r) => {
+        if (!cancelled) setCooldownLeft(r?.active ? Number(r.remainingSeconds) || 0 : 0);
+      })
+      .catch(() => { if (!cancelled) setCooldownLeft(0); });
+    return () => { cancelled = true; };
+  }, [formData.dateAcquired, effBreed, effSupplier]);
+
+  useEffect(() => {
+    if (cooldownLeft <= 0) return undefined;
+    const timer = setInterval(() => {
+      setCooldownLeft((s) => (s > 1 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownLeft > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only meaningful while a complete batch (date + breed + supplier) is entered.
+  const activeCooldown = formData.dateAcquired && effBreed && effSupplier ? cooldownLeft : 0;
+
+  const formatWait = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   const handleChange = (e) => {
     const { name } = e.target;
@@ -104,7 +142,7 @@ export default function AddFlock() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (saving) return;
+    if (saving || activeCooldown > 0) return;
 
     if (formData.breed === NEW_VALUE && !newBreed.trim()) {
       setError("Please enter the new Breed name.");
@@ -156,6 +194,9 @@ export default function AddFlock() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
       navigate("/records/flock");
     } catch (err) {
+      if (err?.status === 429 && Number(err?.body?.remainingSeconds) > 0) {
+        setCooldownLeft(Number(err.body.remainingSeconds));
+      }
       setError(err?.message || "Couldn't save this flock. Please try again.");
       setSaving(false);
     } finally {
@@ -289,11 +330,24 @@ export default function AddFlock() {
             <div className="af-form-group">
               <label>Purchased Quantity <span className="af-req">*</span></label>
               <input
-                type="text"
+                type="number"
                 inputMode="numeric"
+                min="1"
+                step="1"
                 name="quantityPurchased"
                 value={formData.quantityPurchased}
-                onChange={(e) => setFormData((prev) => ({ ...prev, quantityPurchased: e.target.value.replace(/[^\d]/g, "") }))}
+                onChange={(e) => {
+                  // Whole numbers only: typed or stepped values that are not
+                  // plain digits (decimals, negatives, "e") are ignored.
+                  const v = e.target.value;
+                  if (v !== "" && !/^\d+$/.test(v)) return;
+                  setFormData((prev) => ({ ...prev, quantityPurchased: v }));
+                  setError("");
+                }}
+                onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                onPaste={(e) => {
+                  if (!/^\d+$/.test(e.clipboardData.getData("text").trim())) e.preventDefault();
+                }}
                 placeholder="Enter number of birds"
                 required
               />
@@ -324,8 +378,8 @@ export default function AddFlock() {
               <button type="button" className="af-cancel-btn" onClick={() => navigate("/records/flock")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="af-save-btn" disabled={saving || dateEndInvalid}>
-                <FiSave /> {saving ? "Saving..." : "Save Record"}
+              <button type="submit" className="af-save-btn" disabled={saving || dateEndInvalid || activeCooldown > 0}>
+                <FiSave /> {saving ? "Saving..." : activeCooldown > 0 ? `Wait ${formatWait(activeCooldown)}` : "Save Record"}
               </button>
             </div>
           </div>

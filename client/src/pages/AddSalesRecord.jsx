@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX, FiUserPlus } from "react-icons/fi";
@@ -12,7 +13,7 @@ const NEW_CUSTOMER_VALUE = "__new__";
 export default function AddSalesRecord() {
   const navigate = useNavigate();
 
-  const [dateOfSale, setDateOfSale] = useState((() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`; })());
+  const [dateOfSale, setDateOfSale] = useState(phToday());
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [newCustomer, setNewCustomer] = useState({ name: "" });
@@ -58,8 +59,7 @@ export default function AddSalesRecord() {
   })();
 
   const todayStr = () => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+    return phToday();
   };
 
   const handleSubmit = async (e) => {
@@ -68,7 +68,7 @@ export default function AddSalesRecord() {
       setError("Date cannot be a future date.");
       return;
     }
-    if (loading) return;
+    if (loading || window.__pbSaving) return;
 
     if (!customerId) {
       setError("Please select a Buyer/Customer, or add a new one.");
@@ -100,6 +100,7 @@ export default function AddSalesRecord() {
       ...(isNewCustomer ? { newCustomer } : { customerId }),
     };
 
+    window.__pbSaving = true;
     setLoading(true); setError(""); setSuccess("");
     try {
       await createSalesRecord(payload);
@@ -109,6 +110,7 @@ export default function AddSalesRecord() {
     } catch (err) {
       setError(err?.message || "Cannot connect to server. Please try again.");
     } finally {
+      window.__pbSaving = false;
       setLoading(false);
     }
   };
@@ -224,7 +226,7 @@ export default function AddSalesRecord() {
               >
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="asr-save-btn" disabled={loading || anyStockExceeded}>
+              <button type="submit" className="asr-save-btn" disabled={loading || !!success || anyStockExceeded}>
                 <FiSave />
                 {loading ? "Saving..." : "Save Record"}
               </button>

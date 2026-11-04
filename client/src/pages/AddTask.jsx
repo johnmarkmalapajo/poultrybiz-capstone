@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiClipboard, FiCalendar, FiFlag, FiFileText, FiSave, FiX } from "react-icons/fi";
@@ -27,8 +28,7 @@ const fullName = (p) =>
   p?.profile?.fullName || p?.fullName || p?.name || "this personnel";
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
-const _ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const today = () => _ymd();
+const today = () => phToday();
 
 export default function AddTask() {
   const navigate = useNavigate();

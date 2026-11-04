@@ -12,13 +12,14 @@ const {
   restoreManureRecord,
   deleteManureRecord,
 } = require("../controllers/manureRecordController");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 // GET
 router.get("/", protect, getAllManureRecords);
 router.get("/:id", protect, getManureRecord);
 
 // CREATE
-router.post("/", protect, createManureRecord);
+router.post("/", protect, preventDuplicateSubmission, createManureRecord);
 
 // UPDATE
 router.put("/:id", protect, updateManureRecord);

@@ -1,150 +1,109 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  FiInfo, FiGrid, FiFileText, FiBarChart2, FiSave, FiX,
+  FiInfo,
+  FiPackage,
+  FiSave,
+  FiX,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
-import "./EditEggRecord.css";
-import { getEggRecord, updateEggRecord, listEggRecords } from "../api/eggRecord";
-import { listFlocks } from "../api/flockProfile";
+import { getFlock, updateFlock } from "../api/flockProfile";
+import { listBreeds } from "../api/breed";
+import { listSuppliers } from "../api/supplier";
+import "./EditFlock.css";
 
-const SIZE_FIELDS = [
-  { name: "peewee",     label: "Peewee" },
-  { name: "small",      label: "Small" },
-  { name: "medium",     label: "Medium" },
-  { name: "large",      label: "Large" },
-  { name: "extraLarge", label: "Extra Large" },
-  { name: "jumbo",      label: "Jumbo" },
-];
-const COUNT_FIELDS = [...SIZE_FIELDS, { name: "crackedEggs", label: "Cracked Eggs" }];
+const NEW_VALUE = "__new__";
+
+const HARDCODED_BREEDS = ["Hy-Line W-36", "Lohmann LSL Lite", "Dekalb White", "Shaver White", "Hendrix White"];
+
+const mergeBreeds = (dynamic) => {
+  const merged = [...HARDCODED_BREEDS];
+  (dynamic || []).forEach((name) => {
+    if (!merged.some((b) => b.toLowerCase() === name.toLowerCase())) merged.push(name);
+  });
+  return merged;
+};
 
 const localToday = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
-function productionStatus(rate) {
-  if (rate == null) return null;
-  if (rate >= 95) return { label: "Excellent", dot: "🟢", color: "#2e9e6b", bg: "#eaf7f1" };
-  if (rate >= 90) return { label: "Good",      dot: "🟢", color: "#2e9e6b", bg: "#eaf7f1" };
-  if (rate >= 80) return { label: "Monitor",   dot: "🟡", color: "#c8930c", bg: "#fdf3e3" };
-  return            { label: "Critical",  dot: "🔴", color: "#d94f4f", bg: "#fdf0f0" };
+const FLOCK_ARRIVAL_AGE_WEEKS = 16;
+
+function computeAgeWeeksPreview(dateStr) {
+  if (!dateStr) return null;
+  const start = new Date(dateStr);
+  if (isNaN(start)) return null;
+  const diffDays = Math.floor((new Date(localToday()) - new Date(dateStr)) / 86400000);
+  return FLOCK_ARRIVAL_AGE_WEEKS + Math.max(0, Math.floor(diffDays / 7));
 }
 
-export default function EditEggRecord() {
+export default function EditFlock() {
   const navigate = useNavigate();
-  const { id }   = useParams();
+  const { id } = useParams();
   const today = localToday();
 
   const [formData, setFormData] = useState({
     batchId: "",
-    currentQuantity: "",
-    collectionDate: "",
-    peewee: "", small: "", medium: "", large: "", extraLarge: "", jumbo: "",
-    crackedEggs: "",
-    remarks: "",
+    breed: "",
+    supplier: "",
+    dateAcquired: "",
+    dateAcquiredEnd: "",
+    quantityPurchased: "",
+    totalMortality: 0,
+    status: "",
   });
-  const [originalBatchId, setOriginalBatchId] = useState("");
+  const [newBreed, setNewBreed] = useState("");
+  const [newSupplier, setNewSupplier] = useState("");
+  const [useDateRange, setUseDateRange] = useState(false);
+
+  const [breeds, setBreeds] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState("");
-  const [success, setSuccess] = useState("");
-  const [flocks, setFlocks]   = useState([]);
-  const [eggRecords, setEggRecords] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    listFlocks()
-      .then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || []))
-      .catch(() => setFlocks([]));
-  }, []);
-
-  useEffect(() => {
-    listEggRecords()
-      .then((data) => setEggRecords(data.records || []))
-      .catch(() => setEggRecords([]));
-  }, []);
-
-  useEffect(() => {
-    const fetchRecord = async () => {
-      setLoading(true);
-      try {
-        const data = await getEggRecord(id);
-        const r = data.record || data.data || data;
-        if (r) {
+    setLoading(true);
+    setError("");
+    getFlock(id)
+      .then((data) => {
+        const rec = data.record || data.data || data;
+        if (rec && (rec._id || rec.batchId)) {
           setFormData((prev) => ({
             ...prev,
-            batchId:         r.batchId || "",
-            currentQuantity: r.birdsAtCollection ?? "",
-            collectionDate:  r.collectionDate?.split("T")[0] || "",
-            peewee:          r.peewee ?? "",
-            small:           r.small ?? "",
-            medium:          r.medium ?? "",
-            large:           r.large ?? "",
-            extraLarge:      r.extraLarge ?? "",
-            jumbo:           r.jumbo ?? "",
-            crackedEggs:     r.crackedEggs ?? "",
-            remarks:         r.remarks ?? "",
+            batchId: rec.batchId || "",
+            breed: rec.breed || "",
+            supplier: rec.supplier || "",
+            dateAcquired: rec.dateAcquired ? String(rec.dateAcquired).slice(0, 10) : "",
+            dateAcquiredEnd: rec.dateAcquiredEnd ? String(rec.dateAcquiredEnd).slice(0, 10) : "",
+            quantityPurchased: rec.quantityPurchased ?? "",
+            totalMortality:
+              rec.totalMortality ??
+              (rec.quantityPurchased != null && rec.currentQuantity != null
+                ? Number(rec.quantityPurchased) - Number(rec.currentQuantity)
+                : 0),
+            status: rec.status || "",
           }));
-          setOriginalBatchId(r.batchId || "");
+          setUseDateRange(!!rec.dateAcquiredEnd);
         } else {
-          setError("Record not found.");
+          setError("Flock record not found.");
         }
-      } catch (err) {
-        setError(err?.message || "Cannot connect to server. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecord();
+      })
+      .catch((err) => setError(err?.message || "Couldn't load this flock record."))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
-
-  const eligibleFlocks = flocks.filter((f) => f.status === "Active" || f.batchId === originalBatchId);
-  const batchOptions = [...new Set(eligibleFlocks.map((f) => f.batchId).filter(Boolean))];
-
-  const num = (v) => parseInt(v, 10) || 0;
-
-  const goodEggs =
-    num(formData.peewee) + num(formData.small) + num(formData.medium) +
-    num(formData.large) + num(formData.extraLarge) + num(formData.jumbo);
-  const totalEggs = goodEggs + num(formData.crackedEggs);
-
-  const currentBirds = formData.currentQuantity !== "" ? num(formData.currentQuantity) : null;
-  const henDayRate =
-    currentBirds && currentBirds > 0
-      ? Math.round((totalEggs / currentBirds) * 100 * 100) / 100
-      : null;
-  const henDayDisplay = henDayRate == null ? "--" : `${henDayRate.toFixed(2)}%`;
-  const status = productionStatus(henDayRate);
-
-  const eggTotalExceeded = currentBirds != null && totalEggs > currentBirds;
-
-  // An egg record already exists for this exact batch + collection date
-  // (ignoring this record itself, since editing it keeps the same slot).
-  const isDuplicateBatchDate =
-    !!formData.batchId &&
-    !!formData.collectionDate &&
-    eggRecords.some(
-      (r) =>
-        r._id !== id &&
-        r.batchId === formData.batchId &&
-        (r.collectionDate || "").slice(0, 10) === formData.collectionDate
-    );
-
-  const handleCountChange = (e) => {
-    const { name, value } = e.target;
-    if (value === "") return setFormData((p) => ({ ...p, [name]: "" }));
-    if (!/^\d+$/.test(value)) return;
-    setFormData((p) => ({ ...p, [name]: value }));
-    setError("");
-  };
-
-  const handleCountPaste = (e) => {
-    const text = e.clipboardData.getData("text");
-    if (!/^\d+$/.test(text)) e.preventDefault();
-  };
+  useEffect(() => {
+    listBreeds()
+      .then((d) => setBreeds(mergeBreeds((d.breeds || []).map((b) => b.name))))
+      .catch(() => setBreeds(HARDCODED_BREEDS));
+    listSuppliers()
+      .then((d) => setSuppliers((d.suppliers || []).map((s) => s.name)))
+      .catch(() => setSuppliers([]));
+  }, []);
 
   const handleChange = (e) => {
     const { name } = e.target;
@@ -156,48 +115,76 @@ export default function EditEggRecord() {
     setError(futureBlocked ? "Date cannot be a future date." : "");
   };
 
-  const handleBatchChange = (e) => {
-    const batchId = e.target.value;
-    const flock = flocks.find((f) => f.batchId === batchId);
-    setFormData((prev) => ({
-      ...prev,
-      batchId,
-      currentQuantity: flock?.currentQuantity ?? prev.currentQuantity,
-    }));
-    setError("");
-  };
+  const purchaseQty    = Number(formData.quantityPurchased) || 0;
+  const totalMortality = Number(formData.totalMortality) || 0;
+  const currentBirds   = Math.max(0, purchaseQty - totalMortality);
+  const mortalityRate  = purchaseQty > 0 ? ((totalMortality / purchaseQty) * 100).toFixed(2) : "0.00";
+  const ageWeeksPreview = computeAgeWeeksPreview(formData.dateAcquired);
+
+  const dateEndInvalid =
+    useDateRange && formData.dateAcquiredEnd && formData.dateAcquired &&
+    formData.dateAcquiredEnd < formData.dateAcquired;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
 
-    if (formData.collectionDate > today) {
-      setError("Collection Date cannot be a future date.");
+    if (formData.breed === NEW_VALUE && !newBreed.trim()) {
+      setError("Please enter the new Breed name.");
       return;
     }
-    if (isDuplicateBatchDate) {
-      setError("This batch in this day is already collected. Please choose a different batch or date.");
+    if (formData.supplier === NEW_VALUE && !newSupplier.trim()) {
+      setError("Please enter the new Supplier name.");
       return;
     }
-    if (eggTotalExceeded) {
-      setError(`Total eggs: ${totalEggs}. Current chickens: ${currentBirds}. Please reduce the egg quantities.`);
+    if (!formData.dateAcquired) {
+      setError("Please select the Date Acquired.");
+      return;
+    }
+    if (formData.dateAcquired > today) {
+      setError("Date Acquired cannot be a future date.");
+      return;
+    }
+    if (useDateRange && formData.dateAcquiredEnd) {
+      if (formData.dateAcquiredEnd > today) {
+        setError("Date Acquired (end) cannot be a future date.");
+        return;
+      }
+      if (dateEndInvalid) {
+        setError("Date Acquired (end) cannot be earlier than the start date.");
+        return;
+      }
+    }
+    if (!/^\d+$/.test(String(formData.quantityPurchased).trim()) || Number(formData.quantityPurchased) <= 0) {
+      setError("Purchased Quantity must be a whole number greater than zero.");
       return;
     }
 
-    setSaving(true); setError(""); setSuccess("");
+    const payload = {
+      breed: formData.breed === NEW_VALUE ? undefined : formData.breed,
+      newBreed: formData.breed === NEW_VALUE ? newBreed.trim() : undefined,
+      supplier: formData.supplier === NEW_VALUE ? undefined : formData.supplier,
+      newSupplier: formData.supplier === NEW_VALUE ? newSupplier.trim() : undefined,
+      dateAcquired: formData.dateAcquired,
+      dateAcquiredEnd: useDateRange && formData.dateAcquiredEnd ? formData.dateAcquiredEnd : null,
+      quantityPurchased: Number(formData.quantityPurchased),
+      currentQuantity: currentBirds,
+      totalMortality,
+    };
+
+    if (window.__pbSaving) return;
+    window.__pbSaving = true;
+    setSaving(true);
+    setError("");
     try {
-      await updateEggRecord(id, {
-        ...formData, goodEggs, totalEggs,
-        henDayPercent: henDayRate == null ? null : henDayRate,
-        productionStatus: status?.label ?? null,
-      });
-      setSuccess("Egg record updated successfully!");
+      await updateFlock(id, payload);
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
-      setTimeout(() => navigate("/records/egg"), 1200);
+      navigate("/records/flock");
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
-    } finally {
+      setError(err?.message || "Couldn't save changes. Please try again.");
       setSaving(false);
+    } finally {
+      window.__pbSaving = false;
     }
   };
 
@@ -207,11 +194,11 @@ export default function EditEggRecord() {
         background="#f4f4f2"
         breadcrumbItems={[
           { label: "RECORDS", path: "/records" },
-          { label: "EGG RECORD", path: "/records/egg" },
-          { label: "EDIT EGG RECORD" },
+          { label: "FLOCK PROFILE", path: "/records/flock" },
+          { label: "EDIT FLOCK" },
         ]}
       >
-        <p className="pb-loading-text">Loading egg record...</p>
+        <p className="ef-loading">Loading flock record...</p>
       </PageLayout>
     );
   }
@@ -221,149 +208,193 @@ export default function EditEggRecord() {
       background="#f4f4f2"
       breadcrumbItems={[
         { label: "RECORDS", path: "/records" },
-        { label: "EGG RECORD", path: "/records/egg" },
-        { label: "EDIT EGG RECORD" },
+        { label: "FLOCK PROFILE", path: "/records/flock" },
+        { label: "EDIT FLOCK" },
       ]}
     >
-        {success && <div className="eer-success-banner">{success}</div>}
-        {error   && <div className="eer-error-banner">{error}</div>}
+        <form className="ef-form-card" onSubmit={handleSubmit}>
 
-        <form className="eer-form-card" onSubmit={handleSubmit}>
+          {error && (
+            <div className="pb-error-banner">
+              {error}
+            </div>
+          )}
 
-          <div className="eer-section-header">
+          <div className="ef-section-header">
             <FiInfo />
             <h3>Batch Information</h3>
-            <div className="eer-line" />
+            <div className="ef-line" />
           </div>
 
-          <div className="eer-form-grid">
-            <div className="eer-form-group">
-              <label>Batch <span className="eer-req">*</span></label>
-              <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
-                <option value="">Select Batch</option>
-                {formData.batchId && !batchOptions.includes(formData.batchId) && (
-                  <option value={formData.batchId}>{formData.batchId}</option>
+          <div className="ef-form-grid">
+            <div className="ef-form-group">
+              <label>Batch ID</label>
+              <input type="text" value={formData.batchId} disabled />
+              <small>Batch ID cannot be changed after creation.</small>
+            </div>
+
+            <div className="ef-form-group">
+              <label>Breed <span className="ef-req">*</span></label>
+              <div className="ef-inline-flex">
+                <select name="breed" value={formData.breed} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select Breed</option>
+                  {breeds.map((b) => <option key={b} value={b}>{b}</option>)}
+                  {formData.breed && !breeds.includes(formData.breed) && formData.breed !== NEW_VALUE && (
+                    <option value={formData.breed}>{formData.breed}</option>
+                  )}
+                  <option value={NEW_VALUE}>+ Add New Breed</option>
+                </select>
+                {formData.breed === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newBreed}
+                    onChange={(e) => setNewBreed(e.target.value)}
+                    placeholder="Enter new breed name..."
+                    required
+                  />
                 )}
-                {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-              <small>Only Active batches are eligible for a new assignment.</small>
+              </div>
+              {formData.breed === NEW_VALUE && (
+                <small>This will be saved and available in future Breed dropdowns.</small>
+              )}
             </div>
 
-            <div className="eer-form-group">
-              <label> Date <span className="eer-req">*</span></label>
-              <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} max={today} required />
-              <small>Date the eggs were collected.</small>
+            <div className="ef-form-group">
+              <label>Supplier <span className="ef-req">*</span></label>
+              <div className="ef-inline-flex">
+                <select name="supplier" value={formData.supplier} onChange={handleChange} style={{ flex: 1 }} required>
+                  <option value="">Select Supplier</option>
+                  {suppliers.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {formData.supplier && !suppliers.includes(formData.supplier) && formData.supplier !== NEW_VALUE && (
+                    <option value={formData.supplier}>{formData.supplier}</option>
+                  )}
+                  <option value={NEW_VALUE}>+ Add New Supplier</option>
+                </select>
+                {formData.supplier === NEW_VALUE && (
+                  <input
+                    type="text"
+                    value={newSupplier}
+                    onChange={(e) => setNewSupplier(e.target.value)}
+                    placeholder="Enter new supplier name..."
+                    required
+                  />
+                )}
+              </div>
+              {formData.supplier === NEW_VALUE && (
+                <small>This will be saved and available in future Supplier dropdowns.</small>
+              )}
             </div>
-          </div>
 
-          {isDuplicateBatchDate && (
-            <div className="eer-error-banner">
-              This batch in this day is already collected. Please choose a different batch or date.
+            <div className="ef-form-group">
+              <label>Date Acquired <span className="ef-req">*</span></label>
+              <input
+                type="date"
+                name="dateAcquired"
+                value={formData.dateAcquired}
+                onChange={handleChange}
+                max={today}
+                required
+              />
             </div>
-          )}
 
-          <div className="eer-section-header">
-            <FiGrid />
-            <h3>Egg Collection</h3>
-            <div className="eer-line" />
-          </div>
-
-          <div className="eer-count-grid">
-            {COUNT_FIELDS.map((f) => (
-              <div className="eer-form-group" key={f.name}>
-                <label>{f.label}</label>
+            <div className="ef-form-group">
+              <label className="ef-checkbox-label">
                 <input
-                  type="text" inputMode="numeric" name={f.name}
-                  value={formData[f.name]} onChange={handleCountChange}
-                  onPaste={handleCountPaste}
-                  onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
-                  placeholder="0"
+                  type="checkbox"
+                  checked={useDateRange}
+                  onChange={(e) => setUseDateRange(e.target.checked)}
                 />
+                {" "}Acquired over a date range
+              </label>
+            </div>
+
+            {useDateRange && (
+              <div className="ef-form-group">
+                <label>Date Acquired (End) <span className="ef-req">*</span></label>
+                <input
+                  type="date"
+                  name="dateAcquiredEnd"
+                  value={formData.dateAcquiredEnd}
+                  onChange={handleChange}
+                  min={formData.dateAcquired || undefined}
+                  max={today}
+                  required
+                />
+                {dateEndInvalid && <small style={{ color: "#c0392b" }}>Cannot be earlier than the start date.</small>}
               </div>
-            ))}
+            )}
           </div>
 
-          {eggTotalExceeded && (
-            <div className="eer-error-banner">
-              Total eggs: {totalEggs}. Current chickens: {currentBirds}. Please reduce the egg quantities.
-            </div>
-          )}
-
-          <div className="eer-section-header">
-            <FiFileText />
-            <h3>Additional Information</h3>
-            <div className="eer-line" />
+          <div className="ef-section-header">
+            <FiPackage />
+            <h3>Bird Information</h3>
+            <div className="ef-line" />
           </div>
 
-          <div className="eer-form-group eer-full-width">
-            <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
-            <textarea name="remarks" value={formData.remarks} onChange={handleChange}
-              placeholder="Enter remarks or observations..." maxLength={500} />
-            <small className="eer-char-count">{(formData.remarks || "").length} / 500</small>
-          </div>
-
-          <div className="eer-section-header">
-            <FiBarChart2 />
-            <h3>Production Summary</h3>
-            <div className="eer-line" />
-          </div>
-
-          <div className="eer-result-grid">
-            <div className="eer-result-card">
-              <h4>Current Birds</h4>
-              <div className="eer-result-value">{currentBirds == null ? "--" : currentBirds}</div>
-              <p>From selected batch</p>
+          <div className="ef-form-grid">
+            <div className="ef-form-group">
+              <label>Purchased Quantity <span className="ef-req">*</span></label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                name="quantityPurchased"
+                value={formData.quantityPurchased}
+                onChange={(e) => {
+                  // Whole numbers only: typed or stepped values that are not
+                  // plain digits (decimals, negatives, "e") are ignored.
+                  const v = e.target.value;
+                  if (v !== "" && !/^\d+$/.test(v)) return;
+                  setFormData((prev) => ({ ...prev, quantityPurchased: v }));
+                  setError("");
+                }}
+                onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
+                onPaste={(e) => {
+                  if (!/^\d+$/.test(e.clipboardData.getData("text").trim())) e.preventDefault();
+                }}
+                placeholder="Enter number of birds"
+                required
+              />
             </div>
 
-            <div className="eer-result-card">
-              <h4>Good Eggs</h4>
-              <div className="eer-result-value">{goodEggs}</div>
-              <p>Sum of all egg sizes</p>
+            <div className="ef-form-group">
+              <label>Current Birds</label>
+              <input type="text" value={currentBirds} disabled readOnly />
+              <small>Purchased Qty − Total Mortality ({totalMortality} recorded)</small>
             </div>
 
-            <div className="eer-result-card">
-              <h4>Total Eggs</h4>
-              <div className="eer-result-value" style={eggTotalExceeded ? { color: "#d94f4f" } : undefined}>{totalEggs}</div>
-              <p>Good Eggs + Cracked Eggs</p>
+            <div className="ef-form-group">
+              <label>Mortality Rate</label>
+              <input type="text" value={`${mortalityRate}%`} disabled readOnly />
+              <small>(Total Mortality ÷ Purchased Qty) × 100</small>
             </div>
 
-            <div className="eer-result-card">
-              <h4>Hen-Day Production</h4>
-              <div className="eer-result-value green">{henDayDisplay}</div>
-              <p>( Total Eggs / Current Birds ) × 100</p>
+            <div className="ef-form-group">
+              <label>Age</label>
+              <input type="text" value={ageWeeksPreview !== null ? `${ageWeeksPreview} weeks` : "—"} disabled readOnly />
+              <small>Auto-computed from Date Acquired.</small>
             </div>
 
-            <div className="eer-result-card">
-              <h4>Production Status</h4>
-              <div className="eer-result-value" style={{ fontSize: "1rem" }}>
-                {status ? (
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", gap: "6px",
-                    background: status.bg, color: status.color,
-                    padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
-                  }}>
-                    {status.label}
-                  </span>
-                ) : "--"}
-              </div>
-              <p>Based on Hen-Day %</p>
+            <div className="ef-form-group">
+              <label>Status</label>
+              <input type="text" value={formData.status || "—"} disabled readOnly />
+              <small>Change status from the Flock Profile list.</small>
             </div>
           </div>
 
-          <div className="eer-form-actions">
-            <p className="eer-req-note">Fields with * are required.</p>
-            <div className="eer-action-btns">
-              <button type="button" className="eer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
+          <div className="ef-form-actions">
+            <p className="ef-req-note">Fields with * are required.</p>
+            <div className="ef-action-btns">
+              <button type="button" className="ef-cancel-btn" onClick={() => navigate("/records/flock")}>
                 <FiX /> Cancel
               </button>
-              <button type="submit" className="eer-save-btn" disabled={saving || eggTotalExceeded || isDuplicateBatchDate}>
+              <button type="submit" className="ef-save-btn" disabled={saving || dateEndInvalid}>
                 <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>
             </div>
           </div>
-
         </form>
-
     </PageLayout>
   );
 }

@@ -14,13 +14,14 @@ const {
   restoreQuarantineRecord,
   deleteQuarantineRecord,
 } = require("../controllers/quarantineIsolationController");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 // GET
 router.get("/", protect, getAllQuarantineRecords);
 router.get("/:id", protect, getQuarantineRecord);
 
 // CREATE
-router.post("/", protect, createQuarantineRecord);
+router.post("/", protect, preventDuplicateSubmission, createQuarantineRecord);
 
 // UPDATE
 router.put("/:id", protect, updateQuarantineRecord);

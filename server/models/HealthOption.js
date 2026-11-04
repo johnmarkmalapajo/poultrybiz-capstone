@@ -5,7 +5,7 @@ const healthOptionSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["symptom", "vetDiagnosis", "route", "unit", "frequency", "observation", "causeOfDeath", "manureMethod", "manureEndUse"],
+      enum: ["symptom", "vetDiagnosis", "route", "unit", "frequency", "observation", "causeOfDeath", "manureMethod", "manureEndUse", "wasteType", "disposalMethod"],
     },
 
     value: {

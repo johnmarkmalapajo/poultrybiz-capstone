@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiHeart, FiFileText, FiActivity, FiAlertTriangle } from "react-icons/fi";
@@ -15,8 +16,7 @@ const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
 // Local calendar date, not UTC -- toISOString() reports the wrong day
 // during early-morning hours in timezones ahead of UTC (e.g. PH).
 const localToday = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return phToday();
 };
 
 export default function AddMortalityRecord() {
@@ -24,7 +24,7 @@ export default function AddMortalityRecord() {
   const today = localToday();
 
   const [formData, setFormData] = useState({
-    date: "",
+    date: today,
     batchId: "",
     numberOfMortality: "",
     causeOfDeath: "",
@@ -59,7 +59,14 @@ export default function AddMortalityRecord() {
       .catch(() => setMortRecords([]));
   }, []);
 
-  const batchOptions = mortalityBatchOptions(flocks, isolationRecords);
+  // A batch that already has a mortality record for the selected date is not
+  // offered again for that date (source of truth: saved records in the DB).
+  const mortDay = (r) => String(r.date || "").slice(0, 10);
+  const recordedBatchIdsForDate = new Set(
+    mortRecords.filter((r) => mortDay(r) === formData.date).map((r) => r.batchId)
+  );
+  const allBatchOptions = mortalityBatchOptions(flocks, isolationRecords);
+  const batchOptions = allBatchOptions.filter((id) => !recordedBatchIdsForDate.has(id));
   const selectedFlock = flocks.find((f) => f.batchId === formData.batchId);
   const nextMortalityId = (() => {
     let max = 0;
@@ -80,7 +87,7 @@ export default function AddMortalityRecord() {
   const isDuplicate =
     formData.batchId && formData.date &&
     mortRecords.some(
-      (r) => r.batchId === formData.batchId && r.date === formData.date
+      (r) => r.batchId === formData.batchId && mortDay(r) === formData.date
     );
 
   const isDisease = formData.causeOfDeath === "Disease";
@@ -94,7 +101,18 @@ export default function AddMortalityRecord() {
     // iOS date pickers ignore the `max` attribute, so enforce it here too.
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // Moving to a date where the chosen batch is already recorded clears it.
+      if (
+        name === "date" &&
+        prev.batchId &&
+        mortRecords.some((r) => r.batchId === prev.batchId && mortDay(r) === value)
+      ) {
+        next.batchId = "";
+      }
+      return next;
+    });
     setError(futureBlocked ? "Date cannot be a future date." : "");
   };
   const [saving, setSaving] = useState(false);
@@ -185,6 +203,9 @@ export default function AddMortalityRecord() {
               </select>
               {formData.batchId && (
                 <small>Current birds in this batch: {currentBirds}</small>
+              )}
+              {allBatchOptions.length > 0 && batchOptions.length === 0 && (
+                <small>All available batches already have a mortality record for this date.</small>
               )}
             </div>
 

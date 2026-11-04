@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -46,11 +47,7 @@ const blockInvalidNumberPaste = (e) => {
 // Today's date as YYYY-MM-DD, used as the max for date inputs so users
 // can't pick a future date.
 const getTodayDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return phToday();
 };
 
 const createFeedSet = () => ({
@@ -73,7 +70,7 @@ export default function AddExpense() {
   const presetCategory = searchParams.get("category");
 
   const [form, setForm] = useState({
-    date: "",
+    date: getTodayDateString(),
     category:
       presetCategory === "Feed Purchase"
         ? "Feed Purchase"
@@ -431,7 +428,7 @@ export default function AddExpense() {
       );
 
       setForm({
-        date: "",
+        date: getTodayDateString(),
         category:
           presetCategory === "Feed Purchase"
             ? "Feed Purchase"

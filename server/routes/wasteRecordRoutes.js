@@ -12,13 +12,14 @@ const {
   restoreWasteRecord,
   deleteWasteRecord,
 } = require("../controllers/wasteRecordController");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 // GET
 router.get("/", protect, getAllWasteRecords);
 router.get("/:id", protect, getWasteRecord);
 
 // CREATE
-router.post("/", protect, createWasteRecord);
+router.post("/", protect, preventDuplicateSubmission, createWasteRecord);
 
 // UPDATE
 router.put("/:id", protect, updateWasteRecord);

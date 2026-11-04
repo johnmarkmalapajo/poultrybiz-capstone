@@ -1,14 +1,14 @@
 const Notification = require("../models/Notification");
 
-// Categories a Farmer is allowed to see — mirrors
-// client/src/notifStore.js's FARMER_ALLOWED_CATEGORIES. Enforced here
-// server-side too, since the backend must never send a Farmer a
-// notification outside their role (frontend filtering alone isn't
-// sufficient access control).
-const FARMER_ALLOWED_CATEGORIES = [
-  "egg", "feed", "health", "mortality", "quarantine", "isolation",
-  "equipment", "age", "task", "todo",
-];
+const {
+  sendNotificationEmail,
+  FARMER_ALLOWED_CATEGORIES,
+} = require("../utils/notificationEmail");
+
+// FARMER_ALLOWED_CATEGORIES (shared with utils/notificationEmail.js) lists the
+// categories a Farmer may see. Enforced server-side for both the in-system
+// list and the email copy, since frontend filtering alone isn't sufficient
+// access control.
 
 const createNotification = async ({
   title,
@@ -32,7 +32,7 @@ const createNotification = async ({
       if (existing) return existing;
     }
 
-    return await Notification.create({
+    const notification = await Notification.create({
       title,
       description,
       category,
@@ -44,6 +44,13 @@ const createNotification = async ({
       referenceModel,
       sourceId,
     });
+
+    // Email copy of the same notification, to the same recipients. Not awaited
+    // on purpose: sending mail must never slow down or break the request/cron
+    // job that triggered it (sendNotificationEmail never throws).
+    sendNotificationEmail(notification);
+
+    return notification;
   } catch (error) {
     console.error("Create Notification Error:", error);
   }

@@ -1,3 +1,4 @@
+import { phToday } from "../phDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiPackage, FiFileText } from "react-icons/fi";
@@ -13,8 +14,7 @@ const METHOD_OPTIONS = ["Composting", "Drying", "Biogas", "Direct Application"];
 const END_USE_OPTIONS = ["Used as fertilizer", "Sold", "Composted", "Biogas"];
 
 const todayStr = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return phToday();
 };
 
 export default function AddManureRecord() {
@@ -22,7 +22,7 @@ export default function AddManureRecord() {
   const { user } = useUser();
 
   const [formData, setFormData] = useState({
-    date: "",
+    date: todayStr(),
     batchId: "",
     quantityCollected: "",
     methodOfHandling: "",

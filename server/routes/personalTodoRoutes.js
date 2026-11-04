@@ -12,12 +12,13 @@ const {
 } = require("../controllers/personalTodoController");
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, getPersonalTodos);
 
 router.get("/all", protect, ownerOnly, getAllPersonalTodos);
 
-router.post("/", protect, createPersonalTodo);
+router.post("/", protect, preventDuplicateSubmission, createPersonalTodo);
 
 router.put("/:id", protect, updatePersonalTodo);
 

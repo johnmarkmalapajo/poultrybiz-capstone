@@ -5,12 +5,14 @@ import "./AddWasteRecord.css";
 import { createWasteRecord } from "../api/wasteManure";
 import { listPersonnel } from "../api/personnelManpower";
 import { useState, useEffect } from "react";
+import { useWasteOptions, NEW_VALUE, CUSTOM_MAX_LENGTH, validateCustom, normalizeCustom } from "../hooks/useWasteOptions";
+import { phToday } from "../phDate";
 
 export default function AddWasteRecord() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    date: "",
+    date: phToday(),
     wasteType: "",
     quantity: "",
     unit: "kg",
@@ -20,6 +22,9 @@ export default function AddWasteRecord() {
   });
 
   const [personnel, setPersonnel] = useState([]);
+  const [newWasteType, setNewWasteType] = useState("");
+  const [newDisposalMethod, setNewDisposalMethod] = useState("");
+  const { wasteTypeOptions, disposalMethodOptions } = useWasteOptions();
   useEffect(() => {
   listPersonnel()
     .then((list) => {
@@ -59,10 +64,30 @@ export default function AddWasteRecord() {
     e.preventDefault();
     if (saving) return;
     if (window.__pbSaving) return;  // prevent duplicate submissions
+
+    if (formData.wasteType === NEW_VALUE) {
+      const msg = validateCustom(newWasteType, "waste type");
+      if (msg) { setError(msg); return; }
+    }
+    if (formData.disposalMethod === NEW_VALUE) {
+      const msg = validateCustom(newDisposalMethod, "disposal method");
+      if (msg) { setError(msg); return; }
+    }
+
     window.__pbSaving = true;
     setSaving(true);
+    setError("");
     try {
-      await createWasteRecord({ ...formData, recordType: "Waste" });
+      await createWasteRecord({
+        ...formData,
+        recordType: "Waste",
+        ...(formData.wasteType === NEW_VALUE
+          ? { wasteType: undefined, newWasteType: normalizeCustom(newWasteType) }
+          : {}),
+        ...(formData.disposalMethod === NEW_VALUE
+          ? { disposalMethod: undefined, newDisposalMethod: normalizeCustom(newDisposalMethod) }
+          : {}),
+      });
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       navigate("/records/manure?tab=waste");
     } catch (err) {
@@ -101,20 +126,28 @@ export default function AddWasteRecord() {
           <div className="awr-form-grid">
             <div className="awr-form-group">
               <label>Date <span className="awr-req">*</span></label>
-              <input type="date" name="date" value={formData.date} onChange={handleChange} max={new Date().toLocaleDateString("en-CA")} required />
+              <input type="date" name="date" value={formData.date} onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="awr-form-group">
               <label>Waste Type <span className="awr-req">*</span></label>
               <select name="wasteType" value={formData.wasteType} onChange={handleChange} required>
                 <option value="">Select waste type</option>
-                <option value="Dead Birds">Dead Birds</option>
-                <option value="Plastic Waste">Plastic Waste</option>
-                <option value="Feed Bags">Feed Bags</option>
-                <option value="Broken Eggs">Broken Eggs</option>
-                <option value="Chemical Containers">Chemical Containers</option>
-                <option value="Other">Other</option>
+                {wasteTypeOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                <option value={NEW_VALUE}>Others</option>
               </select>
+              {formData.wasteType === NEW_VALUE && (
+                <input
+                  type="text"
+                  className="awr-others-input"
+                  value={newWasteType}
+                  onChange={(e) => { setNewWasteType(e.target.value); setError(""); }}
+                  placeholder="Enter specific waste type"
+                  maxLength={CUSTOM_MAX_LENGTH}
+                  style={{ marginTop: "8px" }}
+                  required
+                />
+              )}
             </div>
 
             <div className="awr-form-group">
@@ -136,13 +169,21 @@ export default function AddWasteRecord() {
               <label>Disposal Method <span className="awr-req">*</span></label>
               <select name="disposalMethod" value={formData.disposalMethod} onChange={handleChange} required>
                 <option value="">Select disposal method</option>
-                <option value="Burial">Burial</option>
-                <option value="Burning">Burning</option>
-                <option value="Recycling">Recycling</option>
-                <option value="Composting">Composting</option>
-                <option value="Disposal">Disposal</option>
-                <option value="Other">Other</option>
+                {disposalMethodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                <option value={NEW_VALUE}>Others</option>
               </select>
+              {formData.disposalMethod === NEW_VALUE && (
+                <input
+                  type="text"
+                  className="awr-others-input"
+                  value={newDisposalMethod}
+                  onChange={(e) => { setNewDisposalMethod(e.target.value); setError(""); }}
+                  placeholder="Enter specific disposal method"
+                  maxLength={CUSTOM_MAX_LENGTH}
+                  style={{ marginTop: "8px" }}
+                  required
+                />
+              )}
             </div>
 
             <div className="awr-form-group">
@@ -185,7 +226,7 @@ export default function AddWasteRecord() {
                 <FiX /> Cancel
               </button>
               <button type="submit" disabled={saving} className="awr-save-btn">
-                <FiSave /> Save Record
+                <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

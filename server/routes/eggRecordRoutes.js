@@ -16,6 +16,7 @@ const {
   ownerOnly,
   recordEditor,
 } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get(
   "/",
@@ -33,6 +34,7 @@ router.post(
   "/",
   protect,
   recordEditor,
+  preventDuplicateSubmission,
   createEggRecord
 );
 

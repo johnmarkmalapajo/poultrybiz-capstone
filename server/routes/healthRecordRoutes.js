@@ -16,6 +16,7 @@ const {
   ownerOnly,
   recordEditor,
 } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ router.post(
   "/",
   protect,
   recordEditor,
+  preventDuplicateSubmission,
   createHealthRecord
 );
 

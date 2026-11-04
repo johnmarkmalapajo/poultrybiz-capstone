@@ -12,6 +12,7 @@ const {
 } = require("../controllers/personnelTaskController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 // Get all tasks of a personnel
 router.get("/:id/tasks", protect, getPersonnelTasks);
@@ -19,7 +20,7 @@ router.get("/:id/tasks", protect, getPersonnelTasks);
 router.get("/:id/tasks/:taskId", protect, getPersonnelTask);
 
 // Create task
-router.post("/:id/tasks", protect, createPersonnelTask);
+router.post("/:id/tasks", protect, preventDuplicateSubmission, createPersonnelTask);
 
 // Update task
 router.put("/:id/tasks/:taskId", protect, updatePersonnelTask);

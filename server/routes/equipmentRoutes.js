@@ -12,11 +12,12 @@ const {
 } = require("../controllers/equipmentController");
 
 const { protect, ownerOnly } = require("../middleware/authMiddleware");
+const { preventDuplicateSubmission } = require("../middleware/duplicateGuard");
 
 router.get("/", protect, getAllEquipment);
 router.get("/:id", protect, getEquipment);
 
-router.post("/", protect, ownerOnly, createEquipment);
+router.post("/", protect, ownerOnly, preventDuplicateSubmission, createEquipment);
 
 router.put("/:id", protect, updateEquipment);
 
