@@ -20,6 +20,7 @@ import {
   getFarmerList, subscribe as subscribeTodos, getLastError,
   addPersonalTodo,
 } from "../todoStore";
+import { useLanguage } from "../i18n/LanguageContext";
 
 function withDisplayStatus(t) {
   if (t.status === "Completed") return { ...t, displayStatus: "Completed" };
@@ -29,6 +30,7 @@ function withDisplayStatus(t) {
 }
 
 export default function AdminTodo() {
+  const { t: tr } = useLanguage();
   const { user, isOwner, canSeeFinancials, canViewPersonnel } = useUser();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
@@ -88,17 +90,16 @@ export default function AdminTodo() {
     loadAll();
     const refresh = () => setTasks(mergeTaskSources().map(withDisplayStatus));
     return subscribeTodos(refresh);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
-  const [priority, setPriority] = useState("All");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [editingTask, setEditingTask] = useState(null);  const canReassignEditingTask = isOwner;
-  const [form, setForm] = useState({ title: "", type: "Records", priority: "Medium", due: "", farmerId: "" });
+  const [form, setForm] = useState({ title: "", type: "Records", due: "", farmerId: "" });
   const [isPersonal, setIsPersonal] = useState(false);  const [pendingPersonal, setPendingPersonal] = useState([]);
   const [pendingAssigned, setPendingAssigned] = useState([]);
   const [loadingWorkload, setLoadingWorkload] = useState(false);
@@ -158,7 +159,6 @@ const viewingArchived = status === "Archived";
     if (!inSourceTab(t)) return false;
     if (viewingArchived) { if (!t.archived) return false; }
     else { if (t.archived) return false; if (status !== "All" && t.displayStatus !== status) return false; }
-    if (priority !== "All" && t.priority !== priority) return false;
     if (search) {
       const q = search.toLowerCase();
       const matches =
@@ -169,26 +169,25 @@ const viewingArchived = status === "Archived";
       if (!matches) return false;
     }
     return true;
-  }), [tasks, sourceTab, status, priority, search, viewingArchived]);
+  }), [tasks, sourceTab, status, search, viewingArchived]);
 
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const sortAccessor = (row, col) => {
     if (col === "task") return row.title || "";
     if (col === "category") return row.type || row.module || "";
     if (col === "assignedTo") return row.farmerName || "";
-    if (col === "priority") return { High: 3, Medium: 2, Low: 1 }[row.priority] ?? 0;
     if (col === "dueDate") return row.dueDate || "";
     if (col === "status") return row.displayStatus || "";
     return "";
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [sourceTab, status, priority, search, viewingArchived]);
+  useEffect(() => { pager.setPage(1); }, [sourceTab, status, search, viewingArchived]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
   const active = tasks.filter((t) => !t.archived && inSourceTab(t));
   const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
-  const activeFilters = (status !== "All" ? 1 : 0) + (priority !== "All" ? 1 : 0);
+  const activeFilters = (status !== "All" ? 1 : 0);
 
   const categoryOptionsFor = (personal = isPersonal) => {
     const all = getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel });
@@ -199,17 +198,17 @@ const viewingArchived = status === "Archived";
     setEditingTask(null);
     setIsPersonal(false);
     const defaultFarmerId = farmers[0]?.id || "";
-    setForm({ title: "", type: categoryOptionsFor(false)[0], priority: "Medium", due: "", farmerId: defaultFarmerId });
+    setForm({ title: "", type: categoryOptionsFor(false)[0], due: "", farmerId: defaultFarmerId });
     setModalOpen(true);
   };
-  const openEdit = (t) => { setEditingTask(t); setForm({ title: t.title, type: t.type, priority: t.priority, due: t.dueDate, farmerId: t.personnelId }); setModalOpen(true); };
+  const openEdit = (t) => { setEditingTask(t); setForm({ title: t.title, type: t.type, due: t.dueDate, farmerId: t.personnelId }); setModalOpen(true); };
 
   const handleViewTaskCategory = (t) => {
     const category = t.type || t.module;
     const route = getTaskCategoryRoute(category);
     if (!route) return;
     if (!canAccessCategory(category, { isOwner, canSeeFinancials, canViewPersonnel })) {
-      alert("Access Denied. You no longer have permission to access this module.");
+      alert(tr("Access Denied. You no longer have permission to access this module."));
       return;
     }
     navigate(route);
@@ -217,11 +216,11 @@ const viewingArchived = status === "Archived";
 
   const saveTask = async () => {
     if (!form.title.trim()) {
-      setError("Task title is required.");
+      setError(tr("Task title is required."));
       return;
     }
     if (!form.farmerId) {
-      setError("Please select a farmer.");
+      setError(tr("Please select a farmer."));
       return;
     }
 
@@ -232,7 +231,6 @@ const viewingArchived = status === "Archived";
         const payload = {
           work: form.title.trim(),
           module: form.type,
-          priority: form.priority,
           dueDate: form.due,
         };
         if (form.farmerId !== editingTask.personnelId) {
@@ -240,14 +238,13 @@ const viewingArchived = status === "Archived";
         }
         await updateAssignedTaskById(editingTask.personnelId, editingTask._id, payload);
       } else if (isPersonal) {
-        await addPersonalTodo(user.id, { title: form.title.trim(), type: form.type, priority: form.priority, dueDate: form.due });
+        await addPersonalTodo(user.id, { title: form.title.trim(), type: form.type, dueDate: form.due });
         setSourceTab("personal");      } else {
         await assignTask(
           form.farmerId,
           {
             title: form.title.trim(),
             type: form.type,
-            priority: form.priority,
             dueDate: form.due,
           },
           user?.name || "Owner"
@@ -257,7 +254,6 @@ const viewingArchived = status === "Archived";
       setForm({
         title: "",
         type: "Records",
-        priority: "Medium",
         due: "",
         farmerId: farmers[0]?.id || "",
       });
@@ -265,7 +261,7 @@ const viewingArchived = status === "Archived";
       setModalOpen(false);
       await loadAll();
     } catch (err) {
-      setError(err?.message || "Couldn't save this task. Please try again.");
+      setError(tr(err?.message || "Couldn't save this task. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -299,7 +295,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
         await setAssignedTaskDoneById(t.personnelId, t._id, markDone);
       }
     } catch (err) {
-      setError(err?.message || "Couldn't update this task. Please try again.");
+      setError(tr(err?.message || "Couldn't update this task. Please try again."));
     }
   };
 
@@ -318,7 +314,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
     setConfirm(null);
     await loadAll();
   };
-  const clearFilters = () => { setStatus("All"); setPriority("All"); };
+  const clearFilters = () => { setStatus("All"); };
 
   return (
     <PageLayout
@@ -326,26 +322,20 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
     >
 
         <div className="todo-toolbar">
-          <button className="todo-add-btn" onClick={openAdd}><FiPlus /> New Task</button>
+          <button className="todo-add-btn" onClick={openAdd}><FiPlus />{" "}{tr("New Task")}</button>
           <div className="todo-toolbar-actions">
-            <div className="todo-search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task..." /></div>
+            <div className="todo-search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Search task...")} /></div>
             <div className="todo-filter-wrap" ref={filterRef}>
               <button className="todo-filter-btn" onClick={() => setFilterOpen((o) => !o)}>
-                <FiFilter /> Filter{activeFilters > 0 && <span className="todo-filter-count">{activeFilters}</span>}
+                <FiFilter />{" "}{tr("Filter")}{activeFilters > 0 && <span className="todo-filter-count">{activeFilters}</span>}
               </button>
               {filterOpen && (
                 <div className="todo-filter-dropdown">
-                  <div className="todo-filter-head"><span>Filter</span><button className="todo-filter-clear" onClick={clearFilters}>Clear</button></div>
+                  <div className="todo-filter-head"><span>{tr("Filter")}</span><button className="todo-filter-clear" onClick={clearFilters}>{tr("Clear")}</button></div>
                   <div className="todo-filter-group">
-                    <label className="todo-filter-label">Status</label>
+                    <label className="todo-filter-label">{tr("Status")}</label>
                     <select className="todo-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                      <option>All</option><option>Pending</option><option>Completed</option><option>Overdue</option><option>Archived</option>
-                    </select>
-                  </div>
-                  <div className="todo-filter-group">
-                    <label className="todo-filter-label">Priority</label>
-                    <select className="todo-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
-                      <option>All</option><option>High</option><option>Medium</option><option>Low</option>
+                      <option value="All">{tr("All")}</option><option value="Pending">{tr("Pending")}</option><option value="Completed">{tr("Completed")}</option><option value="Overdue">{tr("Overdue")}</option><option value="Archived">{tr("Archived")}</option>
                     </select>
                   </div>
                 </div>
@@ -355,22 +345,16 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
         </div>
 
         <div className="todo-tabs">
-          <button className={`todo-tab ${sourceTab === "all" ? "active" : ""}`} onClick={() => setSourceTab("all")}>
-            All
-          </button>
-          <button className={`todo-tab ${sourceTab === "assigned" ? "active" : ""}`} onClick={() => setSourceTab("assigned")}>
-            Assigned Tasks
-          </button>
-          <button className={`todo-tab ${sourceTab === "personal" ? "active" : ""}`} onClick={() => setSourceTab("personal")}>
-            My Tasks
-          </button>
+          <button className={`todo-tab ${sourceTab === "all" ? "active" : ""}`} onClick={() => setSourceTab("all")}>{tr("All")}</button>
+          <button className={`todo-tab ${sourceTab === "assigned" ? "active" : ""}`} onClick={() => setSourceTab("assigned")}>{tr("Assigned Tasks")}</button>
+          <button className={`todo-tab ${sourceTab === "personal" ? "active" : ""}`} onClick={() => setSourceTab("personal")}>{tr("My Tasks")}</button>
         </div>
 
         <div className="todo-stats">
-          <div className="todo-stat-card"><div className="todo-stat-icon gold"><FiList /></div><div><h3>{c.total}</h3><p>Total Tasks</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon orange"><FiClock /></div><div><h3>{c.pending}</h3><p>Pending</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon green"><FiCheckCircle /></div><div><h3>{c.completed}</h3><p>Completed</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon red"><FiAlertTriangle /></div><div><h3>{c.overdue}</h3><p>Overdue</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon gold"><FiList /></div><div><h3>{c.total}</h3><p>{tr("Total Tasks")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon orange"><FiClock /></div><div><h3>{c.pending}</h3><p>{tr("Pending")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon green"><FiCheckCircle /></div><div><h3>{c.completed}</h3><p>{tr("Completed")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon red"><FiAlertTriangle /></div><div><h3>{c.overdue}</h3><p>{tr("Overdue")}</p></div></div>
         </div>
 
         {error && <p style={{ color: "#d94f4f", fontSize: 13, margin: "0 0 10px" }}>{error}</p>}
@@ -381,22 +365,21 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
             <thead>
               <tr>
                 <th style={{ width: 64 }}>{viewingArchived ? "" : "Done"}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("task")}>Task{sortIndicator("task", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("category")}>Category{sortIndicator("category", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("assignedTo")}>Assigned To{sortIndicator("assignedTo", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("priority")}>Priority{sortIndicator("priority", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>Due Date{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("task")}>{tr("Task")}{sortIndicator("task", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("category")}>{tr("Category")}{sortIndicator("category", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("assignedTo")}>{tr("Assigned To")}{sortIndicator("assignedTo", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>{tr("Due Date")}{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+                <th style={{ width: 100 }}>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr className="todo-empty-row"><td colSpan={8}>Loading tasks…</td></tr>}
+              {loading && <tr className="todo-empty-row"><td colSpan={7}>{tr("Loading tasks…")}</td></tr>}
               {!loading && filtered.length === 0 && (
-                <tr className="todo-empty-row"><td colSpan={8}>
+                <tr className="todo-empty-row"><td colSpan={7}>
                   {viewingArchived
                     ? "No archived tasks."
-                    : (search || status !== "All" || priority !== "All")
+                    : (search || status !== "All")
                     ? "No Matching Tasks Found"
                     : sourceTab === "personal"
                     ? "No Personal Tasks Found"
@@ -413,11 +396,10 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                 const canManageAssigned = !isPersonal && !isOwnPersonal && isOwner;
                 return (
                   <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
-                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : (isOwnPersonal || isOwner) ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggleDone(t)} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span> : <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? "Completed" : "Not yet completed"}>{done && <FiCheck />}</span>}</td>
+                    <td>{viewingArchived ? <span className="todo-archived-tag">{tr("Archived")}</span> : (isOwnPersonal || isOwner) ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggleDone(t)} title={done ? tr("Mark as pending") : tr("Mark as done")}>{done && <FiCheck />}</span> : <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? tr("Completed") : tr("Not yet completed")}>{done && <FiCheck />}</span>}</td>
                     <td><span className="todo-task-title">{t.title}</span></td>
-                    <td>{t.type}</td>
+                    <td>{tr(t.type)}</td>
                     <td>{farmerName}</td>
-                    <td><span className={`priority ${t.priority.toLowerCase()}`}>{t.priority}</span></td>
                     <td>{t.dueDate ? String(t.dueDate).split("T")[0] : ""}</td>
                     <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
                     <td>
@@ -425,24 +407,24 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                         {isPersonal ? null : isOwnPersonal ? (
                           viewingArchived ? (
                             <>
-                              <button className="todo-icon-btn restore" onClick={() => updatePersonalTodoById(t._id, { archived: false }, user?.id)} title="Restore"><FiRotateCcw /></button>
-                              <button className="todo-del-btn" onClick={() => deletePersonalTodoById(t._id, user?.id)} title="Delete"><FiTrash2 /></button>
+                              <button className="todo-icon-btn restore" onClick={() => updatePersonalTodoById(t._id, { archived: false }, user?.id)} title={tr("Restore")}><FiRotateCcw /></button>
+                              <button className="todo-del-btn" onClick={() => deletePersonalTodoById(t._id, user?.id)} title={tr("Delete")}><FiTrash2 /></button>
                             </>
                           ) : (
-                            <button className="todo-icon-btn archive" onClick={() => updatePersonalTodoById(t._id, { archived: true }, user?.id)} title="Archive"><FiArchive /></button>
+                            <button className="todo-icon-btn archive" onClick={() => updatePersonalTodoById(t._id, { archived: true }, user?.id)} title={tr("Archive")}><FiArchive /></button>
                           )
                         ) : !canManageAssigned ? null : viewingArchived ? (
                           <>
-                            <button className="todo-icon-btn restore" onClick={() => doRestore(t)} title="Restore"><FiRotateCcw /></button>
-                            <button className="todo-del-btn" onClick={() => setConfirm({ type: "delete", task: t })} title="Delete"><FiTrash2 /></button>
+                            <button className="todo-icon-btn restore" onClick={() => doRestore(t)} title={tr("Restore")}><FiRotateCcw /></button>
+                            <button className="todo-del-btn" onClick={() => setConfirm({ type: "delete", task: t })} title={tr("Delete")}><FiTrash2 /></button>
                           </>
                         ) : (
                           <>
                             {getTaskCategoryRoute(t.type || t.module) && (
-                              <button className="todo-icon-btn view" onClick={() => handleViewTaskCategory(t)} title="View Related Module"><FiEye /></button>
+                              <button className="todo-icon-btn view" onClick={() => handleViewTaskCategory(t)} title={tr("View Related Module")}><FiEye /></button>
                             )}
-                            <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title="Edit"><FiEdit2 /></button>
-                            <button className="todo-icon-btn archive" onClick={() => setConfirmArchive(t)} title="Archive"> <FiArchive /></button>
+                            <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title={tr("Edit")}><FiEdit2 /></button>
+                            <button className="todo-icon-btn archive" onClick={() => setConfirmArchive(t)} title={tr("Archive")}> <FiArchive /></button>
                           </>
                         )}
                       </div>
@@ -472,7 +454,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
           <div className="todo-modal" onClick={(e) => e.stopPropagation()}>
             <div className="todo-modal-head"><h3>{editingTask ? "Edit Task" : "New Task"}</h3><button className="todo-modal-close" onClick={() => setModalOpen(false)}>✕</button></div>
             <div className="todo-modal-body">
-              <div className="todo-field"><label>Task Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Review egg production" /></div>
+              <div className="todo-field"><label>{tr("Task Title")}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("e.g. Review egg production")} /></div>
 
               {!editingTask && (
                 <div className="todo-field" style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
@@ -481,18 +463,18 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                     setIsPersonal(personal);
                     setForm((f) => ({ ...f, type: categoryOptionsFor(personal)[0] || f.type }));
                   }} style={{ width: 16, height: 16, margin: 0, marginTop: 2, flexShrink: 0 }} />
-                  <label htmlFor="isPersonalTask" style={{ display: "inline", margin: 0, cursor: "pointer", lineHeight: 1.3 }}>Personal task (for myself)</label>
+                  <label htmlFor="isPersonalTask" style={{ display: "inline", margin: 0, cursor: "pointer", lineHeight: 1.3 }}>{tr("Personal task (for myself)")}</label>
                 </div>
               )}
 
               {!isPersonal && (
                 <div className="todo-field">
-                  <label>Assign To{editingTask && !canReassignEditingTask && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#a06a1a", background: "#fdf2e6", padding: "2px 8px", borderRadius: 20 }}>Locked</span>}</label>
+                  <label>{tr("Assign To")}{editingTask && !canReassignEditingTask && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#a06a1a", background: "#fdf2e6", padding: "2px 8px", borderRadius: 20 }}>{tr("Locked")}</span>}</label>
                   <select value={form.farmerId} disabled={!!editingTask && !canReassignEditingTask} onChange={(e) => {
                     const farmerId = e.target.value;
                     setForm({ ...form, farmerId, type: categoryOptionsFor(false)[0] });
                   }}>
-                    <option value="">Select a Farmer…</option>
+                    <option value="">{tr("Select a Farmer…")}</option>
                     {farmers.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                   </select>
                 </div>
@@ -500,26 +482,25 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
 
               {!isPersonal && form.farmerId && (
                 <div className="todo-field">
-                  <label>Current Pending Tasks <span className="pw-hint">(workload visibility only — does not block saving)</span></label>
+                  <label>{tr("Current Pending Tasks")}{" "}<span className="pw-hint">{tr("(workload visibility only — does not block saving)")}</span></label>
                   {loadingWorkload ? (
-                    <div className="pw-empty">Loading current workload…</div>
+                    <div className="pw-empty">{tr("Loading current workload…")}</div>
                   ) : (pendingPersonal.length === 0 && pendingAssigned.length === 0) ? (
-                    <div className="pw-empty">No pending tasks — this person's workload is currently clear.</div>
+                    <div className="pw-empty">{tr("No pending tasks — this person's workload is currently clear.")}</div>
                   ) : (
                     <div className="pw-widget">
                       {pendingPersonal.length > 0 && (
                         <div className="pw-section">
-                          <div className="pw-section-title">Pending Personal Tasks</div>
+                          <div className="pw-section-title">{tr("Pending Personal Tasks")}</div>
                           <table className="pw-table pw-table-personal">
-                            <thead><tr><th>Category</th><th>Task Title</th><th>Priority</th><th>Due Date</th><th>Status</th></tr></thead>
+                            <thead><tr><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
                             <tbody>
                               {pendingPersonal.map((t) => (
                                 <tr key={t._id}>
-                                  <td title={t.type}>{t.type || "—"}</td>
+                                  <td title={t.type}>{t.type ? tr(t.type) : "—"}</td>
                                   <td title={t.title}>{t.title}</td>
-                                  <td>{t.priority}</td>
                                   <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
-                                  <td>{t.status}</td>
+                                  <td>{tr(t.status)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -528,18 +509,17 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                       )}
                       {pendingAssigned.length > 0 && (
                         <div className="pw-section">
-                          <div className="pw-section-title">Pending Assigned Tasks</div>
+                          <div className="pw-section-title">{tr("Pending Assigned Tasks")}</div>
                           <table className="pw-table pw-table-assigned">
-                            <thead><tr><th>Assigned By</th><th>Category</th><th>Task Title</th><th>Priority</th><th>Due Date</th><th>Status</th></tr></thead>
+                            <thead><tr><th>{tr("Assigned By")}</th><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
                             <tbody>
                               {pendingAssigned.map((t) => (
                                 <tr key={t._id}>
                                   <td title={t.assignedBy}>{t.assignedBy || "—"}</td>
-                                  <td title={t.type}>{t.type || "—"}</td>
+                                  <td title={t.type}>{t.type ? tr(t.type) : "—"}</td>
                                   <td title={t.title}>{t.title}</td>
-                                  <td>{t.priority}</td>
                                   <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
-                                  <td>{t.status}</td>
+                                  <td>{tr(t.status)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -550,11 +530,10 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                   )}
                 </div>
               )}
-              <div className="todo-field"><label>Category</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{categoryOptionsFor(isPersonal).map((c) => <option key={c}>{c}</option>)}</select></div>
-              <div className="todo-field"><label>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
-              <div className="todo-field"><label>Due Date</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
+              <div className="todo-field"><label>{tr("Category")}</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{categoryOptionsFor(isPersonal).map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="todo-field"><label>{tr("Due Date")}</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
             </div>
-            <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>Cancel</button><button className="todo-btn-save" onClick={saveTask} disabled={saving || !form.title.trim() || (!isPersonal && !form.farmerId)}>{saving ? "Saving…" : editingTask ? "Save Changes" : "Add Task"}</button></div>
+            <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>{tr("Cancel")}</button><button className="todo-btn-save" onClick={saveTask} disabled={saving || !form.title.trim() || (!isPersonal && !form.farmerId)}>{saving ? "Saving…" : editingTask ? "Save Changes" : "Add Task"}</button></div>
           </div>
         </div>
       )}
@@ -565,7 +544,7 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
             <h3 className="todo-confirm-title">{confirm.type === "archive" ? "Archive Task" : confirm.type === "complete" ? "Mark this task as completed?" : "Delete Task"}</h3>
             <p className="todo-confirm-message">{confirm.type === "archive" ? `Move "${confirm.task.title}" to the archive? You can restore it anytime from the Archived filter.` : confirm.type === "complete" ? "The task status will be changed to Completed." : `Are you sure you want to delete "${confirm.task.title}"? This action cannot be undone.`}</p>
             <div className="todo-confirm-actions">
-              <button className="todo-confirm-cancel" onClick={() => setConfirm(null)}>Cancel</button>
+              <button className="todo-confirm-cancel" onClick={() => setConfirm(null)}>{tr("Cancel")}</button>
               <button className={confirm.type === "archive" ? "todo-confirm-archive" : confirm.type === "complete" ? "todo-btn-save" : "todo-confirm-delete"} onClick={runConfirm}>{confirm.type === "archive" ? "Archive" : confirm.type === "complete" ? "Mark as Completed" : "Delete"}</button>
             </div>
           </div>
@@ -581,29 +560,20 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
       className="fp-confirm-modal"
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 className="fp-confirm-title">
-        Archive Task
-      </h3>
+      <h3 className="fp-confirm-title">{tr("Archive Task")}</h3>
 
-      <p className="fp-confirm-message">
-        Move task "{confirmArchive.title}" to the archive?
-        You can restore it anytime from the Archive page.
-      </p>
+      <p className="fp-confirm-message">{tr("Move task \"")}{confirmArchive.title}{tr("\" to the archive? You can restore it anytime from the Archive page.")}</p>
 
       <div className="fp-confirm-actions">
         <button
           className="fp-confirm-cancel"
           onClick={() => setConfirmArchive(null)}
-        >
-          Cancel
-        </button>
+        >{tr("Cancel")}</button>
 
         <button
           className="fp-confirm-archive"
           onClick={runArchiveConfirm}
-        >
-          Archive
-        </button>
+        >{tr("Archive")}</button>
       </div>
     </div>
   </div>

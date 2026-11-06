@@ -75,13 +75,10 @@ async function evaluateProductionAlert(record) {
   const rate = Number(record.henDayPercent) || 0;
   if (rate >= 100) return;
 
-  let priority = "Warning";
   let title = `Egg production is below normal for Batch ${record.batchId}.`;
   if (rate === 0) {
-    priority = "Critical";
     title = `No egg production detected for Batch ${record.batchId}. Immediate action is required.`;
   } else if (rate < 75) {
-    priority = "Critical";
     title = `Critical egg production detected for Batch ${record.batchId}. Production Rate: ${rate}%.`;
   }
 
@@ -94,7 +91,6 @@ async function evaluateProductionAlert(record) {
     description: `Production Rate: ${rate}%. ${record.totalEggs} eggs produced from ${record.birdsAtCollection} birds on ${dateText}.`,
     category: "egg",
     type: "alert",
-    priority,
     roles: ["Owner", "Farmer"],
     referenceId: record._id,
     referenceModel: "EggRecord",

@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiCheck, FiChevronLeft, FiChevronRight, FiFilter } from "react-icons/fi";
@@ -129,17 +130,18 @@ const chartMatchesPeriod = (date, f) => {
 const chartMatchesFilters = (record, f) =>
   (f.batchId === "All" || record.batchId === f.batchId) && chartMatchesPeriod(record.date, f);
 
-const chartPeriodLabel = (f) => {
-  let period = "All Records";
-  if (f.period === "today") period = "Today";
+const chartPeriodLabel = (f, tr = (x) => x) => {
+  let period = tr("All Records");
+  if (f.period === "today") period = tr("Today");
   else if (f.period === "week" && f.week) period = f.week;
-  else if (f.period === "month" && f.month !== "All" && f.year !== "All") period = `${f.month} ${f.year}`;
+  else if (f.period === "month" && f.month !== "All" && f.year !== "All") period = `${tr(f.month)} ${f.year}`;
   else if (f.period === "year" && f.year !== "All") period = f.year;
   else if (f.period === "custom" && (f.dateFrom || f.dateTo)) period = `${f.dateFrom || "—"} – ${f.dateTo || "—"}`;
-  return `${period} · ${f.batchId === "All" ? "All Batches" : `Batch ${f.batchId}`}`;
+  return `${period} · ${f.batchId === "All" ? tr("All Batches") : `${tr("Batch")} ${f.batchId}`}`;
 };
 
 function ChartFilter({ filters, onApply, dates, batches }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
   const [error, setError] = useState("");
@@ -170,9 +172,9 @@ function ChartFilter({ filters, onApply, dates, batches }) {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = chartToday();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     onApply(draft);
@@ -186,37 +188,37 @@ function ChartFilter({ filters, onApply, dates, batches }) {
   return (
     <div className="egg-filter-wrap chart-filter-wrap" ref={wrapRef}>
       <button type="button" className="egg-toolbar-btn" onClick={openPanel}>
-        <FiFilter /> Filter
+        <FiFilter /> {tr("Filter")}
         {activeFilterCount > 0 && <span className="egg-filter-count">{activeFilterCount}</span>}
       </button>
 
       {open && (
         <div className="egg-filter-dropdown">
           <div className="egg-filter-dropdown-header">
-            <span>Filter Records</span>
+            <span>{tr("Filter Records")}</span>
           </div>
 
-          <div className="egg-filter-section-label">Date Filter</div>
+          <div className="egg-filter-section-label">{tr("Date Filter")}</div>
           <div className="egg-filter-row">
             <div className="egg-filter-group">
-              <label className="egg-filter-label">Date Period</label>
+              <label className="egg-filter-label">{tr("Date Period")}</label>
               <select
                 className="egg-filter-select"
                 value={draft.period}
                 onChange={(e) => handleChange("period", e.target.value)}
               >
-                <option value="all">All Records</option>
-                <option value="today">Today</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-                <option value="year">Year</option>
-                <option value="custom">Custom Range</option>
+                <option value="all">{tr("All Records")}</option>
+                <option value="today">{tr("Today")}</option>
+                <option value="week">{tr("Week")}</option>
+                <option value="month">{tr("Month")}</option>
+                <option value="year">{tr("Year")}</option>
+                <option value="custom">{tr("Custom Range")}</option>
               </select>
             </div>
 
             {draft.period === "week" && (
               <div className="egg-filter-group">
-                <label className="egg-filter-label">Week</label>
+                <label className="egg-filter-label">{tr("Week")}</label>
                 <input
                   type="week"
                   className="egg-filter-select"
@@ -228,15 +230,15 @@ function ChartFilter({ filters, onApply, dates, batches }) {
 
             {draft.period === "month" && (
               <div className="egg-filter-group">
-                <label className="egg-filter-label">Month</label>
+                <label className="egg-filter-label">{tr("Month")}</label>
                 <select
                   className="egg-filter-select"
                   value={draft.month}
                   onChange={(e) => handleChange("month", e.target.value)}
                 >
-                  <option value="All">Select Month</option>
+                  <option value="All">{tr("Select Month")}</option>
                   {monthOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>{tr(opt)}</option>
                   ))}
                 </select>
               </div>
@@ -244,15 +246,15 @@ function ChartFilter({ filters, onApply, dates, batches }) {
 
             {(draft.period === "month" || draft.period === "year") && (
               <div className="egg-filter-group">
-                <label className="egg-filter-label">Year</label>
+                <label className="egg-filter-label">{tr("Year")}</label>
                 <select
                   className="egg-filter-select"
                   value={draft.year}
                   onChange={(e) => handleChange("year", e.target.value)}
                 >
-                  <option value="All">Select Year</option>
+                  <option value="All">{tr("Select Year")}</option>
                   {yearOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>{tr(opt)}</option>
                   ))}
                 </select>
               </div>
@@ -261,31 +263,31 @@ function ChartFilter({ filters, onApply, dates, batches }) {
 
           {draft.period === "custom" && (
             <div className="egg-filter-group">
-              <label className="egg-filter-label">Start Date / End Date</label>
+              <label className="egg-filter-label">{tr("Start Date / End Date")}</label>
               <div className="egg-filter-date-range">
                 <input type="date" className="egg-filter-select" value={draft.dateFrom}
                   max={draft.dateTo || chartToday()}
-                  onChange={(e) => handleChange("dateFrom", e.target.value)} aria-label="From date" />
-                <span>to</span>
+                  onChange={(e) => handleChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                <span>{tr("to")}</span>
                 <input type="date" className="egg-filter-select" value={draft.dateTo}
                   min={draft.dateFrom || undefined} max={chartToday()}
-                  onChange={(e) => handleChange("dateTo", e.target.value)} aria-label="To date" />
+                  onChange={(e) => handleChange("dateTo", e.target.value)} aria-label={tr("To date")} />
               </div>
             </div>
           )}
 
-          <div className="egg-filter-section-label">Filters</div>
+          <div className="egg-filter-section-label">{tr("Filters")}</div>
           <div className="egg-filter-row">
             <div className="egg-filter-group">
-              <label className="egg-filter-label">Batch ID</label>
+              <label className="egg-filter-label">{tr("Batch ID")}</label>
               <select
                 className="egg-filter-select"
                 value={draft.batchId}
                 onChange={(e) => handleChange("batchId", e.target.value)}
               >
-                <option value="All">All Batches</option>
+                <option value="All">{tr("All Batches")}</option>
                 {batches.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt} value={opt}>{tr(opt)}</option>
                 ))}
               </select>
             </div>
@@ -294,8 +296,8 @@ function ChartFilter({ filters, onApply, dates, batches }) {
           {error && <p className="chart-filter-error">{error}</p>}
 
           <div className="egg-filter-actions">
-            <button type="button" className="egg-filter-clear" onClick={clearFilters}>Clear All</button>
-            <button type="button" className="egg-filter-apply" onClick={applyFilters}>Apply</button>
+            <button type="button" className="egg-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+            <button type="button" className="egg-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
           </div>
         </div>
       )}
@@ -304,6 +306,8 @@ function ChartFilter({ filters, onApply, dates, batches }) {
 }
 
 const CAL_WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+// Linggo, Lunes, Martes, Miyerkules, Huwebes, Biyernes, Sabado
+const CAL_WEEKDAYS_TL = ["L", "L", "M", "M", "H", "B", "S"];
 
 const calDayKey = (value) => {
   if (!value) return "";
@@ -339,6 +343,8 @@ function buildScheduleIndex(records) {
 }
 
 function FarmScheduleCalendar() {
+  const { t: tr, language } = useLanguage();
+  const calLocale = language === "Filipino" ? "fil-PH" : "en-US";
   const navigate = useNavigate();
   const todayKey = calLocalKey(new Date());
   const [month, setMonth] = useState(() => {
@@ -361,7 +367,7 @@ function FarmScheduleCalendar() {
           setError("");
         })
         .catch((err) => {
-          if (active) setError(err?.message || "Couldn't load farm schedules.");
+          if (active) setError(tr(err?.message || "Couldn't load farm schedules."));
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -372,7 +378,7 @@ function FarmScheduleCalendar() {
       active = false;
       window.removeEventListener("pb_data_changed", load);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
@@ -385,7 +391,7 @@ function FarmScheduleCalendar() {
 
   const changeMonth = (step) => setMonth(new Date(year, monthIndex + step, 1));
   const selectedItems = index[selected] || [];
-  const selectedLabel = new Date(`${selected}T00:00:00`).toLocaleDateString("en-US", {
+  const selectedLabel = new Date(`${selected}T00:00:00`).toLocaleDateString(calLocale, {
     month: "short", day: "numeric", year: "numeric",
   });
 
@@ -395,18 +401,18 @@ function FarmScheduleCalendar() {
   return (
     <div className="cal-card">
       <div className="cal-head">
-        <h3 className="cal-title">Calendar</h3>
+        <h3 className="cal-title">{tr("Calendar")}</h3>
         <div className="cal-nav">
-          <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month"><FiChevronLeft /></button>
-          <span>{month.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
-          <button type="button" onClick={() => changeMonth(1)} aria-label="Next month"><FiChevronRight /></button>
+          <button type="button" onClick={() => changeMonth(-1)} aria-label={tr("Previous month")}><FiChevronLeft /></button>
+          <span>{month.toLocaleDateString(calLocale, { month: "short", year: "numeric" })}</span>
+          <button type="button" onClick={() => changeMonth(1)} aria-label={tr("Next month")}><FiChevronRight /></button>
         </div>
       </div>
 
       {error && <p className="card-empty">{error}</p>}
 
       <div className="cal-grid">
-        {CAL_WEEKDAYS.map((d, i) => <span className="cal-weekday" key={`${d}-${i}`}>{d}</span>)}
+        {(language === "Filipino" ? CAL_WEEKDAYS_TL : CAL_WEEKDAYS).map((d, i) => <span className="cal-weekday" key={`${d}-${i}`}>{d}</span>)}
         {cells.map((day, i) => {
           if (!day) return <span key={`blank-${i}`} />;
           const items = index[day] || [];
@@ -431,8 +437,8 @@ function FarmScheduleCalendar() {
       </div>
 
       <div className="cal-legend">
-        <span><i className="cal-dot diagnosis" /> Diagnosis</span>
-        <span><i className="cal-dot treatment" /> Medication/Vaccination</span>
+        <span><i className="cal-dot diagnosis" /> {tr("Diagnosis")}</span>
+        <span><i className="cal-dot treatment" /> {tr("Medication/Vaccination")}</span>
       </div>
 
       <div className="cal-day-list">
@@ -440,7 +446,7 @@ function FarmScheduleCalendar() {
         {loading ? (
           <SkeletonRows count={2} />
         ) : selectedItems.length === 0 ? (
-          <p className="card-empty">No schedules on this date.</p>
+          <p className="card-empty">{tr("No schedules on this date.")}</p>
         ) : selectedItems.map((item) => (
           <button type="button" className={`cal-item ${item.kind}`} key={item.key} onClick={() => openRecord(item)}>
             <span className="cal-item-text">
@@ -468,6 +474,7 @@ function Dashboard() {
   const { user, role, canSeeFinancials } = useUser();
   const navigate = useNavigate();
   const TODO_LIMIT = 3;
+  const { t: tr } = useLanguage();
   const ALERT_LIMIT = 4;
   const isNewUser = localStorage.getItem("isNewUser") === "true";
   const todoUser = getTodoUser({ id: "me", userId: "me", name: "You" });
@@ -492,7 +499,7 @@ function Dashboard() {
       setData(shapeData(json?.data ?? json));
     } catch (err) {
       setData(EMPTY);
-      setError(err?.message || "Couldn't load dashboard data.");
+      setError(tr(err?.message || "Couldn't load dashboard data."));
     } finally {
       setLoading(false);
       setInitialLoad(false);
@@ -508,7 +515,7 @@ function Dashboard() {
     const update = () => {
       const seen = new Set();
       const list = getCachedNotifs(role)
-        .filter((n) => !n.read && n.type === "alert" && n.priority === "critical")
+        .filter((n) => !n.read && n.type === "alert")
         .sort((a, b) => new Date(b.dateTime || 0) - new Date(a.dateTime || 0))
         .filter((n) => {
           const key = `${n.title}|${n.description || ""}`;
@@ -546,7 +553,7 @@ function Dashboard() {
       window.removeEventListener("pb_data_changed", refresh);
       window.removeEventListener("focus", refresh);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [confirmComplete, setConfirmComplete] = useState(null);
 
@@ -589,7 +596,7 @@ function Dashboard() {
           setEggError("");
         })
         .catch((err) => {
-          if (active) setEggError(err?.message || "Couldn't load egg records.");
+          if (active) setEggError(tr(err?.message || "Couldn't load egg records."));
         })
         .finally(() => {
           if (active) setEggLoading(false);
@@ -600,7 +607,7 @@ function Dashboard() {
       active = false;
       window.removeEventListener("pb_data_changed", load);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [batchOptions, setBatchOptions] = useState([]);
 
@@ -646,7 +653,7 @@ function Dashboard() {
       });
     });
   const pieData = EGG_LABELS.map((name, i) => ({
-    name,
+    name: tr(name),
     value: rangeTotal > 0 ? +(((rangeSizes[EGG_KEYS[i]] || 0) / rangeTotal) * 100).toFixed(1) : 0,
   }));
 
@@ -657,12 +664,12 @@ function Dashboard() {
       <div className="dash-header">
         <div>
           <h2 className="title">
-            {isNewUser ? "Welcome," : "Welcome back,"} {user?.name || "User"}!
+            {isNewUser ? tr("Welcome,") : tr("Welcome back,")} {user?.name || tr("User")}!
           </h2>
           <p className="subtitle">
             {isNewUser
-              ? "Let's get your farm set up!"
-              : "Here's what's happening in your farm today"}
+              ? tr("Let's get your farm set up!")
+              : tr("Here's what's happening in your farm today")}
           </p>
         </div>
       </div>
@@ -676,7 +683,7 @@ function Dashboard() {
               background: "var(--gold-light, #fdf3e3)",
               padding: "4px 14px", borderRadius: "20px",
             }}>
-              Loading dashboard...
+              {tr("Loading dashboard...")}
             </span>
           )}
         </div>
@@ -688,7 +695,7 @@ function Dashboard() {
           fontWeight: "600", cursor: "pointer",
           transition: "background 0.2s",
         }}>
-          Refresh
+          {tr("Refresh")}
         </button>
       </div>
 
@@ -709,7 +716,7 @@ function Dashboard() {
           : visibleCards.map((card) => (
               <Card
                 key={card.title}
-                title={card.title}
+                title={tr(card.title)}
                 value={card.value}
                 icon={card.icon}
                 iconBg={card.iconBg}
@@ -725,8 +732,8 @@ function Dashboard() {
           <div className="chart-card">
             <div className="chart-header">
               <div className="chart-heading">
-                <span className="chart-title">Latest Egg Size Distribution</span>
-                <span className="chart-period">{chartPeriodLabel(pieFilters)}</span>
+                <span className="chart-title">{tr("Latest Egg Size Distribution")}</span>
+                <span className="chart-period">{chartPeriodLabel(pieFilters, tr)}</span>
               </div>
               <ChartFilter filters={pieFilters} onApply={setPieFilters} dates={eggDates} batches={batchOptions} />
             </div>
@@ -735,7 +742,7 @@ function Dashboard() {
               <SkeletonPie />
             ) : !hasPieData ? (
               <p className="chart-empty">
-                No egg data for this period yet.
+                {tr("No egg data for this period yet.")}
               </p>
             ) : (
               <div className="pie-wrap">
@@ -755,7 +762,7 @@ function Dashboard() {
                   {EGG_LABELS.map((label, i) => (
                     <div className="legend-row" key={label}>
                       <span className="legend-dot" style={{ background: EGG_COLORS[i] }} />
-                      <span className="legend-label">{label}</span>
+                      <span className="legend-label">{tr(label)}</span>
                       <span className="legend-pct">{pieData[i].value}%</span>
                     </div>
                   ))}
@@ -768,8 +775,8 @@ function Dashboard() {
           <div className="chart-card">
             <div className="chart-header">
               <div className="chart-heading">
-                <span className="chart-title">Daily Egg Harvest Trend</span>
-                <span className="chart-period">{chartPeriodLabel(trendFilters)}</span>
+                <span className="chart-title">{tr("Daily Egg Harvest Trend")}</span>
+                <span className="chart-period">{chartPeriodLabel(trendFilters, tr)}</span>
               </div>
               <ChartFilter filters={trendFilters} onApply={setTrendFilters} dates={eggDates} batches={batchOptions} />
             </div>
@@ -778,7 +785,7 @@ function Dashboard() {
               <SkeletonLine />
             ) : dailyTrend.length === 0 ? (
               <p className="chart-empty">
-                No egg harvest data for this period yet.
+                {tr("No egg harvest data for this period yet.")}
               </p>
             ) : (
               <div className="line-wrap">
@@ -815,14 +822,14 @@ function Dashboard() {
           <FarmScheduleCalendar />
 
           <div className="todo-card">
-            <h3 className="todo-title">To Do</h3>
+            <h3 className="todo-title">{tr("To Do")}</h3>
             <div className="todo-header-row">
-              <span /><span>Date</span><span>Task</span>
+              <span /><span>{tr("Date")}</span><span>{tr("Task")}</span>
             </div>
             {tasksLoading ? (
               <SkeletonRows count={3} />
             ) : tasks.length === 0 ? (
-              <p className="card-empty">No personal tasks yet.</p>
+              <p className="card-empty">{tr("No personal tasks yet.")}</p>
             ) : tasks.slice(0, TODO_LIMIT).map((t) => {
               const done = t.status === "Completed";
               return (
@@ -830,7 +837,7 @@ function Dashboard() {
                   <span
                     className={`todo-check ${done ? "checked" : ""}`}
                     onClick={() => toggleTask(t)}
-                    title={done ? "Mark as pending" : "Mark as done"}
+                    title={done ? tr("Mark as pending") : tr("Mark as done")}
                   >
                     {done && <FiCheck />}
                   </span>
@@ -843,26 +850,26 @@ function Dashboard() {
             })}
             {tasks.length > TODO_LIMIT && (
               <button className="dash-see-all" onClick={() => navigate(role === "Farmer" ? "/todo" : "/owner/todo")}>
-                See More
+                {tr("See More")}
               </button>
             )}
           </div>
 
           <div className="alert-card">
-            <h3 className="alert-title">Alert</h3>
+            <h3 className="alert-title">{tr("Alert")}</h3>
             {alertsLoading ? (
               <SkeletonRows count={2} />
             ) : alerts.length === 0 ? (
-              <p className="alert-empty">No critical alerts at this time.</p>
+              <p className="alert-empty">{tr("No critical alerts at this time.")}</p>
             ) : alerts.slice(0, ALERT_LIMIT).map((a) => (
               <div className="alert-row" key={a.id}>
                 <span className={`alert-icon ${a.type}`}>{a.type === "danger" ? "🔺" : "🔶"}</span>
-                <span className="alert-msg">{a.message}</span>
+                <span className="alert-msg">{tr(a.message)}</span>
               </div>
             ))}
             {alerts.length > ALERT_LIMIT && (
               <button className="dash-see-all" onClick={() => navigate("/notifications")}>
-                See All
+                {tr("See All")}
               </button>
             )}
           </div>
@@ -872,11 +879,11 @@ function Dashboard() {
       {confirmComplete && (
         <div className="todo-confirm-overlay" onClick={() => setConfirmComplete(null)}>
           <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="todo-confirm-title">Mark this task as completed?</h3>
-            <p className="todo-confirm-message">The task status will be changed to Completed.</p>
+            <h3 className="todo-confirm-title">{tr("Mark this task as completed?")}</h3>
+            <p className="todo-confirm-message">{tr("The task status will be changed to Completed.")}</p>
             <div className="todo-confirm-actions">
-              <button className="todo-confirm-cancel" onClick={() => setConfirmComplete(null)}>Cancel</button>
-              <button className="todo-btn-save" onClick={() => { doToggle(confirmComplete); setConfirmComplete(null); }}>Mark as Completed</button>
+              <button className="todo-confirm-cancel" onClick={() => setConfirmComplete(null)}>{tr("Cancel")}</button>
+              <button className="todo-btn-save" onClick={() => { doToggle(confirmComplete); setConfirmComplete(null); }}>{tr("Mark as Completed")}</button>
             </div>
           </div>
         </div>

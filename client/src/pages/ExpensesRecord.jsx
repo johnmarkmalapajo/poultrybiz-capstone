@@ -15,6 +15,7 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CATEGORY_OPTIONS = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -66,6 +67,7 @@ const getExpenseDetails = (r) => {
 };
 
 export default function ExpensesRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit } = useUser();
 
@@ -83,12 +85,12 @@ export default function ExpensesRecord() {
       const list = Array.isArray(data) ? data : (data.records || data.data || []);
       setRecords(list);
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
       setRecords([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchRecords();
@@ -128,15 +130,15 @@ export default function ExpensesRecord() {
     if (draft.period === "custom") {
       const today = todayStr();
       if (draft.dateFrom && draft.dateFrom > today) {
-        setError("Start date cannot be a future date.");
+        setError(tr("Start date cannot be a future date."));
         return;
       }
       if (draft.dateTo && draft.dateTo > today) {
-        setError("End date cannot be a future date.");
+        setError(tr("End date cannot be a future date."));
         return;
       }
       if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-        setError("Start date cannot be later than end date.");
+        setError(tr("Start date cannot be later than end date."));
         return;
       }
     }
@@ -296,15 +298,14 @@ export default function ExpensesRecord() {
         {}
         <div className="er-toolbar">
           <button className="er-add-btn" onClick={() => navigate("/sales-transactions/expenses/add")}>
-            <FiPlus /> Add Expense
-          </button>
+            <FiPlus />{" "}{tr("Add Expense")}</button>
 
           <div className="er-toolbar-actions">
             <div className="er-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search expense..."
+                placeholder={tr("Search expense...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -313,37 +314,36 @@ export default function ExpensesRecord() {
             <div className="er-btn-group">
               <div className="er-filter-wrap" ref={filterRef}>
                 <button className="er-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="er-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="er-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="er-filter-dropdown">
                     <div className="er-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="er-filter-section-label">Date Filter</div>
+                    <div className="er-filter-section-label">{tr("Date Filter")}</div>
                     <div className="er-filter-row">
                       <div className="er-filter-group">
-                        <label className="er-filter-label">Date Period</label>
+                        <label className="er-filter-label">{tr("Date Period")}</label>
                         <select
                           className="er-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="er-filter-group">
-                          <label className="er-filter-label">Week</label>
+                          <label className="er-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="er-filter-select"
@@ -355,15 +355,15 @@ export default function ExpensesRecord() {
 
                       {draft.period === "month" && (
                         <div className="er-filter-group">
-                          <label className="er-filter-label">Month</label>
+                          <label className="er-filter-label">{tr("Month")}</label>
                           <select
                             className="er-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -371,15 +371,15 @@ export default function ExpensesRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="er-filter-group">
-                          <label className="er-filter-label">Year</label>
+                          <label className="er-filter-label">{tr("Year")}</label>
                           <select
                             className="er-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -388,39 +388,39 @@ export default function ExpensesRecord() {
 
                     {draft.period === "custom" && (
                       <div className="er-filter-group">
-                        <label className="er-filter-label">Start Date / End Date</label>
+                        <label className="er-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="er-filter-date-range">
                           <input type="date" className="er-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="er-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="er-filter-section-label">Filters</div>
+                    <div className="er-filter-section-label">{tr("Filters")}</div>
                     <div className="er-filter-row">
                       <div className="er-filter-group">
-                        <label className="er-filter-label">Category</label>
+                        <label className="er-filter-label">{tr("Category")}</label>
                         <select
                           className="er-filter-select"
                           value={draft.category}
                           onChange={(e) => handleFilterChange("category", e.target.value)}
                         >
-                          <option value="All">All Categories</option>
+                          <option value="All">{tr("All Categories")}</option>
                           {CATEGORY_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
                     <div className="er-filter-actions">
-                      <button className="er-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="er-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="er-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="er-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -430,7 +430,7 @@ export default function ExpensesRecord() {
                 rows={exportRows}
                 columns={exportColumns}
                 name="expenses-record"
-                title="Farm Expense Report"
+                title={tr("Farm Expense Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Expense Record"
@@ -453,7 +453,7 @@ export default function ExpensesRecord() {
             <div className="er-stat-icon gold"><FiFileText /></div>
             <div>
               <h3>{filtered.length}</h3>
-              <p>Total Records</p>
+              <p>{tr("Total Records")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -461,7 +461,7 @@ export default function ExpensesRecord() {
             <div className="er-stat-icon green"><FiDollarSign /></div>
             <div>
               <h3>{formatPeso(totalAmount)}</h3>
-              <p>Total Expenses</p>
+              <p>{tr("Total Expenses")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -469,7 +469,7 @@ export default function ExpensesRecord() {
             <div className="er-stat-icon blue"><FiTag /></div>
             <div>
               <h3>{categoriesUsed}</h3>
-              <p>Categories</p>
+              <p>{tr("Categories")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -477,7 +477,7 @@ export default function ExpensesRecord() {
             <div className="er-stat-icon orange"><FiList /></div>
             <div>
               <h3>{filtered.length}</h3>
-              <p>Showing</p>
+              <p>{tr("Showing")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -490,17 +490,17 @@ export default function ExpensesRecord() {
         <TableSection className="er-table-wrapper">
           <TableScroll>
           {loading ? (
-            <div className="er-loading">Loading expense records...</div>
+            <div className="er-loading">{tr("Loading expense records...")}</div>
           ) : (
             <table className="er-table">
               <thead>
                 <tr>
-                  <th className="er-sortable-th" onClick={() => cycleSort("date")}>Expense Date{sortIndicator("date", sortColumn, sortDirection)}</th>
-                  <th className="er-sortable-th" onClick={() => cycleSort("category")}>Category{sortIndicator("category", sortColumn, sortDirection)}</th>
-                  <th className="er-sortable-th" onClick={() => cycleSort("amount")}>Amount{sortIndicator("amount", sortColumn, sortDirection)}</th>
-                  <th>Receipt</th>
-                  <th>Remarks</th>
-                  <th>Actions</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("date")}>{tr("Expense Date")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("category")}>{tr("Category")}{sortIndicator("category", sortColumn, sortDirection)}</th>
+                  <th className="er-sortable-th" onClick={() => cycleSort("amount")}>{tr("Amount")}{sortIndicator("amount", sortColumn, sortDirection)}</th>
+                  <th>{tr("Receipt")}</th>
+                  <th>{tr("Remarks")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,14 +509,13 @@ export default function ExpensesRecord() {
                     <td colSpan="6" className="er-empty-state">
                       <div className="er-empty-content">
                         <FiMaximize />
-                        <h3>No expense records found</h3>
-                        <p>Click Add Expense to log your first farm expense.</p>
+                        <h3>{tr("No expense records found")}</h3>
+                        <p>{tr("Click Add Expense to log your first farm expense.")}</p>
                         <button
                           className="er-empty-add-btn"
                           onClick={() => navigate("/sales-transactions/expenses/add")}
                         >
-                          <FiPlus /> Add Expense
-                        </button>
+                          <FiPlus />{" "}{tr("Add Expense")}</button>
                       </div>
                     </td>
                   </tr>
@@ -524,7 +523,7 @@ export default function ExpensesRecord() {
                   pageRows.map((r) => (
                     <tr key={r._id || r.id}>
                       <td>{r.date ? new Date(r.date).toISOString().split("T")[0] : ""}</td>
-                      <td>{r.category}</td>
+                      <td>{tr(r.category)}</td>
                       <td className="er-amount">{formatPeso(r.amount)}</td>
                       <td>{r.receipt ? getReceiptLabel(r.category) : "—"}</td>
                       <td>{r.remarks || "—"}</td>
@@ -532,7 +531,7 @@ export default function ExpensesRecord() {
                         <div className="er-action-buttons">
                           <button
                             className="er-action-btn view"
-                            title="View"
+                            title={tr("View")}
                             onClick={() => setViewRecord(r)}
                           >
                             <FiEye />
@@ -540,7 +539,7 @@ export default function ExpensesRecord() {
                           {canEdit && (
                           <button
                             className="er-action-btn edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/sales-transactions/expenses/edit/${r._id || r.id}`)}
                           >
                             <FiEdit2 />
@@ -571,11 +570,11 @@ export default function ExpensesRecord() {
       {viewRecord && (
         <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
           <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "left" }}>
-            <h3 className="pb-confirm-title">Expense Record</h3>
+            <h3 className="pb-confirm-title">{tr("Expense Record")}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
-              <div><small>Expense Date</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toISOString().split("T")[0] : "—"}</p></div>
-              <div><small>Category</small><p style={{ margin: 0 }}>{viewRecord.category || "—"}</p></div>
-              <div><small>Amount</small><p style={{ margin: 0 }}>{formatPeso(viewRecord.amount)}</p></div>
+              <div><small>{tr("Expense Date")}</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toISOString().split("T")[0] : "—"}</p></div>
+              <div><small>{tr("Category")}</small><p style={{ margin: 0 }}>{viewRecord.category || "—"}</p></div>
+              <div><small>{tr("Amount")}</small><p style={{ margin: 0 }}>{formatPeso(viewRecord.amount)}</p></div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <small>{getReceiptLabel(viewRecord.category)}</small>
                 {isImageReceipt(viewRecord.receipt) ? (
@@ -598,18 +597,16 @@ export default function ExpensesRecord() {
                       href={`${API_BASE}${viewRecord.receipt}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                    >
-                      Open {getReceiptLabel(viewRecord.category)} (PDF)
-                    </a>
+                    >{tr("Open")}{" "}{getReceiptLabel(viewRecord.category)}{" "}{tr("(PDF)")}</a>
                   </p>
                 ) : (
                   <p style={{ margin: 0 }}>{viewRecord.receipt ? getReceiptLabel(viewRecord.category) : "—"}</p>
                 )}
               </div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Remarks</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Remarks")}</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
             </div>
             <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
             </div>
           </div>
         </div>

@@ -3,9 +3,11 @@ import {
   productivityRate, flockAgeMonths, cullingRecommendation,
 } from "../utils/poultryFormulas";
 import "./CullingBadge.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 // Pass a flock object: { dateAcquired, eggsToday, currentQty }
 export default function CullingBadge({ flock = {} }) {
+  const { t: tr } = useLanguage();
   const ageMonths = flockAgeMonths(flock.dateAcquired);
   const pr  = productivityRate(flock.eggsToday, flock.currentQty);
   const { shouldCull, reasons } = cullingRecommendation({ ageMonths, pr });
@@ -13,7 +15,7 @@ export default function CullingBadge({ flock = {} }) {
   return (
     <span
       className={`cull-badge ${shouldCull ? "cull-due" : "cull-ok"}`}
-      title={shouldCull ? reasons.join("; ") : "Within productive lifecycle"}
+      title={shouldCull ? reasons.join("; ") : tr("Within productive lifecycle")}
     >
       {shouldCull ? "Cull due" : "Active"}
     </span>

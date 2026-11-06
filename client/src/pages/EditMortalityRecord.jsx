@@ -8,6 +8,7 @@ import { listFlocks } from "../api/flockProfile";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
 import { mortalityBatchOptions } from "../mortalityBatchOptions";
 import { listHealthOptions } from "../api/healthOptions";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_VALUE = "__new__";
 const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
@@ -20,6 +21,7 @@ const localToday = () => {
 };
 
 export default function EditMortalityRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const today = localToday();
@@ -58,13 +60,13 @@ export default function EditMortalityRecord() {
         setFormData((prev) => ({ ...prev, ...rec }));
         setOriginalBatchId(rec.batchId || "");
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     listFlocks()
@@ -111,20 +113,20 @@ export default function EditMortalityRecord() {
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
     if (!isAutomaticallyGenerated) {
-      if (isFutureDate) return setError("Date cannot be a future date.");
-      if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
-      if (numDead < 1) return setError("Enter at least 1 dead chicken.");
-      if (isDuplicate) return setError("A mortality record already exists for this Batch + Date.");
+      if (isFutureDate) return setError(tr("Date cannot be a future date."));
+      if (numDead < 0) return setError(tr("Number of dead chickens cannot be negative."));
+      if (numDead < 1) return setError(tr("Enter at least 1 dead chicken."));
+      if (isDuplicate) return setError(tr("A mortality record already exists for this Batch + Date."));
       if (exceedsBirds) return setError(`Number of dead chickens (${numDead}) exceeds current birds in batch ${formData.batchId} (${currentBirds}).`);
       if (formData.causeOfDeath === NEW_VALUE && !newCauseOfDeath.trim())
-        return setError("Please enter the new Cause of Death.");
+        return setError(tr("Please enter the new Cause of Death."));
     }
 
     try {
@@ -147,7 +149,7 @@ export default function EditMortalityRecord() {
       navigate("/records/mortality");
     } catch (err) {
       setSaving(false);
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     }
   };
 
@@ -161,7 +163,7 @@ export default function EditMortalityRecord() {
           { label: "EDIT MORTALITY" },
         ]}
       >
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -186,70 +188,70 @@ export default function EditMortalityRecord() {
 
           <div className="emr-section-header">
             <FiHeart />
-            <h3>Mortality Details</h3>
+            <h3>{tr("Mortality Details")}</h3>
             <div className="emr-line" />
           </div>
 
           <div className="emr-form-grid">
             <div className="emr-form-group">
-              <label>Mortality ID</label>
+              <label>{tr("Mortality ID")}</label>
               <input type="text" value={formData.mortalityId || "—"} disabled />
-              <small>Cannot be changed.</small>
+              <small>{tr("Cannot be changed.")}</small>
             </div>
 
             <div className="emr-form-group">
-              <label>Date <span className="emr-req">*</span></label>
+              <label>{tr("Date")}{" "}<span className="emr-req">*</span></label>
               <input type="date" name="date" value={formData.date ? String(formData.date).slice(0,10) : ""} onChange={handleChange} max={today} required disabled={isAutomaticallyGenerated} />
               {!isAutomaticallyGenerated && isFutureDate && (
-                <small style={{ color: "#c0392b" }}>Date cannot be a future date.</small>
+                <small style={{ color: "#c0392b" }}>{tr("Date cannot be a future date.")}</small>
               )}
             </div>
 
             <div className="emr-form-group">
-              <label>Batch ID <span className="emr-req">*</span></label>
+              <label>{tr("Batch ID")}{" "}<span className="emr-req">*</span></label>
               {isAutomaticallyGenerated ? (
                 <input type="text" value={formData.batchId} disabled />
               ) : (
                 <select name="batchId" value={formData.batchId} onChange={handleChange} required>
-                  <option value="">Select batch ID</option>
+                  <option value="">{tr("Select batch ID")}</option>
                   {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               )}
               {formData.sourceIsolationId ? (
-                <small>This record came from an Isolation event — change its Batch ID from the Isolation record instead.</small>
+                <small>{tr("This record came from an Isolation event — change its Batch ID from the Isolation record instead.")}</small>
               ) : (
-                formData.batchId && <small>Current birds in this batch: {currentBirds}</small>
+                formData.batchId && <small>{tr("Current birds in this batch:")}{" "}{currentBirds}</small>
               )}
             </div>
 
             <div className="emr-form-group">
-              <label>Number of Mortality <span className="emr-req">*</span></label>
+              <label>{tr("Number of Mortality")}{" "}<span className="emr-req">*</span></label>
               <input type="number" min="0" max={formData.batchId ? currentBirds : undefined}
                 name="numberOfMortality"
                 value={formData.numberOfMortality} onChange={handleChange}
-                placeholder="Enter number of mortality" required disabled={isAutomaticallyGenerated} />
+                placeholder={tr("Enter number of mortality")} required disabled={isAutomaticallyGenerated} />
               {exceedsBirds && (
-                <small style={{ color: "#c0392b" }}>Cannot exceed {currentBirds} (current birds in batch).</small>
+                <small style={{ color: "#c0392b" }}>{tr("Cannot exceed")}{" "}{currentBirds}{" "}{tr("(current birds in batch).")}</small>
               )}
             </div>
 
             <div className="emr-form-group">
-              <label>Cause of Death <span className="emr-req">*</span></label>
+              <label>{tr("Cause of Death")}{" "}<span className="emr-req">*</span></label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} style={{ flex: 1 }} required disabled={isAutomaticallyGenerated}>
-                  <option value="">Select cause</option>
+                  <option value="">{tr("Select cause")}</option>
                   {formData.causeOfDeath && formData.causeOfDeath !== NEW_VALUE && !causeOfDeathOptions.includes(formData.causeOfDeath) && (
                     <option value={formData.causeOfDeath}>{formData.causeOfDeath}</option>
                   )}
                   {causeOfDeathOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                  <option value={NEW_VALUE}>Others</option>
+                  <option value={NEW_VALUE}>{tr("Others")}</option>
                 </select>
                 {formData.causeOfDeath === NEW_VALUE && (
                   <input
                     type="text"
                     value={newCauseOfDeath}
                     onChange={(e) => setNewCauseOfDeath(e.target.value)}
-                    placeholder="Enter cause of death..."
+                    placeholder={tr("Enter cause of death...")}
                     style={{ flex: 1 }}
                     required disabled={isAutomaticallyGenerated}
                   />
@@ -260,39 +262,35 @@ export default function EditMortalityRecord() {
 
           {!isAutomaticallyGenerated && isDuplicate && (
             <div className="pb-warning-banner">
-              <FiAlertTriangle /> A record already exists for this Batch + Date.
-            </div>
+              <FiAlertTriangle />{" "}{tr("A record already exists for this Batch + Date.")}</div>
           )}
 
           {isDisease && (
             <div className="pb-error-banner">
-              <FiAlertTriangle /> Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.
-            </div>
+              <FiAlertTriangle />{" "}{tr("Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.")}</div>
           )}
 
           <div className="emr-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="emr-line" />
           </div>
 
           <div className="emr-form-group emr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea name="remarks"
               value={formData.remarks || ""} onChange={handleChange}
-              placeholder="Enter remarks or observations..." maxLength={500} />
+              placeholder={tr("Enter remarks or observations...")} maxLength={500} />
             <small className="emr-char-count">{(formData.remarks || "").length} / 500</small>
           </div>
 
           <div className="emr-form-actions">
-            <p className="emr-req-note">Fields with * are required.</p>
+            <p className="emr-req-note">{tr("Fields with * are required.")}</p>
             <div className="emr-action-btns">
               <button type="button" className="emr-cancel-btn" onClick={() => navigate("/records/mortality")}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="emr-save-btn" disabled={saving || (!isAutomaticallyGenerated && (isDuplicate || exceedsBirds || isFutureDate))}>
-                <FiSave /> Update Record
-              </button>
+                <FiSave />{" "}{tr("Update Record")}</button>
             </div>
           </div>
 

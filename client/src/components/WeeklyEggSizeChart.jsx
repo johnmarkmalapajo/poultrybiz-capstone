@@ -2,6 +2,7 @@
 // Dependency-free stacked bar chart of egg-size distribution per day.
 // Put in: src/components/WeeklyEggSizeChart.jsx
 import "./WeeklyEggSizeChart.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const SIZES = [
   { key: "peewee",     label: "Peewee",      color: "#f3dd9a" },
@@ -31,6 +32,7 @@ const shortDate = (d) =>
   new Date(d).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 
 export default function WeeklyEggSizeChart({ records = [], days = 7, title = "Weekly Egg-Size Distribution" }) {
+  const { t: tr } = useLanguage();
   const series = buildSeries(records, days);
   const maxTotal = Math.max(
     1,
@@ -41,11 +43,11 @@ export default function WeeklyEggSizeChart({ records = [], days = 7, title = "We
     <div className="wesc">
       <div className="wesc-header">
         <h3>{title}</h3>
-        <span>Last {days} recorded days</span>
+        <span>{tr("Last")}{" "}{days}{" "}{tr("recorded days")}</span>
       </div>
 
       {series.length === 0 ? (
-        <div className="wesc-empty">No egg records yet — chart will populate once data is added.</div>
+        <div className="wesc-empty">{tr("No egg records yet — chart will populate once data is added.")}</div>
       ) : (
         <>
           <div className="wesc-chart">

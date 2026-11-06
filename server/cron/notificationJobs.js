@@ -24,7 +24,7 @@ function endOfToday() {
   return d;
 }
 
-async function eggProductionCheck({ stage, title, message, priority, isFinalAlert }) {
+async function eggProductionCheck({ stage, title, message, isFinalAlert }) {
   const batches = await Flock.find({ status: "Active" }).select("batchId");
   const start = startOfToday();
   const end = endOfToday();
@@ -42,7 +42,6 @@ async function eggProductionCheck({ stage, title, message, priority, isFinalAler
       description: message(flock.batchId),
       category: "egg",
       type: isFinalAlert ? "alert" : "reminder",
-      priority,
       roles: ALL_ROLES,
       sourceId: `egg_${stage}_${flock.batchId}_${todayStr()}`,
     });
@@ -84,7 +83,6 @@ async function notifyDueHealthSchedules(record) {
       description: `${label} schedule${code ? ` ${code}` : ""}${drug} for Batch ${record.batchId} ${overdue ? "was due on" : "is due today,"} ${formatDay(day)}.`,
       category: "health",
       type: "reminder",
-      priority: overdue ? "Warning" : "Normal",
       roles: ALL_ROLES,
       referenceId: record._id,
       referenceModel: "HealthRecord",
@@ -149,7 +147,6 @@ async function equipmentCheck() {
       description: `${eq.name} at ${eq.location} is in Poor condition and needs maintenance.`,
       category: "equipment",
       type: "reminder",
-      priority: "Normal",
       roles: ALL_ROLES,
       sourceId: `equipment_${eq._id}_poor`,
     });
@@ -172,7 +169,6 @@ async function taskDueCheck() {
       description: `"${task.work}" is ${overdue ? "overdue" : "due today"} (${new Date(task.dueDate).toLocaleDateString()}).`,
       category: "todo",
       type: "reminder",
-      priority: overdue ? "High" : "Normal",
       userId: farmerUserId || null,
       sourceId: `task_due_${task._id}_farmer_${todayStr()}`,
     });
@@ -182,7 +178,6 @@ async function taskDueCheck() {
       description: `"${task.work}" (assigned to ${task.personnel?.user?.name || "a Farmer"}) is ${overdue ? "overdue" : "due today"} (${new Date(task.dueDate).toLocaleDateString()}).`,
       category: "todo",
       type: "reminder",
-      priority: overdue ? "High" : "Normal",
       roles: ["Owner"],
       sourceId: `task_due_${task._id}_mgmt_${todayStr()}`,
     });
@@ -217,7 +212,6 @@ async function cullingEligibilityCheck() {
         description: `Batch ${flock.batchId} is eligible for culling: ${reasons.join(", ")}.`,
         category: "age",
         type: "reminder",
-        priority: "Normal",
         roles: ALL_ROLES,
         sourceId: `cull_eligible_${flock.batchId}_${todayStr()}`,
       });
@@ -233,7 +227,6 @@ async function pendingApprovalCheck() {
       description: `${count} new Farmer account(s) waiting for Owner approval.`,
       category: "users",
       type: "alert",
-      priority: "Normal",
       roles: ["Owner"],
       sourceId: `pending_approval_${todayStr()}`,
     });
@@ -246,7 +239,6 @@ function registerNotificationCronJobs() {
       stage: "reminder1",
       title: "Egg Production Reminder",
       message: (batchId) => `Egg production has not yet been recorded today for Batch ${batchId}.`,
-      priority: "Low",
     }).catch((e) => console.error("Egg reminder (10AM) failed:", e))
   );
 
@@ -255,7 +247,6 @@ function registerNotificationCronJobs() {
       stage: "reminder2",
       title: "Egg Production Reminder",
       message: (batchId) => `Reminder: egg production for Batch ${batchId} has not yet been recorded today.`,
-      priority: "Low",
     }).catch((e) => console.error("Egg reminder (2PM) failed:", e))
   );
 
@@ -264,7 +255,6 @@ function registerNotificationCronJobs() {
       stage: "reminder3",
       title: "Final Egg Production Reminder",
       message: (batchId) => `Final reminder: please record today's egg production for Batch ${batchId}.`,
-      priority: "Normal",
     }).catch((e) => console.error("Egg reminder (6PM) failed:", e))
   );
 
@@ -273,7 +263,6 @@ function registerNotificationCronJobs() {
       stage: "alert",
       title: "Egg Production Not Recorded",
       message: (batchId) => `Egg production has not been recorded today for Batch ${batchId}.`,
-      priority: "Normal",
       isFinalAlert: true,
     }).catch((e) => console.error("Egg alert (11:59PM) failed:", e))
   );

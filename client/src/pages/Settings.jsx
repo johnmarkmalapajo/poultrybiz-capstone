@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useSearchParams, useLocation } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import "./Settings.css";
@@ -49,6 +50,7 @@ const ALL_CARDS = [
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const { t } = useLanguage();
 
   const { isManagement, isOwner } = useUser();
 
@@ -99,8 +101,8 @@ export default function Settings() {
               </div>
 
               <div className="st-card-body">
-                <span className="st-card-label">{card.label}</span>
-                <span className="st-card-desc">{card.description}</span>
+                <span className="st-card-label">{t(card.label)}</span>
+                <span className="st-card-desc">{t(card.description)}</span>
               </div>
 
               <span className="st-card-arrow">›</span>

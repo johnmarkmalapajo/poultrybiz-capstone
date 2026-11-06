@@ -12,6 +12,7 @@ import {
   convertFeedQuantity,
   sackWeightHint,
 } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 
@@ -142,6 +143,7 @@ function computeConsumedKg(qty, plan) {
 }
 
 export default function AddFeedConsumption() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   const [batches, setBatches] = useState([]);
@@ -243,7 +245,7 @@ export default function AddFeedConsumption() {
     if (e.target.type === "date") {
       if (e.target.max && value > e.target.max) {
         value = e.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -320,7 +322,7 @@ export default function AddFeedConsumption() {
     if (saving) return;
 
     if (form.date > getTodayDateString()) {
-      setError("The date cannot be in the future.");
+      setError(tr("The date cannot be in the future."));
       return;
     }
 
@@ -328,7 +330,7 @@ export default function AddFeedConsumption() {
       !QUANTITY_PATTERN.test(String(form.quantityConsumed)) ||
       Number(form.quantityConsumed) <= 0
     ) {
-      setError("Please enter a valid quantity greater than 0 (up to 2 decimal places).");
+      setError(tr("Please enter a valid quantity greater than 0 (up to 2 decimal places)."));
       return;
     }
 
@@ -364,8 +366,8 @@ export default function AddFeedConsumption() {
       navigate("/inventory/feed-consumption");
     } catch (err) {
       setError(
-        err?.message ||
-          "Couldn't save this record. Please try again."
+        tr(err?.message ||
+          "Couldn't save this record. Please try again.")
       );
 
       setSaving(false);
@@ -403,14 +405,13 @@ export default function AddFeedConsumption() {
 
         <div className="afc-section-header">
           <FiInfo />
-          <h3>CONSUMPTION DETAILS</h3>
+          <h3>{tr("CONSUMPTION DETAILS")}</h3>
           <div className="afc-line"></div>
         </div>
 
         <div className="afc-form-grid">
           <div className="afc-form-group">
-            <label>
-              Date <span className="afc-req">*</span>
+            <label>{tr("Date")}{" "}<span className="afc-req">*</span>
             </label>
 
             <input
@@ -424,8 +425,7 @@ export default function AddFeedConsumption() {
           </div>
 
           <div className="afc-form-group">
-            <label>
-              Batch ID <span className="afc-req">*</span>
+            <label>{tr("Batch ID")}{" "}<span className="afc-req">*</span>
             </label>
 
             <select
@@ -449,8 +449,7 @@ export default function AddFeedConsumption() {
           </div>
 
           <div className="afc-form-group">
-            <label>
-              Feed Type <span className="afc-req">*</span>
+            <label>{tr("Feed Type")}{" "}<span className="afc-req">*</span>
             </label>
 
             <select
@@ -459,9 +458,7 @@ export default function AddFeedConsumption() {
               onChange={handleChange}
               required
             >
-              <option value="">
-                Select feed type
-              </option>
+              <option value="">{tr("Select feed type")}</option>
 
               {FEED_TYPES.map((type) => (
                 <option key={type} value={type}>
@@ -472,8 +469,7 @@ export default function AddFeedConsumption() {
           </div>
 
           <div className="afc-form-group">
-  <label>
-    Quantity Consumed{" "}
+  <label>{tr("Quantity Consumed")}{" "}
     <span className="afc-req">*</span>
   </label>
 
@@ -487,7 +483,7 @@ export default function AddFeedConsumption() {
       onChange={handleChange}
       onKeyDown={blockInvalidQuantityKeys}
       onPaste={blockInvalidQuantityPaste}
-      placeholder="Enter quantity"
+      placeholder={tr("Enter quantity")}
       required
     />
 
@@ -495,10 +491,10 @@ export default function AddFeedConsumption() {
       name="quantityUnit"
       value={form.quantityUnit}
       onChange={handleChange}
-      aria-label="Quantity unit"
+      aria-label={tr("Quantity unit")}
     >
-      <option value="kg">kg</option>
-      <option value="sacks">sacks</option>
+      <option value="kg">{tr("kg")}</option>
+      <option value="sacks">{tr("sacks")}</option>
     </select>
   </div>
 
@@ -520,19 +516,19 @@ export default function AddFeedConsumption() {
 
         <div className="afc-section-header">
           <FiFileText />
-          <h3>ADDITIONAL INFORMATION</h3>
+          <h3>{tr("ADDITIONAL INFORMATION")}</h3>
           <div className="afc-line"></div>
         </div>
 
         <div className="afc-form-group afc-full-width">
-          <label>Notes</label>
+          <label>{tr("Notes")}</label>
 
           <textarea
             rows="6"
             name="notes"
             value={form.notes}
             onChange={handleChange}
-            placeholder="Enter notes about this consumption..."
+            placeholder={tr("Enter notes about this consumption...")}
             maxLength={255}
           />
 
@@ -544,7 +540,7 @@ export default function AddFeedConsumption() {
         {/* Same layout as the Flock Profile form: required-field note on the
             left, Cancel and Save grouped on the right. */}
         <div className="afc-form-actions">
-          <p className="afc-req-note">Fields with * are required.</p>
+          <p className="afc-req-note">{tr("Fields with * are required.")}</p>
           <div className="afc-action-btns">
             <button
               type="button"
@@ -554,8 +550,7 @@ export default function AddFeedConsumption() {
               }
               disabled={saving}
             >
-              <FiX /> Cancel
-            </button>
+              <FiX />{" "}{tr("Cancel")}</button>
 
             <button
               type="submit"

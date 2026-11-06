@@ -12,6 +12,7 @@ import {
 } from "react-icons/fi";
 import "./Notifications.css";
 import PageLayout from "../components/PageLayout";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CATEGORIES = {
   egg:        { label: "Egg Production",  icon: "🥚", redirect: "/records/egg" },
@@ -41,9 +42,9 @@ function timeAgo(ts) {
 function fullDate(ts) {
   return new Date(ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
 }
-const prioText = (p) => (p === "critical" ? "🔴 Critical" : p === "warning" ? "🟡 Warning" : "🔵 Normal");
 
 export default function Notifications() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { role } = useUser();
   const [items, setItems] = useState([]);
@@ -66,7 +67,7 @@ export default function Notifications() {
     fetchNotifications();
     const update = () => setItems(getCachedNotifs(role));
     return subscribeNotifs(update);
-  }, [role]);
+  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allowedItems = role === "Farmer" ? items.filter((n) => FARMER_ALLOWED_CATEGORIES.includes(n.category)) : items;
   console.log("Role:", role);
@@ -117,10 +118,10 @@ export default function Notifications() {
         {}
         <div className="nt-tabs">
           <button className={`nt-tab ${tab === "alert" ? "active" : ""}`} onClick={() => setTab("alert")}>
-            <FiAlertTriangle /> Alerts {unreadAlerts > 0 && <span className="nt-tab-count">{unreadAlerts}</span>}
+            <FiAlertTriangle />{" "}{tr("Alerts")}{" "}{unreadAlerts > 0 && <span className="nt-tab-count">{unreadAlerts}</span>}
           </button>
           <button className={`nt-tab ${tab === "reminder" ? "active" : ""}`} onClick={() => setTab("reminder")}>
-            <FiCalendar /> Reminders {unreadReminders > 0 && <span className="nt-tab-count">{unreadReminders}</span>}
+            <FiCalendar />{" "}{tr("Reminders")}{" "}{unreadReminders > 0 && <span className="nt-tab-count">{unreadReminders}</span>}
           </button>
         </div>
 
@@ -128,7 +129,7 @@ export default function Notifications() {
         <div className="nt-toolbar">
           <div className="nt-search">
             <FiSearch />
-            <input placeholder="Search notifications..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input placeholder={tr("Search notifications...")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="nt-filters">
             <div className="nt-segment">
@@ -139,10 +140,9 @@ export default function Notifications() {
               ))}
             </div>
             <button className="nt-markall" onClick={markAllRead} disabled={(tab === "alert" ? unreadAlerts : unreadReminders) === 0}>
-              <FiCheckCircle /> Mark all as read
-            </button>
+              <FiCheckCircle />{" "}{tr("Mark all as read")}</button>
             <select className="nt-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="all">All categories</option>
+              <option value="all">{tr("All categories")}</option>
               {tabCategories.map((c) => (<option key={c} value={c}>{CATEGORIES[c]?.icon} {CATEGORIES[c]?.label}</option>))}
             </select>
           </div>
@@ -153,43 +153,38 @@ export default function Notifications() {
         {}
         <div className="nt-table">
           <div className="nt-thead">
-            <span>Notification</span>
-            <span>Priority</span>
-            <span>Date &amp; Time</span>
-            <span>Status</span>
+            <span>{tr("Notification")}</span>
+            <span>{tr("Date & Time")}</span>
+            <span>{tr("Status")}</span>
             <span></span>
           </div>
 
           {loading && (
             <div className="nt-empty">
               <FiBell />
-              <h3>Loading…</h3>
+              <h3>{tr("Loading…")}</h3>
             </div>
           )}
 
           {!loading && visible.length === 0 && (
             <div className="nt-empty">
               <FiBell />
-              <h3>No {tab === "alert" ? "alerts" : "reminders"} found</h3>
-              <p>You're all caught up. New {tab === "alert" ? "alerts" : "reminders"} will appear here.</p>
+              <h3>{tr("No {type} found", { type: tr(tab === "alert" ? "alerts" : "reminders") })}</h3>
+              <p>{tr("You're all caught up. New {type} will appear here.", { type: tr(tab === "alert" ? "alerts" : "reminders") })}</p>
             </div>
           )}
 
           {!loading && visible.map((n) => {
             const cat = CATEGORIES[n.category] || { icon: "🔔", label: n.category || "General" };
             return (
-              <div key={n.id} className={`nt-row ${n.read ? "read" : "unread"} prio-${n.priority}`}>
+              <div key={n.id} className={`nt-row ${n.read ? "read" : "unread"}`}>
                 <div className="nt-cell-main">
                   <div className="nt-cat-icon">{cat.icon}</div>
                   <div className="nt-cell-text">
-                    <h4>{!n.read && <span className="nt-dot" />}{n.title}</h4>
-                    <p>{n.description}</p>
+                    <h4>{!n.read && <span className="nt-dot" />}{tr(n.title)}</h4>
+                    <p>{tr(n.description)}</p>
                     <span className="nt-source">{cat.icon} {cat.label}</span>
                   </div>
-                </div>
-
-                <div className="nt-cell" data-label="Priority">
-                  <span className={`nt-prio prio-${n.priority}`}>{prioText(n.priority)}</span>
                 </div>
 
                 <div className="nt-cell nt-datetime" data-label="Date & Time">
@@ -202,9 +197,9 @@ export default function Notifications() {
                 </div>
 
                 <div className="nt-cell nt-actions">
-                  <button className="nt-view" onClick={() => openNotif(n)} title="View">View <FiChevronRight /></button>
-                  {!n.read && <button className="nt-icon-btn" onClick={() => markRead(n.id)} title="Mark as read"><FiCheck /></button>}
-                  <button className="nt-icon-btn danger" onClick={() => remove(n.id)} title="Delete"><FiTrash2 /></button>
+                  <button className="nt-view" onClick={() => openNotif(n)} title={tr("View")}>{tr("View")}{" "}<FiChevronRight /></button>
+                  {!n.read && <button className="nt-icon-btn" onClick={() => markRead(n.id)} title={tr("Mark as read")}><FiCheck /></button>}
+                  <button className="nt-icon-btn danger" onClick={() => remove(n.id)} title={tr("Delete")}><FiTrash2 /></button>
                 </div>
               </div>
             );

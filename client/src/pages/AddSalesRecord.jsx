@@ -1,5 +1,5 @@
 import { phToday } from "../phDate";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX, FiUserPlus } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
@@ -7,10 +7,13 @@ import "./AddSalesRecord.css";
 import { createSalesRecord, getEggStockSummary } from "../api/salesRecord";
 import { listCustomers } from "../api/customers";
 import SaleItemsEditor, { emptyItem, validateItems } from "../components/SaleItemsEditor";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_CUSTOMER_VALUE = "__new__";
 
 export default function AddSalesRecord() {
+  const { t: tr } = useLanguage();
+  const submitLock = useRef(false); // blocks a second click before React re-renders
   const navigate = useNavigate();
 
   const [dateOfSale, setDateOfSale] = useState(phToday());
@@ -65,17 +68,17 @@ export default function AddSalesRecord() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (dateOfSale && dateOfSale > todayStr()) {
-      setError("Date cannot be a future date.");
+      setError(tr("Date cannot be a future date."));
       return;
     }
-    if (loading || window.__pbSaving) return;
+    if (loading || submitLock.current) return;
 
     if (!customerId) {
-      setError("Please select a Buyer/Customer, or add a new one.");
+      setError(tr("Please select a Buyer/Customer, or add a new one."));
       return;
     }
     if (isNewCustomer && !newCustomer.name.trim()) {
-      setError("Please enter the new customer's name.");
+      setError(tr("Please enter the new customer's name."));
       return;
     }
     const itemsError = validateItems(items);
@@ -84,7 +87,7 @@ export default function AddSalesRecord() {
       return;
     }
     if (anyStockExceeded) {
-      setError("One or more egg sets exceed current available stock. Please adjust the quantities.");
+      setError(tr("One or more egg sets exceed current available stock. Please adjust the quantities."));
       return;
     }
 
@@ -100,17 +103,17 @@ export default function AddSalesRecord() {
       ...(isNewCustomer ? { newCustomer } : { customerId }),
     };
 
-    window.__pbSaving = true;
+    submitLock.current = true;
     setLoading(true); setError(""); setSuccess("");
     try {
       await createSalesRecord(payload);
-      setSuccess("Sales record saved successfully!");
+      setSuccess(tr("Sales record saved successfully!"));
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/sales-transactions/sales"), 1200);
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
     } finally {
-      window.__pbSaving = false;
+      submitLock.current = false;
       setLoading(false);
     }
   };
@@ -131,13 +134,13 @@ export default function AddSalesRecord() {
 
           <div className="asr-section-header">
             <FiInfo />
-            <h3>BASIC INFORMATION</h3>
+            <h3>{tr("BASIC INFORMATION")}</h3>
             <div className="asr-line" />
           </div>
 
           <div className="asr-form-grid">
             <div className="asr-form-group">
-              <label>Date of Sale <span className="req">*</span></label>
+              <label>{tr("Date of Sale")}{" "}<span className="req">*</span></label>
               <input
                 type="date"
                 value={dateOfSale}
@@ -146,7 +149,7 @@ export default function AddSalesRecord() {
                   const v = e.target.value;
                   if (v > todayStr()) {
                     setDateOfSale(todayStr());
-                    setError("Date cannot be a future date.");
+                    setError(tr("Date cannot be a future date."));
                   } else {
                     setDateOfSale(v);
                     setError("");
@@ -154,45 +157,45 @@ export default function AddSalesRecord() {
                 }}
                 required
               />
-              <small>Select the date of the sale.</small>
+              <small>{tr("Select the date of the sale.")}</small>
             </div>
 
             <div className="asr-form-group">
-              <label>Buyer / Customer <span className="req">*</span></label>
+              <label>{tr("Buyer / Customer")}{" "}<span className="req">*</span></label>
               <select
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
                 required
               >
-                <option value="">Select buyer/customer</option>
+                <option value="">{tr("Select buyer/customer")}</option>
                 {customers.map((c) => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
-                <option value={NEW_CUSTOMER_VALUE}>+ New Customer</option>
+                <option value={NEW_CUSTOMER_VALUE}>{tr("+ New Customer")}</option>
               </select>
-              <small>Previously recorded customers appear here automatically.</small>
+              <small>{tr("Previously recorded customers appear here automatically.")}</small>
             </div>
           </div>
 
           {isNewCustomer && (
             <div className="asr-form-grid">
               <div className="asr-form-group">
-                <label>Customer Name <span className="req">*</span></label>
+                <label>{tr("Customer Name")}{" "}<span className="req">*</span></label>
                 <input
                   type="text"
                   value={newCustomer.name}
                   onChange={(e) => setNewCustomer({ name: e.target.value })}
-                  placeholder="e.g. Juan Dela Cruz"
+                  placeholder={tr("e.g. Juan Dela Cruz")}
                   required
                 />
-                <small><FiUserPlus /> This customer will be saved and available for future sales.</small>
+                <small><FiUserPlus />{" "}{tr("This customer will be saved and available for future sales.")}</small>
               </div>
             </div>
           )}
 
           <div className="asr-section-header">
             <FiShoppingCart />
-            <h3>SALE DETAILS</h3>
+            <h3>{tr("SALE DETAILS")}</h3>
             <div className="asr-line" />
           </div>
 
@@ -200,23 +203,23 @@ export default function AddSalesRecord() {
 
           <div className="asr-section-header">
             <FiFileText />
-            <h3>ADDITIONAL DETAILS (OPTIONAL)</h3>
+            <h3>{tr("ADDITIONAL DETAILS (OPTIONAL)")}</h3>
             <div className="asr-line" />
           </div>
 
           <div className="asr-form-group asr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea
               rows="5"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter any notes or additional information..."
+              placeholder={tr("Enter any notes or additional information...")}
             />
-            <small>Add any remarks about this sale (optional).</small>
+            <small>{tr("Add any remarks about this sale (optional).")}</small>
           </div>
 
           <div className="asr-form-actions">
-            <p className="asr-required-note">* Fields with an asterisk are required.</p>
+            <p className="asr-required-note">{tr("* Fields with an asterisk are required.")}</p>
             <div className="asr-action-btns">
               <button
                 type="button"
@@ -224,8 +227,7 @@ export default function AddSalesRecord() {
                 onClick={() => navigate("/sales-transactions/sales")}
                 disabled={loading}
               >
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="asr-save-btn" disabled={loading || !!success || anyStockExceeded}>
                 <FiSave />
                 {loading ? "Saving..." : "Save Record"}

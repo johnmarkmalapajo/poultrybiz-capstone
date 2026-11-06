@@ -5,8 +5,10 @@ import { useUser } from "../hooks/useUser";
 import { logReportExport } from "../api/reports";
 import { canExportModule } from "../exportPermissions";
 import ExportPreviewModal from "./ExportPreviewModal";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function ExportMenu({ rows = [], name = "export", title = "PoultryBiz Report", columns, meta = null, pdfExtra = {}, moduleLabel, filters = {}, enablePreview = false, className = "toolbar-btn" }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -45,7 +47,7 @@ export default function ExportMenu({ rows = [], name = "export", title = "Poultr
   const doExport = (kind) => {
     if (busy) return;
     const { headers, data } = build();
-    if (!data.length) { alert("No records available to export."); setOpen(false); return; }
+    if (!data.length) { alert(tr("No records available to export.")); setOpen(false); return; }
 
     if (enablePreview && (kind === "pdf" || kind === "excel")) {
       setPreview({ headers, data });

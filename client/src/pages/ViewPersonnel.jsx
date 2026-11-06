@@ -16,6 +16,7 @@ import { listPersonalTodos } from "../api/todo";
 import { assignTask, addPersonalTodo } from "../todoStore";
 import { getAccessibleCategories } from "../moduleRegistry";
 import { useUser } from "../hooks/useUser";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const prof = (r) => {
   if (!r) return {};
@@ -79,6 +80,7 @@ const getHired = (r) => {const date = r?.dateHired || r?.hired || r?.createdAt; 
 const getAccountRole = (r) => r?.accountRole || r?.userRole || r?.userType || r?.role || r?.user?.role || r?.profile?.role || "";
 
 export default function ViewPersonnel() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { isOwner, canSeeFinancials, canViewPersonnel, user: currentUser } = useUser();
   const { id } = useParams();
@@ -97,7 +99,7 @@ export default function ViewPersonnel() {
   const [personalTasksForRecord, setPersonalTasksForRecord] = useState([]);
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmLogo: "" });
   const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: "", type: "", priority: "Medium", due: "" });
+  const [taskForm, setTaskForm] = useState({ title: "", type: "", due: "" });
   const [savingTask, setSavingTask] = useState(false);
   const [taskFormError, setTaskFormError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -131,9 +133,9 @@ export default function ViewPersonnel() {
       .then((d) => {
         const rec = d && (d.record || d.data || d);
         if (rec && (rec._id || rec.profile || rec.fullName || rec.name)) setRecord(rec);
-        else setError("Personnel record not found.");
+        else setError(tr("Personnel record not found."));
       })
-      .catch((err) => setError(err?.message || "Couldn't load this personnel record."))
+      .catch((err) => setError(tr(err?.message || "Couldn't load this personnel record.")))
       .finally(() => setLoading(false));
 
     getPersonnelAttendance(id)
@@ -144,7 +146,7 @@ export default function ViewPersonnel() {
       .catch(() => setAttendance([]));
 
     refreshAssignedTasksForRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshAssignedTasksForRecord = () => {
     getPersonnelTasks(id)
@@ -182,13 +184,6 @@ export default function ViewPersonnel() {
   const statusBadge = (status) => (
     <span className={`badge ${String(status).toLowerCase().replace(/\s+/g, "-")}`}>{status}</span>
   );
-
-  const priorityBadge = (priority) =>
-    priority ? (
-      <span className={`badge prio-${String(priority).toLowerCase()}`}>{priority}</span>
-    ) : (
-      "—"
-    );
 
   const RANGE_DAYS = { week: 7, month: 31, year: 366 };
   const RANGE_LABEL = { week: "This Week", month: "This Month", year: "This Year" };
@@ -235,7 +230,7 @@ export default function ViewPersonnel() {
     .filter((c) => isTargetOwner || c !== "Flock Profile");
   const openTaskModal = () => {
     setTaskFormError("");
-    setTaskForm({ title: "", type: myAccessibleCategories[0] || "", priority: "Medium", due: "" });
+    setTaskForm({ title: "", type: myAccessibleCategories[0] || "", due: "" });
     setTaskModalOpen(true);
   };
   const saveTaskModal = async () => {
@@ -245,12 +240,12 @@ export default function ViewPersonnel() {
     try {
       if (isSelfRecord) {
         await addPersonalTodo(currentUser?.id, {
-          title: taskForm.title.trim(), type: taskForm.type, priority: taskForm.priority, dueDate: taskForm.due,
+          title: taskForm.title.trim(), type: taskForm.type, dueDate: taskForm.due,
         });
         refreshPersonalTasksForRecord();
       } else {
         await assignTask(id, {
-          title: taskForm.title.trim(), type: taskForm.type, priority: taskForm.priority, dueDate: taskForm.due,
+          title: taskForm.title.trim(), type: taskForm.type, dueDate: taskForm.due,
         }, currentUser?.name || "Owner");
         refreshAssignedTasksForRecord();
       }
@@ -280,7 +275,7 @@ export default function ViewPersonnel() {
           </div>
         )}
         {loading && !record && (
-          <p className="pb-loading-text">Loading personnel record...</p>
+          <p className="pb-loading-text">{tr("Loading personnel record...")}</p>
         )}
 
         <div className="vp-profile-card">
@@ -299,25 +294,25 @@ export default function ViewPersonnel() {
 
               <div className="vp-profile-grid">
                 <div>
-                  <p><FiUser /> Position / Role</p>
+                  <p><FiUser />{" "}{tr("Position / Role")}</p>
                   <h4>{getPosition(record)}</h4>
                 </div>
                 <div>
-                  <p><FiPhone /> Contact Number</p>
+                  <p><FiPhone />{" "}{tr("Contact Number")}</p>
                   <h4>{getContact(record)}</h4>
                 </div>
                 {!isTargetOwner && (
                   <>
                     <div>
-                      <p><FiClock /> Shift / Duty Hours</p>
+                      <p><FiClock />{" "}{tr("Shift / Duty Hours")}</p>
                       <h4>{getShift(record)}</h4>
                     </div>
                     <div>
-                      <p><FiCalendar /> Date Hired</p>
+                      <p><FiCalendar />{" "}{tr("Date Hired")}</p>
                       <h4>{getHired(record)}</h4>
                     </div>
                     <div>
-                      <p><FiMapPin /> Status</p>
+                      <p><FiMapPin />{" "}{tr("Status")}</p>
                       <h4>{statusBadge(getStatus(record))}</h4>
                     </div>
                   </>
@@ -329,8 +324,7 @@ export default function ViewPersonnel() {
           <div className="vp-header-actions">
             {canEditRecord && (
               <button className="vp-edit-btn" onClick={() => navigate(`/personnel-visitors/personnel/edit/${id}`)}>
-                <FiEdit2 /> Edit Profile
-              </button>
+                <FiEdit2 />{" "}{tr("Edit Profile")}</button>
             )}
           </div>
         </div>
@@ -338,31 +332,27 @@ export default function ViewPersonnel() {
         <div className="vp-stats-grid">
           <div className="vp-stat-card">
             <div className="vp-stat-icon green"><MdOutlineFactCheck /></div>
-            <div><h2>{present}</h2><h4>Days Present</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{present}</h2><h4>{tr("Days Present")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon red"><MdOutlineCancel /></div>
-            <div><h2>{absent}</h2><h4>Days Absent</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{absent}</h2><h4>{tr("Days Absent")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon orange"><MdOutlineAccessTime /></div>
-            <div><h2>{late}</h2><h4>Days Late</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{late}</h2><h4>{tr("Days Late")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon blue"><MdOutlineAssignmentTurnedIn /></div>
-            <div><h2>{tasksCompleted}</h2><h4>Tasks Completed</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{tasksCompleted}</h2><h4>{tr("Tasks Completed")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
           </div>
         </div>
 
         <div className="vp-table-top">
           <div className="vp-tabs">
-            <button className={activeTab === "attendance" ? "active" : ""} onClick={() => setActiveTab("attendance")}>
-              Attendance
-            </button>
+            <button className={activeTab === "attendance" ? "active" : ""} onClick={() => setActiveTab("attendance")}>{tr("Attendance")}</button>
             {canManageTasks && (
-              <button className={activeTab === "tasks" ? "active" : ""} onClick={() => setActiveTab("tasks")}>
-                Tasks
-              </button>
+              <button className={activeTab === "tasks" ? "active" : ""} onClick={() => setActiveTab("tasks")}>{tr("Tasks")}</button>
             )}
           </div>
           <div className="vp-table-actions">
@@ -394,9 +384,7 @@ export default function ViewPersonnel() {
                   <button
                     className={`vp-dd-item ${filterStatus === "all" ? "active" : ""}`}
                     onClick={() => { setFilterStatus("all"); setShowFilter(false); }}
-                  >
-                    All
-                  </button>
+                  >{tr("All")}</button>
                   {filterOptions.map((s) => (
                     <button
                       key={s}
@@ -426,17 +414,17 @@ export default function ViewPersonnel() {
             <table className="vp-table">
               <thead>
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Date</th>
-                  <th>Time In</th>
-                  <th>Time Out</th>
-                  <th>Attendance</th>
-                  <th>Remarks</th>
+                  <th>{tr("Timestamp")}</th>
+                  <th>{tr("Date")}</th>
+                  <th>{tr("Time In")}</th>
+                  <th>{tr("Time Out")}</th>
+                  <th>{tr("Attendance")}</th>
+                  <th>{tr("Remarks")}</th>
                 </tr>
               </thead>
               <tbody>
                 {attendanceView.length === 0 ? (
-                  <tr><td colSpan="6" className="vp-empty">No attendance records for this range.</td></tr>
+                  <tr><td colSpan="6" className="vp-empty">{tr("No attendance records for this range.")}</td></tr>
                 ) : (
                   attendanceView.map((a, i) => (
 <tr key={a._id || i}>
@@ -486,33 +474,31 @@ export default function ViewPersonnel() {
           ) : (
             <div className="vp-task-sections">
               <div className="vp-task-section">
-                <div className="vp-task-section-title">Personal Tasks</div>
+                <div className="vp-task-section-title">{tr("Personal Tasks")}</div>
                 <table className="vp-table">
                   <thead>
                     <tr>
-                      <th>Category</th>
-                      <th>Task Title</th>
-                      <th>Priority</th>
-                      <th>Due Date</th>
-                      <th>Status</th>
-                      {isSelfRecord && <th>Actions</th>}
+                      <th>{tr("Category")}</th>
+                      <th>{tr("Task Title")}</th>
+                      <th>{tr("Due Date")}</th>
+                      <th>{tr("Status")}</th>
+                      {isSelfRecord && <th>{tr("Actions")}</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {personalTasksView.length === 0 ? (
-                      <tr><td colSpan={isSelfRecord ? "6" : "5"} className="vp-empty">No personal tasks for this range.</td></tr>
+                      <tr><td colSpan={isSelfRecord ? "5" : "4"} className="vp-empty">{tr("No personal tasks for this range.")}</td></tr>
                     ) : (
                       personalTasksView.map((t, i) => (
                         <tr key={t._id || i}>
                           <td>{t.type || t.module || "—"}</td>
                           <td>{t.title || "—"}</td>
-                          <td>{priorityBadge(t.priority)}</td>
                           <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
                           <td>{statusBadge(t.status || "—")}</td>
                           {isSelfRecord && (
                             <td>
                               {t.status !== "Completed" && (
-                                <button className="vp-row-edit" title="Manage in My Tasks" onClick={() => navigate("/todo")}>
+                                <button className="vp-row-edit" title={tr("Manage in My Tasks")} onClick={() => navigate("/todo")}>
                                   <FiEdit2 />
                                 </button>
                               )}
@@ -526,29 +512,27 @@ export default function ViewPersonnel() {
               </div>
 
               <div className="vp-task-section">
-                <div className="vp-task-section-title">Assigned Tasks</div>
+                <div className="vp-task-section-title">{tr("Assigned Tasks")}</div>
                 <table className="vp-table">
                   <thead>
                     <tr>
-                      <th>Assigned By</th>
-                      <th>Category</th>
-                      <th>Task Title</th>
-                      <th>Priority</th>
-                      <th>Due Date</th>
-                      <th>Status</th>
-                      {showTaskActionsColumn && <th>Actions</th>}
+                      <th>{tr("Assigned By")}</th>
+                      <th>{tr("Category")}</th>
+                      <th>{tr("Task Title")}</th>
+                      <th>{tr("Due Date")}</th>
+                      <th>{tr("Status")}</th>
+                      {showTaskActionsColumn && <th>{tr("Actions")}</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {assignedTasksView.length === 0 ? (
-                      <tr><td colSpan={showTaskActionsColumn ? "7" : "6"} className="vp-empty">No assigned tasks for this range.</td></tr>
+                      <tr><td colSpan={showTaskActionsColumn ? "6" : "5"} className="vp-empty">{tr("No assigned tasks for this range.")}</td></tr>
                     ) : (
                       assignedTasksView.map((t, i) => (
                         <tr key={t._id || i}>
                           <td>{t.assignedBy || "—"}</td>
                           <td>{t.type || t.module || "—"}</td>
                           <td>{t.title || t.work || t.task || "—"}</td>
-                          <td>{priorityBadge(t.priority)}</td>
                           <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
                           <td>{statusBadge(t.status || "—")}</td>
                           {showTaskActionsColumn && (
@@ -556,7 +540,7 @@ export default function ViewPersonnel() {
                               {isOwner && (
                                 <button
                                   className="vp-row-edit"
-                                  title="Edit task"
+                                  title={tr("Edit task")}
                                   onClick={() => navigate(`/personnel-visitors/personnel/${id}/tasks/edit/${t._id}`)}
                                 >
                                   <FiEdit2 />
@@ -574,7 +558,7 @@ export default function ViewPersonnel() {
           )}
 
           <div className="vp-table-footer">
-            <span>Showing {activeTab === "attendance" ? attendanceView.length : tasksView.length} entries</span>
+            <span>{tr("Showing")}{" "}{activeTab === "attendance" ? attendanceView.length : tasksView.length}{" "}{tr("entries")}</span>
           </div>
         </div>
 
@@ -588,35 +572,33 @@ export default function ViewPersonnel() {
               <div className="todo-modal-body">
                 {!isSelfRecord && (
                   <div className="todo-field">
-                    <label>Assigned To</label>
+                    <label>{tr("Assigned To")}</label>
                     <input value={name} disabled />
                   </div>
                 )}
-                <div className="todo-field"><label>Task Title</label><input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="e.g. Review egg production" /></div>
-                <div className="todo-field"><label>Category</label><select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}>{myAccessibleCategories.map((c) => <option key={c}>{c}</option>)}</select></div>
-                <div className="todo-field"><label>Priority</label><select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
-                <div className="todo-field"><label>Due Date</label><input type="date" value={taskForm.due} onChange={(e) => setTaskForm({ ...taskForm, due: e.target.value })} /></div>
+                <div className="todo-field"><label>{tr("Task Title")}</label><input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder={tr("e.g. Review egg production")} /></div>
+                <div className="todo-field"><label>{tr("Category")}</label><select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}>{myAccessibleCategories.map((c) => <option key={c}>{c}</option>)}</select></div>
+                <div className="todo-field"><label>{tr("Due Date")}</label><input type="date" value={taskForm.due} onChange={(e) => setTaskForm({ ...taskForm, due: e.target.value })} /></div>
 
                 {!isSelfRecord && (
                   <div className="todo-field">
-                    <label>Current Pending Tasks <span className="pw-hint">(workload visibility only — does not block saving)</span></label>
+                    <label>{tr("Current Pending Tasks")}{" "}<span className="pw-hint">{tr("(workload visibility only — does not block saving)")}</span></label>
                     {(pendingPersonalForModal.length === 0 && pendingAssignedForModal.length === 0) ? (
-                      <div className="pw-empty">No pending tasks — this person's workload is currently clear.</div>
+                      <div className="pw-empty">{tr("No pending tasks — this person's workload is currently clear.")}</div>
                     ) : (
                       <div className="pw-widget">
                         {pendingPersonalForModal.length > 0 && (
                           <div className="pw-section">
-                            <div className="pw-section-title">Pending Personal Tasks</div>
+                            <div className="pw-section-title">{tr("Pending Personal Tasks")}</div>
                             <table className="pw-table pw-table-personal">
-                              <thead><tr><th>Category</th><th>Task Title</th><th>Priority</th><th>Due Date</th><th>Status</th></tr></thead>
+                              <thead><tr><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
                               <tbody>
                                 {pendingPersonalForModal.map((t) => (
                                   <tr key={t._id}>
-                                    <td title={t.type}>{t.type || "—"}</td>
+                                    <td title={t.type}>{t.type ? tr(t.type) : "—"}</td>
                                     <td title={t.title}>{t.title}</td>
-                                    <td>{t.priority}</td>
                                     <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
-                                    <td>{t.status}</td>
+                                    <td>{tr(t.status)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -625,18 +607,17 @@ export default function ViewPersonnel() {
                         )}
                         {pendingAssignedForModal.length > 0 && (
                           <div className="pw-section">
-                            <div className="pw-section-title">Pending Assigned Tasks</div>
+                            <div className="pw-section-title">{tr("Pending Assigned Tasks")}</div>
                             <table className="pw-table pw-table-assigned">
-                              <thead><tr><th>Assigned By</th><th>Category</th><th>Task Title</th><th>Priority</th><th>Due Date</th><th>Status</th></tr></thead>
+                              <thead><tr><th>{tr("Assigned By")}</th><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
                               <tbody>
                                 {pendingAssignedForModal.map((t) => (
                                   <tr key={t._id}>
                                     <td title={t.assignedBy}>{t.assignedBy || "—"}</td>
-                                    <td title={t.type}>{t.type || "—"}</td>
+                                    <td title={t.type}>{t.type ? tr(t.type) : "—"}</td>
                                     <td title={t.title}>{t.title}</td>
-                                    <td>{t.priority}</td>
                                     <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
-                                    <td>{t.status}</td>
+                                    <td>{tr(t.status)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -651,7 +632,7 @@ export default function ViewPersonnel() {
                 {taskFormError && <div style={{ color: "#c0392b", fontSize: 12.5 }}>{taskFormError}</div>}
               </div>
               <div className="todo-modal-foot">
-                <button className="todo-btn-cancel" onClick={() => setTaskModalOpen(false)}>Cancel</button>
+                <button className="todo-btn-cancel" onClick={() => setTaskModalOpen(false)}>{tr("Cancel")}</button>
                 <button className="todo-btn-save" onClick={saveTaskModal} disabled={savingTask || !taskForm.title.trim()}>
                   {savingTask ? "Saving…" : isSelfRecord ? "Add Task" : "Assign Task"}
                 </button>

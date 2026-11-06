@@ -14,6 +14,7 @@ import {
   listUsers, approveUser, rejectUser,
   activateUser, deactivateUser, archiveUser,
 } from "../api/users";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const STATUS = {
   Active:   { bg: "#eaf7f1", color: "#2e9e6b" },
@@ -33,6 +34,7 @@ const TABS = [
 ];
 
 export default function UsersRoles({ embedded = false, onBack }) {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
@@ -73,7 +75,7 @@ const refresh = async () => {
     setUsers(data?.users || []);
   } catch (err) {
     setUsers([]);
-    setError(err?.message || "Couldn't load users.");
+    setError(tr(err?.message || "Couldn't load users."));
   } finally {
     setLoading(false);
   }
@@ -154,7 +156,7 @@ const refresh = async () => {
       refresh();
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
     } catch (err) {
-      flash(err?.message || "That action couldn't be completed. Please try again.");
+      flash(tr(err?.message || "That action couldn't be completed. Please try again."));
     }
   };
 
@@ -238,31 +240,30 @@ const refresh = async () => {
         <div className="ur-toolbar-right">
           <div className="ur-search-box">
             <FiSearch />
-            <input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input placeholder={tr("Search...")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
 
           <div className="ur-btn-group">
             <div className="ur-filter-wrap" ref={filterRef}>
               <button className="ur-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                <FiFilter /> Filter
-                {activeFilterCount > 0 && <span className="ur-filter-count">{activeFilterCount}</span>}
+                <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="ur-filter-count">{activeFilterCount}</span>}
               </button>
 
               {showFilter && (
                 <div className="ur-filter-dropdown">
                   <div className="ur-filter-dropdown-header">
-                    <span>Filter Users</span>
-                    <button className="ur-filter-clear" onClick={clearFilters}>Clear All</button>
+                    <span>{tr("Filter Users")}</span>
+                    <button className="ur-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
                   </div>
                   <div className="ur-filter-group">
-                    <label className="ur-filter-label">Role</label>
+                    <label className="ur-filter-label">{tr("Role")}</label>
                     <select className="ur-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                      <option value="All">All Roles</option>
-                      {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                      <option value="All">{tr("All Roles")}</option>
+                      {roles.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
                     </select>
                   </div>
                   <div className="ur-filter-group">
-                    <label className="ur-filter-label">Date Registered</label>
+                    <label className="ur-filter-label">{tr("Date Registered")}</label>
                     <input className="ur-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
                   </div>
                 </div>
@@ -288,25 +289,25 @@ const refresh = async () => {
       <div className="ur-stats-grid">
         <div className="ur-stat-card">
           <div className="ur-stat-icon gold"><FiUsers /></div>
-          <div><h3>{counts.total}</h3><p>Total Users</p><span>All Accounts</span></div>
+          <div><h3>{counts.total}</h3><p>{tr("Total Users")}</p><span>{tr("All Accounts")}</span></div>
         </div>
         {currentRole === "Owner" && (
         <div className="ur-stat-card">
           <div className="ur-stat-icon orange"><FiClock /></div>
             <div>
             <h3>{counts.Pending}</h3>
-              <p>Pending Requests</p>
-            <span>Awaiting Approval</span>
+              <p>{tr("Pending Requests")}</p>
+            <span>{tr("Awaiting Approval")}</span>
           </div>
         </div>
         )}
         <div className="ur-stat-card">
           <div className="ur-stat-icon green"><FiUserCheck /></div>
-          <div><h3>{counts.Active}</h3><p>Active Users</p><span>Can Log In</span></div>
+          <div><h3>{counts.Active}</h3><p>{tr("Active Users")}</p><span>{tr("Can Log In")}</span></div>
         </div>
         <div className="ur-stat-card">
           <div className="ur-stat-icon red"><FiUserX /></div>
-          <div><h3>{counts.Inactive}</h3><p>Inactive Users</p><span>Disabled</span></div>
+          <div><h3>{counts.Inactive}</h3><p>{tr("Inactive Users")}</p><span>{tr("Disabled")}</span></div>
         </div>
       </div>
 
@@ -326,24 +327,24 @@ const refresh = async () => {
         <table className="ur-table">
           <thead>
             <tr>
-              <th className="ur-sortable-th" onClick={() => cycleSort("name")}>User{sortIndicator("name", sortColumn, sortDirection)}</th>
-              <th className="ur-sortable-th" onClick={() => cycleSort("email")}>Email{sortIndicator("email", sortColumn, sortDirection)}</th>
-              <th className="ur-sortable-th" onClick={() => cycleSort("role")}>Role{sortIndicator("role", sortColumn, sortDirection)}</th>
-              <th className="ur-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
-              <th className="ur-sortable-th" onClick={() => cycleSort("createdAt")}>Date Registered{sortIndicator("createdAt", sortColumn, sortDirection)}</th>
-              <th>Actions</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("name")}>{tr("User")}{sortIndicator("name", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("email")}>{tr("Email")}{sortIndicator("email", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("role")}>{tr("Role")}{sortIndicator("role", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+              <th className="ur-sortable-th" onClick={() => cycleSort("createdAt")}>{tr("Date Registered")}{sortIndicator("createdAt", sortColumn, sortDirection)}</th>
+              <th>{tr("Actions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" className="ur-empty-state">Loading users...</td></tr>
+              <tr><td colSpan="6" className="ur-empty-state">{tr("Loading users...")}</td></tr>
             ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan="6" className="ur-empty-state">
                   <div className="ur-empty-content">
                     <FiUsers />
-                    <h3>No users found</h3>
-                    <p>No accounts match this tab or your filters.</p>
+                    <h3>{tr("No users found")}</h3>
+                    <p>{tr("No accounts match this tab or your filters.")}</p>
                   </div>
                 </td>
               </tr>
@@ -363,15 +364,15 @@ const refresh = async () => {
                   </td>
                   <td>{u.email}</td>
                   <td>
-                    <span className="ur-badge">{u.role}</span>
+                    <span className="ur-badge">{tr(u.role)}</span>
                   </td>
                   <td><span className="ur-badge" style={{ background: s.bg, color: s.color }}>{u.status}</span></td>
                   <td>{fmtDate(u.createdAt)}</td>
                   <td>
                     <div className="ur-actions">
                         {u.status === "Pending" && currentRole === "Owner" && (<>
-                      <button className="ur-icon-btn approve" onClick={() => openDecision(u, "approve")} title="Approve" aria-label="Approve" > <FiCheck /> </button>
-                      <button className="ur-icon-btn reject" onClick={() => openDecision(u, "reject")} title="Reject" aria-label="Reject" > <FiX /> </button> </>
+                      <button className="ur-icon-btn approve" onClick={() => openDecision(u, "approve")} title={tr("Approve")} aria-label={tr("Approve")} > <FiCheck /> </button>
+                      <button className="ur-icon-btn reject" onClick={() => openDecision(u, "reject")} title={tr("Reject")} aria-label={tr("Reject")} > <FiX /> </button> </>
                     )}         
                       {(u.status === "Active" || u.status === "Inactive") &&
                          canManageStatus && (
@@ -384,18 +385,15 @@ const refresh = async () => {
                               {u.status === "Active" && (
                                 <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmStatusChange({ user: u, action: "deactivate" }); setOpenMenu(null); }}
                                 >
-                                 <FiSlash /> Deactivate
-                               </button>
+                                 <FiSlash />{" "}{tr("Deactivate")}</button>
                               )}
                               
                               {u.status === "Inactive" && (
                                 <button onClick={() => { setConfirmStatusChange({ user: u, action: "activate" }); setOpenMenu(null); }}>
-                                  <FiRotateCcw /> Activate
-                                </button>
+                                  <FiRotateCcw />{" "}{tr("Activate")}</button>
                               )}
                               <button onClick={() => { setConfirmArchive(u); setOpenMenu(null); }}>
-                                <FiArchive /> Archive
-                              </button>
+                                <FiArchive />{" "}{tr("Archive")}</button>
                             </div>
                           )}
                         </div>
@@ -426,11 +424,11 @@ const refresh = async () => {
       {confirmArchive && (
         <div className="ur-overlay" onClick={() => setConfirmArchive(null)}>
           <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Archive Account?</h3>
-            <p>This will move <strong>"{confirmArchive.name}"</strong> to the <strong>Archive</strong>.<br />They will no longer be able to log in, but all their info is kept.</p>
+            <h3>{tr("Archive Account?")}</h3>
+            <p>{tr("This will move")}{" "}<strong>"{confirmArchive.name}"</strong>{" "}{tr("to the")}{" "}<strong>{tr("Archive")}</strong>.<br />{tr("They will no longer be able to log in, but all their info is kept.")}</p>
             <div className="ur-modal-btns">
-              <button className="ur-mb-cancel" onClick={() => setConfirmArchive(null)}>Cancel</button>
-              <button className="ur-mb-confirm" onClick={doArchive}>Archive</button>
+              <button className="ur-mb-cancel" onClick={() => setConfirmArchive(null)}>{tr("Cancel")}</button>
+              <button className="ur-mb-confirm" onClick={doArchive}>{tr("Archive")}</button>
             </div>
           </div>
         </div>
@@ -447,17 +445,13 @@ const refresh = async () => {
           >
             {confirmDecision.action === "approve" ? (
               <>
-                <h3 id="ur-decision-title">Approve User</h3>
-                <p>
-                  Are you sure you want to approve <strong>"{confirmDecision.user.name}"</strong>'s account?
-                </p>
+                <h3 id="ur-decision-title">{tr("Approve User")}</h3>
+                <p>{tr("Are you sure you want to approve")}{" "}<strong>"{confirmDecision.user.name}"</strong>{tr("'s account?")}</p>
               </>
             ) : (
               <>
-                <h3 id="ur-decision-title">Reject User</h3>
-                <p>
-                  Are you sure you want to reject <strong>"{confirmDecision.user.name}"</strong>'s account? This action will update the user's approval status.
-                </p>
+                <h3 id="ur-decision-title">{tr("Reject User")}</h3>
+                <p>{tr("Are you sure you want to reject")}{" "}<strong>"{confirmDecision.user.name}"</strong>{tr("'s account? This action will update the user's approval status.")}</p>
               </>
             )}
 
@@ -466,9 +460,7 @@ const refresh = async () => {
             )}
 
             <div className="ur-modal-btns">
-              <button className="ur-mb-cancel" onClick={closeDecision} disabled={decisionSaving}>
-                Cancel
-              </button>
+              <button className="ur-mb-cancel" onClick={closeDecision} disabled={decisionSaving}>{tr("Cancel")}</button>
               <button
                 className={`ur-mb-confirm ${confirmDecision.action === "approve" ? "approve" : "reject"}`}
                 onClick={submitDecision}
@@ -489,17 +481,17 @@ const refresh = async () => {
           <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
             {confirmStatusChange.action === "deactivate" ? (
               <>
-                <h3>Deactivate Account?</h3>
-                <p>This will disable <strong>"{confirmStatusChange.user.name}"</strong>'s account.<br />They will no longer be able to log in until reactivated.</p>
+                <h3>{tr("Deactivate Account?")}</h3>
+                <p>{tr("This will disable")}{" "}<strong>"{confirmStatusChange.user.name}"</strong>{tr("'s account.")}<br />{tr("They will no longer be able to log in until reactivated.")}</p>
               </>
             ) : (
               <>
-                <h3>Activate Account?</h3>
-                <p>This will restore <strong>"{confirmStatusChange.user.name}"</strong>'s access.<br />They will be able to log in again.</p>
+                <h3>{tr("Activate Account?")}</h3>
+                <p>{tr("This will restore")}{" "}<strong>"{confirmStatusChange.user.name}"</strong>{tr("'s access.")}<br />{tr("They will be able to log in again.")}</p>
               </>
             )}
             <div className="ur-modal-btns">
-              <button className="ur-mb-cancel" onClick={() => setConfirmStatusChange(null)}>Cancel</button>
+              <button className="ur-mb-cancel" onClick={() => setConfirmStatusChange(null)}>{tr("Cancel")}</button>
               <button className="ur-mb-confirm" onClick={doStatusChange}>
                 {confirmStatusChange.action === "deactivate" ? "Deactivate" : "Activate"}
               </button>

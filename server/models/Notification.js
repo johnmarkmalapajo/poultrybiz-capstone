@@ -42,14 +42,6 @@ const notificationSchema = new mongoose.Schema(
      default: false,
     },
 
-    // Alert severity: Critical (needs immediate attention), Warning
-    // (should be looked at soon), Normal (informational/routine).
-    priority: {
-      type: String,
-      enum: ["Critical", "Warning", "Normal"],
-      default: "Normal",
-    },
-
 
     referenceId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -17,8 +17,10 @@ import { listHealthRecords } from "../api/healthRecord";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function HealthRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -51,10 +53,10 @@ export default function HealthRecord() {
         const linked = viewId ? mapped.find((r) => String(r._id) === viewId) : null;
         if (linked) setViewRecord(linked);
       })
-      .catch((err) => { setAllRecords([]); setError(err?.message || "Couldn't load health records."); })
+      .catch((err) => { setAllRecords([]); setError(tr(err?.message || "Couldn't load health records.")); })
       .finally(() => setLoading(false));
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isVaxRec = (r) =>
     ["Vaccination", "Medication", "Vitamin Administration"].includes(r.recordType);
@@ -79,9 +81,9 @@ export default function HealthRecord() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -251,9 +253,7 @@ export default function HealthRecord() {
     if (!text) return "—";
     if (text.length <= 15) return text;
     return (
-      <button type="button" className="hr-view-remarks-link" onClick={() => setViewRecord(record)}>
-        View Remarks
-      </button>
+      <button type="button" className="hr-view-remarks-link" onClick={() => setViewRecord(record)}>{tr("View Remarks")}</button>
     );
   };
   const diagnosisReportRows = filteredDiagnosis.map((r) => ({
@@ -308,7 +308,7 @@ export default function HealthRecord() {
         <div className="hr-toolbar">
           {!isDiagnosis && (
             <button className="hr-add-btn" onClick={() => navigate(addPath)}>
-              <FiPlus /> {addLabel}
+              <FiPlus /> {tr(addLabel)}
             </button>
           )}
           <div className="hr-toolbar-right">
@@ -316,7 +316,7 @@ export default function HealthRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -324,37 +324,36 @@ export default function HealthRecord() {
             <div className="hr-btn-group">
               <div className="hr-filter-wrap" ref={filterRef}>
                 <button className="hr-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="hr-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="hr-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="hr-filter-dropdown">
                     <div className="hr-filter-dropdown-header">
-                      <span>Filter {isDiagnosis ? "Diagnosis" : "Vaccination"} Records</span>
+                      <span>{tr("Filter")}{" "}{isDiagnosis ? "Diagnosis" : "Vaccination"}{" "}{tr("Records")}</span>
                     </div>
 
-                    <div className="hr-filter-section-label">Date Filter</div>
+                    <div className="hr-filter-section-label">{tr("Date Filter")}</div>
                     <div className="hr-filter-row">
                       <div className="hr-filter-group">
-                        <label className="hr-filter-label">Date Period</label>
+                        <label className="hr-filter-label">{tr("Date Period")}</label>
                         <select
                           className="hr-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="hr-filter-group">
-                          <label className="hr-filter-label">Week</label>
+                          <label className="hr-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="hr-filter-select"
@@ -366,13 +365,13 @@ export default function HealthRecord() {
 
                       {draft.period === "month" && (
                         <div className="hr-filter-group">
-                          <label className="hr-filter-label">Month</label>
+                          <label className="hr-filter-label">{tr("Month")}</label>
                           <select
                             className="hr-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -382,13 +381,13 @@ export default function HealthRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="hr-filter-group">
-                          <label className="hr-filter-label">Year</label>
+                          <label className="hr-filter-label">{tr("Year")}</label>
                           <select
                             className="hr-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -399,28 +398,28 @@ export default function HealthRecord() {
 
                     {draft.period === "custom" && (
                       <div className="hr-filter-group">
-                        <label className="hr-filter-label">Start Date / End Date</label>
+                        <label className="hr-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="hr-filter-date-range">
                           <input type="date" className="hr-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="hr-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="hr-filter-section-label">Filters</div>
+                    <div className="hr-filter-section-label">{tr("Filters")}</div>
                     <div className="hr-filter-group">
-                      <label className="hr-filter-label">Batch ID</label>
+                      <label className="hr-filter-label">{tr("Batch ID")}</label>
                       <select
                         className="hr-filter-select"
                         value={draft.batchId}
                         onChange={(e) => handleFilterChange("batchId", e.target.value)}
                       >
-                        <option value="All">All Batches</option>
+                        <option value="All">{tr("All Batches")}</option>
                         {batchOptions.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -428,8 +427,8 @@ export default function HealthRecord() {
                     </div>
 
                     <div className="hr-filter-actions">
-                      <button className="hr-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="hr-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="hr-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="hr-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -462,16 +461,16 @@ export default function HealthRecord() {
             <div className="hr-stat-icon gold"><FiClipboard /></div>
             <div>
               <h3>{liveStats.totalDiagnosis}</h3>
-              <p>Total Diagnosis Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Diagnosis Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="hr-stat-card">
             <div className="hr-stat-icon green"><FiActivity /></div>
             <div>
               <h3>{liveStats.totalVaccinations}</h3>
-              <p>Total Vaccinations</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Vaccinations")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
         </div>
@@ -482,14 +481,12 @@ export default function HealthRecord() {
             className={`hr-tab ${activeTab === "diagnosis" ? "active" : ""}`}
             onClick={() => handleTabChange("diagnosis")}
           >
-            <FiActivity /> Diagnosis Record
-          </button>
+            <FiActivity />{" "}{tr("Diagnosis Record")}</button>
           <button
             className={`hr-tab ${activeTab === "vaccination" ? "active" : ""}`}
             onClick={() => handleTabChange("vaccination")}
           >
-            <FiDroplet /> Medication / Vaccination Record
-          </button>
+            <FiDroplet />{" "}{tr("Medication / Vaccination Record")}</button>
         </div>
 
         {}
@@ -500,32 +497,32 @@ export default function HealthRecord() {
             <table className="hr-table">
               <thead>
                 <tr>
-                  <th>DIAGNOSIS ID</th>
-                  <th>ISOLATION ID</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                  <th>AGE</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("birdsAffected")}>NUMBER OF BIRDS AFFECTED{sortIndicator("birdsAffected", sortColumn, sortDirection)}</th>
-                  <th>OBSERVATION</th>
-                  <th>PRESUMPTIVE DIAGNOSIS</th>
-                  <th>VET DIAGNOSIS</th>
-                  <th>TREATMENT APPLIED</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("mortality")}>NUMBER MORTALITY{sortIndicator("mortality", sortColumn, sortDirection)}</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("nextSchedule")}>SCHEDULE{sortIndicator("nextSchedule", sortColumn, sortDirection)}</th>
-                  <th>REMARKS</th>
-                  <th>ACTIONS</th>
+                  <th>{tr("DIAGNOSIS ID")}</th>
+                  <th>{tr("ISOLATION ID")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                  <th>{tr("AGE")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("birdsAffected")}>{tr("NUMBER OF BIRDS AFFECTED")}{sortIndicator("birdsAffected", sortColumn, sortDirection)}</th>
+                  <th>{tr("OBSERVATION")}</th>
+                  <th>{tr("PRESUMPTIVE DIAGNOSIS")}</th>
+                  <th>{tr("VET DIAGNOSIS")}</th>
+                  <th>{tr("TREATMENT APPLIED")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("mortality")}>{tr("NUMBER MORTALITY")}{sortIndicator("mortality", sortColumn, sortDirection)}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("nextSchedule")}>{tr("SCHEDULE")}{sortIndicator("nextSchedule", sortColumn, sortDirection)}</th>
+                  <th>{tr("REMARKS")}</th>
+                  <th>{tr("ACTIONS")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="14" className="hr-empty-state">Loading health records...</td></tr>
+                  <tr><td colSpan="14" className="hr-empty-state">{tr("Loading health records...")}</td></tr>
                 ) : filteredDiagnosis.length === 0 ? (
                   <tr>
                     <td colSpan="14" className="hr-empty-state">
                       <div className="hr-empty-content">
                         <FiMaximize />
-                        <h3>No diagnosis records found</h3>
-                        <p>Diagnosis records are created automatically when an Isolation Record is added.</p>
+                        <h3>{tr("No diagnosis records found")}</h3>
+                        <p>{tr("Diagnosis records are created automatically when an Isolation Record is added.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -550,14 +547,14 @@ export default function HealthRecord() {
                           {canEdit && (
                           <button
                             className="hr-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/health/edit/${r._id}?type=diagnosis`)}
                           >
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="hr-btn-archive" onClick={() => requestArchive({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title="Archive">
+                          <button className="hr-btn-archive" onClick={() => requestArchive({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                           )}
@@ -574,31 +571,31 @@ export default function HealthRecord() {
             <table className="hr-table">
               <thead>
                 <tr>
-                  <th>MEDICATION ID</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                  <th>DIAGNOSIS ID</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("birdsAdministered")}>NO. OF BIRDS ADMINISTERED{sortIndicator("birdsAdministered", sortColumn, sortDirection)}</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("vaccineOrDrug")}>VACCINE / DRUG{sortIndicator("vaccineOrDrug", sortColumn, sortDirection)}</th>
-                  <th>TARGET AGE / STAGE</th>
-                  <th>ROUTE</th>
-                  <th>DOSAGE & FREQUENCY</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("administeredBy")}>ADMINISTERED BY{sortIndicator("administeredBy", sortColumn, sortDirection)}</th>
-                  <th className="hr-sortable-th" onClick={() => cycleSort("nextSchedule")}>SCHEDULE{sortIndicator("nextSchedule", sortColumn, sortDirection)}</th>
-                  <th>REMARKS</th>
-                  <th>ACTIONS</th>
+                  <th>{tr("MEDICATION ID")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                  <th>{tr("DIAGNOSIS ID")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("birdsAdministered")}>{tr("NO. OF BIRDS ADMINISTERED")}{sortIndicator("birdsAdministered", sortColumn, sortDirection)}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("vaccineOrDrug")}>{tr("VACCINE / DRUG")}{sortIndicator("vaccineOrDrug", sortColumn, sortDirection)}</th>
+                  <th>{tr("TARGET AGE / STAGE")}</th>
+                  <th>{tr("ROUTE")}</th>
+                  <th>{tr("DOSAGE & FREQUENCY")}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("administeredBy")}>{tr("ADMINISTERED BY")}{sortIndicator("administeredBy", sortColumn, sortDirection)}</th>
+                  <th className="hr-sortable-th" onClick={() => cycleSort("nextSchedule")}>{tr("SCHEDULE")}{sortIndicator("nextSchedule", sortColumn, sortDirection)}</th>
+                  <th>{tr("REMARKS")}</th>
+                  <th>{tr("ACTIONS")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="13" className="hr-empty-state">Loading health records...</td></tr>
+                  <tr><td colSpan="13" className="hr-empty-state">{tr("Loading health records...")}</td></tr>
                 ) : filteredVaccination.length === 0 && vaccinationRecords.length > 0 ? (
                   <tr>
                     <td colSpan="13" className="hr-empty-state">
                       <div className="hr-empty-content">
                         <FiMaximize />
-                        <h3>No medication/vaccination records found</h3>
-                        <p>No matching medication/vaccination records were found for your search.</p>
+                        <h3>{tr("No medication/vaccination records found")}</h3>
+                        <p>{tr("No matching medication/vaccination records were found for your search.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -607,11 +604,10 @@ export default function HealthRecord() {
                     <td colSpan="13" className="hr-empty-state">
                       <div className="hr-empty-content">
                         <FiMaximize />
-                        <h3>No medication/vaccination records found</h3>
-                        <p>Click Add Medication/Vaccination Record to log your first entry.</p>
+                        <h3>{tr("No medication/vaccination records found")}</h3>
+                        <p>{tr("Click Add Medication/Vaccination Record to log your first entry.")}</p>
                         <button className="hr-empty-add-btn" onClick={() => navigate("/records/health/add")}>
-                          <FiPlus /> Add Medication/Vaccination Record
-                        </button>
+                          <FiPlus />{" "}{tr("Add Medication/Vaccination Record")}</button>
                       </div>
                     </td>
                   </tr>
@@ -635,14 +631,14 @@ export default function HealthRecord() {
                           {canEdit && (
                           <button
                             className="hr-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/health/edit/${r._id}?type=vaccination`)}
                           >
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="hr-btn-archive" onClick={() => requestArchive({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title="Archive">
+                          <button className="hr-btn-archive" onClick={() => requestArchive({ module: "Health Records", moduleKey: "pb_health", record: r, name: r.batchId || r.cage || r.diagnosis })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                           )}
@@ -675,80 +671,80 @@ export default function HealthRecord() {
           <div className="pb-confirm-modal hr-view-modal" onClick={(e) => e.stopPropagation()}>
             {viewRecord.recordType === "Diagnosis" ? (
               <>
-                <h3 className="pb-confirm-title">Diagnosis Record</h3>
+                <h3 className="pb-confirm-title">{tr("Diagnosis Record")}</h3>
                 <div className="hr-view-columns">
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Diagnosis (System-Managed)</h4>
-                    <div className="hr-view-kv"><small>Diagnosis ID</small><p><span className="hr-diagnosis-badge">{viewRecord.diagnosisCode || "—"}</span></p></div>
-                    <div className="hr-view-kv"><small>Isolation ID</small><p><span className="hr-isolation-badge">{viewRecord.isolationId?.isolationId || "—"}</span></p></div>
-                    <div className="hr-view-kv"><small>Batch ID</small><p><span className="hr-batch-badge">{viewRecord.batchId}</span></p></div>
-                    <div className="hr-view-kv"><small>Date</small><p>{fmtDate(viewRecord.date)}</p></div>
-                    <div className="hr-view-kv"><small>Age</small><p>{viewRecord.targetAge || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Number of Birds Affected</small><p>{viewRecord.numberOfBirdsAffected ?? "—"}</p></div>
-                    <div className="hr-view-kv"><small>Number Mortality</small><p>{viewRecord.numberMortality ?? "—"}</p></div>
-                    <div className="hr-view-kv"><small>Treatment Applied</small><p>{viewRecord.treatmentApplied || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Diagnosis (System-Managed)")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Diagnosis ID")}</small><p><span className="hr-diagnosis-badge">{viewRecord.diagnosisCode || "—"}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Isolation ID")}</small><p><span className="hr-isolation-badge">{viewRecord.isolationId?.isolationId || "—"}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Batch ID")}</small><p><span className="hr-batch-badge">{viewRecord.batchId}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Date")}</small><p>{fmtDate(viewRecord.date)}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Age")}</small><p>{viewRecord.targetAge || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Number of Birds Affected")}</small><p>{viewRecord.numberOfBirdsAffected ?? "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Number Mortality")}</small><p>{viewRecord.numberMortality ?? "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Treatment Applied")}</small><p>{viewRecord.treatmentApplied || "—"}</p></div>
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Schedule</h4>
+                    <h4 className="hr-view-col-title">{tr("Schedule")}</h4>
                     <ScheduleList compact schedules={viewRecord.schedules || []} emptyText="No schedules yet." />
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Assessment (Editable)</h4>
-                    <div className="hr-view-kv"><small>Observation</small><p>{viewRecord.symptomsObserved || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Presumptive Diagnosis</small><p>{viewRecord.presumptiveDiagnosis || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Vet Diagnosis</small><p>{viewRecord.vetDiagnosis || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Assessment (Editable)")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Observation")}</small><p>{viewRecord.symptomsObserved || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Presumptive Diagnosis")}</small><p>{viewRecord.presumptiveDiagnosis || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Vet Diagnosis")}</small><p>{viewRecord.vetDiagnosis || "—"}</p></div>
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Additional Information</h4>
-                    <div className="hr-view-kv"><small>Remarks / Follow-up Action</small><p>{viewRecord.remarks || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Additional Information")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Remarks / Follow-up Action")}</small><p>{viewRecord.remarks || "—"}</p></div>
                   </div>
                 </div>
               </>
             ) : (
               <>
-                <h3 className="pb-confirm-title">Medication/Vaccination Record</h3>
+                <h3 className="pb-confirm-title">{tr("Medication/Vaccination Record")}</h3>
                 <div className="hr-view-columns">
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Diagnosis Link (Locked)</h4>
-                    <div className="hr-view-kv"><small>Medication ID</small><p><span className="hr-medication-badge">{viewRecord.medicationCode || "—"}</span></p></div>
-                    <div className="hr-view-kv"><small>Batch ID</small><p><span className="hr-batch-badge">{viewRecord.batchId}</span></p></div>
-                    <div className="hr-view-kv"><small>Diagnosis ID</small><p><span className="hr-diagnosis-badge">{diagnosisCodeById[viewRecord.diagnosisId] || "—"}</span></p></div>
-                    <div className="hr-view-kv"><small>Date</small><p>{fmtDate(viewRecord.date)}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Diagnosis Link (Locked)")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Medication ID")}</small><p><span className="hr-medication-badge">{viewRecord.medicationCode || "—"}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Batch ID")}</small><p><span className="hr-batch-badge">{viewRecord.batchId}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Diagnosis ID")}</small><p><span className="hr-diagnosis-badge">{diagnosisCodeById[viewRecord.diagnosisId] || "—"}</span></p></div>
+                    <div className="hr-view-kv"><small>{tr("Date")}</small><p>{fmtDate(viewRecord.date)}</p></div>
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Treatment Information</h4>
-                    <div className="hr-view-kv"><small>No. of Birds Administered</small><p>{viewRecord.numberOfBirdsAdministered ?? "—"}</p></div>
-                    <div className="hr-view-kv"><small>Vaccine / Drug</small><p>{viewRecord.vaccineOrDrug || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Target Age / Stage</small><p>{viewRecord.targetAge || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Route of Administration</small><p>{viewRecord.routeOfAdmin || "—"}</p></div>
-                    <div className="hr-view-kv"><small>Dosage</small><p>{viewRecord.dosage ? `${viewRecord.dosage} ${viewRecord.dosageUnit || ""}`.trim() : "—"}</p></div>
-                    <div className="hr-view-kv"><small>Frequency</small><p>{viewRecord.frequency || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Treatment Information")}</h4>
+                    <div className="hr-view-kv"><small>{tr("No. of Birds Administered")}</small><p>{viewRecord.numberOfBirdsAdministered ?? "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Vaccine / Drug")}</small><p>{viewRecord.vaccineOrDrug || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Target Age / Stage")}</small><p>{viewRecord.targetAge || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Route of Administration")}</small><p>{viewRecord.routeOfAdmin || "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Dosage")}</small><p>{viewRecord.dosage ? `${viewRecord.dosage} ${viewRecord.dosageUnit || ""}`.trim() : "—"}</p></div>
+                    <div className="hr-view-kv"><small>{tr("Frequency")}</small><p>{viewRecord.frequency || "—"}</p></div>
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Administered By</h4>
-                    <div className="hr-view-kv"><small>Type</small><p>{viewRecord.administeredByType || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Administered By")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Type")}</small><p>{viewRecord.administeredByType || "—"}</p></div>
                     <div className="hr-view-kv"><small>{viewRecord.administeredByType === "Vet" ? "Veterinarian" : "Staff Member"}</small><p>{viewRecord.administeredBy || "—"}</p></div>
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Schedule</h4>
+                    <h4 className="hr-view-col-title">{tr("Schedule")}</h4>
                     <ScheduleList compact schedules={viewRecord.schedules || []} emptyText="No schedules yet." />
                   </div>
 
                   <div className="hr-view-col">
-                    <h4 className="hr-view-col-title">Additional Information</h4>
-                    <div className="hr-view-kv"><small>Remarks</small><p>{viewRecord.remarks || "—"}</p></div>
+                    <h4 className="hr-view-col-title">{tr("Additional Information")}</h4>
+                    <div className="hr-view-kv"><small>{tr("Remarks")}</small><p>{viewRecord.remarks || "—"}</p></div>
                   </div>
                 </div>
               </>
             )}
             <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
             </div>
           </div>
         </div>

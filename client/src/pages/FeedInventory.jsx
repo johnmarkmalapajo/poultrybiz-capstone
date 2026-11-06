@@ -28,6 +28,7 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
 
@@ -73,6 +74,7 @@ const validateStockSetting = (draft) => {
 };
 
 export default function FeedInventory() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canArchive, role, isOwner } = useUser();
 
@@ -155,7 +157,7 @@ export default function FeedInventory() {
       } catch (err) {
         setRecords([]);
         setError(
-          err?.message || "Couldn't load feed inventory."
+          tr(err?.message || "Couldn't load feed inventory.")
         );
       } finally {
         setLoading(false);
@@ -167,7 +169,7 @@ export default function FeedInventory() {
     getFarmInfo()
       .then((data) => setFarmInfo(data))
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -237,9 +239,9 @@ export default function FeedInventory() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -571,9 +573,7 @@ export default function FeedInventory() {
              className="fi-add-btn"
             onClick={handleAddNewFeeds}
             >
-          <FiPlus />
-            Add New Feeds
-          </button>
+          <FiPlus />{tr("Add New Feeds")}</button>
           )}
 
         <div className="fi-toolbar-right">
@@ -583,12 +583,10 @@ export default function FeedInventory() {
               className="fi-toolbar-btn fi-settings-btn"
               onClick={openSettings}
               disabled={stockLoading || stock.length === 0}
-              title="Low Stock Alert Settings"
+              title={tr("Low Stock Alert Settings")}
               aria-haspopup="dialog"
             >
-              <FiSettings />
-              Low Stock Alerts
-            </button>
+              <FiSettings />{tr("Low Stock Alerts")}</button>
           )}
 
           <div className="fi-search-box">
@@ -596,7 +594,7 @@ export default function FeedInventory() {
 
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={tr("Search...")}
               value={search}
               onChange={(event) =>
                 setSearch(event.target.value)
@@ -615,10 +613,7 @@ export default function FeedInventory() {
                 className="fi-toolbar-btn"
                 onClick={openFilterPanel}
               >
-                <FiFilter />
-                Filter
-
-                {activeFilterCount > 0 && (
+                <FiFilter />{tr("Filter")}{activeFilterCount > 0 && (
                   <span className="fi-filter-count">
                     {activeFilterCount}
                   </span>
@@ -628,30 +623,30 @@ export default function FeedInventory() {
               {showFilter && (
                 <div className="fi-filter-dropdown">
                   <div className="fi-filter-dropdown-header">
-                    <span>Filter Records</span>
+                    <span>{tr("Filter Records")}</span>
                   </div>
 
-                  <div className="fi-filter-section-label">Date Filter</div>
+                  <div className="fi-filter-section-label">{tr("Date Filter")}</div>
                   <div className="fi-filter-row">
                     <div className="fi-filter-group">
-                      <label className="fi-filter-label">Date Period</label>
+                      <label className="fi-filter-label">{tr("Date Period")}</label>
                       <select
                         className="fi-filter-select"
                         value={draft.period}
                         onChange={(event) => handleFilterChange("period", event.target.value)}
                       >
-                        <option value="all">All Records</option>
-                        <option value="today">Today</option>
-                        <option value="week">Week</option>
-                        <option value="month">Month</option>
-                        <option value="year">Year</option>
-                        <option value="custom">Custom Range</option>
+                        <option value="all">{tr("All Records")}</option>
+                        <option value="today">{tr("Today")}</option>
+                        <option value="week">{tr("Week")}</option>
+                        <option value="month">{tr("Month")}</option>
+                        <option value="year">{tr("Year")}</option>
+                        <option value="custom">{tr("Custom Range")}</option>
                       </select>
                     </div>
 
                     {draft.period === "week" && (
                       <div className="fi-filter-group">
-                        <label className="fi-filter-label">Week</label>
+                        <label className="fi-filter-label">{tr("Week")}</label>
                         <input
                           type="week"
                           className="fi-filter-select"
@@ -663,15 +658,15 @@ export default function FeedInventory() {
 
                     {draft.period === "month" && (
                       <div className="fi-filter-group">
-                        <label className="fi-filter-label">Month</label>
+                        <label className="fi-filter-label">{tr("Month")}</label>
                         <select
                           className="fi-filter-select"
                           value={draft.month}
                           onChange={(event) => handleFilterChange("month", event.target.value)}
                         >
-                          <option value="All">Select Month</option>
+                          <option value="All">{tr("Select Month")}</option>
                           {monthOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
@@ -679,15 +674,15 @@ export default function FeedInventory() {
 
                     {(draft.period === "month" || draft.period === "year") && (
                       <div className="fi-filter-group">
-                        <label className="fi-filter-label">Year</label>
+                        <label className="fi-filter-label">{tr("Year")}</label>
                         <select
                           className="fi-filter-select"
                           value={draft.year}
                           onChange={(event) => handleFilterChange("year", event.target.value)}
                         >
-                          <option value="All">Select Year</option>
+                          <option value="All">{tr("Select Year")}</option>
                           {yearOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
@@ -696,7 +691,7 @@ export default function FeedInventory() {
 
                   {draft.period === "custom" && (
                     <div className="fi-filter-group">
-                      <label className="fi-filter-label">Start Date / End Date</label>
+                      <label className="fi-filter-label">{tr("Start Date / End Date")}</label>
                       <div className="fi-filter-date-range">
                         <input
                           type="date"
@@ -704,9 +699,9 @@ export default function FeedInventory() {
                           value={draft.dateFrom}
                           max={draft.dateTo || todayStr()}
                           onChange={(event) => handleFilterChange("dateFrom", event.target.value)}
-                          aria-label="From date"
+                          aria-label={tr("From date")}
                         />
-                        <span>to</span>
+                        <span>{tr("to")}</span>
                         <input
                           type="date"
                           className="fi-filter-select"
@@ -714,17 +709,15 @@ export default function FeedInventory() {
                           min={draft.dateFrom || undefined}
                           max={todayStr()}
                           onChange={(event) => handleFilterChange("dateTo", event.target.value)}
-                          aria-label="To date"
+                          aria-label={tr("To date")}
                         />
                       </div>
                     </div>
                   )}
 
-                  <div className="fi-filter-section-label">Filters</div>
+                  <div className="fi-filter-section-label">{tr("Filters")}</div>
                   <div className="fi-filter-group">
-                    <label className="fi-filter-label">
-                      Feed Type
-                    </label>
+                    <label className="fi-filter-label">{tr("Feed Type")}</label>
 
                     <select
                       className="fi-filter-select"
@@ -736,9 +729,7 @@ export default function FeedInventory() {
                         )
                       }
                     >
-                      <option value="All">
-                        All Feed Types
-                      </option>
+                      <option value="All">{tr("All Feed Types")}</option>
 
                       {FEED_TYPE_OPTIONS.map((option) => (
                         <option
@@ -752,8 +743,8 @@ export default function FeedInventory() {
                   </div>
 
                   <div className="fi-filter-actions">
-                    <button className="fi-filter-clear" onClick={clearFilters}>Clear All</button>
-                    <button className="fi-filter-apply" onClick={applyFilters}>Apply</button>
+                    <button className="fi-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                    <button className="fi-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                   </div>
                 </div>
               )}
@@ -763,7 +754,7 @@ export default function FeedInventory() {
               rows={exportRows}
               columns={exportColumns}
               name="feed-inventory"
-              title="Feed Inventory Report"
+              title={tr("Feed Inventory Report")}
               meta={exportMeta}
               pdfExtra={{
                 period: exportMeta.period,
@@ -811,23 +802,17 @@ export default function FeedInventory() {
       )}
 
       {!stockLoading && outOfStockItems.length > 0 && (
-        <div className="pb-error-banner">
-          ⛔ Out of Stock: {outOfStockItems.map((item) => item.feedType).join(", ")}. Restock
-          immediately.
-        </div>
+        <div className="pb-error-banner">{tr("⛔ Out of Stock:")}{" "}{outOfStockItems.map((item) => item.feedType).join(", ")}{tr(". Restock immediately.")}</div>
       )}
 
       {!stockLoading && lowStockItems.length > 0 && (
-        <div className="pb-warning-banner">
-          ⚠️ Low Stock:{" "}
+        <div className="pb-warning-banner">{tr("⚠️ Low Stock:")}{" "}
           {lowStockItems
             .map(
               (item) =>
                 `${item.feedType} (${formatFeedNumber(item.availableKg)} kg left, threshold ${describeThreshold(item)})`
             )
-            .join(", ")}
-          . Consider restocking soon.
-        </div>
+            .join(", ")}{tr(". Consider restocking soon.")}</div>
       )}
 
       <div className="fi-stats-grid">
@@ -838,10 +823,9 @@ export default function FeedInventory() {
 
           <div>
             <h3>
-  {currentLayerStockWhole} sacks
-</h3>
-<p>Current Layer Stock</p>
-<span>≈ {Math.floor(currentLayerStockKg).toLocaleString()} kg</span>
+  {currentLayerStockWhole}{" "}{tr("sacks")}</h3>
+<p>{tr("Current Layer Stock")}</p>
+<span>≈ {Math.floor(currentLayerStockKg).toLocaleString()}{" "}{tr("kg")}</span>
           </div>
         </div>
 
@@ -852,10 +836,9 @@ export default function FeedInventory() {
 
           <div>
             <h3>
-  {currentGrowerStockWhole} sacks
-</h3>
-<p>Current Grower Stock</p>
-<span>≈ {Math.floor(currentGrowerStockKg).toLocaleString()} kg</span>
+  {currentGrowerStockWhole}{" "}{tr("sacks")}</h3>
+<p>{tr("Current Grower Stock")}</p>
+<span>≈ {Math.floor(currentGrowerStockKg).toLocaleString()}{" "}{tr("kg")}</span>
           </div>
         </div>
       </div>
@@ -868,9 +851,7 @@ export default function FeedInventory() {
               <th
                 className="fi-sortable-th"
                 onClick={() => cycleSort("date")}
-              >
-                Date
-                {sortIndicator(
+              >{tr("Date")}{sortIndicator(
                   "date",
                   sortColumn,
                   sortDirection
@@ -880,9 +861,7 @@ export default function FeedInventory() {
               <th
                 className="fi-sortable-th"
                 onClick={() => cycleSort("feedType")}
-              >
-                Feed Type
-                {sortIndicator(
+              >{tr("Feed Type")}{sortIndicator(
                   "feedType",
                   sortColumn,
                   sortDirection
@@ -892,16 +871,14 @@ export default function FeedInventory() {
               <th
                 className="fi-sortable-th"
                 onClick={() => cycleSort("quantityIn")}
-              >
-                Quantity
-                {sortIndicator(
+              >{tr("Quantity")}{sortIndicator(
                   "quantityIn",
                   sortColumn,
                   sortDirection
                 )}
               </th>
 
-              <th>Actions</th>
+              <th>{tr("Actions")}</th>
             </tr>
           </thead>
 
@@ -911,9 +888,7 @@ export default function FeedInventory() {
                 <td
                   colSpan="4"
                   className="fi-empty-state"
-                >
-                  Loading feed inventory...
-                </td>
+                >{tr("Loading feed inventory...")}</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
@@ -924,14 +899,9 @@ export default function FeedInventory() {
                   <div className="fi-empty-content">
                     <FiBox />
 
-                    <h3>
-                      No feed stock records found
-                    </h3>
+                    <h3>{tr("No feed stock records found")}</h3>
 
-                    <p>
-                      Click Add New Feeds to record your
-                      first transaction.
-                    </p>
+                    <p>{tr("Click Add New Feeds to record your first transaction.")}</p>
 
                     {role !== "Farmer" && (
   <button
@@ -939,9 +909,7 @@ export default function FeedInventory() {
     className="fi-empty-add-btn"
     onClick={handleEmptyAdd}
   >
-    <FiPlus />
-    Add New Feeds
-  </button>
+    <FiPlus />{tr("Add New Feeds")}</button>
 )}
                   </div>
                 </td>
@@ -962,9 +930,7 @@ export default function FeedInventory() {
                   <td>
                     {Math.floor(
                       Number(record.quantityIn) || 0
-                    )}{" "}
-                    sacks
-                  </td>
+                    )}{" "}{tr("sacks")}</td>
 
                   <td>
                     <div className="fi-actions">
@@ -972,7 +938,7 @@ export default function FeedInventory() {
                         <button
                           type="button"
                           className="fi-btn-archive"
-                          title="Archive"
+                          title={tr("Archive")}
                           onClick={() =>
                             requestArchive({
                               module: "Feed Inventory",
@@ -1022,12 +988,12 @@ export default function FeedInventory() {
             noValidate
           >
             <div className="fi-modal-head">
-              <h3 id="fi-settings-title">Low Stock Alert Settings</h3>
+              <h3 id="fi-settings-title">{tr("Low Stock Alert Settings")}</h3>
               <button
                 type="button"
                 className="fi-modal-close"
                 onClick={closeSettings}
-                aria-label="Close"
+                aria-label={tr("Close")}
                 disabled={savingSettings}
               >
                 <FiX />
@@ -1035,9 +1001,7 @@ export default function FeedInventory() {
             </div>
 
             <div className="fi-modal-body">
-              <p className="fi-modal-note">
-                An alert is sent when the available stock of a feed type reaches or falls below its minimum threshold.
-              </p>
+              <p className="fi-modal-note">{tr("An alert is sent when the available stock of a feed type reaches or falls below its minimum threshold.")}</p>
 
               {settingsErrors.form && (
                 <div className="pb-error-banner">
@@ -1046,7 +1010,7 @@ export default function FeedInventory() {
               )}
 
               <div className="fi-modal-field">
-                <label htmlFor="fi-settings-feed-type">Feed Type</label>
+                <label htmlFor="fi-settings-feed-type">{tr("Feed Type")}</label>
                 <select
                   id="fi-settings-feed-type"
                   value={settingsForm.feedType}
@@ -1060,10 +1024,7 @@ export default function FeedInventory() {
                   ))}
                 </select>
                 {selectedSettingsStock && (
-                  <small>
-                    Available: {formatFeedNumber(selectedSettingsStock.availableKg)} kg (
-                    {formatFeedNumber(selectedSettingsStock.availableSacks)} sacks)
-                    {selectedSettingsStock.isOut
+                  <small>{tr("Available:")}{" "}{formatFeedNumber(selectedSettingsStock.availableKg)}{" "}{tr("kg (")}{formatFeedNumber(selectedSettingsStock.availableSacks)}{" "}{tr("sacks)")}{selectedSettingsStock.isOut
                       ? " · Out of stock"
                       : selectedSettingsStock.isLow
                         ? " · Low stock"
@@ -1073,7 +1034,7 @@ export default function FeedInventory() {
               </div>
 
               <div className="fi-modal-field">
-                <label htmlFor="fi-settings-threshold">Minimum Stock Threshold</label>
+                <label htmlFor="fi-settings-threshold">{tr("Minimum Stock Threshold")}</label>
                 <div className="fi-modal-input-group">
                   <input
                     id="fi-settings-threshold"
@@ -1084,17 +1045,17 @@ export default function FeedInventory() {
                     value={settingsForm.lowStockThreshold}
                     onKeyDown={blockInvalidNumberKeys}
                     onChange={(event) => handleSettingChange("lowStockThreshold", event.target.value)}
-                    placeholder="Enter minimum stock"
+                    placeholder={tr("Enter minimum stock")}
                     disabled={savingSettings}
                   />
                   <select
                     value={settingsForm.thresholdUnit}
                     onChange={(event) => handleSettingChange("thresholdUnit", event.target.value)}
-                    aria-label="Stock unit"
+                    aria-label={tr("Stock unit")}
                     disabled={savingSettings}
                   >
                     {THRESHOLD_UNITS.map((unit) => (
-                      <option key={unit} value={unit}>{unit}</option>
+                      <option key={unit} value={unit}>{tr(unit)}</option>
                     ))}
                   </select>
                 </div>
@@ -1112,7 +1073,7 @@ export default function FeedInventory() {
               </div>
 
               <div className="fi-modal-field">
-                <label htmlFor="fi-settings-sack-weight">Weight per Sack (kg)</label>
+                <label htmlFor="fi-settings-sack-weight">{tr("Weight per Sack (kg)")}</label>
                 <input
                   id="fi-settings-sack-weight"
                   type="number"
@@ -1129,9 +1090,7 @@ export default function FeedInventory() {
                 {settingsErrors.sackWeightKg ? (
                   <small className="fi-modal-error">{settingsErrors.sackWeightKg}</small>
                 ) : (
-                  <small>
-                    Converts sacks to kg for new purchases and consumption. Existing records keep the weight they were saved with.
-                  </small>
+                  <small>{tr("Converts sacks to kg for new purchases and consumption. Existing records keep the weight they were saved with.")}</small>
                 )}
               </div>
             </div>
@@ -1142,9 +1101,7 @@ export default function FeedInventory() {
                 className="fi-modal-cancel"
                 onClick={closeSettings}
                 disabled={savingSettings}
-              >
-                Cancel
-              </button>
+              >{tr("Cancel")}</button>
               <button
                 type="submit"
                 className="fi-modal-save"

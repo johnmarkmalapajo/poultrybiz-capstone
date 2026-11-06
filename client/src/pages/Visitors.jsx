@@ -17,6 +17,7 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const getId = (r) => r._id || r.id;
 const getName = (r) => r.fullName || r.name || "—";
@@ -26,6 +27,7 @@ const getContact = (r) => r.contactNumber || r.contact || "—";
 const isArchived = (r) => Boolean(r.archived);
 
 export default function Visitors() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -53,10 +55,10 @@ export default function Visitors() {
         const list = Array.isArray(d) ? d : d.records || d.data || [];
         setRecords(list);
       })
-      .catch((err) => { setRecords([]); setError(err?.message || "Couldn't load visitor records."); })
+      .catch((err) => { setRecords([]); setError(tr(err?.message || "Couldn't load visitor records.")); })
       .finally(() => setLoading(false));
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handle = (e) => {
@@ -91,9 +93,9 @@ export default function Visitors() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -223,7 +225,7 @@ export default function Visitors() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search visitors by name..."
+                placeholder={tr("Search visitors by name...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -231,37 +233,36 @@ export default function Visitors() {
             <div className="vt-toolbar-btn-group">
               <div className="vt-filter-wrap" ref={filterRef}>
                 <button className="vt-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="vt-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="vt-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="vt-filter-dropdown">
                     <div className="vt-filter-dropdown-header">
-                      <span>Filter Visitors</span>
+                      <span>{tr("Filter Visitors")}</span>
                     </div>
 
-                    <div className="vt-filter-section-label">Date Filter (Last Visit)</div>
+                    <div className="vt-filter-section-label">{tr("Date Filter (Last Visit)")}</div>
                     <div className="vt-filter-row">
                       <div className="vt-filter-group">
-                        <label className="vt-filter-label">Date Period</label>
+                        <label className="vt-filter-label">{tr("Date Period")}</label>
                         <select
                           className="vt-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="vt-filter-group">
-                          <label className="vt-filter-label">Week</label>
+                          <label className="vt-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="vt-filter-select"
@@ -273,15 +274,15 @@ export default function Visitors() {
 
                       {draft.period === "month" && (
                         <div className="vt-filter-group">
-                          <label className="vt-filter-label">Month</label>
+                          <label className="vt-filter-label">{tr("Month")}</label>
                           <select
                             className="vt-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -289,15 +290,15 @@ export default function Visitors() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="vt-filter-group">
-                          <label className="vt-filter-label">Year</label>
+                          <label className="vt-filter-label">{tr("Year")}</label>
                           <select
                             className="vt-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -306,33 +307,33 @@ export default function Visitors() {
 
                     {draft.period === "custom" && (
                       <div className="vt-filter-group">
-                        <label className="vt-filter-label">Start Date / End Date</label>
+                        <label className="vt-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="vt-filter-date-range">
                           <input type="date" className="vt-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="vt-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
                     <div className="vt-filter-actions">
-                      <button className="vt-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="vt-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="vt-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="vt-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <button className="vt-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode /> QR Generation</button>
+              <button className="vt-toolbar-btn" onClick={() => setQrOpen(true)}><BsQrCode />{" "}{tr("QR Generation")}</button>
               <ExportMenu
                 rows={exportRows}
                 columns={exportColumns}
                 name="visitors"
-                title="Visitor Log Report"
+                title={tr("Visitor Log Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Visitors"
@@ -357,7 +358,7 @@ export default function Visitors() {
             <div className="vt-stat-icon gold"><MdGroups /></div>
             <div>
               <h3>{totalVisitors}</h3>
-              <p>Total Visitors</p>
+              <p>{tr("Total Visitors")}</p>
               <span>{periodLabel === "All Records" ? "All Time" : periodLabel}</span>
             </div>
           </div>
@@ -365,7 +366,7 @@ export default function Visitors() {
             <div className="vt-stat-icon green"><MdEventNote /></div>
             <div>
               <h3>{visitsThisMonth}</h3>
-              <p>Visits This Month</p>
+              <p>{tr("Visits This Month")}</p>
               <span>{periodLabel}</span>
             </div>
           </div>
@@ -373,7 +374,7 @@ export default function Visitors() {
             <div className="vt-stat-icon blue"><MdHowToReg /></div>
             <div>
               <h3>{visitsToday}</h3>
-              <p>Visits Today</p>
+              <p>{tr("Visits Today")}</p>
               <span>{periodLabel}</span>
             </div>
           </div>
@@ -385,25 +386,25 @@ export default function Visitors() {
           <table className="vt-table">
             <thead>
               <tr>
-                <th className="vt-sortable-th" onClick={() => cycleSort("name")}>Full Name{sortIndicator("name", sortColumn, sortDirection)}</th>
-                <th className="vt-sortable-th" onClick={() => cycleSort("address")}>Address{sortIndicator("address", sortColumn, sortDirection)}</th>
-                <th className="vt-sortable-th" onClick={() => cycleSort("affiliation")}>Affiliation / Company{sortIndicator("affiliation", sortColumn, sortDirection)}</th>
-                <th className="vt-sortable-th" onClick={() => cycleSort("contact")}>Contact Number{sortIndicator("contact", sortColumn, sortDirection)}</th>
-                <th>Actions</th>
+                <th className="vt-sortable-th" onClick={() => cycleSort("name")}>{tr("Full Name")}{sortIndicator("name", sortColumn, sortDirection)}</th>
+                <th className="vt-sortable-th" onClick={() => cycleSort("address")}>{tr("Address")}{sortIndicator("address", sortColumn, sortDirection)}</th>
+                <th className="vt-sortable-th" onClick={() => cycleSort("affiliation")}>{tr("Affiliation / Company")}{sortIndicator("affiliation", sortColumn, sortDirection)}</th>
+                <th className="vt-sortable-th" onClick={() => cycleSort("contact")}>{tr("Contact Number")}{sortIndicator("contact", sortColumn, sortDirection)}</th>
+                <th>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="vt-empty-state">Loading visitors...</td>
+                  <td colSpan="5" className="vt-empty-state">{tr("Loading visitors...")}</td>
                 </tr>
               ) : visitors.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="vt-empty-state">
                     <div className="vt-empty-content">
                       <FiMaximize />
-                      <h3>No visitors found</h3>
-                      <p>Visitors appear here automatically once they register by scanning the farm QR code.</p>
+                      <h3>{tr("No visitors found")}</h3>
+                      <p>{tr("Visitors appear here automatically once they register by scanning the farm QR code.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -418,7 +419,7 @@ export default function Visitors() {
                       <div className="vt-actions">
                         <button
                           className="vt-btn-view"
-                          title="View"
+                          title={tr("View")}
                           onClick={() => navigate(`/personnel-visitors/visitors/view/${getId(r)}`)}
                         >
                           <FiEye />
@@ -427,7 +428,7 @@ export default function Visitors() {
                         <button
                           className="vt-btn-archive"
                           onClick={() => requestArchive({ module: "Visitors", moduleKey: "pb_visitors", record: r, name: r.fullName || r.name })}
-                          title="Archive"
+                          title={tr("Archive")}
                         >
                           <FiArchive />
                         </button>
@@ -457,18 +458,17 @@ export default function Visitors() {
         <div className="qr-overlay" onClick={() => setQrOpen(false)}>
           <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="qr-modal-header">
-              <div className="qr-modal-title"><BsQrCode /><h3>Visitor QR Code</h3></div>
-              <button className="qr-close" onClick={() => setQrOpen(false)} aria-label="Close"><FiX /></button>
+              <div className="qr-modal-title"><BsQrCode /><h3>{tr("Visitor QR Code")}</h3></div>
+              <button className="qr-close" onClick={() => setQrOpen(false)} aria-label={tr("Close")}><FiX /></button>
             </div>
 
             <div className="qr-station">
               <div className="qr-frame">
                 <img className="qr-station-img" src={STATION_QR} alt="Visitor QR code" loading="lazy" />
-                <span className="qr-frame-caption">Farm Entrance QR</span>
+                <span className="qr-frame-caption">{tr("Farm Entrance QR")}</span>
               </div>
               <button className="qr-download-btn" onClick={() => window.open(STATION_QR, "_blank", "noopener,noreferrer")}>
-                <FiDownload /> Download QR
-              </button>
+                <FiDownload />{" "}{tr("Download QR")}</button>
             </div>
           </div>
         </div>

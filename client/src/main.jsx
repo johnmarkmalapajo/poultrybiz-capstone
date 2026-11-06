@@ -1,3 +1,4 @@
+import { LanguageProvider } from "./i18n/LanguageContext";
 import "./index.css"
 import React from 'react'
 import ReactDOM from 'react-dom/client'
@@ -73,6 +74,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+      <LanguageProvider>
       <AuthGate>
       <Routes>
         <Route path="/" element={<App />} />
@@ -144,6 +146,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
       </Routes>
       </AuthGate>
+      </LanguageProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

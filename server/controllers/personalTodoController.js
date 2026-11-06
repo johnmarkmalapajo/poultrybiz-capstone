@@ -83,7 +83,6 @@ exports.createPersonalTodo = async (req, res) => {
       title: req.body.title,
       description: req.body.description || "",
       type: category,
-      priority: req.body.priority || "Medium",
       dueDate: req.body.dueDate,
       status: "Pending",
     });
@@ -101,7 +100,6 @@ if (personnel) {
     work: todo.title,
     module: todo.type,
     description: todo.description,
-    priority: todo.priority,
     dueDate: todo.dueDate,
     status: "Pending",
     assignedBy: req.user._id,
@@ -124,7 +122,6 @@ if (personnel) {
         description: `${req.user.name} created a new personal task: "${todo.title}".`,
         category: "task",
         type: "alert",
-        priority: "Normal",
         roles: ["Owner"],
       });
     }
@@ -219,7 +216,6 @@ exports.updatePersonalTodo = async (req, res) => {
         description: `${req.user.name} completed a personal task: "${todo.title}".`,
         category: "task",
         type: "alert",
-        priority: "Normal",
         roles: ["Owner"],
       });
     }
@@ -230,7 +226,6 @@ exports.updatePersonalTodo = async (req, res) => {
         description: `${req.user.name} marked your personal task "${todo.title}" as completed.`,
         category: "task",
         type: "alert",
-        priority: "Normal",
         userId: existing.user,
         referenceId: todo._id,
         referenceModel: "PersonalTodo",

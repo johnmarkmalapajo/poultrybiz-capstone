@@ -1,13 +1,15 @@
+import { useLanguage } from "../i18n/LanguageContext"
 import "./Topbar.css"
 import magnifyingGlass from "../assets/magnifying-glass.svg"
 import { FiMenu } from "react-icons/fi"
 import { openSidebar } from "./Sidebar"
 
 function Topbar({ searchValue = "", onSearchChange, searchPlaceholder = "Search...", hideSearch = false }) {
+  const { t } = useLanguage();
   return (
     <div className="topbar">
       {/* Hamburger — phone only, top-left of topbar */}
-      <button className="topbar-hamburger" onClick={openSidebar} aria-label="Open menu">
+      <button className="topbar-hamburger" onClick={openSidebar} aria-label={t("Open menu")}>
         <FiMenu />
       </button>
 
@@ -16,7 +18,7 @@ function Topbar({ searchValue = "", onSearchChange, searchPlaceholder = "Search.
           <img src={magnifyingGlass} alt="Search" className="search-icon" />
           <input
             type="text"
-            placeholder={searchPlaceholder}
+            placeholder={t(searchPlaceholder)}
             value={searchValue}
             onChange={onSearchChange}
           />

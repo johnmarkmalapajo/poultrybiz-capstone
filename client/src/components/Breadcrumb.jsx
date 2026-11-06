@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
@@ -23,10 +24,11 @@ import "./Breadcrumb.css";
  */
 export default function Breadcrumb({ items = [] }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="pb-breadcrumb">
-      <button className="pb-hamburger" onClick={openSidebar} aria-label="Open menu">
+      <button className="pb-hamburger" onClick={openSidebar} aria-label={t("Open menu")}>
         <FiMenu />
       </button>
 
@@ -36,13 +38,13 @@ export default function Breadcrumb({ items = [] }) {
           <Fragment key={i}>
             {i > 0 && <span className="pb-breadcrumb-sep">›</span>}
             {isLast || !item.path ? (
-              <span className="pb-breadcrumb-current">{item.label}</span>
+              <span className="pb-breadcrumb-current">{t(item.label)}</span>
             ) : (
               <span
                 className="pb-breadcrumb-link"
                 onClick={() => navigate(item.path)}
               >
-                {item.label}
+                {t(item.label)}
               </span>
             )}
           </Fragment>

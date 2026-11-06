@@ -9,6 +9,7 @@ import { listQuarantineRecords } from "../api/quarantineIsolation";
 import { listHealthOptions } from "../api/healthOptions";
 import { listVeterinarians } from "../api/veterinarians";
 import { listPersonnel } from "../api/personnelManpower";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const OBSERVATIONS = [
   "Sneezing / Coughing", "Nasal Discharge", "Watery Eyes / Swelling Around Eyes",
@@ -28,6 +29,7 @@ const NEW_VALUE = "__new__";
 const d = (v) => (v ? String(v).slice(0, 10) : "");
 
 export default function EditHealthRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const [saving, setSaving] = useState(false);
@@ -147,13 +149,13 @@ export default function EditHealthRecord() {
           setSchedules(rec.schedules || []);
         }
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     listHealthOptions("symptom").then((r) => setSymptomOptions((r.options || []).map((o) => o.value))).catch(() => setSymptomOptions([]));
@@ -205,19 +207,19 @@ export default function EditHealthRecord() {
     let payload;
     if (isDiagnosis) {
       if (symptomsObserved === NEW_VALUE && !newSymptomsObserved.trim()) {
-        setError("Please enter the new Observation.");
+        setError(tr("Please enter the new Observation."));
         return;
       }
       if (presumptiveDiagnosis === NEW_VALUE && !newPresumptiveDiagnosis.trim()) {
-        setError("Please enter the new Presumptive Diagnosis.");
+        setError(tr("Please enter the new Presumptive Diagnosis."));
         return;
       }
       if (vetDiagnosis === NEW_VALUE && !newVetDiagnosis.trim()) {
-        setError("Please enter the new Vet Diagnosis.");
+        setError(tr("Please enter the new Vet Diagnosis."));
         return;
       }
       if (diagnosisScheduleDraft && diagnosisScheduleInvalid) {
-        setError("The new schedule cannot be earlier than the record date.");
+        setError(tr("The new schedule cannot be earlier than the record date."));
         return;
       }
       payload = {
@@ -235,15 +237,15 @@ export default function EditHealthRecord() {
       };
     } else {
       if (scheduleDraft && scheduleInvalid) {
-        setError("The new schedule cannot be earlier than the record date.");
+        setError(tr("The new schedule cannot be earlier than the record date."));
         return;
       }
-      if (routeOfAdmin === NEW_VALUE && !newRoute.trim()) return setError("Please enter the new Route of Administration.");
-      if (dosageUnit === NEW_VALUE && !newUnit.trim()) return setError("Please enter the new Unit.");
-      if (frequency === NEW_VALUE && !newFrequency.trim()) return setError("Please enter the new Frequency.");
-      if (!administeredByType) return setError("Please select whether this was administered by Staff or Vet.");
-      if (administeredByType === "Staff" && !personnelId) return setError("Please select a staff member.");
-      if (administeredByType === "Vet" && !vetId && !newVet.trim()) return setError("Please select or add a veterinarian.");
+      if (routeOfAdmin === NEW_VALUE && !newRoute.trim()) return setError(tr("Please enter the new Route of Administration."));
+      if (dosageUnit === NEW_VALUE && !newUnit.trim()) return setError(tr("Please enter the new Unit."));
+      if (frequency === NEW_VALUE && !newFrequency.trim()) return setError(tr("Please enter the new Frequency."));
+      if (!administeredByType) return setError(tr("Please select whether this was administered by Staff or Vet."));
+      if (administeredByType === "Staff" && !personnelId) return setError(tr("Please select a staff member."));
+      if (administeredByType === "Vet" && !vetId && !newVet.trim()) return setError(tr("Please select or add a veterinarian."));
 
       payload = {
         date,
@@ -273,14 +275,14 @@ export default function EditHealthRecord() {
       navigate(`/records/health?tab=${isDiagnosis ? "diagnosis" : "vaccination"}`);
     } catch (err) {
       setSaving(false);
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     }
   };
 
   if (loading) {
     return (
       <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "RECORDS", path: "/records" }, { label: "HEALTH RECORD" }]}>
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -301,49 +303,49 @@ export default function EditHealthRecord() {
           <>
             <div className="ehr-section-header">
               <FiDroplet />
-              <h3>Diagnosis (System-Managed)</h3>
+              <h3>{tr("Diagnosis (System-Managed)")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-grid">
               <div className="ehr-form-group">
-                <label>Diagnosis ID</label>
+                <label>{tr("Diagnosis ID")}</label>
                 <input type="text" value={diagnosisCode || "—"} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Isolation ID</label>
+                <label>{tr("Isolation ID")}</label>
                 <input type="text" value={isolationId} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Batch ID</label>
+                <label>{tr("Batch ID")}</label>
                 <input type="text" value={batchId} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Date</label>
+                <label>{tr("Date")}</label>
                 <input type="text" value={date} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Age</label>
+                <label>{tr("Age")}</label>
                 <input type="text" value={targetAge || "—"} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Number of Birds Affected</label>
+                <label>{tr("Number of Birds Affected")}</label>
                 <input type="text" value={numberOfBirdsAffected} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Number Mortality</label>
+                <label>{tr("Number Mortality")}</label>
                 <input type="text" value={numberMortality} disabled />
               </div>
               <div className="ehr-form-group">
-                <label>Treatment Applied</label>
+                <label>{tr("Treatment Applied")}</label>
                 <input type="text" value={treatmentApplied || "—"} disabled />
-                <small>Aggregated from linked Medication/Vaccination records.</small>
+                <small>{tr("Aggregated from linked Medication/Vaccination records.")}</small>
               </div>
             </div>
 
             <div className="ehr-section-header">
               <FiCalendar />
-              <h3>Schedule</h3>
+              <h3>{tr("Schedule")}</h3>
               <div className="ehr-line" />
             </div>
 
@@ -368,44 +370,44 @@ export default function EditHealthRecord() {
 
             <div className="ehr-section-header">
               <FiActivity />
-              <h3>Assessment (Editable)</h3>
+              <h3>{tr("Assessment (Editable)")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-grid">
               <div className="ehr-form-group">
-                <label>Observation</label>
+                <label>{tr("Observation")}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={symptomsObserved} onChange={(e) => setSymptomsObserved(e.target.value)} style={{ flex: 1 }}>
-                    <option value="">Select observation</option>
+                    <option value="">{tr("Select observation")}</option>
                     {symptomsObserved && symptomsObserved !== NEW_VALUE && !observationOptions.includes(symptomsObserved) && (
                       <option value={symptomsObserved}>{symptomsObserved}</option>
                     )}
                     {observationOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {symptomsObserved === NEW_VALUE && (
                     <input type="text" value={newSymptomsObserved} onChange={(e) => setNewSymptomsObserved(e.target.value)}
-                      placeholder="Enter observation..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter observation...")} style={{ flex: 1 }} required />
                   )}
                 </div>
-                <small>Detailed symptoms observed during assessment — separate from Isolation's Symptoms/Reasons.</small>
+                <small>{tr("Detailed symptoms observed during assessment — separate from Isolation's Symptoms/Reasons.")}</small>
               </div>
 
               <div className="ehr-form-group">
-                <label>Presumptive Diagnosis</label>
+                <label>{tr("Presumptive Diagnosis")}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={presumptiveDiagnosis} onChange={(e) => setPresumptiveDiagnosis(e.target.value)} style={{ flex: 1 }} disabled={isolationCompleted}>
-                    <option value="">Select presumptive diagnosis</option>
+                    <option value="">{tr("Select presumptive diagnosis")}</option>
                     {presumptiveDiagnosis && presumptiveDiagnosis !== NEW_VALUE && !symptomOptions.includes(presumptiveDiagnosis) && (
                       <option value={presumptiveDiagnosis}>{presumptiveDiagnosis}</option>
                     )}
                     {symptomOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {presumptiveDiagnosis === NEW_VALUE && !isolationCompleted && (
                     <input type="text" value={newPresumptiveDiagnosis} onChange={(e) => setNewPresumptiveDiagnosis(e.target.value)}
-                      placeholder="Enter presumptive diagnosis..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter presumptive diagnosis...")} style={{ flex: 1 }} required />
                   )}
                 </div>
                 <small>{isolationCompleted
@@ -414,19 +416,19 @@ export default function EditHealthRecord() {
               </div>
 
               <div className="ehr-form-group">
-                <label>Vet Diagnosis</label>
+                <label>{tr("Vet Diagnosis")}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={vetDiagnosis} onChange={(e) => setVetDiagnosis(e.target.value)} style={{ flex: 1 }}>
-                    <option value="">Select vet diagnosis</option>
+                    <option value="">{tr("Select vet diagnosis")}</option>
                     {vetDiagnosis && vetDiagnosis !== NEW_VALUE && !vetDiagnosisOptions.includes(vetDiagnosis) && (
                       <option value={vetDiagnosis}>{vetDiagnosis}</option>
                     )}
                     {vetDiagnosisOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {vetDiagnosis === NEW_VALUE && (
                     <input type="text" value={newVetDiagnosis} onChange={(e) => setNewVetDiagnosis(e.target.value)}
-                      placeholder="Enter vet diagnosis..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter vet diagnosis...")} style={{ flex: 1 }} required />
                   )}
                 </div>
               </div>
@@ -436,26 +438,25 @@ export default function EditHealthRecord() {
               <>
                 <div className="ehr-section-header">
                   <FiActivity />
-                  <h3>Linked Medication/Vaccination History</h3>
+                  <h3>{tr("Linked Medication/Vaccination History")}</h3>
                   <div className="ehr-line" />
                 </div>
                 {treatments.map((t) => (
                   <div key={t._id} className="ehr-char-count" style={{ marginBottom: 6 }}>
-                    {d(t.date)}: {t.vaccineOrDrug} ({t.numberOfBirdsAdministered} birds)
-                  </div>
+                    {d(t.date)}: {t.vaccineOrDrug} ({t.numberOfBirdsAdministered}{" "}{tr("birds)")}</div>
                 ))}
               </>
             )}
 
             <div className="ehr-section-header">
               <FiFileText />
-              <h3>Additional Information</h3>
+              <h3>{tr("Additional Information")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-group ehr-full-width">
-              <label>Remarks / Follow-up Action</label>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Enter remarks or follow-up action..." maxLength={500} />
+              <label>{tr("Remarks / Follow-up Action")}</label>
+              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={tr("Enter remarks or follow-up action...")} maxLength={500} />
               <small className="ehr-char-count">{(remarks || "").length} / 500</small>
             </div>
           </>
@@ -463,49 +464,49 @@ export default function EditHealthRecord() {
           <>
             <div className="ehr-section-header">
               <FiDroplet />
-              <h3>Diagnosis Link (Locked)</h3>
+              <h3>{tr("Diagnosis Link (Locked)")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-grid">
               <div className="ehr-form-group">
-                <label>Medication ID</label>
+                <label>{tr("Medication ID")}</label>
                 <input type="text" value={medicationCode || "—"} disabled />
-                <small>Cannot be changed.</small>
+                <small>{tr("Cannot be changed.")}</small>
               </div>
               <div className="ehr-form-group">
-                <label>Batch ID</label>
+                <label>{tr("Batch ID")}</label>
                 <input type="text" value={batchId} disabled />
-                <small>Cannot be changed — set when this record was created.</small>
+                <small>{tr("Cannot be changed — set when this record was created.")}</small>
               </div>
               <div className="ehr-form-group">
-                <label>Diagnosis ID</label>
+                <label>{tr("Diagnosis ID")}</label>
                 <input type="text" value={diagnosisCode || "—"} disabled />
                 <small>{diagnosisCode ? "Cannot be changed." : "Not linked to a Diagnosis — this batch was in Quarantine when recorded."}</small>
               </div>
               <div className="ehr-form-group">
-                <label>Date <span className="ehr-req">*</span></label>
+                <label>{tr("Date")}{" "}<span className="ehr-req">*</span></label>
                 <input type="date" value={date} onChange={(e) => {
                     const blocked = e.target.value > today;
                     setDate(blocked ? today : e.target.value);
-                    setError(blocked ? "Date cannot be a future date." : "");
+                    setError(blocked ? tr("Date cannot be a future date.") : "");
                   }} max={today} required />
               </div>
             </div>
 
             <div className="ehr-section-header">
               <FiActivity />
-              <h3>Treatment Information</h3>
+              <h3>{tr("Treatment Information")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-grid">
               <div className="ehr-form-group">
-                <label>No. of Birds Administered <span className="ehr-req">*</span></label>
+                <label>{tr("No. of Birds Administered")}{" "}<span className="ehr-req">*</span></label>
                 {ongoingQuarantineHeadCount != null ? (
                   <>
                     <input type="text" value={ongoingQuarantineHeadCount} disabled />
-                    <small>Automatically the batch's current Quarantine Head Count — not editable.</small>
+                    <small>{tr("Automatically the batch's current Quarantine Head Count — not editable.")}</small>
                   </>
                 ) : (
                   <input type="number" min="1" step="1" value={numberOfBirdsAdministered}
@@ -513,66 +514,66 @@ export default function EditHealthRecord() {
                 )}
               </div>
               <div className="ehr-form-group">
-                <label>Vaccine / Drug <span className="ehr-req">*</span></label>
+                <label>{tr("Vaccine / Drug")}{" "}<span className="ehr-req">*</span></label>
                 <input type="text" value={vaccineOrDrug} onChange={(e) => setVaccineOrDrug(e.target.value)} required />
               </div>
               <div className="ehr-form-group">
-                <label>Target Age / Stage</label>
+                <label>{tr("Target Age / Stage")}</label>
                 <input type="text" value={targetAge || "—"} disabled />
-                <small>Auto-recomputed from the batch's Date Acquired on save.</small>
+                <small>{tr("Auto-recomputed from the batch's Date Acquired on save.")}</small>
               </div>
               <div className="ehr-form-group">
-                <label>Route of Administration <span className="ehr-req">*</span></label>
+                <label>{tr("Route of Administration")}{" "}<span className="ehr-req">*</span></label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={routeOfAdmin} onChange={(e) => setRouteOfAdmin(e.target.value)} required style={{ flex: 1 }}>
-                    <option value="">Select route</option>
+                    <option value="">{tr("Select route")}</option>
                     {routeOfAdmin && routeOfAdmin !== NEW_VALUE && !routeChoices.includes(routeOfAdmin) && (
                       <option value={routeOfAdmin}>{routeOfAdmin}</option>
                     )}
                     {routeChoices.map((r) => <option key={r} value={r}>{r}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {routeOfAdmin === NEW_VALUE && (
                     <input type="text" value={newRoute} onChange={(e) => setNewRoute(e.target.value)}
-                      placeholder="Enter route..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter route...")} style={{ flex: 1 }} required />
                   )}
                 </div>
               </div>
               <div className="ehr-form-group">
-                <label>Dosage</label>
+                <label>{tr("Dosage")}</label>
                 <input type="text" inputMode="decimal" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="e.g. 0.5" />
               </div>
               <div className="ehr-form-group">
-                <label>Unit</label>
+                <label>{tr("Unit")}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={dosageUnit} onChange={(e) => setDosageUnit(e.target.value)} style={{ flex: 1 }}>
-                    <option value="">Select unit</option>
+                    <option value="">{tr("Select unit")}</option>
                     {dosageUnit && dosageUnit !== NEW_VALUE && !unitChoices.includes(dosageUnit) && (
                       <option value={dosageUnit}>{dosageUnit}</option>
                     )}
                     {unitChoices.map((u) => <option key={u} value={u}>{u}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {dosageUnit === NEW_VALUE && (
                     <input type="text" value={newUnit} onChange={(e) => setNewUnit(e.target.value)}
-                      placeholder="Enter unit..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter unit...")} style={{ flex: 1 }} required />
                   )}
                 </div>
               </div>
               <div className="ehr-form-group">
-                <label>Frequency</label>
+                <label>{tr("Frequency")}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <select value={frequency} onChange={(e) => setFrequency(e.target.value)} style={{ flex: 1 }}>
-                    <option value="">Select frequency</option>
+                    <option value="">{tr("Select frequency")}</option>
                     {frequency && frequency !== NEW_VALUE && !frequencyChoices.includes(frequency) && (
                       <option value={frequency}>{frequency}</option>
                     )}
                     {frequencyChoices.map((f) => <option key={f} value={f}>{f}</option>)}
-                    <option value={NEW_VALUE}>Others</option>
+                    <option value={NEW_VALUE}>{tr("Others")}</option>
                   </select>
                   {frequency === NEW_VALUE && (
                     <input type="text" value={newFrequency} onChange={(e) => setNewFrequency(e.target.value)}
-                      placeholder="Enter frequency..." style={{ flex: 1 }} required />
+                      placeholder={tr("Enter frequency...")} style={{ flex: 1 }} required />
                   )}
                 </div>
               </div>
@@ -580,50 +581,50 @@ export default function EditHealthRecord() {
 
             <div className="ehr-section-header">
               <FiActivity />
-              <h3>Administered By</h3>
+              <h3>{tr("Administered By")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-grid">
               <div className="ehr-form-group">
-                <label>Type <span className="ehr-req">*</span></label>
+                <label>{tr("Type")}{" "}<span className="ehr-req">*</span></label>
                 <select value={administeredByType} onChange={(e) => setAdministeredByType(e.target.value)} required>
-                  <option value="">Select type</option>
-                  <option value="Staff">Staff</option>
-                  <option value="Vet">Vet</option>
+                  <option value="">{tr("Select type")}</option>
+                  <option value="Staff">{tr("Staff")}</option>
+                  <option value="Vet">{tr("Vet")}</option>
                 </select>
               </div>
               {administeredByType === "Staff" && (
                 <div className="ehr-form-group">
-                  <label>Staff Member <span className="ehr-req">*</span></label>
+                  <label>{tr("Staff Member")}{" "}<span className="ehr-req">*</span></label>
                   <select value={personnelId} onChange={(e) => setPersonnelId(e.target.value)} required>
-                    <option value="">Select staff member</option>
+                    <option value="">{tr("Select staff member")}</option>
                     {personnel.map((p) => <option key={p._id} value={p._id}>{p.user?.name || p.name || p._id}</option>)}
                   </select>
                 </div>
               )}
               {administeredByType === "Vet" && (
                 <div className="ehr-form-group">
-                  <label>Veterinarian <span className="ehr-req">*</span></label>
+                  <label>{tr("Veterinarian")}{" "}<span className="ehr-req">*</span></label>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <select value={vetId} onChange={(e) => setVetId(e.target.value)} style={{ flex: 1 }}>
-                      <option value="">Select veterinarian</option>
+                      <option value="">{tr("Select veterinarian")}</option>
                       {vets.map((v) => <option key={v._id} value={v._id}>{v.name}</option>)}
-                      <option value={NEW_VALUE}>+ Add New Vet</option>
+                      <option value={NEW_VALUE}>{tr("+ Add New Vet")}</option>
                     </select>
                     {(vetId === NEW_VALUE || vets.length === 0) && (
                       <input type="text" value={newVet} onChange={(e) => setNewVet(e.target.value)}
-                        placeholder="Enter veterinarian name..." style={{ flex: 1 }} />
+                        placeholder={tr("Enter veterinarian name...")} style={{ flex: 1 }} />
                     )}
                   </div>
-                  {vets.length === 0 && <small><FiUserPlus /> No veterinarians on file yet — type a name to add one.</small>}
+                  {vets.length === 0 && <small><FiUserPlus />{" "}{tr("No veterinarians on file yet — type a name to add one.")}</small>}
                 </div>
               )}
             </div>
 
             <div className="ehr-section-header">
               <FiCalendar />
-              <h3>Schedule</h3>
+              <h3>{tr("Schedule")}</h3>
               <div className="ehr-line" />
             </div>
 
@@ -648,24 +649,23 @@ export default function EditHealthRecord() {
 
             <div className="ehr-section-header">
               <FiFileText />
-              <h3>Additional Information</h3>
+              <h3>{tr("Additional Information")}</h3>
               <div className="ehr-line" />
             </div>
 
             <div className="ehr-form-group ehr-full-width">
-              <label>Remarks</label>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Enter remarks, aftereffects, or reactions..." maxLength={500} />
+              <label>{tr("Remarks")}</label>
+              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={tr("Enter remarks, aftereffects, or reactions...")} maxLength={500} />
               <small className="ehr-char-count">{(remarks || "").length} / 500</small>
             </div>
           </>
         )}
 
         <div className="ehr-form-actions">
-          <p className="ehr-req-note">Fields with * are required.</p>
+          <p className="ehr-req-note">{tr("Fields with * are required.")}</p>
           <div className="ehr-action-btns">
             <button type="button" className="ehr-cancel-btn" onClick={() => navigate(`/records/health?tab=${isDiagnosis ? "diagnosis" : "vaccination"}`)}>
-              <FiX /> Cancel
-            </button>
+              <FiX />{" "}{tr("Cancel")}</button>
             <button type="submit" className="ehr-save-btn" disabled={saving}>
               <FiSave /> {saving ? "Saving..." : "Update Record"}
             </button>

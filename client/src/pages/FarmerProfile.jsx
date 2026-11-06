@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import {
@@ -38,6 +39,7 @@ const STATUS_STYLE = {
 
 
 export default function FarmerProfile({ embedded = false, onBack }) {
+  const { t, setLanguage } = useLanguage();
   const [saved, setSaved] = useState(EMPTY_PROFILE);
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
@@ -62,14 +64,19 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 
       const p = { ...EMPTY_PROFILE, ...(data.record || data.data || data) };
 
+      // A device with no language choice yet adopts the account's saved language.
+      try {
+        if (localStorage.getItem("pb_lang") === null && p.language === "Filipino") setLanguage("Filipino");
+      } catch { /* storage unavailable */ }
+
       console.log("PROFILE OBJECT:", p);
 
       setSaved(p);
       setForm(p);
     })
-      .catch((err) => setError(err?.message || "Couldn't load your profile."))
+      .catch((err) => setError(t(err?.message || "Couldn't load your profile.")))
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirty =
     form.fullName !== saved.fullName ||
@@ -111,7 +118,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 
   const onSave = async () => {
     if (!form.fullName.trim() || !form.email.trim()) {
-      flash("Full Name and Email are required.");
+      flash(t("Full Name and Email are required."));
       return;
     }
     setSaving(true); setError("");
@@ -128,9 +135,9 @@ export default function FarmerProfile({ embedded = false, onBack }) {
       setForm(p);
       updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
-      flash("Profile saved. Personnel record updated.");
+      flash(t("Profile saved. Personnel record updated."));
     } catch (err) {
-      setError(err?.message || "Couldn't save your profile. Please try again.");
+      setError(t(err?.message || "Couldn't save your profile. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -152,7 +159,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
         {}
 
         {error && <div className="pb-error-banner">{error}</div>}
-        {loading && <p className="pb-loading-text">Loading your profile...</p>}
+        {loading && <p className="pb-loading-text">{t("Loading your profile...")}</p>}
 
         <div className="pf-layout">
           {}
@@ -172,7 +179,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
               /> : 
               <FiUser />}
               </div>
-              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label="Change photo"><FiCamera /></button>
+              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label={t("Change photo")}><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
             </div>
             <h3 className="pf-name">{form.fullName || "—"}</h3>
@@ -183,13 +190,13 @@ export default function FarmerProfile({ embedded = false, onBack }) {
             <div className="pf-info-list">
               <div className="pf-info-row"><FiMail />{form.email || "—"}</div>
               <div className="pf-info-row"><FiPhone />{form.phone || "—"}</div>
-              <div className="pf-info-row"><FiCalendar />Joined: {saved.dateJoined}</div>
-              <div className="pf-info-row"><FiUser />Position: {saved.position}</div>
-              <div className="pf-info-row"><FiClock />Last Login: {saved.lastLogin}</div>
+              <div className="pf-info-row"><FiCalendar />{t("Joined:")} {saved.dateJoined}</div>
+              <div className="pf-info-row"><FiUser />{t("Position:")} {saved.position}</div>
+              <div className="pf-info-row"><FiClock />{t("Last Login:")} {saved.lastLogin}</div>
             </div>
 
             <button className="pf-changepass" onClick={() => setShowPass(true)}>
-              <FiLock /> Change Password
+              <FiLock /> {t("Change Password")}
             </button>
           </div>
 
@@ -197,41 +204,41 @@ export default function FarmerProfile({ embedded = false, onBack }) {
           <div className="pf-card pf-section">
             <div className="pf-section-head">
               <div className="pf-section-ico"><FiUser /></div>
-              <h2>Personal Information</h2>
+              <h2>{t("Personal Information")}</h2>
             </div>
 
             <div className="pf-grid">
               <div className="pf-field">
-                <label className="pf-label">Full Name<span className="req">*</span></label>
-                <input className="pf-input" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Full name" />
+                <label className="pf-label">{t("Full Name")}<span className="req">*</span></label>
+                <input className="pf-input" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder={t("Full name")} />
               </div>
               <div className="pf-field">
-                <label className="pf-label">Email Address<span className="req">*</span></label>
+                <label className="pf-label">{t("Email Address")}<span className="req">*</span></label>
                 <input className="pf-input" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" />
               </div>
 
               <div className="pf-field">
-                <label className="pf-label">Contact Number</label>
+                <label className="pf-label">{t("Contact Number")}</label>
                 <input className="pf-input" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0912 345 6789" />
               </div>
 
               <div className="pf-field">
-                <label className="pf-label">Position</label>
+                <label className="pf-label">{t("Position")}</label>
                 <input className="pf-input readonly" value={saved.position} readOnly tabIndex={-1} />
               </div>
               <div className="pf-field">
-                <label className="pf-label">Employment Status</label>
+                <label className="pf-label">{t("Employment Status")}</label>
                 <span className="pf-status-pill" style={{ background: st.bg, color: st.color }}>
-                  {st.dot} {saved.employmentStatus || "—"}
+                  {st.dot} {saved.employmentStatus ? t(saved.employmentStatus) : "—"}
                 </span>
               </div>
 
               <div className="pf-field">
-                <label className="pf-label">Date Joined</label>
+                <label className="pf-label">{t("Date Joined")}</label>
                 <input className="pf-input readonly" value={saved.dateJoined} readOnly tabIndex={-1} />
               </div>
               <div className="pf-field">
-                <label className="pf-label">Last Login</label>
+                <label className="pf-label">{t("Last Login")}</label>
                 <input className="pf-input readonly" value={saved.lastLogin} readOnly tabIndex={-1} />
               </div>
             </div>
@@ -240,8 +247,8 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 
         {}
         <div className="pf-actions">
-          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>Cancel</button>
-          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? "Saving..." : "Save Changes"}</button>
+          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>{t("Cancel")}</button>
+          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? t("Saving...") : t("Save Changes")}</button>
         </div>
       </div>
 
@@ -254,6 +261,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
 }
 
 function ChangePasswordModal({ onClose }) {
+  const { t } = useLanguage();
   const [vals, setVals] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [msg, setMsg] = useState(null);  const [submitting, setSubmitting] = useState(false);
@@ -264,24 +272,24 @@ function ChangePasswordModal({ onClose }) {
   const submit = async () => {
     if (submitting) return;
     if (!vals.current || !vals.next || !vals.confirm) {
-      return setMsg({ type: "error", text: "Please fill in all password fields." });
+      return setMsg({ type: "error", text: t("Please fill in all password fields.") });
     }
     if (vals.next.length < 8) {
-      return setMsg({ type: "error", text: "New password must be at least 8 characters." });
+      return setMsg({ type: "error", text: t("New password must be at least 8 characters.") });
     }
     if (vals.next === vals.current) {
-      return setMsg({ type: "error", text: "New password must be different from the current one." });
+      return setMsg({ type: "error", text: t("New password must be different from the current one.") });
     }
     if (vals.next !== vals.confirm) {
-      return setMsg({ type: "error", text: "New password and confirmation do not match." });
+      return setMsg({ type: "error", text: t("New password and confirmation do not match.") });
     }
     setSubmitting(true);
     try {
       await changeMyPassword({ currentPassword: vals.current, newPassword: vals.next });
-      setMsg({ type: "success", text: "Password updated successfully!" });
+      setMsg({ type: "success", text: t("Password updated successfully!") });
       setTimeout(onClose, 1300);
     } catch (err) {
-      setMsg({ type: "error", text: err?.message || "Couldn't update your password. Please try again." });
+      setMsg({ type: "error", text: t(err?.message || "Couldn't update your password. Please try again.") });
     } finally {
       setSubmitting(false);
     }
@@ -297,10 +305,10 @@ function ChangePasswordModal({ onClose }) {
     <div className="pf-overlay" onClick={onClose}>
       <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pf-modal-head">
-          <h3>Change Password</h3>
-          <button onClick={onClose} aria-label="Close"><FiX /></button>
+          <h3>{t("Change Password")}</h3>
+          <button onClick={onClose} aria-label={t("Close")}><FiX /></button>
         </div>
-        <p className="pf-modal-sub">Use at least 8 characters. Keep your account secure.</p>
+        <p className="pf-modal-sub">{t("Use at least 8 characters. Keep your account secure.")}</p>
 
         {msg && (
           <div className={`pf-msg ${msg.type}`}>
@@ -310,15 +318,15 @@ function ChangePasswordModal({ onClose }) {
 
         {fields.map((f) => (
           <div className="pf-pass-field" key={f.k}>
-            <label>{f.label}</label>
+            <label>{t(f.label)}</label>
             <div className="pf-pass-input">
               <input
                 type={show[f.k] ? "text" : "password"}
                 value={vals[f.k]}
                 onChange={(e) => set(f.k, e.target.value)}
-                placeholder={f.placeholder}
+                placeholder={t(f.placeholder)}
               />
-              <button className="pf-eye" onClick={() => toggle(f.k)} aria-label="Toggle visibility" tabIndex={-1}>
+              <button className="pf-eye" onClick={() => toggle(f.k)} aria-label={t("Toggle visibility")} tabIndex={-1}>
                 {show[f.k] ? <FiEyeOff /> : <FiEye />}
               </button>
             </div>
@@ -326,8 +334,8 @@ function ChangePasswordModal({ onClose }) {
         ))}
 
         <div className="pf-modal-btns">
-          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update Password"}</button>
+          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>{t("Cancel")}</button>
+          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? t("Updating...") : t("Update Password")}</button>
         </div>
       </div>
     </div>

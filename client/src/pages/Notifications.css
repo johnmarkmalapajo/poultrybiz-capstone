@@ -43,16 +43,14 @@
 
 /* ── Table ── */
 .nt-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 2px 12px rgba(0,0,0,0.04); flex: 1; min-height: 0; }
-.nt-thead, .nt-row { display: grid; grid-template-columns: 3fr 1.1fr 1.2fr 0.9fr 1.3fr; gap: 16px; align-items: center; }
+.nt-thead, .nt-row { display: grid; grid-template-columns: 3fr 1.2fr 0.9fr 1.3fr; gap: 16px; align-items: center; }
 .nt-thead { position: sticky; top: 0; z-index: 2; padding: 16px 22px; background: var(--gold-light); border-bottom: 2px solid rgba(228,175,31,0.2); font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; color: #47321C; text-transform: uppercase; letter-spacing: 0.05em; }
 .nt-row { padding: 18px 22px; border-bottom: 1px solid var(--border); position: relative; transition: background 0.15s; }
 .nt-row:last-child { border-bottom: none; }
 .nt-row:hover { background: #fffdf7; }
 .nt-row.unread { background: #fffdf7; }
 .nt-row::before { content: ""; position: absolute; left: 0; top: 0; width: 4px; height: 100%; }
-.nt-row.prio-critical::before { background: var(--red); }
-.nt-row.prio-warning::before { background: var(--gold); }
-.nt-row.prio-normal::before { background: var(--blue); }
+.nt-row.unread::before { background: var(--gold); }
 
 /* Notification cell */
 .nt-cell-main { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
@@ -66,12 +64,6 @@
 .nt-cell { min-width: 0; }
 .nt-datetime { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-base); color: var(--text-primary); }
 .nt-datetime small { font-size: var(--text-sm); color: var(--text-muted); }
-
-/* Priority badge */
-.nt-prio { display: inline-flex; align-items: center; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
-.nt-prio.prio-critical { background: var(--red-bg); color: var(--red); }
-.nt-prio.prio-warning { background: var(--gold-light); color: var(--gold-dark); }
-.nt-prio.prio-normal { background: var(--blue-bg); color: var(--blue); }
 
 /* Status pill */
 .nt-status { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 20px; font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700; }
@@ -95,8 +87,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
-  .nt-thead, .nt-row { grid-template-columns: 2.6fr 1fr 1fr 1.4fr; }
-  .nt-thead span:nth-child(4) { display: none; } /* hide Status header; shown inline in row */
+  .nt-thead, .nt-row { grid-template-columns: 2.6fr 1.1fr 0.9fr 1.4fr; }
 }
 @media (max-width: 768px) {
   .nt-markall { width: 100%; justify-content: center; }

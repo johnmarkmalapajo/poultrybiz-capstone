@@ -292,7 +292,6 @@ const createMortalityRecord = async (req, res) => {
         description: `High mortality detected in Batch ${batchId}. ${deaths} bird(s) recorded today at ${new Date().toLocaleTimeString()}.`,
         category: "mortality",
         type: "alert",
-        priority: isSevere ? "High" : "Normal",
         roles: ["Owner", "Farmer"],
       });
     }

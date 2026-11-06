@@ -7,6 +7,7 @@ import {
 import PageLayout from "../components/PageLayout";
 import "./ViewVisitor.css";
 import { getVisitor, getVisitorLogs } from "../api/visitorLog";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const getName = (r) => r?.fullName || r?.name || "—";
 const getAddress = (r) => r?.address || "—";
@@ -29,6 +30,7 @@ const BIO_FIELDS = [
 ];
 
 export default function ViewVisitor() {
+  const { t: tr } = useLanguage();
   const { id } = useParams();
 
   const [visitor, setVisitor] = useState(null);
@@ -45,9 +47,9 @@ export default function ViewVisitor() {
       .then((d) => {
         const rec = d && (d.record || d.data || d);
         if (rec && (rec._id || rec.fullName)) setVisitor(rec);
-        else setError("Visitor record not found.");
+        else setError(tr("Visitor record not found."));
       })
-      .catch((err) => setError(err?.message || "Couldn't load this visitor."))
+      .catch((err) => setError(tr(err?.message || "Couldn't load this visitor.")))
       .finally(() => setLoading(false));
 
     getVisitorLogs(id)
@@ -56,7 +58,7 @@ export default function ViewVisitor() {
         setLogs(list);
       })
       .catch(() => setLogs([]));
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const yesNo = (v) => {
     const yes = String(v).toLowerCase() === "yes";
@@ -90,31 +92,31 @@ export default function ViewVisitor() {
           <div className="vv-profile-body">
             <h1>{loading ? "Loading..." : getName(visitor)}</h1>
             <div className="vv-profile-grid">
-              <div><p><FiMapPin /> Address</p><h4>{getAddress(visitor)}</h4></div>
-              <div><p><FiBriefcase /> Affiliation / Company</p><h4>{getAffiliation(visitor)}</h4></div>
-              <div><p><FiPhone /> Contact Number</p><h4>{getContact(visitor)}</h4></div>
-              <div><p><FiUser /> Total Visits</p><h4>{logs.length}</h4></div>
+              <div><p><FiMapPin />{" "}{tr("Address")}</p><h4>{getAddress(visitor)}</h4></div>
+              <div><p><FiBriefcase />{" "}{tr("Affiliation / Company")}</p><h4>{getAffiliation(visitor)}</h4></div>
+              <div><p><FiPhone />{" "}{tr("Contact Number")}</p><h4>{getContact(visitor)}</h4></div>
+              <div><p><FiUser />{" "}{tr("Total Visits")}</p><h4>{logs.length}</h4></div>
             </div>
           </div>
         </div>
 
         {/* Section label */}
-        <div className="vv-section-title">Visitor Logs</div>
+        <div className="vv-section-title">{tr("Visitor Logs")}</div>
 
         {/* Visitor Logs table */}
         <div className="vv-table-wrapper">
             <table className="vv-table">
               <thead>
                 <tr>
-                  <th>Date of Visit</th>
-                  <th>Purpose of Visit</th>
-                  <th>Vehicle Plate</th>
-                  <th>Actions</th>
+                  <th>{tr("Date of Visit")}</th>
+                  <th>{tr("Purpose of Visit")}</th>
+                  <th>{tr("Vehicle Plate")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.length === 0 ? (
-                  <tr><td colSpan="4" className="vv-empty">No visit logs for this visitor.</td></tr>
+                  <tr><td colSpan="4" className="vv-empty">{tr("No visit logs for this visitor.")}</td></tr>
                 ) : (
                   logs.map((l) => (
                     <tr key={l._id || l.id}>
@@ -124,7 +126,7 @@ export default function ViewVisitor() {
                       <td>
                         <button
                           className="vv-icon-btn"
-                          title="View biosecurity assessment"
+                          title={tr("View biosecurity assessment")}
                           onClick={() => setBioLog(l)}
                         >
                           <FiEye />
@@ -135,7 +137,7 @@ export default function ViewVisitor() {
                 )}
               </tbody>
             </table>
-          <div className="vv-table-footer">Showing {logs.length} visit logs</div>
+          <div className="vv-table-footer">{tr("Showing")}{" "}{logs.length}{" "}{tr("visit logs")}</div>
         </div>
 
       {/* ── BIOSECURITY MODAL (opens from the View button) ── */}
@@ -144,21 +146,21 @@ export default function ViewVisitor() {
           <div className="vv-bio-modal" onClick={(e) => e.stopPropagation()}>
             <div className="vv-bio-modal-head">
               <div>
-                <h3>Biosecurity Assessment</h3>
+                <h3>{tr("Biosecurity Assessment")}</h3>
                 <p>{bioLog.date} · {bioLog.purpose}</p>
               </div>
-              <button className="vv-bio-close" onClick={() => setBioLog(null)} aria-label="Close"><FiX /></button>
+              <button className="vv-bio-close" onClick={() => setBioLog(null)} aria-label={tr("Close")}><FiX /></button>
             </div>
 
             {!currentBio ? (
-              <div className="vv-empty" style={{ padding: "32px" }}>No biosecurity assessment for this visit.</div>
+              <div className="vv-empty" style={{ padding: "32px" }}>{tr("No biosecurity assessment for this visit.")}</div>
             ) : (
               <div className="vv-bio-grid">
                 {BIO_FIELDS.map(([key, label]) => {
                   if (key === "otherFarmName" && String(currentBio.otherFarm7d).toLowerCase() !== "yes") return null;
                   return (
                     <div className="vv-bio-row" key={key}>
-                      <span className="vv-bio-q">{label}</span>
+                      <span className="vv-bio-q">{tr(label)}</span>
                       {key === "otherFarmName"
                         ? <span className="vv-bio-text">{currentBio.otherFarmName || "—"}</span>
                         : yesNo(currentBio[key])}

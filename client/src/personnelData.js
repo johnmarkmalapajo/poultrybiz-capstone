@@ -67,16 +67,16 @@ export const ATTENDANCE_BY_ID = {
 
 export const TASKS_BY_ID = {
   f1: [
-    { _id: "t1", date: "May 1, 2024", work: "Morning feeding (Cage 1-4)", assignedDate: "Apr 30, 2024", dueDate: "May 1, 2024", priority: "High",   status: "Completed" },
-    { _id: "t2", date: "May 2, 2024", work: "Egg collection + sorting",   assignedDate: "May 1, 2024",  dueDate: "May 2, 2024", priority: "Medium", status: "In Progress" },
-    { _id: "t3", date: "May 3, 2024", work: "Cage cleaning",              assignedDate: "May 2, 2024",  dueDate: "May 4, 2024", priority: "Low",    status: "Pending" },
+    { _id: "t1", date: "May 1, 2024", work: "Morning feeding (Cage 1-4)", assignedDate: "Apr 30, 2024", dueDate: "May 1, 2024", status: "Completed" },
+    { _id: "t2", date: "May 2, 2024", work: "Egg collection + sorting",   assignedDate: "May 1, 2024",  dueDate: "May 2, 2024", status: "In Progress" },
+    { _id: "t3", date: "May 3, 2024", work: "Cage cleaning",              assignedDate: "May 2, 2024",  dueDate: "May 4, 2024", status: "Pending" },
   ],
   f2: [
-    { _id: "t1", date: "May 1, 2024", work: "Vaccination (Flock B-002)",  assignedDate: "Apr 29, 2024", dueDate: "May 1, 2024", priority: "High",   status: "Completed" },
-    { _id: "t2", date: "May 3, 2024", work: "Health check round",         assignedDate: "May 2, 2024",  dueDate: "May 3, 2024", priority: "Medium", status: "Pending" },
+    { _id: "t1", date: "May 1, 2024", work: "Vaccination (Flock B-002)",  assignedDate: "Apr 29, 2024", dueDate: "May 1, 2024", status: "Completed" },
+    { _id: "t2", date: "May 3, 2024", work: "Health check round",         assignedDate: "May 2, 2024",  dueDate: "May 3, 2024", status: "Pending" },
   ],
   f3: [
-    { _id: "t1", date: "May 1, 2024", work: "Water line inspection",      assignedDate: "Apr 30, 2024", dueDate: "May 2, 2024", priority: "Medium", status: "In Progress" },
+    { _id: "t1", date: "May 1, 2024", work: "Water line inspection",      assignedDate: "Apr 30, 2024", dueDate: "May 2, 2024", status: "In Progress" },
   ],
   f4: [],
   f5: [],

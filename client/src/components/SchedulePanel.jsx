@@ -1,5 +1,6 @@
 import { FiPlus, FiX } from "react-icons/fi";
 import "./SchedulePanel.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 // SchedulePanel — the shared, compact Schedule UI used by the Diagnosis and
 // Medication/Vaccination forms: a simple Date → Schedule → Status list plus
@@ -36,6 +37,7 @@ function scheduleRows(schedules) {
 const STATUS_LABEL = { done: "Done", today: "Today", next: "Next", upcoming: "Upcoming" };
 
 export function ScheduleList({ schedules, action = "Follow-up", emptyText = "No schedules yet.", compact = false }) {
+  const { t: tr } = useLanguage();
   const rows = scheduleRows(schedules);
 
   if (!rows.length) {
@@ -46,9 +48,9 @@ export function ScheduleList({ schedules, action = "Follow-up", emptyText = "No 
     <div className={`pb-sched-table${compact ? " compact" : ""}`} role="table">
       {!compact && (
         <div className="pb-sched-row pb-sched-row-head" role="row">
-          <span role="columnheader">Date</span>
-          <span role="columnheader">Schedule</span>
-          <span role="columnheader">Status</span>
+          <span role="columnheader">{tr("Date")}</span>
+          <span role="columnheader">{tr("Schedule")}</span>
+          <span role="columnheader">{tr("Status")}</span>
         </div>
       )}
       {rows.map((r) => (
@@ -73,6 +75,7 @@ export default function SchedulePanel({
   onCancelAdd,
   addLabel = "Add Schedule",
 }) {
+  const { t: tr } = useLanguage();
   const showEditor = input && (!addable || adding);
   const inputId = input?.id || "pb-sched-input";
 
@@ -94,8 +97,7 @@ export default function SchedulePanel({
             />
             {addable && (
               <button type="button" className="pb-sched-btn" onClick={onCancelAdd}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
             )}
           </div>
         </div>

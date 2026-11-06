@@ -9,6 +9,7 @@ import {
 } from "../api/feedConsumption";
 import { listFlocks } from "../api/flockProfile";
 import { useFeedStock, resolveSackWeight } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 const QUANTITY_UNITS = ["sacks", "kg"];
@@ -163,6 +164,7 @@ function computeConsumedKg(quantity, plan) {
 }
 
 export default function EditFeedConsumption() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -292,8 +294,8 @@ export default function EditFeedConsumption() {
         });
       } catch (err) {
         setError(
-          err?.message ||
-            "Couldn't load this record."
+          tr(err?.message ||
+            "Couldn't load this record.")
         );
       } finally {
         setLoading(false);
@@ -301,7 +303,7 @@ export default function EditFeedConsumption() {
     };
 
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (event) => {
     const { name } = event.target;
@@ -310,7 +312,7 @@ export default function EditFeedConsumption() {
     if (event.target.type === "date") {
       if (event.target.max && value > event.target.max) {
         value = event.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -399,17 +401,17 @@ export default function EditFeedConsumption() {
     setError("");
 
     if (!form.date) {
-      setError("Please select the date.");
+      setError(tr("Please select the date."));
       return;
     }
 
     if (!form.batchId) {
-      setError("Please select a batch.");
+      setError(tr("Please select a batch."));
       return;
     }
 
     if (!form.feedType) {
-      setError("Please select a feed type.");
+      setError(tr("Please select a feed type."));
       return;
     }
 
@@ -422,7 +424,7 @@ export default function EditFeedConsumption() {
       quantity <= 0
     ) {
       setError(
-        "Please enter a valid quantity greater than 0 (up to 2 decimal places)."
+        tr("Please enter a valid quantity greater than 0 (up to 2 decimal places).")
       );
       return;
     }
@@ -455,8 +457,8 @@ export default function EditFeedConsumption() {
       navigate("/inventory/feed-consumption");
     } catch (err) {
       setError(
-        err?.message ||
-          "Couldn't save changes. Please try again."
+        tr(err?.message ||
+          "Couldn't save changes. Please try again.")
       );
 
       setSaving(false);
@@ -483,9 +485,7 @@ export default function EditFeedConsumption() {
           },
         ]}
       >
-        <p className="pb-loading-text">
-          Loading record...
-        </p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -519,14 +519,13 @@ export default function EditFeedConsumption() {
 
         <div className="efc-section-header">
           <FiInfo />
-          <h3>CONSUMPTION DETAILS</h3>
+          <h3>{tr("CONSUMPTION DETAILS")}</h3>
           <div className="efc-line"></div>
         </div>
 
         <div className="efc-form-grid">
           <div className="efc-form-group">
-            <label>
-              Date{" "}
+            <label>{tr("Date")}{" "}
               <span className="efc-req">*</span>
             </label>
 
@@ -546,8 +545,7 @@ export default function EditFeedConsumption() {
           </div>
 
           <div className="efc-form-group">
-            <label>
-              Batch ID{" "}
+            <label>{tr("Batch ID")}{" "}
               <span className="efc-req">*</span>
             </label>
 
@@ -575,8 +573,7 @@ export default function EditFeedConsumption() {
           </div>
 
           <div className="efc-form-group">
-            <label>
-              Feed Type{" "}
+            <label>{tr("Feed Type")}{" "}
               <span className="efc-req">*</span>
             </label>
 
@@ -586,9 +583,7 @@ export default function EditFeedConsumption() {
               onChange={handleChange}
               required
             >
-              <option value="">
-                Select feed type
-              </option>
+              <option value="">{tr("Select feed type")}</option>
 
               {FEED_TYPES.map((feedType) => (
                 <option
@@ -602,8 +597,7 @@ export default function EditFeedConsumption() {
           </div>
 
           <div className="efc-form-group">
-            <label>
-              Quantity Consumed{" "}
+            <label>{tr("Quantity Consumed")}{" "}
               <span className="efc-req">*</span>
             </label>
 
@@ -615,7 +609,7 @@ export default function EditFeedConsumption() {
                 name="quantityConsumed"
                 value={form.quantityConsumed}
                 onChange={handleChange}
-                placeholder="Enter quantity"
+                placeholder={tr("Enter quantity")}
                 required
               />
 
@@ -625,7 +619,7 @@ export default function EditFeedConsumption() {
                 onChange={
                   handleQuantityUnitChange
                 }
-                aria-label="Quantity unit"
+                aria-label={tr("Quantity unit")}
               >
                 {QUANTITY_UNITS.map((unit) => (
                   <option
@@ -648,19 +642,19 @@ export default function EditFeedConsumption() {
 
         <div className="efc-section-header">
           <FiFileText />
-          <h3>ADDITIONAL INFORMATION</h3>
+          <h3>{tr("ADDITIONAL INFORMATION")}</h3>
           <div className="efc-line"></div>
         </div>
 
         <div className="efc-form-group efc-full-width">
-          <label>Notes</label>
+          <label>{tr("Notes")}</label>
 
           <textarea
             rows="6"
             name="notes"
             value={form.notes}
             onChange={handleChange}
-            placeholder="Enter notes about this consumption..."
+            placeholder={tr("Enter notes about this consumption...")}
             maxLength={255}
           />
 
@@ -672,7 +666,7 @@ export default function EditFeedConsumption() {
         {/* Same layout as the Flock Profile form: required-field note on the
             left, Cancel and Update grouped on the right. */}
         <div className="efc-form-actions">
-          <p className="efc-req-note">Fields with * are required.</p>
+          <p className="efc-req-note">{tr("Fields with * are required.")}</p>
           <div className="efc-action-btns">
             <button
               type="button"
@@ -684,8 +678,7 @@ export default function EditFeedConsumption() {
               }
               disabled={saving}
             >
-              <FiX /> Cancel
-            </button>
+              <FiX />{" "}{tr("Cancel")}</button>
 
             <button
               type="submit"

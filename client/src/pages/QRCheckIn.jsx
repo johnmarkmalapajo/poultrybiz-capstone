@@ -5,6 +5,7 @@ import "./QRCheckIn.css";
 import { createAttendance } from "../api/personnelManpower";
 import { getToken, loginUrl } from "../api/session";
 import logo from "../assets/logo.png";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
@@ -34,6 +35,7 @@ const RESULT_TITLES = {
 };
 
 export default function QRCheckIn() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qr = searchParams.get("qr") || "";
@@ -96,10 +98,10 @@ export default function QRCheckIn() {
       setError(err.message);
       setStatus("invalid");
     } else {
-      setError(err?.message || "Couldn't record your attendance. Please try again.");
+      setError(tr(err?.message || "Couldn't record your attendance. Please try again."));
       setStatus("error");
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // One request at a time; the backend also ignores repeated scans.
   const record = useCallback(() => {
@@ -142,8 +144,8 @@ export default function QRCheckIn() {
             <img src={logo} alt="PoultryBiz" />
           </div>
           <div>
-            <h1>PoultryBiz</h1>
-            <p>Attendance Check-In</p>
+            <h1>{tr("PoultryBiz")}</h1>
+            <p>{tr("Attendance Check-In")}</p>
           </div>
         </div>
 
@@ -151,7 +153,7 @@ export default function QRCheckIn() {
           <div className="qc-notice qc-notice-error" role="alert">
             <FiAlertCircle />
             <div>
-              <strong>Invalid attendance QR code</strong>
+              <strong>{tr("Invalid attendance QR code")}</strong>
               <p>{error || "This link is missing the farm's attendance code. Please scan the official QR code provided by the Owner."}</p>
             </div>
           </div>
@@ -162,13 +164,12 @@ export default function QRCheckIn() {
             <div className="qc-notice" role="status">
               <FiInfo />
               <div>
-                <strong>Login required</strong>
-                <p>Log in to your account to record your attendance. You'll come back here automatically afterwards.</p>
+                <strong>{tr("Login required")}</strong>
+                <p>{tr("Log in to your account to record your attendance. You'll come back here automatically afterwards.")}</p>
               </div>
             </div>
             <button className="qc-btn" onClick={() => navigate(loginUrl(returnPath, "attendance"))}>
-              <FiLogIn /> Log In to Continue
-            </button>
+              <FiLogIn />{" "}{tr("Log In to Continue")}</button>
           </>
         )}
 
@@ -184,21 +185,20 @@ export default function QRCheckIn() {
                 <span className="qc-avatar">{initials(storedUserName())}</span>
                 <div>
                   <div className="qc-preview-name">{storedUserName()}</div>
-                  <div className="qc-preview-role">Logged-in account</div>
+                  <div className="qc-preview-role">{tr("Logged-in account")}</div>
                 </div>
               </div>
             )}
 
             {status === "recording" ? (
               <p className="qc-hint" role="status">
-                <span className="qc-spinner" aria-hidden="true" /> Recording your attendance…
-              </p>
+                <span className="qc-spinner" aria-hidden="true" />{" "}{tr("Recording your attendance…")}</p>
             ) : (
               <>
                 <div className="qc-notice qc-notice-error" role="alert">
                   <FiAlertCircle />
                   <div>
-                    <strong>Attendance not recorded</strong>
+                    <strong>{tr("Attendance not recorded")}</strong>
                     <p>{error}</p>
                   </div>
                 </div>
@@ -210,8 +210,7 @@ export default function QRCheckIn() {
                     record();
                   }}
                 >
-                  <FiRefreshCw /> Try Again
-                </button>
+                  <FiRefreshCw />{" "}{tr("Try Again")}</button>
               </>
             )}
           </>

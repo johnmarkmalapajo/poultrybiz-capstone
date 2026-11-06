@@ -18,8 +18,10 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function QuarantineIsolation() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -58,7 +60,7 @@ export default function QuarantineIsolation() {
       setAllRecords(list);
     } catch (err) {
       setAllRecords([]);
-      setError(err?.message || "Couldn't load quarantine & isolation records.");
+      setError(tr(err?.message || "Couldn't load quarantine & isolation records."));
     } finally {
       setLoading(false);
     }
@@ -67,7 +69,7 @@ export default function QuarantineIsolation() {
   useEffect(() => {
     fetchRecords();
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = (() => {
     const now = new Date();
@@ -237,9 +239,9 @@ export default function QuarantineIsolation() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -452,7 +454,7 @@ export default function QuarantineIsolation() {
         <div className="qi-toolbar">
           {!isQuarantine && (
             <button className="qi-add-btn" onClick={() => navigate(addRoute)}>
-              <FiPlus /> {addLabel}
+              <FiPlus /> {tr(addLabel)}
             </button>
           )}
           <div className="qi-toolbar-right">
@@ -460,7 +462,7 @@ export default function QuarantineIsolation() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -468,37 +470,36 @@ export default function QuarantineIsolation() {
             <div className="qi-btn-group">
               <div className="qi-filter-wrap" ref={filterRef}>
                 <button className="qi-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="qi-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="qi-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="qi-filter-dropdown">
                     <div className="qi-filter-dropdown-header">
-                      <span>Filter {isQuarantine ? "Quarantine" : "Isolation"} Records</span>
+                      <span>{tr("Filter")}{" "}{isQuarantine ? "Quarantine" : "Isolation"}{" "}{tr("Records")}</span>
                     </div>
 
-                    <div className="qi-filter-section-label">Date Filter</div>
+                    <div className="qi-filter-section-label">{tr("Date Filter")}</div>
                     <div className="qi-filter-row">
                       <div className="qi-filter-group">
-                        <label className="qi-filter-label">Date Period</label>
+                        <label className="qi-filter-label">{tr("Date Period")}</label>
                         <select
                           className="qi-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="qi-filter-group">
-                          <label className="qi-filter-label">Week</label>
+                          <label className="qi-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="qi-filter-select"
@@ -510,13 +511,13 @@ export default function QuarantineIsolation() {
 
                       {draft.period === "month" && (
                         <div className="qi-filter-group">
-                          <label className="qi-filter-label">Month</label>
+                          <label className="qi-filter-label">{tr("Month")}</label>
                           <select
                             className="qi-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -526,13 +527,13 @@ export default function QuarantineIsolation() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="qi-filter-group">
-                          <label className="qi-filter-label">Year</label>
+                          <label className="qi-filter-label">{tr("Year")}</label>
                           <select
                             className="qi-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -543,28 +544,28 @@ export default function QuarantineIsolation() {
 
                     {draft.period === "custom" && (
                       <div className="qi-filter-group">
-                        <label className="qi-filter-label">Start Date / End Date</label>
+                        <label className="qi-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="qi-filter-date-range">
                           <input type="date" className="qi-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="qi-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="qi-filter-section-label">Filters</div>
+                    <div className="qi-filter-section-label">{tr("Filters")}</div>
                     <div className="qi-filter-group">
-                      <label className="qi-filter-label">Batch ID</label>
+                      <label className="qi-filter-label">{tr("Batch ID")}</label>
                       <select
                         className="qi-filter-select"
                         value={draft.batchId}
                         onChange={(e) => handleFilterChange("batchId", e.target.value)}
                       >
-                        <option value="All">All Batches</option>
+                        <option value="All">{tr("All Batches")}</option>
                         {batchOptions.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -572,8 +573,8 @@ export default function QuarantineIsolation() {
                     </div>
 
                     <div className="qi-filter-actions">
-                      <button className="qi-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="qi-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="qi-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="qi-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -605,38 +606,38 @@ export default function QuarantineIsolation() {
             <>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon gold"><FiClipboard /></div>
-                <div><h3>{qTotal}</h3><p>Total Quarantine</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{qTotal}</h3><p>{tr("Total Quarantine")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon blue"><FiShield /></div>
-                <div><h3>{qOngoing}</h3><p>Ongoing</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{qOngoing}</h3><p>{tr("Ongoing")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon green"><FiCheckCircle /></div>
-                <div><h3>{qReleased}</h3><p>Cleared / Released</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{qReleased}</h3><p>{tr("Cleared / Released")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon gold"><FiClipboard /></div>
-                <div><h3>{qHeads}</h3><p>Total Head Count</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{qHeads}</h3><p>{tr("Total Head Count")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
             </>
           ) : (
             <>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon gold"><FiClipboard /></div>
-                <div><h3>{iTotal}</h3><p>Total Isolation</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{iTotal}</h3><p>{tr("Total Isolation")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon blue"><FiAlertCircle /></div>
-                <div><h3>{iIsolation}</h3><p>In Isolation</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{iIsolation}</h3><p>{tr("In Isolation")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon green"><FiCheckCircle /></div>
-                <div><h3>{iRecovered}</h3><p>Recovered</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{iRecovered}</h3><p>{tr("Recovered")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
               <div className="qi-stat-card">
                 <div className="qi-stat-icon red"><FiHeart /></div>
-                <div><h3>{iDeceased}</h3><p>Deceased</p><span>{statCardSpanLabel}</span></div>
+                <div><h3>{iDeceased}</h3><p>{tr("Deceased")}</p><span>{tr(statCardSpanLabel)}</span></div>
               </div>
             </>
           )}
@@ -648,14 +649,12 @@ export default function QuarantineIsolation() {
             className={`qi-tab ${isQuarantine ? "active" : ""}`}
             onClick={() => handleTabChange("quarantine")}
           >
-            <FiShield /> Quarantine Record
-          </button>
+            <FiShield />{" "}{tr("Quarantine Record")}</button>
           <button
             className={`qi-tab ${!isQuarantine ? "active" : ""}`}
             onClick={() => handleTabChange("isolation")}
           >
-            <FiAlertCircle /> Isolation Record
-          </button>
+            <FiAlertCircle />{" "}{tr("Isolation Record")}</button>
         </div>
 
         {}
@@ -667,26 +666,26 @@ export default function QuarantineIsolation() {
             <table className="qi-table">
               <thead>
                 <tr>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("breed")}>BREED{sortIndicator("breed", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("source")}>SUPPLIER{sortIndicator("source", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("dateAcquired")}>DATE ACQUIRED{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>HEAD COUNT{sortIndicator("headCount", sortColumn, sortDirection)}</th>
-                  <th>VITAMINS GIVEN</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("releasedDate")}>DATE RELEASED{sortIndicator("releasedDate", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("status")}>STATUS{sortIndicator("status", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("breed")}>{tr("BREED")}{sortIndicator("breed", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("source")}>{tr("SUPPLIER")}{sortIndicator("source", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("dateAcquired")}>{tr("DATE ACQUIRED")}{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>{tr("HEAD COUNT")}{sortIndicator("headCount", sortColumn, sortDirection)}</th>
+                  <th>{tr("VITAMINS GIVEN")}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("releasedDate")}>{tr("DATE RELEASED")}{sortIndicator("releasedDate", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("status")}>{tr("STATUS")}{sortIndicator("status", sortColumn, sortDirection)}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="8" className="qi-empty-state">Loading quarantine records...</td></tr>
+                  <tr><td colSpan="8" className="qi-empty-state">{tr("Loading quarantine records...")}</td></tr>
                 ) : filteredQuarantine.length === 0 && quarantineRecords.length > 0 ? (
                   <tr>
                     <td colSpan="8" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
-                        <h3>No quarantine and isolation records found</h3>
-                        <p>No matching quarantine records were found for your search.</p>
+                        <h3>{tr("No quarantine and isolation records found")}</h3>
+                        <p>{tr("No matching quarantine records were found for your search.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -695,8 +694,8 @@ export default function QuarantineIsolation() {
                     <td colSpan="8" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
-                        <h3>No quarantine and isolation records found</h3>
-                        <p>Quarantine records are created automatically when a new flock's age requires quarantine.</p>
+                        <h3>{tr("No quarantine and isolation records found")}</h3>
+                        <p>{tr("Quarantine records are created automatically when a new flock's age requires quarantine.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -726,30 +725,30 @@ export default function QuarantineIsolation() {
             <table className="qi-table">
               <thead>
                 <tr>
-                  <th>ISOLATION ID</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("dateIsolated")}>DATE ISOLATED{sortIndicator("dateIsolated", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>NUMBER OF BIRDS ISOLATED{sortIndicator("headCount", sortColumn, sortDirection)}</th>
-                  <th>SYMPTOMS / REASONS</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("location")}>LOCATION{sortIndicator("location", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("recovered")}>RECOVERED{sortIndicator("recovered", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("deceased")}>DECEASED{sortIndicator("deceased", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("remaining")}>REMAINING{sortIndicator("remaining", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("dateCompleted")}>DATE COMPLETED{sortIndicator("dateCompleted", sortColumn, sortDirection)}</th>
-                  <th className="qi-sortable-th" onClick={() => cycleSort("currentStatus")}>STATUS{sortIndicator("currentStatus", sortColumn, sortDirection)}</th>
-                  <th>ACTIONS</th>
+                  <th>{tr("ISOLATION ID")}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("dateIsolated")}>{tr("DATE ISOLATED")}{sortIndicator("dateIsolated", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>{tr("NUMBER OF BIRDS ISOLATED")}{sortIndicator("headCount", sortColumn, sortDirection)}</th>
+                  <th>{tr("SYMPTOMS / REASONS")}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("location")}>{tr("LOCATION")}{sortIndicator("location", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("recovered")}>{tr("RECOVERED")}{sortIndicator("recovered", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("deceased")}>{tr("DECEASED")}{sortIndicator("deceased", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("remaining")}>{tr("REMAINING")}{sortIndicator("remaining", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("dateCompleted")}>{tr("DATE COMPLETED")}{sortIndicator("dateCompleted", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("currentStatus")}>{tr("STATUS")}{sortIndicator("currentStatus", sortColumn, sortDirection)}</th>
+                  <th>{tr("ACTIONS")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="12" className="qi-empty-state">Loading isolation records...</td></tr>
+                  <tr><td colSpan="12" className="qi-empty-state">{tr("Loading isolation records...")}</td></tr>
                 ) : filteredIsolation.length === 0 && isolationRecords.length > 0 ? (
                   <tr>
                     <td colSpan="12" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
-                        <h3>No quarantine and isolation records found</h3>
-                        <p>No matching isolation records were found for your search.</p>
+                        <h3>{tr("No quarantine and isolation records found")}</h3>
+                        <p>{tr("No matching isolation records were found for your search.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -758,11 +757,10 @@ export default function QuarantineIsolation() {
                     <td colSpan="12" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
-                        <h3>No quarantine and isolation records found</h3>
-                        <p>Click Add Isolation Record to log a symptomatic bird.</p>
+                        <h3>{tr("No quarantine and isolation records found")}</h3>
+                        <p>{tr("Click Add Isolation Record to log a symptomatic bird.")}</p>
                         <button className="qi-empty-add-btn" onClick={() => navigate(addRoute)}>
-                          <FiPlus /> Add Isolation Record
-                        </button>
+                          <FiPlus />{" "}{tr("Add Isolation Record")}</button>
                       </div>
                     </td>
                   </tr>
@@ -785,22 +783,22 @@ export default function QuarantineIsolation() {
                           className={`qi-status-trigger-btn ${statusClass(r.currentStatus)}`}
                           onClick={() => openProgressModal(r)}
                         >
-                          {r.currentStatus} <FiChevronDown className="qi-status-chevron" />
+                          {tr(r.currentStatus)} <FiChevronDown className="qi-status-chevron" />
                         </button>
                       </td>
                       <td>
                         <div className="qi-actions">
-                          <button className="qi-btn-edit" title="View" onClick={() => setViewRecord(r)}>
+                          <button className="qi-btn-edit" title={tr("View")} onClick={() => setViewRecord(r)}>
                             <FiEye />
                           </button>
                           {canEdit && (
-                          <button className="qi-btn-edit" title="Edit"
+                          <button className="qi-btn-edit" title={tr("Edit")}
                             onClick={() => navigate(`/records/quarantine/edit/${r._id}?type=isolation`)}>
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="qi-btn-archive" onClick={() => requestArchive({ module: "Quarantine & Isolation", moduleKey: "pb_isolation", record: r, name: r.cage || r.batchId })} title="Archive">
+                          <button className="qi-btn-archive" onClick={() => requestArchive({ module: "Quarantine & Isolation", moduleKey: "pb_isolation", record: r, name: r.cage || r.batchId })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                           )}
@@ -831,23 +829,23 @@ export default function QuarantineIsolation() {
       {viewRecord && (
         <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
           <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, textAlign: "left" }}>
-            <h3 className="pb-confirm-title">Isolation Record — {viewRecord.isolationId}</h3>
+            <h3 className="pb-confirm-title">{tr("Isolation Record —")}{" "}{viewRecord.isolationId}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
-              <div><small>Isolation ID</small><p style={{ margin: 0 }}>{viewRecord.isolationId}</p></div>
-              <div><small>Batch ID</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
-              <div><small>Date Isolated</small><p style={{ margin: 0 }}>{viewRecord.dateIsolated}</p></div>
-              <div><small>Number of Birds Isolated</small><p style={{ margin: 0 }}>{viewRecord.headCount}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Symptoms/Reasons</small><p style={{ margin: 0 }}>{viewRecord.symptoms}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Location</small><p style={{ margin: 0 }}>{viewRecord.location || "—"}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Remarks</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
-              <div><small>Recovered</small><p style={{ margin: 0 }}>{viewRecord.recovered ?? 0}</p></div>
-              <div><small>Deceased</small><p style={{ margin: 0 }}>{viewRecord.deceased ?? 0}</p></div>
-              <div><small>Remaining</small><p style={{ margin: 0 }}>{viewRecord.remaining ?? 0}</p></div>
-              <div><small>Date Completed</small><p style={{ margin: 0 }}>{viewRecord.dateCompleted || "—"}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Status</small><p style={{ margin: 0 }}><span className={statusClass(viewRecord.currentStatus)}>{viewRecord.currentStatus}</span></p></div>
+              <div><small>{tr("Isolation ID")}</small><p style={{ margin: 0 }}>{viewRecord.isolationId}</p></div>
+              <div><small>{tr("Batch ID")}</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
+              <div><small>{tr("Date Isolated")}</small><p style={{ margin: 0 }}>{viewRecord.dateIsolated}</p></div>
+              <div><small>{tr("Number of Birds Isolated")}</small><p style={{ margin: 0 }}>{viewRecord.headCount}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Symptoms/Reasons")}</small><p style={{ margin: 0 }}>{viewRecord.symptoms}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Location")}</small><p style={{ margin: 0 }}>{viewRecord.location || "—"}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Remarks")}</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
+              <div><small>{tr("Recovered")}</small><p style={{ margin: 0 }}>{viewRecord.recovered ?? 0}</p></div>
+              <div><small>{tr("Deceased")}</small><p style={{ margin: 0 }}>{viewRecord.deceased ?? 0}</p></div>
+              <div><small>{tr("Remaining")}</small><p style={{ margin: 0 }}>{viewRecord.remaining ?? 0}</p></div>
+              <div><small>{tr("Date Completed")}</small><p style={{ margin: 0 }}>{viewRecord.dateCompleted || "—"}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Status")}</small><p style={{ margin: 0 }}><span className={statusClass(viewRecord.currentStatus)}>{tr(viewRecord.currentStatus)}</span></p></div>
             </div>
             <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
             </div>
           </div>
         </div>
@@ -856,7 +854,7 @@ export default function QuarantineIsolation() {
       {progressRecord && (
         <div className="pb-confirm-overlay" onClick={closeProgressModal}>
           <div className="pb-confirm-modal qi-progress-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="pb-confirm-title">Update Isolation Status</h3>
+            <h3 className="pb-confirm-title">{tr("Update Isolation Status")}</h3>
 
             {progError && <div className="pb-error-banner">{progError}</div>}
 
@@ -864,30 +862,29 @@ export default function QuarantineIsolation() {
               <>
                 <div className="qi-progress-columns">
                   <div className="qi-progress-col">
-                    <h4 className="qi-progress-col-title">Isolation Information</h4>
-                    <div className="qi-progress-kv"><small>Isolation ID</small><p>{progressRecord.isolationId}</p></div>
-                    <div className="qi-progress-kv"><small>Batch ID</small><p>{progressRecord.batchId}</p></div>
-                    <div className="qi-progress-kv"><small>Number of Birds Isolated</small><p>{progressRecord.headCount}</p></div>
-                    <div className="qi-progress-kv"><small>Status</small><p><span className={statusClass(progressRecord.currentStatus)}>{progressRecord.currentStatus}</span></p></div>
+                    <h4 className="qi-progress-col-title">{tr("Isolation Information")}</h4>
+                    <div className="qi-progress-kv"><small>{tr("Isolation ID")}</small><p>{progressRecord.isolationId}</p></div>
+                    <div className="qi-progress-kv"><small>{tr("Batch ID")}</small><p>{progressRecord.batchId}</p></div>
+                    <div className="qi-progress-kv"><small>{tr("Number of Birds Isolated")}</small><p>{progressRecord.headCount}</p></div>
+                    <div className="qi-progress-kv"><small>{tr("Status")}</small><p><span className={statusClass(progressRecord.currentStatus)}>{tr(progressRecord.currentStatus)}</span></p></div>
                   </div>
 
                   <div className="qi-progress-col">
-                    <h4 className="qi-progress-col-title">Current Progress</h4>
-                    <div className="qi-progress-kv"><small>Recovered</small><p className="qi-progress-strong">{progressRecord.recovered}</p></div>
-                    <div className="qi-progress-kv"><small>Deceased</small><p className="qi-progress-strong">{progressRecord.deceased}</p></div>
-                    <div className="qi-progress-kv"><small>Remaining</small><p className="qi-progress-strong">{progressRecord.remaining}</p></div>
+                    <h4 className="qi-progress-col-title">{tr("Current Progress")}</h4>
+                    <div className="qi-progress-kv"><small>{tr("Recovered")}</small><p className="qi-progress-strong">{progressRecord.recovered}</p></div>
+                    <div className="qi-progress-kv"><small>{tr("Deceased")}</small><p className="qi-progress-strong">{progressRecord.deceased}</p></div>
+                    <div className="qi-progress-kv"><small>{tr("Remaining")}</small><p className="qi-progress-strong">{progressRecord.remaining}</p></div>
                   </div>
 
                   <div className="qi-progress-col">
                     {progressMode === "view" && (
                       <>
-                        <h4 className="qi-progress-col-title">Add New Progress</h4>
+                        <h4 className="qi-progress-col-title">{tr("Add New Progress")}</h4>
                         {progressRecord.remaining > 0 ? (
                           <button type="button" className="pb-confirm-archive qi-progress-add-btn" onClick={startAddUpdate}>
-                            <FiPlus /> Add New Update
-                          </button>
+                            <FiPlus />{" "}{tr("Add New Update")}</button>
                         ) : (
-                          <p className="qi-progress-note">This isolation event is complete — no further updates needed.</p>
+                          <p className="qi-progress-note">{tr("This isolation event is complete — no further updates needed.")}</p>
                         )}
                       </>
                     )}
@@ -898,7 +895,7 @@ export default function QuarantineIsolation() {
                           {progressMode === "add" ? "Add New Progress" : "Correct This Update"}
                         </h4>
                         <div className="qi-progress-field">
-                          <label>Date</label>
+                          <label>{tr("Date")}</label>
                           <input type="date" max={today} value={progForm.date}
                             onChange={(e) => {
                               const blocked = e.target.value > today;
@@ -907,20 +904,20 @@ export default function QuarantineIsolation() {
                             }} />
                         </div>
                         <div className="qi-progress-field">
-                          <label>Recovered</label>
+                          <label>{tr("Recovered")}</label>
                           <input type="text" inputMode="numeric" value={progForm.recovered}
                             onChange={(e) => setProgForm((p) => ({ ...p, recovered: e.target.value.replace(/[^\d]/g, "") }))}
                             placeholder="0" />
                         </div>
                         <div className="qi-progress-field">
-                          <label>Deceased</label>
+                          <label>{tr("Deceased")}</label>
                           <input type="text" inputMode="numeric" value={progForm.deceased}
                             onChange={(e) => setProgForm((p) => ({ ...p, deceased: e.target.value.replace(/[^\d]/g, "") }))}
                             placeholder="0" />
                         </div>
                         <div className="qi-progress-inline-actions">
-                          <button type="button" className="pb-confirm-cancel" onClick={cancelProgAction}>Cancel</button>
-                          <button type="button" className="pb-confirm-archive" onClick={requestProgConfirm}>Save Update</button>
+                          <button type="button" className="pb-confirm-cancel" onClick={cancelProgAction}>{tr("Cancel")}</button>
+                          <button type="button" className="pb-confirm-archive" onClick={requestProgConfirm}>{tr("Save Update")}</button>
                         </div>
                       </>
                     )}
@@ -928,15 +925,15 @@ export default function QuarantineIsolation() {
                 </div>
 
                 <div className="qi-progress-history">
-                  <h4 className="qi-progress-col-title">Previous Progress History</h4>
+                  <h4 className="qi-progress-col-title">{tr("Previous Progress History")}</h4>
                   {progressRecord.progressUpdates?.length > 0 ? (
                     <div className="qi-progress-history-scroll">
                       <table className="qi-progress-history-table">
                         <thead>
                           <tr>
-                            <th>Date</th>
-                            <th>Recovered</th>
-                            <th>Deceased</th>
+                            <th>{tr("Date")}</th>
+                            <th>{tr("Recovered")}</th>
+                            <th>{tr("Deceased")}</th>
                             <th></th>
                           </tr>
                         </thead>
@@ -948,7 +945,7 @@ export default function QuarantineIsolation() {
                               <td>{u.deceasedDelta}</td>
                               <td>
                                 {progressMode !== "correct" && (
-                                  <button type="button" className="qi-progress-edit-btn" title="Correct this update"
+                                  <button type="button" className="qi-progress-edit-btn" title={tr("Correct this update")}
                                     onClick={() => startCorrectEntry(u)}>
                                     <FiEdit2 />
                                   </button>
@@ -960,12 +957,12 @@ export default function QuarantineIsolation() {
                       </table>
                     </div>
                   ) : (
-                    <p className="qi-progress-note">No progress updates yet.</p>
+                    <p className="qi-progress-note">{tr("No progress updates yet.")}</p>
                   )}
                 </div>
 
                 <div className="pb-confirm-actions qi-progress-footer">
-                  <button className="pb-confirm-cancel" onClick={closeProgressModal}>Close</button>
+                  <button className="pb-confirm-cancel" onClick={closeProgressModal}>{tr("Close")}</button>
                 </div>
               </>
             )}
@@ -976,13 +973,11 @@ export default function QuarantineIsolation() {
                   {progressMode === "add" ? "Are you sure you want to save this update?" : "Are you sure you want to save this correction?"}
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", margin: "12px 0" }}>
-                  <div><small>Recovered</small><p style={{ margin: 0, fontWeight: 700 }}>{progForm.recovered || 0}</p></div>
-                  <div><small>Deceased</small><p style={{ margin: 0, fontWeight: 700 }}>{progForm.deceased || 0}</p></div>
+                  <div><small>{tr("Recovered")}</small><p style={{ margin: 0, fontWeight: 700 }}>{progForm.recovered || 0}</p></div>
+                  <div><small>{tr("Deceased")}</small><p style={{ margin: 0, fontWeight: 700 }}>{progForm.deceased || 0}</p></div>
                 </div>
                 <div className="pb-confirm-actions">
-                  <button className="pb-confirm-cancel" onClick={() => setProgConfirming(false)} disabled={progSaving}>
-                    Cancel
-                  </button>
+                  <button className="pb-confirm-cancel" onClick={() => setProgConfirming(false)} disabled={progSaving}>{tr("Cancel")}</button>
                   <button className="pb-confirm-archive" onClick={confirmProgSave} disabled={progSaving}>
                     {progSaving ? "Saving..." : "Confirm & Save"}
                   </button>

@@ -5,8 +5,8 @@ import PageLayout from "../components/PageLayout";
 import "./EditTask.css";
 import {getPersonnelTask, updatePersonnelTask,} from "../api/personnelManpower";
 import { getPersonnel } from "../api/personnelManpower";
+import { useLanguage } from "../i18n/LanguageContext";
 
-const PRIORITIES = ["High", "Medium", "Low"];
 const STATUSES = ["Pending", "Completed"];
 
 const FARMER_CATEGORIES = [
@@ -34,6 +34,7 @@ const toDateInput = (v) => {
 };
 
 export default function EditTask() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id, taskId } = useParams();
 
@@ -44,7 +45,6 @@ export default function EditTask() {
     work: "",
     assignedDate: "",
     dueDate: "",
-    priority: "Medium",
     status: "Pending",
     category: "",
     notes: "",
@@ -67,18 +67,17 @@ export default function EditTask() {
             work: t.title || t.work || t.task || "",
             assignedDate: toDateInput(t.assignedDate) || t.assignedDate || "",
             dueDate: toDateInput(t.dueDate) || t.dueDate || "",
-            priority: t.priority || "Medium",
             status: t.status || "Pending",
             category: t.type || t.module || categoriesFor(personRec)[0],
             notes: t.description || t.notes || "",
           });
         } else {
-          setError("Task not found.");
+          setError(tr("Task not found."));
         }
       })
-      .catch((err) => setError(err?.message || "Couldn't load this task."))
+      .catch((err) => setError(tr(err?.message || "Couldn't load this task.")))
       .finally(() => setLoading(false));
-  }, [id, taskId]);
+  }, [id, taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -99,7 +98,6 @@ export default function EditTask() {
       description: formData.notes,
       assignedDate: formData.assignedDate,
       dueDate: formData.dueDate,
-      priority: formData.priority,
       status: formData.status,
     };
 
@@ -110,7 +108,7 @@ export default function EditTask() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
       navigate(`/personnel-visitors/personnel/view/${id}`);
     } catch (err) {
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     } finally {
       setSaving(false);
       window.__pbSaving = false;
@@ -127,7 +125,7 @@ export default function EditTask() {
           { label: "EDIT TASK" },
         ]}
       >
-        <p className="et-loading">Loading task...</p>
+        <p className="et-loading">{tr("Loading task...")}</p>
       </PageLayout>
     );
   }
@@ -148,99 +146,91 @@ export default function EditTask() {
           <div className="et-for-banner">
             <span className="et-tfb-avatar">{initials(personName)}</span>
             <div>
-              <div className="et-tfb-label">Task assigned to</div>
+              <div className="et-tfb-label">{tr("Task assigned to")}</div>
               <div className="et-tfb-name">{personName}</div>
             </div>
           </div>
 
           <div className="et-section-header">
             <FiClipboard />
-            <h3>Task Details</h3>
+            <h3>{tr("Task Details")}</h3>
             <div className="et-line" />
           </div>
 
           <div className="et-form-group et-full-width">
-            <label>Work Assigned <span className="et-req">*</span></label>
+            <label>{tr("Work Assigned")}{" "}<span className="et-req">*</span></label>
             <input
               type="text"
               name="work"
               value={formData.work}
               onChange={handleChange}
-              placeholder="e.g., Morning feeding (Cage 1-4)"
+              placeholder={tr("e.g., Morning feeding (Cage 1-4)")}
               required
             />
           </div>
 
           <div className="et-form-group et-full-width">
-            <label>Category <span className="et-req">*</span></label>
+            <label>{tr("Category")}{" "}<span className="et-req">*</span></label>
             <select name="category" value={formData.category} onChange={handleChange} required>
-              {categoriesFor(person).map((c) => <option key={c} value={c}>{c}</option>)}
+              {categoriesFor(person).map((c) => <option key={c} value={c}>{tr(c)}</option>)}
             </select>
           </div>
 
           <div className="et-section-header">
             <FiCalendar />
-            <h3>Schedule</h3>
+            <h3>{tr("Schedule")}</h3>
             <div className="et-line" />
           </div>
 
           <div className="et-form-grid">
             <div className="et-form-group">
-              <label>Assigned Date <span className="et-req">*</span></label>
+              <label>{tr("Assigned Date")}{" "}<span className="et-req">*</span></label>
               <input type="date" name="assignedDate" value={formData.assignedDate} onChange={handleChange} required />
             </div>
 
             <div className="et-form-group">
-              <label>Due Date <span className="et-req">*</span></label>
+              <label>{tr("Due Date")}{" "}<span className="et-req">*</span></label>
               <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
             </div>
           </div>
 
           <div className="et-section-header">
             <FiFlag />
-            <h3>Priority &amp; Status</h3>
+            <h3>{tr("Status")}</h3>
             <div className="et-line" />
           </div>
 
           <div className="et-form-grid">
             <div className="et-form-group">
-              <label>Priority <span className="et-req">*</span></label>
-              <select name="priority" value={formData.priority} onChange={handleChange} required>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-
-            <div className="et-form-group">
-              <label>Status <span className="et-req">*</span></label>
+              <label>{tr("Status")}{" "}<span className="et-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {STATUSES.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="et-section-header">
             <FiFileText />
-            <h3>Additional Notes</h3>
+            <h3>{tr("Additional Notes")}</h3>
             <div className="et-line" />
           </div>
 
           <div className="et-form-group et-full-width">
-            <label>Notes <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
+            <label>{tr("Notes")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
             <textarea
               rows="4"
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              placeholder="Extra instructions or details..."
+              placeholder={tr("Extra instructions or details...")}
             />
           </div>
 
           <div className="et-form-actions">
-            <p className="et-req-note">Fields with * are required.</p>
+            <p className="et-req-note">{tr("Fields with * are required.")}</p>
             <div className="et-action-btns">
               <button type="button" className="et-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="et-save-btn" disabled={saving}>
                 <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>

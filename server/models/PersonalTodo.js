@@ -24,12 +24,6 @@ const personalTodoSchema = new mongoose.Schema(
       default: "Records",
     },
 
-    priority: {
-      type: String,
-      enum: ["Low", "Medium", "High"],
-      default: "Medium",
-    },
-
     dueDate: {
       type: Date,
     },

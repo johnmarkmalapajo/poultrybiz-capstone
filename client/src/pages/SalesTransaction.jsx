@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import "./SalesTransaction.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const cards = [
   { id: "sales",    label: "Sales Record",    emoji: "💰", description: "Record egg sales and track revenue",        color: "#e8a020", bg: "#fff8ec", path: "/sales-transactions/sales" },
@@ -8,6 +9,7 @@ const cards = [
 ];
 
 export default function SalesTransaction() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   return (
@@ -24,8 +26,8 @@ export default function SalesTransaction() {
               <span className="st-card-emoji">{card.emoji}</span>
             </div>
             <div className="st-card-body">
-              <span className="st-card-label">{card.label}</span>
-              <span className="st-card-desc">{card.description}</span>
+              <span className="st-card-label">{tr(card.label)}</span>
+              <span className="st-card-desc">{tr(card.description)}</span>
             </div>
             <span className="st-card-arrow">›</span>
           </button>

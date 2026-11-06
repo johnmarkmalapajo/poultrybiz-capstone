@@ -98,7 +98,6 @@ const finalizeRelease = async (record) => {
     description: `The ${QUARANTINE_DAYS}-day quarantine period of Batch ${record.batchId} has ended. The batch was automatically released on ${formatDay(releasedOn)}. ${flockStatusNote(flock?.status)}`,
     category: "quarantine",
     type: "alert",
-    priority: "Normal",
     roles: ["Owner"],
     referenceId: record._id,
     referenceModel: "QuarantineIsolation",

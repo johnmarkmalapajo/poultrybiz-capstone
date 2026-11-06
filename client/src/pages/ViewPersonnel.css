@@ -116,9 +116,6 @@
 .badge.pending     { background: var(--icon-orange-bg); color: var(--icon-orange); }
 
 /* Task priorities */
-.badge.prio-high   { background: var(--icon-red-bg);    color: var(--icon-red); }
-.badge.prio-medium { background: var(--icon-orange-bg); color: var(--icon-orange); }
-.badge.prio-low    { background: var(--icon-green-bg);  color: var(--icon-green); }
 
 /* ===== STATS ===== */
 .vp-stats-grid {

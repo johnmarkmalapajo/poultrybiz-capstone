@@ -14,11 +14,13 @@ import {
 } from "../api/quarantineIsolation";
 import { listFlocks } from "../api/flockProfile";
 import { listHealthOptions } from "../api/healthOptions";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_VALUE = "__new__";
 const backRoute = "/records/quarantine?tab=isolation";
 
 export default function EditQuarantineIsolation() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -71,13 +73,13 @@ export default function EditQuarantineIsolation() {
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = (() => {
     const now = new Date();
@@ -101,15 +103,15 @@ export default function EditQuarantineIsolation() {
     if (saving) return;
 
     if (formData.symptoms === NEW_VALUE && !newSymptom.trim()) {
-      setError("Please enter the Symptoms/Reasons.");
+      setError(tr("Please enter the Symptoms/Reasons."));
       return;
     }
     if (formData.dateIsolated > today) {
-      setError("Date Isolated cannot be in the future.");
+      setError(tr("Date Isolated cannot be in the future."));
       return;
     }
     if (!/^\d+$/.test(String(formData.headCount).trim()) || Number(formData.headCount) <= 0) {
-      setError("Number of Birds Isolated must be a whole number greater than zero.");
+      setError(tr("Number of Birds Isolated must be a whole number greater than zero."));
       return;
     }
     if (headCountExceedsAvailable) {
@@ -138,7 +140,7 @@ export default function EditQuarantineIsolation() {
       navigate(backRoute);
     } catch (err) {
       setSaving(false);
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     }
   };
 
@@ -154,7 +156,7 @@ export default function EditQuarantineIsolation() {
           { label: "EDIT ISOLATION RECORD" },
         ]}
       >
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -173,23 +175,22 @@ export default function EditQuarantineIsolation() {
 
         <div className="eqi-section-header">
           <FiAlertCircle />
-          <h3>Isolation Details</h3>
+          <h3>{tr("Isolation Details")}</h3>
           <div className="eqi-line" />
         </div>
 
         <div className="eqi-form-grid">
           <div className="eqi-form-group">
-            <label>Isolation ID</label>
+            <label>{tr("Isolation ID")}</label>
             <input type="text" value={formData.isolationId} disabled />
-            <small>Cannot be changed.</small>
+            <small>{tr("Cannot be changed.")}</small>
           </div>
 
           <div className="eqi-form-group">
-            <label>
-              Batch ID <span className="eqi-req">*</span>
+            <label>{tr("Batch ID")}{" "}<span className="eqi-req">*</span>
             </label>
             <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
-              <option value="">Select batch ID</option>
+              <option value="">{tr("Select batch ID")}</option>
               {formData.batchId && !batchOptions.includes(formData.batchId) && (
                 <option value={formData.batchId}>{formData.batchId}</option>
               )}
@@ -200,8 +201,7 @@ export default function EditQuarantineIsolation() {
           </div>
 
           <div className="eqi-form-group">
-            <label>
-              Date Isolated <span className="eqi-req">*</span>
+            <label>{tr("Date Isolated")}{" "}<span className="eqi-req">*</span>
             </label>
             <input
               type="date"
@@ -214,8 +214,7 @@ export default function EditQuarantineIsolation() {
           </div>
 
           <div className="eqi-form-group">
-            <label>
-              Number of Birds Isolated <span className="eqi-req">*</span>
+            <label>{tr("Number of Birds Isolated")}{" "}<span className="eqi-req">*</span>
             </label>
             <input
               type="text"
@@ -231,26 +230,24 @@ export default function EditQuarantineIsolation() {
               required
             />
             {selectedFlock && (
-              <small style={headCountExceedsAvailable ? { color: "#c0392b" } : undefined}>
-                Available birds in this batch: {selectedFlock.currentQuantity}
+              <small style={headCountExceedsAvailable ? { color: "#c0392b" } : undefined}>{tr("Available birds in this batch:")}{" "}{selectedFlock.currentQuantity}
               </small>
             )}
           </div>
 
           <div className="eqi-form-group">
-            <label>Location</label>
+            <label>{tr("Location")}</label>
             <input
               type="text"
               name="location"
               value={formData.location}
               onChange={handleChange}
-              placeholder="e.g. Isolation Pen 2"
+              placeholder={tr("e.g. Isolation Pen 2")}
             />
           </div>
 
           <div className="eqi-form-group">
-            <label>
-              Symptoms / Reasons <span className="eqi-req">*</span>
+            <label>{tr("Symptoms / Reasons")}{" "}<span className="eqi-req">*</span>
             </label>
             <div style={{ display: "flex", gap: "10px" }}>
               <select
@@ -260,49 +257,48 @@ export default function EditQuarantineIsolation() {
                 style={{ flex: 1 }}
                 required
               >
-                <option value="">Select symptoms/reasons</option>
+                <option value="">{tr("Select symptoms/reasons")}</option>
                 {formData.symptoms && formData.symptoms !== NEW_VALUE && !symptomOptions.includes(formData.symptoms) && (
                   <option value={formData.symptoms}>{formData.symptoms}</option>
                 )}
                 {symptomOptions.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.symptoms === NEW_VALUE && (
                 <input
                   type="text"
                   value={newSymptom}
                   onChange={(e) => setNewSymptom(e.target.value)}
-                  placeholder="Enter symptoms/reason..."
+                  placeholder={tr("Enter symptoms/reason...")}
                   style={{ flex: 1 }}
                   required
                 />
               )}
             </div>
-            <small>Shared with Diagnosis's Presumptive Diagnosis list. This will be saved and available in future Symptoms/Reasons and Presumptive Diagnosis dropdowns.</small>
+            <small>{tr("Shared with Diagnosis's Presumptive Diagnosis list. This will be saved and available in future Symptoms/Reasons and Presumptive Diagnosis dropdowns.")}</small>
           </div>
         </div>
 
         <div className="eqi-section-header">
           <FiFileText />
-          <h3>Remarks</h3>
+          <h3>{tr("Remarks")}</h3>
           <div className="eqi-line" />
         </div>
 
         <div className="eqi-form-group eqi-full-width">
-          <label>
-            Remarks <span className="eqi-optional">(optional)</span>
+          <label>{tr("Remarks")}{" "}<span className="eqi-optional">{tr("(optional)")}</span>
           </label>
           <textarea
             name="remarks"
             value={formData.remarks || ""}
             onChange={handleChange}
-            placeholder="Any additional notes about this isolation event..."
+            placeholder={tr("Any additional notes about this isolation event...")}
             maxLength={255}
           />
           <div className="eqi-char-row">
-            <small>Optional remarks for this record.</small>
+            <small>{tr("Optional remarks for this record.")}</small>
             <small className="eqi-char-count">
               {(formData.remarks || "").length} / 255
             </small>
@@ -311,41 +307,40 @@ export default function EditQuarantineIsolation() {
 
         <div className="eqi-section-header">
           <FiAlertCircle />
-          <h3>Isolation Progress (System-Managed)</h3>
+          <h3>{tr("Isolation Progress (System-Managed)")}</h3>
           <div className="eqi-line" />
         </div>
 
         <div className="eqi-form-grid">
           <div className="eqi-form-group">
-            <label>Recovered (total)</label>
+            <label>{tr("Recovered (total)")}</label>
             <input type="text" value={formData.recovered} disabled />
           </div>
           <div className="eqi-form-group">
-            <label>Deceased (total)</label>
+            <label>{tr("Deceased (total)")}</label>
             <input type="text" value={formData.deceased} disabled />
           </div>
           <div className="eqi-form-group">
-            <label>Remaining</label>
+            <label>{tr("Remaining")}</label>
             <input type="text" value={formData.remaining} disabled />
           </div>
           <div className="eqi-form-group">
-            <label>Status</label>
+            <label>{tr("Status")}</label>
             <input type="text" value={formData.currentStatus || "—"} disabled />
           </div>
           {formData.dateCompleted && (
             <div className="eqi-form-group">
-              <label>Date Completed</label>
+              <label>{tr("Date Completed")}</label>
               <input type="text" value={formData.dateCompleted} disabled />
             </div>
           )}
         </div>
 
         <div className="eqi-form-actions">
-          <p className="eqi-req-note">Fields with * are required.</p>
+          <p className="eqi-req-note">{tr("Fields with * are required.")}</p>
           <div className="eqi-action-btns">
             <button type="button" className="eqi-cancel-btn" onClick={() => navigate(backRoute)}>
-              <FiX /> Cancel
-            </button>
+              <FiX />{" "}{tr("Cancel")}</button>
             <button type="submit" disabled={saving || headCountExceedsAvailable} className="eqi-save-btn">
               <FiSave /> {saving ? "Saving..." : "Update Record"}
             </button>

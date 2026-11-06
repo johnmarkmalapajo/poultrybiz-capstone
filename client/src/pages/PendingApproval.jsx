@@ -1,8 +1,10 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import "./PendingApproval.css";
 
 export default function PendingApproval() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const user = JSON.parse(localStorage.getItem("pendingUser") || "{}");
 
   return (
@@ -11,33 +13,33 @@ export default function PendingApproval() {
 
         <div className="pa-icon">⏳</div>
 
-        <h2 className="pa-title">Waiting for Approval</h2>
+        <h2 className="pa-title">{t("Waiting for Approval")}</h2>
 
         <p className="pa-desc">
-          Hi <strong>{user.name || "there"}</strong>! Your account has been created successfully.
+          {t("Hi")} <strong>{user.name || t("there")}</strong>! {t("Your account has been created successfully.")}
         </p>
 
         <p className="pa-desc">
-          Please wait for the <strong>Owner</strong> to approve your account before you can access the system.
-          You will be able to login once your account is approved.
+          {t("Please wait for the")} <strong>{t("Owner")}</strong>{" "}
+          {t("to approve your account before you can access the system. You will be able to login once your account is approved.")}
         </p>
 
         <div className="pa-info-box">
           <div className="pa-info-row">
-            <span className="pa-info-label">Name</span>
+            <span className="pa-info-label">{t("Name")}</span>
             <span className="pa-info-value">{user.name || "—"}</span>
           </div>
           <div className="pa-info-row">
-            <span className="pa-info-label">Email</span>
+            <span className="pa-info-label">{t("Email")}</span>
             <span className="pa-info-value">{user.email || "—"}</span>
           </div>
           <div className="pa-info-row">
-            <span className="pa-info-label">Role</span>
-            <span className="pa-info-value">{user.role || "—"}</span>
+            <span className="pa-info-label">{t("Role")}</span>
+            <span className="pa-info-value">{user.role ? t(user.role) : "—"}</span>
           </div>
           <div className="pa-info-row">
-            <span className="pa-info-label">Status</span>
-            <span className="pa-status-badge">Pending Approval</span>
+            <span className="pa-info-label">{t("Status")}</span>
+            <span className="pa-status-badge">{t("Pending Approval")}</span>
           </div>
         </div>
         <button
@@ -47,7 +49,7 @@ export default function PendingApproval() {
                 navigate("/login");
             }}
         >
-            Back to Login
+            {t("Back to Login")}
         </button>
 
       </div>

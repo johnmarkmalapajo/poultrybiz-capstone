@@ -16,8 +16,10 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function ManureWasteRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -60,13 +62,13 @@ export default function ManureWasteRecord() {
         setAllRecords(deduped);
       } catch (err) {
         setAllRecords([]);
-        setError(err?.message || "Couldn't load waste & manure records.");
+        setError(tr(err?.message || "Couldn't load waste & manure records."));
       } finally {
         setLoading(false);
       }
     })();
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const manureRecords = allRecords.filter((r) => r.recordType !== "Waste");
   const wasteRecords = allRecords.filter((r) => r.recordType === "Waste");
 
@@ -115,9 +117,9 @@ export default function ManureWasteRecord() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -310,7 +312,7 @@ export default function ManureWasteRecord() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -318,37 +320,36 @@ export default function ManureWasteRecord() {
             <div className="mwr-btn-group">
               <div className="mwr-filter-wrap" ref={filterRef}>
                 <button className="mwr-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="mwr-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="mwr-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="mwr-filter-dropdown">
                     <div className="mwr-filter-dropdown-header">
-                      <span>Filter {isManure ? "Manure" : "Waste"} Records</span>
+                      <span>{tr("Filter")}{" "}{isManure ? "Manure" : "Waste"}{" "}{tr("Records")}</span>
                     </div>
 
-                    <div className="mwr-filter-section-label">Date Filter</div>
+                    <div className="mwr-filter-section-label">{tr("Date Filter")}</div>
                     <div className="mwr-filter-row">
                       <div className="mwr-filter-group">
-                        <label className="mwr-filter-label">Date Period</label>
+                        <label className="mwr-filter-label">{tr("Date Period")}</label>
                         <select
                           className="mwr-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="mwr-filter-group">
-                          <label className="mwr-filter-label">Week</label>
+                          <label className="mwr-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="mwr-filter-select"
@@ -360,13 +361,13 @@ export default function ManureWasteRecord() {
 
                       {draft.period === "month" && (
                         <div className="mwr-filter-group">
-                          <label className="mwr-filter-label">Month</label>
+                          <label className="mwr-filter-label">{tr("Month")}</label>
                           <select
                             className="mwr-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -376,13 +377,13 @@ export default function ManureWasteRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="mwr-filter-group">
-                          <label className="mwr-filter-label">Year</label>
+                          <label className="mwr-filter-label">{tr("Year")}</label>
                           <select
                             className="mwr-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -393,29 +394,29 @@ export default function ManureWasteRecord() {
 
                     {draft.period === "custom" && (
                       <div className="mwr-filter-group">
-                        <label className="mwr-filter-label">Start Date / End Date</label>
+                        <label className="mwr-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="mwr-filter-date-range">
                           <input type="date" className="mwr-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="mwr-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="mwr-filter-section-label">Filters</div>
+                    <div className="mwr-filter-section-label">{tr("Filters")}</div>
                     {isManure && (
                       <div className="mwr-filter-group">
-                        <label className="mwr-filter-label">Batch ID</label>
+                        <label className="mwr-filter-label">{tr("Batch ID")}</label>
                         <select
                           className="mwr-filter-select"
                           value={draft.batchId}
                           onChange={(e) => handleFilterChange("batchId", e.target.value)}
                         >
-                          <option value="All">All Batches</option>
+                          <option value="All">{tr("All Batches")}</option>
                           {batchOptions.map((opt) => (
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
@@ -424,13 +425,13 @@ export default function ManureWasteRecord() {
                     )}
 
                     <div className="mwr-filter-group">
-                      <label className="mwr-filter-label">{categoryLabel}</label>
+                      <label className="mwr-filter-label">{tr(categoryLabel)}</label>
                       <select
                         className="mwr-filter-select"
                         value={draft.category}
                         onChange={(e) => handleFilterChange("category", e.target.value)}
                       >
-                        <option value="All">All</option>
+                        <option value="All">{tr("All")}</option>
                         {categoryOptions.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -438,8 +439,8 @@ export default function ManureWasteRecord() {
                     </div>
 
                     <div className="mwr-filter-actions">
-                      <button className="mwr-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="mwr-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="mwr-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="mwr-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -472,32 +473,32 @@ export default function ManureWasteRecord() {
             <div className="mwr-stat-icon gold"><FiClipboard /></div>
             <div>
               <h3>{totalManure + totalWaste}</h3>
-              <p>Total Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="mwr-stat-card">
             <div className="mwr-stat-icon blue"><FiPackage /></div>
             <div>
               <h3>{totalManure}</h3>
-              <p>Manure Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Manure Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="mwr-stat-card">
             <div className="mwr-stat-icon red"><FiTrash2 /></div>
             <div>
               <h3>{totalWaste}</h3>
-              <p>Waste Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Waste Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="mwr-stat-card">
             <div className="mwr-stat-icon green"><FiLayers /></div>
             <div>
-              <h3>{totalCollected} kg</h3>
-              <p>Manure Collected</p>
-              <span>{statCardSpanLabel}</span>
+              <h3>{totalCollected}{" "}{tr("kg")}</h3>
+              <p>{tr("Manure Collected")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
         </div>
@@ -508,14 +509,12 @@ export default function ManureWasteRecord() {
             className={`mwr-tab ${isManure ? "active" : ""}`}
             onClick={() => handleTabChange("manure")}
           >
-            <FiPackage /> Manure Record
-          </button>
+            <FiPackage />{" "}{tr("Manure Record")}</button>
           <button
             className={`mwr-tab ${!isManure ? "active" : ""}`}
             onClick={() => handleTabChange("waste")}
           >
-            <FiTrash2 /> Waste Record
-          </button>
+            <FiTrash2 />{" "}{tr("Waste Record")}</button>
         </div>
 
         {}
@@ -527,27 +526,27 @@ export default function ManureWasteRecord() {
             <table className="mwr-table">
               <thead>
                 <tr>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID / HOUSE NO.{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("quantityCollected")}>QTY OF MANURE COLLECTED{sortIndicator("quantityCollected", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("methodOfHandling")}>METHOD OF HANDLING{sortIndicator("methodOfHandling", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("storageLocation")}>STORAGE LOCATION{sortIndicator("storageLocation", sortColumn, sortDirection)}</th>
-                  <th>END USE / DISPOSAL</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("personResponsible")}>PERSON RESPONSIBLE{sortIndicator("personResponsible", sortColumn, sortDirection)}</th>
-                  <th>REMARKS</th>
-                  <th>ACTIONS</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID / HOUSE NO.")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("quantityCollected")}>{tr("QTY OF MANURE COLLECTED")}{sortIndicator("quantityCollected", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("methodOfHandling")}>{tr("METHOD OF HANDLING")}{sortIndicator("methodOfHandling", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("storageLocation")}>{tr("STORAGE LOCATION")}{sortIndicator("storageLocation", sortColumn, sortDirection)}</th>
+                  <th>{tr("END USE / DISPOSAL")}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("personResponsible")}>{tr("PERSON RESPONSIBLE")}{sortIndicator("personResponsible", sortColumn, sortDirection)}</th>
+                  <th>{tr("REMARKS")}</th>
+                  <th>{tr("ACTIONS")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="9" className="mwr-empty-state">Loading manure records...</td></tr>
+                  <tr><td colSpan="9" className="mwr-empty-state">{tr("Loading manure records...")}</td></tr>
                 ) : filteredManure.length === 0 && manureRecords.length > 0 ? (
                   <tr>
                     <td colSpan="9" className="mwr-empty-state">
                       <div className="mwr-empty-content">
                         <FiMaximize />
-                        <h3>No manure and waste records found</h3>
-                        <p>No matching manure records were found for your search.</p>
+                        <h3>{tr("No manure and waste records found")}</h3>
+                        <p>{tr("No matching manure records were found for your search.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -556,11 +555,10 @@ export default function ManureWasteRecord() {
                     <td colSpan="9" className="mwr-empty-state">
                       <div className="mwr-empty-content">
                         <FiMaximize />
-                        <h3>No manure and waste records found</h3>
-                        <p>Click Add Manure Record to log your first entry.</p>
+                        <h3>{tr("No manure and waste records found")}</h3>
+                        <p>{tr("Click Add Manure Record to log your first entry.")}</p>
                         <button className="mwr-empty-add-btn" onClick={() => navigate("/records/manure/add")}>
-                          <FiPlus /> Add Manure Record
-                        </button>
+                          <FiPlus />{" "}{tr("Add Manure Record")}</button>
                       </div>
                     </td>
                   </tr>
@@ -580,14 +578,14 @@ export default function ManureWasteRecord() {
                           {canEdit && (
                           <button
                             className="mwr-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/manure/edit/${r._id}`)}
                           >
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="mwr-btn-archive" onClick={() => requestArchive({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title="Archive">
+                          <button className="mwr-btn-archive" onClick={() => requestArchive({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                           )}
@@ -605,25 +603,25 @@ export default function ManureWasteRecord() {
             <table className="mwr-table">
               <thead>
                 <tr>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("wasteType")}>WASTE TYPE{sortIndicator("wasteType", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("quantity")}>QUANTITY / UNIT{sortIndicator("quantity", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("disposalMethod")}>DISPOSAL METHOD{sortIndicator("disposalMethod", sortColumn, sortDirection)}</th>
-                  <th className="mwr-sortable-th" onClick={() => cycleSort("personResponsible")}>PERSON RESPONSIBLE{sortIndicator("personResponsible", sortColumn, sortDirection)}</th>
-                  <th>REMARKS</th>
-                  <th>ACTIONS</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("wasteType")}>{tr("WASTE TYPE")}{sortIndicator("wasteType", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("quantity")}>{tr("QUANTITY / UNIT")}{sortIndicator("quantity", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("disposalMethod")}>{tr("DISPOSAL METHOD")}{sortIndicator("disposalMethod", sortColumn, sortDirection)}</th>
+                  <th className="mwr-sortable-th" onClick={() => cycleSort("personResponsible")}>{tr("PERSON RESPONSIBLE")}{sortIndicator("personResponsible", sortColumn, sortDirection)}</th>
+                  <th>{tr("REMARKS")}</th>
+                  <th>{tr("ACTIONS")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="7" className="mwr-empty-state">Loading waste records...</td></tr>
+                  <tr><td colSpan="7" className="mwr-empty-state">{tr("Loading waste records...")}</td></tr>
                 ) : filteredWaste.length === 0 && wasteRecords.length > 0 ? (
                   <tr>
                     <td colSpan="7" className="mwr-empty-state">
                       <div className="mwr-empty-content">
                         <FiMaximize />
-                        <h3>No manure and waste records found</h3>
-                        <p>No matching waste records were found for your search.</p>
+                        <h3>{tr("No manure and waste records found")}</h3>
+                        <p>{tr("No matching waste records were found for your search.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -632,11 +630,10 @@ export default function ManureWasteRecord() {
                     <td colSpan="7" className="mwr-empty-state">
                       <div className="mwr-empty-content">
                         <FiMaximize />
-                        <h3>No manure and waste records found</h3>
-                        <p>Click Add Waste Record to log your first entry.</p>
+                        <h3>{tr("No manure and waste records found")}</h3>
+                        <p>{tr("Click Add Waste Record to log your first entry.")}</p>
                         <button className="mwr-empty-add-btn" onClick={() => navigate("/records/waste/add")}>
-                          <FiPlus /> Add Waste Record
-                        </button>
+                          <FiPlus />{" "}{tr("Add Waste Record")}</button>
                       </div>
                     </td>
                   </tr>
@@ -654,14 +651,14 @@ export default function ManureWasteRecord() {
                           {canEdit && (
                           <button
                             className="mwr-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/waste/edit/${r._id}`)}
                           >
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="mwr-btn-archive" onClick={() => requestArchive({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title="Archive">
+                          <button className="mwr-btn-archive" onClick={() => requestArchive({ module: "Manure & Waste", moduleKey: "pb_waste", record: r, name: r.type || r.date })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                           )}

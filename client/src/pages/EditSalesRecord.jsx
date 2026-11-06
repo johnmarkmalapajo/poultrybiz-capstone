@@ -6,10 +6,12 @@ import "./EditSalesRecord.css";
 import { getSalesRecord, updateSalesRecord, getEggStockSummary } from "../api/salesRecord";
 import { listCustomers } from "../api/customers";
 import SaleItemsEditor, { emptyItem, validateItems, eggsEquivalentOf } from "../components/SaleItemsEditor";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_CUSTOMER_VALUE = "__new__";
 
 export default function EditSalesRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id }   = useParams();
 
@@ -80,10 +82,10 @@ export default function EditSalesRecord() {
 
           setRemarks(r.remarks || "");
         } else {
-          setError(data?.message || "Failed to load record.");
+          setError(tr(data?.message || "Failed to load record."));
         }
       } catch (err) {
-        if (!cancelled) setError(err?.message || "Cannot connect to server. Please try again.");
+        if (!cancelled) setError(tr(err?.message || "Cannot connect to server. Please try again."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -91,7 +93,7 @@ export default function EditSalesRecord() {
 
     fetchRecord();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isNewCustomer = customerId === NEW_CUSTOMER_VALUE;
 
@@ -117,17 +119,17 @@ export default function EditSalesRecord() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (dateOfSale && dateOfSale > todayStr()) {
-      setError("Date cannot be a future date.");
+      setError(tr("Date cannot be a future date."));
       return;
     }
     if (saving) return;
 
     if (!customerId) {
-      setError("Please select a Buyer/Customer, or add a new one.");
+      setError(tr("Please select a Buyer/Customer, or add a new one."));
       return;
     }
     if (isNewCustomer && !newCustomer.name.trim()) {
-      setError("Please enter the new customer's name.");
+      setError(tr("Please enter the new customer's name."));
       return;
     }
     const itemsError = validateItems(items);
@@ -136,7 +138,7 @@ export default function EditSalesRecord() {
       return;
     }
     if (anyStockExceeded) {
-      setError("One or more egg sets exceed current available stock. Please adjust the quantities.");
+      setError(tr("One or more egg sets exceed current available stock. Please adjust the quantities."));
       return;
     }
 
@@ -155,11 +157,11 @@ export default function EditSalesRecord() {
     setSaving(true); setError(""); setSuccess("");
     try {
       await updateSalesRecord(id, payload);
-      setSuccess("Sales record updated successfully!");
+      setSuccess(tr("Sales record updated successfully!"));
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/sales-transactions/sales"), 1200);
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -174,7 +176,7 @@ export default function EditSalesRecord() {
   if (loading) {
     return (
       <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
-        <div className="esr-loading">Loading sales record...</div>
+        <div className="esr-loading">{tr("Loading sales record...")}</div>
       </PageLayout>
     );
   }
@@ -188,13 +190,13 @@ export default function EditSalesRecord() {
 
           <div className="esr-section-header">
             <FiInfo />
-            <h3>BASIC INFORMATION</h3>
+            <h3>{tr("BASIC INFORMATION")}</h3>
             <div className="esr-line" />
           </div>
 
           <div className="esr-form-grid">
             <div className="esr-form-group">
-              <label>Date of Sale <span className="req">*</span></label>
+              <label>{tr("Date of Sale")}{" "}<span className="req">*</span></label>
               <input
                 type="date"
                 value={dateOfSale}
@@ -203,7 +205,7 @@ export default function EditSalesRecord() {
                   const v = e.target.value;
                   if (v > todayStr()) {
                     setDateOfSale(todayStr());
-                    setError("Date cannot be a future date.");
+                    setError(tr("Date cannot be a future date."));
                   } else {
                     setDateOfSale(v);
                     setError("");
@@ -211,17 +213,17 @@ export default function EditSalesRecord() {
                 }}
                 required
               />
-              <small>Select the date of the sale.</small>
+              <small>{tr("Select the date of the sale.")}</small>
             </div>
 
             <div className="esr-form-group">
-              <label>Buyer / Customer <span className="req">*</span></label>
+              <label>{tr("Buyer / Customer")}{" "}<span className="req">*</span></label>
               <select
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
                 required
               >
-                <option value="">Select buyer/customer</option>
+                <option value="">{tr("Select buyer/customer")}</option>
                 {customerId &&
                   customerId !== NEW_CUSTOMER_VALUE &&
                   !customers.some((c) => c._id === customerId) && (
@@ -230,31 +232,31 @@ export default function EditSalesRecord() {
                 {customers.map((c) => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
-                <option value={NEW_CUSTOMER_VALUE}>+ New Customer</option>
+                <option value={NEW_CUSTOMER_VALUE}>{tr("+ New Customer")}</option>
               </select>
-              <small>Previously recorded customers appear here automatically.</small>
+              <small>{tr("Previously recorded customers appear here automatically.")}</small>
             </div>
           </div>
 
           {isNewCustomer && (
             <div className="esr-form-grid">
               <div className="esr-form-group">
-                <label>Customer Name <span className="req">*</span></label>
+                <label>{tr("Customer Name")}{" "}<span className="req">*</span></label>
                 <input
                   type="text"
                   value={newCustomer.name}
                   onChange={(e) => setNewCustomer({ name: e.target.value })}
-                  placeholder="e.g. Juan Dela Cruz"
+                  placeholder={tr("e.g. Juan Dela Cruz")}
                   required
                 />
-                <small><FiUserPlus /> This customer will be saved and available for future sales.</small>
+                <small><FiUserPlus />{" "}{tr("This customer will be saved and available for future sales.")}</small>
               </div>
             </div>
           )}
 
           <div className="esr-section-header">
             <FiShoppingCart />
-            <h3>SALE DETAILS</h3>
+            <h3>{tr("SALE DETAILS")}</h3>
             <div className="esr-line" />
           </div>
 
@@ -267,23 +269,23 @@ export default function EditSalesRecord() {
 
           <div className="esr-section-header">
             <FiFileText />
-            <h3>ADDITIONAL DETAILS (OPTIONAL)</h3>
+            <h3>{tr("ADDITIONAL DETAILS (OPTIONAL)")}</h3>
             <div className="esr-line" />
           </div>
 
           <div className="esr-form-group esr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea
               rows="5"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter any notes or additional information..."
+              placeholder={tr("Enter any notes or additional information...")}
             />
-            <small>Add any remarks about this sale (optional).</small>
+            <small>{tr("Add any remarks about this sale (optional).")}</small>
           </div>
 
           <div className="esr-form-actions">
-            <p className="esr-required-note">* Fields with an asterisk are required.</p>
+            <p className="esr-required-note">{tr("* Fields with an asterisk are required.")}</p>
             <div className="esr-action-btns">
               <button
                 type="button"
@@ -291,8 +293,7 @@ export default function EditSalesRecord() {
                 onClick={() => navigate("/sales-transactions/sales")}
                 disabled={saving}
               >
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="esr-save-btn" disabled={saving || anyStockExceeded}>
                 <FiSave />
                 {saving ? "Saving..." : "Update Record"}

@@ -16,6 +16,7 @@ import {
   FiGrid, FiBox, FiShield,
 } from "react-icons/fi";
 import "./BatchSummary.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 function Info({ label, value }) {
   return (
@@ -121,6 +122,7 @@ async function fetchSummary(batchId) {
 }
 
 export default function BatchSummary() {
+  const { t: tr } = useLanguage();
   const { batchId } = useParams();
   const [data, setData] = useState({ found: false });
   const [loading, setLoading] = useState(true);
@@ -148,11 +150,11 @@ export default function BatchSummary() {
     return (
       <div className="bs-page">
         <header className="bs-header">
-          <span className="bs-brand">PoultryBiz</span>
-          <h1 className="bs-title">Batch Summary</h1>
+          <span className="bs-brand">{tr("PoultryBiz")}</span>
+          <h1 className="bs-title">{tr("Batch Summary")}</h1>
         </header>
         <main className="bs-body">
-          <p style={{ color: "#a39e94", textAlign: "center" }}>Loading batch summary...</p>
+          <p style={{ color: "#a39e94", textAlign: "center" }}>{tr("Loading batch summary...")}</p>
         </main>
       </div>
     );
@@ -163,13 +165,13 @@ export default function BatchSummary() {
     return (
       <div className="bs-page">
         <header className="bs-header">
-          <span className="bs-brand">PoultryBiz</span>
-          <h1 className="bs-title">Batch Summary</h1>
+          <span className="bs-brand">{tr("PoultryBiz")}</span>
+          <h1 className="bs-title">{tr("Batch Summary")}</h1>
         </header>
         <main className="bs-body">
           <div className="bs-empty">
-            <h2>Batch "{batchId}" not found</h2>
-            <p>No batch with this ID exists in the records. Please re-scan the QR code or contact the administrator.</p>
+            <h2>{tr("Batch \"")}{batchId}{tr("\" not found")}</h2>
+            <p>{tr("No batch with this ID exists in the records. Please re-scan the QR code or contact the administrator.")}</p>
           </div>
         </main>
       </div>
@@ -183,15 +185,15 @@ export default function BatchSummary() {
     <div className="bs-page">
       {/* Minimal mobile header — brand + batch only (no admin UI) */}
       <header className="bs-header">
-        <span className="bs-brand">PoultryBiz</span>
-        <h1 className="bs-title">Batch Summary</h1>
+        <span className="bs-brand">{tr("PoultryBiz")}</span>
+        <h1 className="bs-title">{tr("Batch Summary")}</h1>
         <span className="bs-batch-pill">{b.batchId}</span>
       </header>
 
       <main className="bs-body">
         {/* Flock Information */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiFeather /> Flock Information</h3>
+          <h3 className="bs-card-title"><FiFeather />{" "}{tr("Flock Information")}</h3>
           <div className="bs-grid">
             <Info label="Batch ID" value={b.batchId} />
             <Info label="Breed" value={b.breed} />
@@ -206,7 +208,7 @@ export default function BatchSummary() {
 
         {/* Production */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiTrendingUp /> Production Summary</h3>
+          <h3 className="bs-card-title"><FiTrendingUp />{" "}{tr("Production Summary")}</h3>
           <div className="bs-grid">
             <Info label="Eggs Produced Today" value={data.eggsToday} />
             <Info label="Avg Daily Egg Production" value={num(data.avgDaily, 1)} />
@@ -217,7 +219,7 @@ export default function BatchSummary() {
 
         {/* Mortality */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiActivity /> Mortality Summary</h3>
+          <h3 className="bs-card-title"><FiActivity />{" "}{tr("Mortality Summary")}</h3>
           <div className="bs-grid">
             <Info label="Total Mortality" value={data.totalMortality} />
             <Info label="Mortality Rate" value={`${num(data.mortalityRate, 1)}%`} />
@@ -227,43 +229,43 @@ export default function BatchSummary() {
 
         {/* Isolation & Health */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiHeart /> Isolation &amp; Health Summary</h3>
+          <h3 className="bs-card-title"><FiHeart />{" "}{tr("Isolation & Health Summary")}</h3>
           <div className="bs-grid">
             <Info label="Total Birds in Isolation" value={`${data.isoBirds} birds`} />
             <Info label="Total Sick Birds" value={`${data.sickBirds} birds`} />
           </div>
           <div className="bs-two">
             <div>
-              <h4 className="bs-sub">Isolation</h4>
+              <h4 className="bs-sub">{tr("Isolation")}</h4>
               {data.isolation.length
                 ? data.isolation.map((i, idx) => (
                     <div key={idx} className="bs-line">
-                      <span className="bs-tag iso">{i.cage}</span> {i.birds} bird{i.birds > 1 ? "s" : ""}{i.reason ? ` — ${i.reason}` : ""}
+                      <span className="bs-tag iso">{i.cage}</span> {i.birds}{" "}{tr("bird")}{i.birds > 1 ? "s" : ""}{i.reason ? ` — ${i.reason}` : ""}
                     </div>
                   ))
-                : <p className="bs-none">None</p>}
+                : <p className="bs-none">{tr("None")}</p>}
             </div>
             <div>
-              <h4 className="bs-sub">Sick</h4>
+              <h4 className="bs-sub">{tr("Sick")}</h4>
               {data.sick.length
                 ? data.sick.map((h, idx) => (
                     <div key={idx} className="bs-line">
-                      <span className="bs-tag sick">{h.cage}</span> {h.birds} bird{h.birds > 1 ? "s" : ""}{h.diagnosis ? ` — ${h.diagnosis}` : ""}
+                      <span className="bs-tag sick">{h.cage}</span> {h.birds}{" "}{tr("bird")}{h.birds > 1 ? "s" : ""}{h.diagnosis ? ` — ${h.diagnosis}` : ""}
                     </div>
                   ))
-                : <p className="bs-none">None</p>}
+                : <p className="bs-none">{tr("None")}</p>}
             </div>
           </div>
         </section>
 
         {/* Cage Status */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiGrid /> Cage Status (C-01 → C-12)</h3>
+          <h3 className="bs-card-title"><FiGrid />{" "}{tr("Cage Status (C-01 → C-12)")}</h3>
           <div className="bs-cages">
             {data.cages.map((c) => (
               <div key={c.cage} className={`bs-cage ${c.status.toLowerCase()}`}>
                 <strong>{c.cage}</strong>
-                <span>{c.status}</span>
+                <span>{tr(c.status)}</span>
               </div>
             ))}
           </div>
@@ -271,7 +273,7 @@ export default function BatchSummary() {
 
         {/* Feed */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiBox /> Feed Summary</h3>
+          <h3 className="bs-card-title"><FiBox />{" "}{tr("Feed Summary")}</h3>
           <div className="bs-grid">
             <Info label="Feed Type" value={data.feedType} />
             <Info label="Feed Consumed Today" value={`${data.feedToday} kg`} />
@@ -281,7 +283,7 @@ export default function BatchSummary() {
 
         {/* Vaccination */}
         <section className="bs-card">
-          <h3 className="bs-card-title"><FiShield /> Vaccination</h3>
+          <h3 className="bs-card-title"><FiShield />{" "}{tr("Vaccination")}</h3>
           <div className="bs-grid">
             <Info label="Last Vaccination" value={data.vaccination ? `${data.vaccination.vaccine} (${data.vaccination.date})` : "—"} />
             <Info label="Next Vaccination Schedule" value={data.vaccination?.next || "—"} />
@@ -289,9 +291,7 @@ export default function BatchSummary() {
           </div>
         </section>
 
-        <p className="bs-foot">
-          Live summary for <strong>{b.batchId}</strong> only — updates automatically as related records change.
-        </p>
+        <p className="bs-foot">{tr("Live summary for")}{" "}<strong>{b.batchId}</strong>{" "}{tr("only — updates automatically as related records change.")}</p>
       </main>
     </div>
   );

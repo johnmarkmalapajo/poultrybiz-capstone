@@ -356,7 +356,6 @@ exports.getAllAssignedTasks = async (req, res) => {
 
       assignedDate: task.assignedDate,
       dueDate: task.dueDate,
-      priority: task.priority,
       status: task.status,
       remarks: task.remarks,
       createdAt: task.createdAt,

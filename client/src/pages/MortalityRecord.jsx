@@ -17,8 +17,10 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function MortalityRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -41,9 +43,7 @@ export default function MortalityRecord() {
     if (!text) return "—";
     if (text.length <= 15) return text;
     return (
-      <button type="button" className="mr-view-remarks-link" onClick={() => setViewRecord(record)}>
-        View Remarks
-      </button>
+      <button type="button" className="mr-view-remarks-link" onClick={() => setViewRecord(record)}>{tr("View Remarks")}</button>
     );
   };
 
@@ -54,10 +54,10 @@ export default function MortalityRecord() {
         const list = Array.isArray(d) ? d : d.records || d.data || [];
         setRecords(list.map((r) => ({ ...r, date: r.date ? String(r.date).slice(0, 10) : r.date })));
       })
-      .catch((err) => { setRecords([]); setError(err?.message || "Couldn't load mortality records."); })
+      .catch((err) => { setRecords([]); setError(tr(err?.message || "Couldn't load mortality records.")); })
       .finally(() => setLoading(false));
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onClick = (e) => {
@@ -268,14 +268,13 @@ export default function MortalityRecord() {
         {}
         <div className="mr-toolbar">
           <button className="mr-add-btn" onClick={() => navigate("/records/mortality/add")}>
-            <FiPlus /> Add Mortality Record
-          </button>
+            <FiPlus />{" "}{tr("Add Mortality Record")}</button>
           <div className="mr-toolbar-right">
             <div className="mr-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -283,37 +282,36 @@ export default function MortalityRecord() {
             <div className="mr-btn-group">
               <div className="mr-filter-wrap" ref={filterRef}>
                 <button className="mr-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="mr-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="mr-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="mr-filter-dropdown">
                     <div className="mr-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="mr-filter-section-label">Date Filter</div>
+                    <div className="mr-filter-section-label">{tr("Date Filter")}</div>
                     <div className="mr-filter-row">
                       <div className="mr-filter-group">
-                        <label className="mr-filter-label">Date Period</label>
+                        <label className="mr-filter-label">{tr("Date Period")}</label>
                         <select
                           className="mr-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="mr-filter-group">
-                          <label className="mr-filter-label">Week</label>
+                          <label className="mr-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="mr-filter-select"
@@ -325,13 +323,13 @@ export default function MortalityRecord() {
 
                       {draft.period === "month" && (
                         <div className="mr-filter-group">
-                          <label className="mr-filter-label">Month</label>
+                          <label className="mr-filter-label">{tr("Month")}</label>
                           <select
                             className="mr-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -341,13 +339,13 @@ export default function MortalityRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="mr-filter-group">
-                          <label className="mr-filter-label">Year</label>
+                          <label className="mr-filter-label">{tr("Year")}</label>
                           <select
                             className="mr-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -358,29 +356,29 @@ export default function MortalityRecord() {
 
                     {draft.period === "custom" && (
                       <div className="mr-filter-group">
-                        <label className="mr-filter-label">Start Date / End Date</label>
+                        <label className="mr-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="mr-filter-date-range">
                           <input type="date" className="mr-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="mr-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="mr-filter-section-label">Filters</div>
+                    <div className="mr-filter-section-label">{tr("Filters")}</div>
                     <div className="mr-filter-row">
                       <div className="mr-filter-group">
-                        <label className="mr-filter-label">Batch ID</label>
+                        <label className="mr-filter-label">{tr("Batch ID")}</label>
                         <select
                           className="mr-filter-select"
                           value={draft.batchId}
                           onChange={(e) => handleFilterChange("batchId", e.target.value)}
                         >
-                          <option value="All">All Batches</option>
+                          <option value="All">{tr("All Batches")}</option>
                           {batchOptions.map((opt) => (
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
@@ -391,8 +389,8 @@ export default function MortalityRecord() {
                     {filterError && <div className="mr-filter-error">{filterError}</div>}
 
                     <div className="mr-filter-actions">
-                      <button type="button" className="mr-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button type="button" className="mr-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button type="button" className="mr-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button type="button" className="mr-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -409,7 +407,7 @@ export default function MortalityRecord() {
                   { key: "remarks", label: "Remarks" },
                 ]}
                 name="mortality-record"
-                title="Mortality Monitoring Report"
+                title={tr("Mortality Monitoring Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Mortality Record"
@@ -432,24 +430,24 @@ export default function MortalityRecord() {
             <div className="mr-stat-icon gold"><FiFileText /></div>
             <div>
               <h3>{totalRecords}</h3>
-              <p>Total Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="mr-stat-card">
             <div className="mr-stat-icon red"><FiHeart /></div>
             <div>
               <h3>{totalDeaths}</h3>
-              <p>Total Deaths</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Deaths")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="mr-stat-card">
             <div className="mr-stat-icon blue"><FiAlertCircle /></div>
             <div>
               <h3>{batchesAffected}</h3>
-              <p>Batches Affected</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Batches Affected")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
         </div>
@@ -460,27 +458,27 @@ export default function MortalityRecord() {
           <table className="mr-table">
             <thead>
               <tr>
-                <th>MORTALITY ID</th>
-                <th className="mr-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                <th className="mr-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                <th className="mr-sortable-th" onClick={() => cycleSort("numberOfMortality")}>NUMBER OF MORTALITY{sortIndicator("numberOfMortality", sortColumn, sortDirection)}</th>
-                <th className="mr-sortable-th" onClick={() => cycleSort("causeOfDeath")}>CAUSE OF DEATH{sortIndicator("causeOfDeath", sortColumn, sortDirection)}</th>
-                <th>REMARKS</th>
-                <th>ACTIONS</th>
+                <th>{tr("MORTALITY ID")}</th>
+                <th className="mr-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                <th className="mr-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                <th className="mr-sortable-th" onClick={() => cycleSort("numberOfMortality")}>{tr("NUMBER OF MORTALITY")}{sortIndicator("numberOfMortality", sortColumn, sortDirection)}</th>
+                <th className="mr-sortable-th" onClick={() => cycleSort("causeOfDeath")}>{tr("CAUSE OF DEATH")}{sortIndicator("causeOfDeath", sortColumn, sortDirection)}</th>
+                <th>{tr("REMARKS")}</th>
+                <th>{tr("ACTIONS")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="mr-empty-state">Loading mortality records...</td>
+                  <td colSpan="7" className="mr-empty-state">{tr("Loading mortality records...")}</td>
                 </tr>
               ) : filtered.length === 0 && records.length > 0 ? (
                 <tr>
                   <td colSpan="7" className="mr-empty-state">
                     <div className="mr-empty-content">
                       <FiMaximize />
-                      <h3>No mortality records found</h3>
-                      <p>No matching mortality records were found for your search.</p>
+                      <h3>{tr("No mortality records found")}</h3>
+                      <p>{tr("No matching mortality records were found for your search.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -489,14 +487,13 @@ export default function MortalityRecord() {
                   <td colSpan="7" className="mr-empty-state">
                     <div className="mr-empty-content">
                       <FiMaximize />
-                      <h3>No mortality records found</h3>
-                      <p>Click Add Mortality Record to log your first entry.</p>
+                      <h3>{tr("No mortality records found")}</h3>
+                      <p>{tr("Click Add Mortality Record to log your first entry.")}</p>
                       <button
                         className="mr-empty-add-btn"
                         onClick={() => navigate("/records/mortality/add")}
                       >
-                        <FiPlus /> Add Mortality Record
-                      </button>
+                        <FiPlus />{" "}{tr("Add Mortality Record")}</button>
                     </div>
                   </td>
                 </tr>
@@ -514,14 +511,14 @@ export default function MortalityRecord() {
           {canEdit && (
                           <button
                             className="mr-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/mortality/edit/${r._id}`)}
                           >
                             <FiEdit2 />
                           </button>
                         )}
                         {canArchive && (
-                          <button className="mr-btn-archive" onClick={() => requestArchive({ module: "Mortality Records", moduleKey: "pb_mortality", record: r, name: r.batchId || r.date })} title="Archive">
+                          <button className="mr-btn-archive" onClick={() => requestArchive({ module: "Mortality Records", moduleKey: "pb_mortality", record: r, name: r.batchId || r.date })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                         )}
@@ -550,14 +547,14 @@ export default function MortalityRecord() {
       {viewRecord && (
         <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
           <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, textAlign: "left" }}>
-            <h3 className="pb-confirm-title">Mortality Record — {viewRecord.batchId}</h3>
+            <h3 className="pb-confirm-title">{tr("Mortality Record —")}{" "}{viewRecord.batchId}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
-              <div><small>Batch ID</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
-              <div><small>Date</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toLocaleDateString("en-CA") : "—"}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Remarks</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
+              <div><small>{tr("Batch ID")}</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
+              <div><small>{tr("Date")}</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toLocaleDateString("en-CA") : "—"}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Remarks")}</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
             </div>
             <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
             </div>
           </div>
         </div>

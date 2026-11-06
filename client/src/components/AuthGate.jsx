@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 // AuthGate.jsx — the single login check for every page of the app.
 //
 //   * Public pages (login, signup, password reset, visitor registration,
@@ -38,6 +39,7 @@ const verified = { token: "" };
 
 export default function AuthGate({ children }) {
   const location = useLocation();
+  const { t } = useLanguage();
   const isPublic = PUBLIC_PATHS.includes(location.pathname);
   // Read on every render: every navigation re-renders this gate, so a token
   // removed by logout is noticed immediately.
@@ -100,8 +102,8 @@ export default function AuthGate({ children }) {
     return (
       <div className="pb-auth-gate" role="alert">
         <div className="pb-auth-card">
-          <h2>Can't verify your session</h2>
-          <p>The server couldn't be reached. Check your connection and try again.</p>
+          <h2>{t("Can't verify your session")}</h2>
+          <p>{t("The server couldn't be reached. Check your connection and try again.")}</p>
           <button
             type="button"
             className="pb-auth-btn"
@@ -110,7 +112,7 @@ export default function AuthGate({ children }) {
               setRetryKey((k) => k + 1);
             }}
           >
-            Try Again
+            {t("Try Again")}
           </button>
         </div>
       </div>
@@ -120,7 +122,7 @@ export default function AuthGate({ children }) {
   return (
     <div className="pb-auth-gate" role="status" aria-live="polite">
       <div className="pb-auth-spinner" aria-hidden="true" />
-      <p className="pb-auth-text">Checking your session…</p>
+      <p className="pb-auth-text">{t("Checking your session…")}</p>
     </div>
   );
 }

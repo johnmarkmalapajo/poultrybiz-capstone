@@ -6,6 +6,7 @@ import { useUser } from "../hooks/useUser";
 import "./EditEquipment.css";
 import { getEquipment, updateEquipment } from "../api/equipmentTools";
 import { listPersonnel } from "../api/personnelManpower";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CONDITIONS = ["In Use", "Idle", "For Repair", "For Disposal"];
 const UNITS = ["pcs", "units", "sets", "pairs", "kg", "liters"];
@@ -29,6 +30,7 @@ const todayStr = () => {
 };
 
 export default function EditEquipment() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const { canSeeFinancials, role } = useUser();
@@ -69,14 +71,14 @@ export default function EditEquipment() {
         });
         setExpenseRecordId(r.expenseRecordId || null);
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
     };
     if (id) fetchRecord();
     else setLoading(false);
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchCustodians = async () => {
@@ -99,7 +101,7 @@ export default function EditEquipment() {
     if (e.target.type === "date" && e.target.max && value > e.target.max) {
       value = e.target.max;
       setForm((f) => ({ ...f, [name]: value }));
-      setError("Date cannot be a future date.");
+      setError(tr("Date cannot be a future date."));
       return;
     }
     setForm((f) => ({ ...f, [name]: value }));
@@ -132,7 +134,7 @@ export default function EditEquipment() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
       navigate("/inventory/equipment");
     } catch (err) {
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -142,7 +144,7 @@ export default function EditEquipment() {
   if (loading) {
     return (
       <PageLayout background="#f4f4f2" breadcrumbItems={[{ label: "INVENTORY", path: "/inventory" }, { label: "EQUIPMENT & TOOLS", path: "/inventory/equipment" }, { label: "EDIT EQUIPMENT" }]}>
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -160,70 +162,70 @@ export default function EditEquipment() {
 
           <div className="eeq-section-header">
             <FiInfo />
-            <h3>EQUIPMENT DETAILS</h3>
+            <h3>{tr("EQUIPMENT DETAILS")}</h3>
             <div className="eeq-line"></div>
           </div>
 
           <div className="eeq-form-grid">
             <div className="eeq-form-group">
-              <label>Equipment/Tool Name <span className="eeq-req">*</span></label>
-              <input type="text" name="name" value={form.name} onChange={handleChange} placeholder="Enter equipment/tool name" disabled={isLinked} readOnly={isLinked} required />
+              <label>{tr("Equipment/Tool Name")}{" "}<span className="eeq-req">*</span></label>
+              <input type="text" name="name" value={form.name} onChange={handleChange} placeholder={tr("Enter equipment/tool name")} disabled={isLinked} readOnly={isLinked} required />
             </div>
 
             <div className="eeq-form-group">
-              <label>Serial/ID No.</label>
-              <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} placeholder="Enter serial or ID number" disabled={isLinked} readOnly={isLinked} />
+              <label>{tr("Serial/ID No.")}</label>
+              <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} placeholder={tr("Enter serial or ID number")} disabled={isLinked} readOnly={isLinked} />
             </div>
 
             <div className="eeq-form-group eeq-full-width">
-              <label>Description/Specifications <span className="eeq-req">*</span></label>
-              <textarea name="description" value={form.description} onChange={handleChange} rows="3" placeholder="Enter description or specifications" disabled={isLinked} readOnly={isLinked} required />
+              <label>{tr("Description/Specifications")}{" "}<span className="eeq-req">*</span></label>
+              <textarea name="description" value={form.description} onChange={handleChange} rows="3" placeholder={tr("Enter description or specifications")} disabled={isLinked} readOnly={isLinked} required />
             </div>
           </div>
 
           <div className="eeq-section-header">
             <FiPackage />
-            <h3>STOCK &amp; CONDITION</h3>
+            <h3>{tr("STOCK & CONDITION")}</h3>
             <div className="eeq-line"></div>
           </div>
 
           <div className="eeq-form-grid">
             <div className="eeq-form-group">
-              <label>Quantity <span className="eeq-req">*</span></label>
-              <input type="number" min="0" name="quantity" value={form.quantity} onChange={handleChange} onKeyDown={blockInvalidNumberKeys} onPaste={blockInvalidNumberPaste} placeholder="Enter quantity" disabled={isLinked} readOnly={isLinked} required />
+              <label>{tr("Quantity")}{" "}<span className="eeq-req">*</span></label>
+              <input type="number" min="0" name="quantity" value={form.quantity} onChange={handleChange} onKeyDown={blockInvalidNumberKeys} onPaste={blockInvalidNumberPaste} placeholder={tr("Enter quantity")} disabled={isLinked} readOnly={isLinked} required />
             </div>
 
             <div className="eeq-form-group">
-              <label>Unit <span className="eeq-req">*</span></label>
+              <label>{tr("Unit")}{" "}<span className="eeq-req">*</span></label>
               <select name="unit" value={form.unit} onChange={handleChange} max={todayStr()} disabled={isLinked} required>
-                <option value="">Select unit</option>
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                <option value="">{tr("Select unit")}</option>
+                {UNITS.map((u) => <option key={u} value={u}>{tr(u)}</option>)}
               </select>
             </div>
 
             <div className="eeq-form-group">
-              <label>Condition <span className="eeq-req">*</span></label>
+              <label>{tr("Condition")}{" "}<span className="eeq-req">*</span></label>
               <select name="condition" value={form.condition} onChange={handleChange} required>
-                <option value="">Select condition</option>
-                {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="">{tr("Select condition")}</option>
+                {CONDITIONS.map((c) => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="eeq-section-header">
             <FiMapPin />
-            <h3>ASSIGNMENT &amp; ACQUISITION</h3>
+            <h3>{tr("ASSIGNMENT & ACQUISITION")}</h3>
             <div className="eeq-line"></div>
           </div>
 
           <div className="eeq-form-grid">
             <div className="eeq-form-group">
-              <label>Location/Storage <span className="eeq-req">*</span></label>
-              <input type="text" name="location" value={form.location} onChange={handleChange} placeholder="Enter location or storage area" required />
+              <label>{tr("Location/Storage")}{" "}<span className="eeq-req">*</span></label>
+              <input type="text" name="location" value={form.location} onChange={handleChange} placeholder={tr("Enter location or storage area")} required />
             </div>
 
             <div className="eeq-form-group">
-              <label>Custodian/Assigned To {isOwner && <span className="eeq-req">*</span>}</label>
+              <label>{tr("Custodian/Assigned To")}{" "}{isOwner && <span className="eeq-req">*</span>}</label>
               {isOwner ? (
                 <>
                   <input
@@ -232,32 +234,32 @@ export default function EditEquipment() {
                     list="eeq-custodian-list"
                     value={form.custodian}
                     onChange={handleChange}
-                    placeholder="Type or pick a custodian name"
+                    placeholder={tr("Type or pick a custodian name")}
                     required
                   />
                   <datalist id="eeq-custodian-list">
                     {custodians.map((c) => <option key={c} value={c} />)}
                   </datalist>
                   {!custodians.length && (
-                    <small>No personnel records yet — you can still type a name.</small>
+                    <small>{tr("No personnel records yet — you can still type a name.")}</small>
                   )}
                 </>
               ) : (
                 <input type="text" value={form.custodian || "—"} disabled readOnly />
               )}
-              {!isOwner && <small>Only the Owner can change the custodian.</small>}
+              {!isOwner && <small>{tr("Only the Owner can change the custodian.")}</small>}
             </div>
 
             {isOwner && (
               <div className="eeq-form-group">
-                <label>Date Acquired <span className="eeq-req">*</span></label>
+                <label>{tr("Date Acquired")}{" "}<span className="eeq-req">*</span></label>
                 <input type="date" name="dateAcquired" value={form.dateAcquired ? new Date(form.dateAcquired).toISOString().split("T")[0] : ""} onChange={handleChange} disabled={isLinked} readOnly={isLinked} required />
               </div>
             )}
 
             {canSeeFinancials && (
               <div className="eeq-form-group">
-                <label>Acquisition Cost <span className="eeq-req">*</span></label>
+                <label>{tr("Acquisition Cost")}{" "}<span className="eeq-req">*</span></label>
                 <div className="eeq-input-with-prefix">
                   <span className="eeq-prefix">₱</span>
                   <input type="number" min="0" step="0.01" name="cost" value={form.cost} onChange={handleChange} onKeyDown={blockInvalidNumberKeys} onPaste={blockInvalidNumberPaste} placeholder="0.00" disabled={isLinked} readOnly={isLinked} required />
@@ -268,24 +270,20 @@ export default function EditEquipment() {
 
           <div className="eeq-section-header">
             <FiFileText />
-            <h3>ADDITIONAL</h3>
+            <h3>{tr("ADDITIONAL")}</h3>
             <div className="eeq-line"></div>
           </div>
 
           <div className="eeq-form-group eeq-full-width">
-            <label>Remarks</label>
-            <textarea name="remarks" value={form.remarks} onChange={handleChange} rows="4" placeholder="Enter remarks (optional)" maxLength={255} />
+            <label>{tr("Remarks")}</label>
+            <textarea name="remarks" value={form.remarks} onChange={handleChange} rows="4" placeholder={tr("Enter remarks (optional)")} maxLength={255} />
             <small>{(form.remarks || "").length} / 255</small>
           </div>
 
           <div className="eeq-form-actions">
-            <button type="button" className="eeq-cancel-btn" onClick={() => navigate("/inventory/equipment")}>
-              Cancel
-            </button>
+            <button type="button" className="eeq-cancel-btn" onClick={() => navigate("/inventory/equipment")}>{tr("Cancel")}</button>
             <button type="submit" disabled={saving} className="eeq-save-btn">
-              <FiSave />
-              Update Record
-            </button>
+              <FiSave />{tr("Update Record")}</button>
           </div>
         </form>
 

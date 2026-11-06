@@ -9,6 +9,7 @@ import { listFlocks } from "../api/flockProfile";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
 import { mortalityBatchOptions } from "../mortalityBatchOptions";
 import { listHealthOptions } from "../api/healthOptions";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_VALUE = "__new__";
 const CAUSES = ["Disease", "Stress", "Dehydration", "Accident", "Unknown"];
@@ -20,6 +21,7 @@ const localToday = () => {
 };
 
 export default function AddMortalityRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const today = localToday();
 
@@ -113,7 +115,7 @@ export default function AddMortalityRecord() {
       }
       return next;
     });
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
   const [saving, setSaving] = useState(false);
 
@@ -121,16 +123,16 @@ export default function AddMortalityRecord() {
     e.preventDefault();
     if (saving) return;
 
-    if (isFutureDate) return setError("Date cannot be a future date.");
-    if (numDead < 0) return setError("Number of dead chickens cannot be negative.");
-    if (numDead < 1) return setError("Enter at least 1 dead chicken.");
+    if (isFutureDate) return setError(tr("Date cannot be a future date."));
+    if (numDead < 0) return setError(tr("Number of dead chickens cannot be negative."));
+    if (numDead < 1) return setError(tr("Enter at least 1 dead chicken."));
     if (isDuplicate)
-      return setError("A mortality record already exists for this Batch + Date.");
+      return setError(tr("A mortality record already exists for this Batch + Date."));
     if (exceedsBirds)
       return setError(`Number of dead chickens (${numDead}) exceeds current birds in batch ${formData.batchId} (${currentBirds}).`);
 
     if (formData.causeOfDeath === NEW_VALUE && !newCauseOfDeath.trim())
-      return setError("Please enter the new Cause of Death.");
+      return setError(tr("Please enter the new Cause of Death."));
 
     const payload = {
       ...formData,
@@ -149,7 +151,7 @@ export default function AddMortalityRecord() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch {}
       navigate("/records/mortality");
     } catch (err) {
-      setError(err?.message || "Couldn't save this record. Please try again.");
+      setError(tr(err?.message || "Couldn't save this record. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -176,64 +178,64 @@ export default function AddMortalityRecord() {
 
           <div className="amr-section-header">
             <FiHeart />
-            <h3>Mortality Details</h3>
+            <h3>{tr("Mortality Details")}</h3>
             <div className="amr-line" />
           </div>
 
           <div className="amr-form-grid">
             <div className="amr-form-group">
-              <label>Mortality ID</label>
+              <label>{tr("Mortality ID")}</label>
               <input type="text" value={nextMortalityId} disabled />
-              <small>Automatically generated when this record is saved.</small>
+              <small>{tr("Automatically generated when this record is saved.")}</small>
             </div>
 
             <div className="amr-form-group">
-              <label>Date <span className="amr-req">*</span></label>
+              <label>{tr("Date")}{" "}<span className="amr-req">*</span></label>
               <input type="date" name="date" value={formData.date} onChange={handleChange} max={today} required />
               {isFutureDate && (
-                <small style={{ color: "#c0392b" }}>Date cannot be a future date.</small>
+                <small style={{ color: "#c0392b" }}>{tr("Date cannot be a future date.")}</small>
               )}
             </div>
 
             <div className="amr-form-group">
-              <label>Batch ID <span className="amr-req">*</span></label>
+              <label>{tr("Batch ID")}{" "}<span className="amr-req">*</span></label>
               <select name="batchId" value={formData.batchId} onChange={handleChange} required>
-                <option value="">Select batch ID</option>
+                <option value="">{tr("Select batch ID")}</option>
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
               {formData.batchId && (
-                <small>Current birds in this batch: {currentBirds}</small>
+                <small>{tr("Current birds in this batch:")}{" "}{currentBirds}</small>
               )}
               {allBatchOptions.length > 0 && batchOptions.length === 0 && (
-                <small>All available batches already have a mortality record for this date.</small>
+                <small>{tr("All available batches already have a mortality record for this date.")}</small>
               )}
             </div>
 
             <div className="amr-form-group">
-              <label>Number of Mortality <span className="amr-req">*</span></label>
+              <label>{tr("Number of Mortality")}{" "}<span className="amr-req">*</span></label>
               <input type="number" min="0" max={formData.batchId ? currentBirds : undefined}
                 name="numberOfMortality"
                 value={formData.numberOfMortality} onChange={handleChange}
-                placeholder="Enter number of mortality" required />
+                placeholder={tr("Enter number of mortality")} required />
               {exceedsBirds && (
-                <small style={{ color: "#c0392b" }}>Cannot exceed {currentBirds} (current birds in batch).</small>
+                <small style={{ color: "#c0392b" }}>{tr("Cannot exceed")}{" "}{currentBirds}{" "}{tr("(current birds in batch).")}</small>
               )}
             </div>
 
             <div className="amr-form-group">
-              <label>Cause of Death <span className="amr-req">*</span></label>
+              <label>{tr("Cause of Death")}{" "}<span className="amr-req">*</span></label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <select name="causeOfDeath" value={formData.causeOfDeath} onChange={handleChange} style={{ flex: 1 }} required>
-                  <option value="">Select cause</option>
+                  <option value="">{tr("Select cause")}</option>
                   {causeOfDeathOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                  <option value={NEW_VALUE}>Others</option>
+                  <option value={NEW_VALUE}>{tr("Others")}</option>
                 </select>
                 {formData.causeOfDeath === NEW_VALUE && (
                   <input
                     type="text"
                     value={newCauseOfDeath}
                     onChange={(e) => setNewCauseOfDeath(e.target.value)}
-                    placeholder="Enter cause of death..."
+                    placeholder={tr("Enter cause of death...")}
                     style={{ flex: 1 }}
                     required
                   />
@@ -244,36 +246,33 @@ export default function AddMortalityRecord() {
 
           {isDuplicate && (
             <div className="pb-warning-banner">
-              <FiAlertTriangle /> A record already exists for this Batch + Date.
-            </div>
+              <FiAlertTriangle />{" "}{tr("A record already exists for this Batch + Date.")}</div>
           )}
 
           {isDisease && (
             <div className="pb-error-banner">
-              <FiAlertTriangle /> Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.
-            </div>
+              <FiAlertTriangle />{" "}{tr("Critical Health Alert: Disease-related mortality. Immediate veterinary consultation is recommended.")}</div>
           )}
 
           <div className="amr-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="amr-line" />
           </div>
 
           <div className="amr-form-group amr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea name="remarks"
               value={formData.remarks} onChange={handleChange}
-              placeholder="Enter remarks or observations..." maxLength={500} />
+              placeholder={tr("Enter remarks or observations...")} maxLength={500} />
             <small className="amr-char-count">{formData.remarks.length} / 500</small>
           </div>
 
           <div className="amr-form-actions">
-            <p className="amr-req-note">Fields with * are required.</p>
+            <p className="amr-req-note">{tr("Fields with * are required.")}</p>
             <div className="amr-action-btns">
               <button type="button" className="amr-cancel-btn" onClick={() => navigate("/records/mortality")}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="amr-save-btn" disabled={isDuplicate || exceedsBirds || isFutureDate || saving}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>

@@ -9,6 +9,7 @@ import { listAuditLogs } from "../api/auditLog";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 function normalize(e) {
   return {
@@ -48,6 +49,7 @@ const dayKey = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toIS
 const uniq = (arr) => [...new Set(arr.filter(Boolean))];
 
 export default function AuditLogs({ embedded = false, onBack }) {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function AuditLogs({ embedded = false, onBack }) {
           const list = Array.isArray(data) ? data : data.records || data.data || [];
           setLogs(list.map(normalize).sort((a, b) => new Date(b.at) - new Date(a.at)));
         })
-        .catch((err) => { setLogs([]); setError(err?.message || "Couldn't load audit logs."); })
+        .catch((err) => { setLogs([]); setError(tr(err?.message || "Couldn't load audit logs.")); })
         .finally(() => setLoading(false));
     };
     fetchLogs();
@@ -81,7 +83,7 @@ export default function AuditLogs({ embedded = false, onBack }) {
       window.removeEventListener("pb_data_changed", fetchLogs);
       window.removeEventListener("focus", fetchLogs);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
@@ -145,51 +147,50 @@ export default function AuditLogs({ embedded = false, onBack }) {
           <div className="al-toolbar-right">
             <div className="al-search-box">
               <FiSearch />
-              <input placeholder="Search description, user, module..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input placeholder={tr("Search description, user, module...")} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
 
             <div className="al-btn-group">
               <div className="al-filter-wrap" ref={filterRef}>
                 <button className="al-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="al-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="al-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="al-filter-dropdown">
                     <div className="al-filter-dropdown-header">
-                      <span>Filter Logs</span>
-                      <button className="al-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <span>{tr("Filter Logs")}</span>
+                      <button className="al-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
                     </div>
                     <div className="al-filter-group">
-                      <label className="al-filter-label">User</label>
+                      <label className="al-filter-label">{tr("User")}</label>
                       <select className="al-filter-select" value={fUser} onChange={(e) => setFUser(e.target.value)}>
-                        <option value="All">All Users</option>
-                        {users.map((u) => <option key={u} value={u}>{u}</option>)}
+                        <option value="All">{tr("All Users")}</option>
+                        {users.map((u) => <option key={u} value={u}>{tr(u)}</option>)}
                       </select>
                     </div>
                     <div className="al-filter-group">
-                      <label className="al-filter-label">Role</label>
+                      <label className="al-filter-label">{tr("Role")}</label>
                       <select className="al-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                        <option value="All">All Roles</option><option>Owner</option><option>Farmer</option>
+                        <option value="All">{tr("All Roles")}</option><option value="Owner">{tr("Owner")}</option><option value="Farmer">{tr("Farmer")}</option>
                       </select>
                     </div>
                     <div className="al-filter-group">
-                      <label className="al-filter-label">Module</label>
+                      <label className="al-filter-label">{tr("Module")}</label>
                       <select className="al-filter-select" value={fModule} onChange={(e) => setFModule(e.target.value)}>
-                        <option value="All">All Modules</option>
-                        {modules.map((m) => <option key={m} value={m}>{m}</option>)}
+                        <option value="All">{tr("All Modules")}</option>
+                        {modules.map((m) => <option key={m} value={m}>{tr(m)}</option>)}
                       </select>
                     </div>
                     <div className="al-filter-group">
-                      <label className="al-filter-label">Action</label>
+                      <label className="al-filter-label">{tr("Action")}</label>
                       <select className="al-filter-select" value={fAction} onChange={(e) => setFAction(e.target.value)}>
-                        <option value="All">All Actions</option>
-                        {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+                        <option value="All">{tr("All Actions")}</option>
+                        {actions.map((a) => <option key={a} value={a}>{tr(a)}</option>)}
                       </select>
                     </div>
                     <div className="al-filter-group">
-                      <label className="al-filter-label">Date</label>
+                      <label className="al-filter-label">{tr("Date")}</label>
                       <input className="al-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
                     </div>
                   </div>
@@ -215,15 +216,15 @@ export default function AuditLogs({ embedded = false, onBack }) {
         <div className="al-stats-grid">
           <div className="al-stat-card">
             <div className="al-stat-icon gold"><FiFileText /></div>
-            <div><h3>{stats.total}</h3><p>Total Logs</p><span>All Time</span></div>
+            <div><h3>{stats.total}</h3><p>{tr("Total Logs")}</p><span>{tr("All Time")}</span></div>
           </div>
           <div className="al-stat-card">
             <div className="al-stat-icon green"><FiClock /></div>
-            <div><h3>{stats.today}</h3><p>Logs Today</p><span>Today</span></div>
+            <div><h3>{stats.today}</h3><p>{tr("Logs Today")}</p><span>{tr("Today")}</span></div>
           </div>
           <div className="al-stat-card">
             <div className="al-stat-icon blue"><FiCalendar /></div>
-            <div><h3>{stats.thisWeek}</h3><p>This Week</p><span>Last 7 Days</span></div>
+            <div><h3>{stats.thisWeek}</h3><p>{tr("This Week")}</p><span>{tr("Last 7 Days")}</span></div>
           </div>
         </div>
 
@@ -232,24 +233,24 @@ export default function AuditLogs({ embedded = false, onBack }) {
           <table className="al-table">
             <thead>
               <tr>
-                <th className="al-sortable-th" onClick={() => cycleSort("at")}>Date &amp; Time{sortIndicator("at", sortColumn, sortDirection)}</th>
-                <th className="al-sortable-th" onClick={() => cycleSort("user")}>User{sortIndicator("user", sortColumn, sortDirection)}</th>
-                <th className="al-sortable-th" onClick={() => cycleSort("role")}>Role{sortIndicator("role", sortColumn, sortDirection)}</th>
-                <th className="al-sortable-th" onClick={() => cycleSort("module")}>Module{sortIndicator("module", sortColumn, sortDirection)}</th>
-                <th className="al-sortable-th" onClick={() => cycleSort("action")}>Action{sortIndicator("action", sortColumn, sortDirection)}</th>
-                <th>Description</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("at")}>{tr("Date & Time")}{sortIndicator("at", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("user")}>{tr("User")}{sortIndicator("user", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("role")}>{tr("Role")}{sortIndicator("role", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("module")}>{tr("Module")}{sortIndicator("module", sortColumn, sortDirection)}</th>
+                <th className="al-sortable-th" onClick={() => cycleSort("action")}>{tr("Action")}{sortIndicator("action", sortColumn, sortDirection)}</th>
+                <th>{tr("Description")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" className="al-empty-state">Loading audit logs...</td></tr>
+                <tr><td colSpan="6" className="al-empty-state">{tr("Loading audit logs...")}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="al-empty-state">
                     <div className="al-empty-content">
                       <FiFileText />
-                      <h3>No audit logs found</h3>
-                      <p>No activity matches your search or filters.</p>
+                      <h3>{tr("No audit logs found")}</h3>
+                      <p>{tr("No activity matches your search or filters.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -260,9 +261,9 @@ export default function AuditLogs({ embedded = false, onBack }) {
                   <tr key={l.id} onClick={() => setSelected(l)} style={{ cursor: "pointer" }}>
                     <td className="al-dt">{fmtDT(l.at)}</td>
                     <td className="al-user">{l.user}</td>
-                    <td><span className="al-role" style={{ background: r.bg, color: r.color }}>{l.role}</span></td>
-                    <td>{l.module}</td>
-                    <td><span className="al-badge" style={{ background: a.bg, color: a.color }}>{l.action}</span></td>
+                    <td><span className="al-role" style={{ background: r.bg, color: r.color }}>{tr(l.role)}</span></td>
+                    <td>{tr(l.module)}</td>
+                    <td><span className="al-badge" style={{ background: a.bg, color: a.color }}>{tr(l.action)}</span></td>
                     <td className="al-desc">{l.description}</td>
                   </tr>
                 );
@@ -291,25 +292,25 @@ export default function AuditLogs({ embedded = false, onBack }) {
           <div className="al-overlay" onClick={() => setSelected(null)}>
             <div className="al-modal" onClick={(e) => e.stopPropagation()}>
               <div className="al-modal-head">
-                <h3><FiFileText /> Log Details</h3>
-                <button onClick={() => setSelected(null)} aria-label="Close"><FiX /></button>
+                <h3><FiFileText />{" "}{tr("Log Details")}</h3>
+                <button onClick={() => setSelected(null)} aria-label={tr("Close")}><FiX /></button>
               </div>
               <div className="al-modal-body">
-                <div className="al-row"><span className="k">Date &amp; Time</span><span className="v" style={{ display: "flex", alignItems: "center", gap: 6 }}><FiClock size={14} /> {fmtDT(selected.at)}</span></div>
-                <div className="al-row"><span className="k">User</span><span className="v">{selected.user}</span></div>
-                <div className="al-row"><span className="k">Role</span><span className="v"><span className="al-role" style={{ background: r.bg, color: r.color }}>{selected.role}</span></span></div>
-                <div className="al-row"><span className="k">Module</span><span className="v">{selected.module}</span></div>
-                <div className="al-row"><span className="k">Action</span><span className="v"><span className="al-badge" style={{ background: a.bg, color: a.color }}>{selected.action}</span></span></div>
-                <div className="al-row"><span className="k">Description</span><span className="v" style={{ maxWidth: 260 }}>{selected.description}</span></div>
+                <div className="al-row"><span className="k">{tr("Date & Time")}</span><span className="v" style={{ display: "flex", alignItems: "center", gap: 6 }}><FiClock size={14} /> {fmtDT(selected.at)}</span></div>
+                <div className="al-row"><span className="k">{tr("User")}</span><span className="v">{selected.user}</span></div>
+                <div className="al-row"><span className="k">{tr("Role")}</span><span className="v"><span className="al-role" style={{ background: r.bg, color: r.color }}>{tr(selected.role)}</span></span></div>
+                <div className="al-row"><span className="k">{tr("Module")}</span><span className="v">{tr(selected.module)}</span></div>
+                <div className="al-row"><span className="k">{tr("Action")}</span><span className="v"><span className="al-badge" style={{ background: a.bg, color: a.color }}>{selected.action}</span></span></div>
+                <div className="al-row"><span className="k">{tr("Description")}</span><span className="v" style={{ maxWidth: 260 }}>{selected.description}</span></div>
 
                 {selected.action === "Edited" && (selected.prev != null || selected.next != null) && (
                   <div className="al-diff">
-                    <div className="box prev"><h5>Previous Value</h5><p>{selected.prev ?? "—"}</p></div>
-                    <div className="box next"><h5>Updated Value</h5><p>{selected.next ?? "—"}</p></div>
+                    <div className="box prev"><h5>{tr("Previous Value")}</h5><p>{selected.prev ?? "—"}</p></div>
+                    <div className="box next"><h5>{tr("Updated Value")}</h5><p>{selected.next ?? "—"}</p></div>
                   </div>
                 )}
 
-                <p className="al-readonly">Audit logs are read-only and cannot be edited or deleted.</p>
+                <p className="al-readonly">{tr("Audit logs are read-only and cannot be edited or deleted.")}</p>
               </div>
             </div>
           </div>

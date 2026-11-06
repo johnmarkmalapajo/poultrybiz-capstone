@@ -5,6 +5,7 @@ import PageLayout from "../components/PageLayout";
 import "./EditPersonnel.css";
 import { getPersonnel, updatePersonnel } from "../api/personnelManpower";
 import { useUser } from "../hooks/useUser";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const STATUS_OPTIONS = ["Active", "Inactive"];
 const SHIFT_OPTIONS = [
@@ -54,6 +55,7 @@ const getInitials = (name) =>
 const getAccountRole = (r) => r?.accountRole || r?.userRole || r?.userType || r?.role || r?.user?.role || r?.profile?.role || "";
 
 export default function EditPersonnel() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const { isOwner } = useUser();
@@ -114,16 +116,16 @@ export default function EditPersonnel() {
         if (rec && (rec._id || rec.profile || rec.position)) {
           apply(rec);
         } else {
-          setError("Record not found.");
+          setError(tr("Record not found."));
         }
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
     };
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -144,7 +146,7 @@ export default function EditPersonnel() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
       navigate(`/personnel-visitors/personnel/view/${id}`);
     } catch (err) {
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -154,7 +156,7 @@ export default function EditPersonnel() {
   if (loading) {
     return (
       <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
-        <p className="ep-loading">Loading personnel record...</p>
+        <p className="ep-loading">{tr("Loading personnel record...")}</p>
       </PageLayout>
     );
   }
@@ -162,12 +164,9 @@ export default function EditPersonnel() {
   if (accessDenied) {
     return (
       <PageLayout background="#f4f4f2" breadcrumbItems={breadcrumbItems}>
-        <div className="pb-error-banner">
-          Only the Owner can edit this record.
-        </div>
+        <div className="pb-error-banner">{tr("Only the Owner can edit this record.")}</div>
         <button type="button" className="ep-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)}>
-          <FiX /> Back
-        </button>
+          <FiX />{" "}{tr("Back")}</button>
       </PageLayout>
     );
   }
@@ -184,7 +183,7 @@ export default function EditPersonnel() {
 
           <div className="ep-section-header">
             <FiUser />
-            <h3>Profile Information</h3>
+            <h3>{tr("Profile Information")}</h3>
             <div className="ep-line" />
           </div>
 
@@ -195,28 +194,26 @@ export default function EditPersonnel() {
               <span className="ep-avatar ep-avatar-fallback">{getInitials(profileInfo.fullName)}</span>
             )}
             <p className="ep-avatar-note">
-              <FiLock style={{ verticalAlign: "middle", marginRight: 6 }} />
-              Profile Picture is synced from the account's My Profile and is read-only.
-            </p>
+              <FiLock style={{ verticalAlign: "middle", marginRight: 6 }} />{tr("Profile Picture is synced from the account's My Profile and is read-only.")}</p>
           </div>
 
           <div className="ep-form-grid">
             <div className="ep-form-group ep-locked">
-              <label>Full Name <span className="ep-lock-badge">Synced</span></label>
+              <label>{tr("Full Name")}{" "}<span className="ep-lock-badge">{tr("Synced")}</span></label>
               <input type="text" value={profileInfo.fullName} disabled readOnly />
-              <small>Synced from My Profile</small>
+              <small>{tr("Synced from My Profile")}</small>
             </div>
 
             <div className="ep-form-group ep-locked">
-              <label>Contact Number <span className="ep-lock-badge">Synced</span></label>
+              <label>{tr("Contact Number")}{" "}<span className="ep-lock-badge">{tr("Synced")}</span></label>
               <input type="text" value={profileInfo.contactNumber} disabled readOnly />
-              <small>Synced from My Profile</small>
+              <small>{tr("Synced from My Profile")}</small>
             </div>
 
             <div className="ep-form-group ep-locked">
-              <label>Email Address <span className="ep-lock-badge">Synced</span></label>
+              <label>{tr("Email Address")}{" "}<span className="ep-lock-badge">{tr("Synced")}</span></label>
               <input type="text" value={profileInfo.email} disabled readOnly />
-              <small>Synced from My Profile</small>
+              <small>{tr("Synced from My Profile")}</small>
             </div>
           </div>
 
@@ -228,8 +225,7 @@ export default function EditPersonnel() {
 
           <div className="ep-form-grid">
             <div className="ep-form-group">
-              <label>
-                Position / Role <span className="ep-req">*</span>
+              <label>{tr("Position / Role")}{" "}<span className="ep-req">*</span>
                 {!canEditPosition && <span className="ep-lock-badge">{isTargetOwner ? "Fixed" : "Owner only"}</span>}
               </label>
               <input
@@ -237,7 +233,7 @@ export default function EditPersonnel() {
                 name="position"
                 value={formData.position}
                 onChange={handleChange}
-                placeholder="e.g., Poultry Technician"
+                placeholder={tr("e.g., Poultry Technician")}
                 required
                 disabled={!canEditPosition}
                 readOnly={!canEditPosition}
@@ -254,35 +250,34 @@ export default function EditPersonnel() {
             {!isTargetOwner && (
               <>
                 <div className="ep-form-group">
-                  <label>Shift / Duty Hours <span className="ep-req">*</span></label>
+                  <label>{tr("Shift / Duty Hours")}{" "}<span className="ep-req">*</span></label>
                   <input
                     type="text"
                     name="shiftHours"
                     value={formData.shiftHours}
                     onChange={handleChange}
                     list="shift-options"
-                    placeholder="e.g., 6:00 AM - 3:00 PM"
+                    placeholder={tr("e.g., 6:00 AM - 3:00 PM")}
                     required
                   />
                   <datalist id="shift-options">
                     {SHIFT_OPTIONS.map((s) => <option key={s} value={s} />)}
                   </datalist>
-                  <small>Type custom hours or pick a standard shift</small>
+                  <small>{tr("Type custom hours or pick a standard shift")}</small>
                 </div>
 
                 <div className="ep-form-group">
-                  <label>
-                    Employment Status <span className="ep-req">*</span>
-                    {!isOwner && <span className="ep-lock-badge">Owner only</span>}
+                  <label>{tr("Employment Status")}{" "}<span className="ep-req">*</span>
+                    {!isOwner && <span className="ep-lock-badge">{tr("Owner only")}</span>}
                   </label>
                   <select name="status" value={formData.status} onChange={handleChange} required disabled={!isOwner}>
-                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
                   </select>
-                  {!isOwner && <small>Only the Owner can change employment status here.</small>}
+                  {!isOwner && <small>{tr("Only the Owner can change employment status here.")}</small>}
                 </div>
 
                 <div className="ep-form-group">
-                  <label>Date Hired</label>
+                  <label>{tr("Date Hired")}</label>
                   <input type="date" name="dateHired" value={formData.dateHired} onChange={handleChange} />
                 </div>
               </>
@@ -293,29 +288,28 @@ export default function EditPersonnel() {
             <>
               <div className="ep-section-header">
                 <FiFileText />
-                <h3>Assignment &amp; Notes</h3>
+                <h3>{tr("Assignment & Notes")}</h3>
                 <div className="ep-line" />
               </div>
 
               <div className="ep-form-group ep-full-width">
-                <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
+                <label>{tr("Remarks")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
                 <textarea
                   rows="5"
                   name="remarks"
                   value={formData.remarks}
                   onChange={handleChange}
-                  placeholder="Enter remarks, observations, or additional information..."
+                  placeholder={tr("Enter remarks, observations, or additional information...")}
                 />
               </div>
             </>
           )}
 
           <div className="ep-form-actions">
-            <p className="ep-req-note">Fields with * are required.</p>
+            <p className="ep-req-note">{tr("Fields with * are required.")}</p>
             <div className="ep-action-btns">
               <button type="button" className="ep-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" disabled={saving} className="ep-save-btn">
                 <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>

@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import {
@@ -30,6 +31,7 @@ const STATUS_STYLE = {
 
 
 export default function AdminProfile({ embedded = false, onBack }) {
+  const { t, setLanguage } = useLanguage();
   const { isOwner } = useUser();
   const [saved, setSaved] = useState(EMPTY_ADMIN);
   const [form, setForm] = useState(EMPTY_ADMIN);
@@ -53,13 +55,20 @@ export default function AdminProfile({ embedded = false, onBack }) {
     setLoading(true);
     getMyProfile()
       .then((data) => {
-        const p = { ...EMPTY_ADMIN, ...(data.record || data.data || data) };
+        const loaded = { ...EMPTY_ADMIN, ...(data.record || data.data || data) };
+        // Language: this device's choice wins; a device with no choice yet
+        // adopts the language saved on the account.
+        let storedLang = null;
+        try { storedLang = localStorage.getItem("pb_lang"); } catch { /* storage unavailable */ }
+        const lang = storedLang || (loaded.language === "Filipino" ? "Filipino" : "English");
+        if (!storedLang) setLanguage(lang);
+        const p = { ...loaded, language: lang };
         setSaved(p);
         setForm(p);
       })
-      .catch((err) => setError(err?.message || "Couldn't load your profile."))
+      .catch((err) => setError(t(err?.message || "Couldn't load your profile.")))
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirty = JSON.stringify(form) !== JSON.stringify(saved) || !!pendingAvatarFile || !!pendingLogoFile;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -102,7 +111,7 @@ const onPickLogo = (e) => {
 
   const onSave = async () => {
     if (!form.fullName.trim() || !form.email.trim()) {
-      return flash("Full Name and Email are required.");
+      return flash(t("Full Name and Email are required."));
     }
     setSaving(true); setError("");
     try {
@@ -132,9 +141,10 @@ const onPickLogo = (e) => {
       setSaved(p);
       setForm(p);
       updateStoredUser({ name: p.fullName, email: p.email, avatar: p.avatar });
-      flash("Profile saved successfully.");
+      setLanguage(p.language === "Filipino" ? "Filipino" : "English");
+      flash(t("Profile saved successfully."));
     } catch (err) {
-      setError(err?.message || "Couldn't save your profile. Please try again.");
+      setError(t(err?.message || "Couldn't save your profile. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -145,6 +155,7 @@ const onPickLogo = (e) => {
     setPendingLogoPreview("");
     clearPendingAvatar();
     setForm(saved);
+    setLanguage(saved.language === "Filipino" ? "Filipino" : "English");
   };
 
   const st = STATUS_STYLE[form.employmentStatus] || STATUS_STYLE["Active"];
@@ -158,7 +169,7 @@ const onPickLogo = (e) => {
       <div className="pf-main">
 
         {error && <div className="pb-error-banner">{error}</div>}
-        {loading && <p className="pb-loading-text">Loading your profile...</p>}
+        {loading && <p className="pb-loading-text">{t("Loading your profile...")}</p>}
 
         <div className="pf-layout">
           {}
@@ -177,7 +188,7 @@ const onPickLogo = (e) => {
               : <FiUser />
               }
               </div>
-              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label="Change photo"><FiCamera /></button>
+              <button className="pf-cam" onClick={() => fileRef.current?.click()} disabled={saving} aria-label={t("Change photo")}><FiCamera /></button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
             </div>
             <h3 className="pf-name">{form.fullName || "—"}</h3>
@@ -186,41 +197,41 @@ const onPickLogo = (e) => {
             <div className="pf-info-list">
               <div className="pf-info-row"><FiMail />{form.email || "—"}</div>
               <div className="pf-info-row"><FiPhone />{form.phone || "—"}</div>
-              <div className="pf-info-row"><FiCalendar />Joined: {joinedLabel}</div>
-              <div className="pf-info-row"><FiUser />Position: {form.position || "—"}</div>
-              <div className="pf-info-row"><FiClock />Last Login: {saved.lastLogin}</div>
+              <div className="pf-info-row"><FiCalendar />{t("Joined:")} {joinedLabel}</div>
+              <div className="pf-info-row"><FiUser />{t("Position:")} {form.position || "—"}</div>
+              <div className="pf-info-row"><FiClock />{t("Last Login:")} {saved.lastLogin}</div>
             </div>
-            <button className="pf-changepass" onClick={() => setShowPass(true)}><FiLock /> Change Password</button>
+            <button className="pf-changepass" onClick={() => setShowPass(true)}><FiLock /> {t("Change Password")}</button>
           </div>
 
           {}
           <div className="pf-right">
             {}
             <div className="pf-card pf-section">
-              <div className="pf-section-head"><div className="pf-section-ico"><FiUser /></div><h2>Personal Information</h2></div>
+              <div className="pf-section-head"><div className="pf-section-ico"><FiUser /></div><h2>{t("Personal Information")}</h2></div>
               <div className="pf-grid">
                 <div className="pf-field">
-                  <label className="pf-label">Full Name<span className="req">*</span></label>
+                  <label className="pf-label">{t("Full Name")}<span className="req">*</span></label>
                   <input className="pf-input" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Email Address<span className="req">*</span></label>
+                  <label className="pf-label">{t("Email Address")}<span className="req">*</span></label>
                   <input className="pf-input" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Phone Number</label>
+                  <label className="pf-label">{t("Phone Number")}</label>
                   <input className="pf-input" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Position</label>
+                  <label className="pf-label">{t("Position")}</label>
                   <input className="pf-input readonly" value={form.position || "—"} readOnly tabIndex={-1} />
                 </div>
                 <div className="pf-field full">
-                  <label className="pf-label">Address</label>
+                  <label className="pf-label">{t("Address")}</label>
                   <input className="pf-input" value={form.address} onChange={(e) => set("address", e.target.value)} />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Date Joined</label>
+                  <label className="pf-label">{t("Date Joined")}</label>
                   <input
                     className="pf-input readonly"
                     type="date"
@@ -231,13 +242,13 @@ const onPickLogo = (e) => {
                   />
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Employment Status</label>
+                  <label className="pf-label">{t("Employment Status")}</label>
                   <span className="pf-status-pill" style={{ background: st.bg, color: st.color }}>
-                    {st.dot} {form.employmentStatus || "—"}
+                    {st.dot} {form.employmentStatus ? t(form.employmentStatus) : "—"}
                   </span>
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Last Login</label>
+                  <label className="pf-label">{t("Last Login")}</label>
                   <input className="pf-input readonly" value={saved.lastLogin || "—"} readOnly tabIndex={-1} />
                 </div>
               </div>
@@ -245,16 +256,16 @@ const onPickLogo = (e) => {
 
             {}
             <div className="pf-card pf-section">
-              <div className="pf-section-head"><div className="pf-section-ico"><FiSettings /></div><h2>Account Preferences</h2></div>
+              <div className="pf-section-head"><div className="pf-section-ico"><FiSettings /></div><h2>{t("Account Preferences")}</h2></div>
               <div className="pf-grid">
                 <div className="pf-field">
-                  <label className="pf-label">Language</label>
-                  <select className="pf-select" value={form.language} onChange={(e) => set("language", e.target.value)}>
+                  <label className="pf-label">{t("Language")}</label>
+                  <select className="pf-select" value={form.language} onChange={(e) => { set("language", e.target.value); setLanguage(e.target.value); }}>
                     <option>English</option><option>Filipino</option>
                   </select>
                 </div>
                 <div className="pf-field">
-                  <label className="pf-label">Time Zone</label>
+                  <label className="pf-label">{t("Time Zone")}</label>
                   <select className="pf-select" value={form.timezone} onChange={(e) => set("timezone", e.target.value)}>
                     <option>(GMT+08:00) Asia/Manila</option><option>(GMT+00:00) UTC</option>
                   </select>
@@ -262,12 +273,12 @@ const onPickLogo = (e) => {
               </div>
               <div style={{ marginTop: 8 }}>
                 <div className="pf-pref-row">
-                  <div className="pf-pref-text"><h4>Email Notifications</h4><p>Receive system updates and notifications via email.</p></div>
-                  <button className={`pf-switch ${form.emailNotif ? "on" : ""}`} onClick={() => set("emailNotif", !form.emailNotif)} aria-label="Toggle email notifications" />
+                  <div className="pf-pref-text"><h4>{t("Email Notifications")}</h4><p>{t("Receive system updates and notifications via email.")}</p></div>
+                  <button className={`pf-switch ${form.emailNotif ? "on" : ""}`} onClick={() => set("emailNotif", !form.emailNotif)} aria-label={t("Toggle email notifications")} />
                 </div>
                 <div className="pf-pref-row">
-                  <div className="pf-pref-text"><h4>Login Alerts</h4><p>Get notified when a new device logs in to your account.</p></div>
-                  <button className={`pf-switch ${form.loginAlerts ? "on" : ""}`} onClick={() => set("loginAlerts", !form.loginAlerts)} aria-label="Toggle login alerts" />
+                  <div className="pf-pref-text"><h4>{t("Login Alerts")}</h4><p>{t("Get notified when a new device logs in to your account.")}</p></div>
+                  <button className={`pf-switch ${form.loginAlerts ? "on" : ""}`} onClick={() => set("loginAlerts", !form.loginAlerts)} aria-label={t("Toggle login alerts")} />
                 </div>
               </div>
             </div>
@@ -275,29 +286,29 @@ const onPickLogo = (e) => {
             {}
             {isOwner && (
               <div className="pf-card pf-section">
-                <div className="pf-section-head"><div className="pf-section-ico"><FiImage /></div><h2>Farm Information</h2></div>
+                <div className="pf-section-head"><div className="pf-section-ico"><FiImage /></div><h2>{t("Farm Information")}</h2></div>
                 <p style={{ fontSize: 12.5, color: "#8a8478", margin: "-8px 0 14px" }}>
-                  Shown on exported reports (PDF headers) across the system.
+                  {t("Shown on exported reports (PDF headers) across the system.")}
                 </p>
                 <div className="pf-grid">
                   <div className="pf-field">
-                    <label className="pf-label">Farm Name</label>
-                    <input className="pf-input" value={form.farmName} onChange={(e) => set("farmName", e.target.value)} placeholder="e.g. DMDC Farm" />
+                    <label className="pf-label">{t("Farm Name")}</label>
+                    <input className="pf-input" value={form.farmName} onChange={(e) => set("farmName", e.target.value)} placeholder={t("e.g. DMDC Farm")} />
                   </div>
                   <div className="pf-field">
-                    <label className="pf-label">Farm Location</label>
-                    <input className="pf-input" value={form.farmLocation} onChange={(e) => set("farmLocation", e.target.value)} placeholder="e.g. Poras, Boac, Marinduque" />
+                    <label className="pf-label">{t("Farm Location")}</label>
+                    <input className="pf-input" value={form.farmLocation} onChange={(e) => set("farmLocation", e.target.value)} placeholder={t("e.g. Poras, Boac, Marinduque")} />
                   </div>
                   <div className="pf-field">
-                    <label className="pf-label">Farm Contact Number</label>
-                    <input className="pf-input" value={form.farmContact} onChange={(e) => set("farmContact", e.target.value)} placeholder="e.g. 0917-123-4567" />
+                    <label className="pf-label">{t("Farm Contact Number")}</label>
+                    <input className="pf-input" value={form.farmContact} onChange={(e) => set("farmContact", e.target.value)} placeholder={t("e.g. 0917-123-4567")} />
                   </div>
                   <div className="pf-field">
-                    <label className="pf-label">Farm Email <span style={{ fontWeight: 400, color: "#a39e94" }}>(optional)</span></label>
-                    <input className="pf-input" type="email" value={form.farmEmail} onChange={(e) => set("farmEmail", e.target.value)} placeholder="e.g. contact@dmdcfarm.com" />
+                    <label className="pf-label">{t("Farm Email")} <span style={{ fontWeight: 400, color: "#a39e94" }}>({t("optional")})</span></label>
+                    <input className="pf-input" type="email" value={form.farmEmail} onChange={(e) => set("farmEmail", e.target.value)} placeholder={t("e.g. contact@dmdcfarm.com")} />
                   </div>
                   <div className="pf-field full">
-                    <label className="pf-label">Farm Logo</label>
+                    <label className="pf-label">{t("Farm Logo")}</label>
                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                       <div style={{ width: 64, height: 64, borderRadius: 10, border: "1px solid #e4e0d8", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#faf8f3", flexShrink: 0 }}>
                         {pendingLogoPreview || form.farmLogo ? (
@@ -310,7 +321,7 @@ const onPickLogo = (e) => {
                       </div>
                       <div>
                         <button type="button" className="pf-btn pf-btn-cancel" onClick={() => logoFileRef.current?.click()} disabled={saving}>
-                          <FiCamera /> {pendingLogoPreview || form.farmLogo ? "Change Logo" : "Upload Logo"}
+                          <FiCamera /> {pendingLogoPreview || form.farmLogo ? t("Change Logo") : t("Upload Logo")}
                         </button>
                         <input ref={logoFileRef} type="file" accept="image/*" hidden onChange={onPickLogo} />
                       </div>
@@ -323,8 +334,8 @@ const onPickLogo = (e) => {
         </div>
 
         <div className="pf-actions">
-          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>Cancel</button>
-          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? "Saving..." : "Save Changes"}</button>
+          <button className="pf-btn pf-btn-cancel" onClick={onCancel} disabled={!dirty || saving}>{t("Cancel")}</button>
+          <button className="pf-btn pf-btn-save" onClick={onSave} disabled={!dirty || saving}><FiSave /> {saving ? t("Saving...") : t("Save Changes")}</button>
         </div>
       </div>
 
@@ -335,6 +346,7 @@ const onPickLogo = (e) => {
 }
 
 function ChangePasswordModal({ onClose }) {
+  const { t } = useLanguage();
   const [vals, setVals] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [msg, setMsg] = useState(null);
@@ -348,17 +360,17 @@ function ChangePasswordModal({ onClose }) {
   ];
   const submit = async () => {
     if (submitting) return;
-    if (!vals.current || !vals.next || !vals.confirm) return setMsg({ type: "error", text: "Please fill in all password fields." });
-    if (vals.next.length < 8) return setMsg({ type: "error", text: "New password must be at least 8 characters." });
-    if (vals.next === vals.current) return setMsg({ type: "error", text: "New password must be different from the current one." });
-    if (vals.next !== vals.confirm) return setMsg({ type: "error", text: "New password and confirmation do not match." });
+    if (!vals.current || !vals.next || !vals.confirm) return setMsg({ type: "error", text: t("Please fill in all password fields.") });
+    if (vals.next.length < 8) return setMsg({ type: "error", text: t("New password must be at least 8 characters.") });
+    if (vals.next === vals.current) return setMsg({ type: "error", text: t("New password must be different from the current one.") });
+    if (vals.next !== vals.confirm) return setMsg({ type: "error", text: t("New password and confirmation do not match.") });
     setSubmitting(true);
     try {
       await changeMyPassword({ currentPassword: vals.current, newPassword: vals.next });
-      setMsg({ type: "success", text: "Password updated successfully!" });
+      setMsg({ type: "success", text: t("Password updated successfully!") });
       setTimeout(onClose, 1300);
     } catch (err) {
-      setMsg({ type: "error", text: err?.message || "Couldn't update your password. Please try again." });
+      setMsg({ type: "error", text: t(err?.message || "Couldn't update your password. Please try again.") });
     } finally {
       setSubmitting(false);
     }
@@ -366,21 +378,21 @@ function ChangePasswordModal({ onClose }) {
   return (
     <div className="pf-overlay" onClick={onClose}>
       <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="pf-modal-head"><h3>Change Password</h3><button onClick={onClose} aria-label="Close"><FiX /></button></div>
-        <p className="pf-modal-sub">Use at least 8 characters. Keep your account secure.</p>
+        <div className="pf-modal-head"><h3>{t("Change Password")}</h3><button onClick={onClose} aria-label={t("Close")}><FiX /></button></div>
+        <p className="pf-modal-sub">{t("Use at least 8 characters. Keep your account secure.")}</p>
         {msg && <div className={`pf-msg ${msg.type}`}>{msg.type === "success" ? <FiCheckCircle /> : <FiX />} {msg.text}</div>}
         {fields.map((f) => (
           <div className="pf-pass-field" key={f.k}>
-            <label>{f.label}</label>
+            <label>{t(f.label)}</label>
             <div className="pf-pass-input">
-              <input type={show[f.k] ? "text" : "password"} value={vals[f.k]} onChange={(e) => set(f.k, e.target.value)} placeholder={f.placeholder} />
-              <button className="pf-eye" onClick={() => toggle(f.k)} aria-label="Toggle visibility" tabIndex={-1}>{show[f.k] ? <FiEyeOff /> : <FiEye />}</button>
+              <input type={show[f.k] ? "text" : "password"} value={vals[f.k]} onChange={(e) => set(f.k, e.target.value)} placeholder={t(f.placeholder)} />
+              <button className="pf-eye" onClick={() => toggle(f.k)} aria-label={t("Toggle visibility")} tabIndex={-1}>{show[f.k] ? <FiEyeOff /> : <FiEye />}</button>
             </div>
           </div>
         ))}
         <div className="pf-modal-btns">
-          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update Password"}</button>
+          <button className="pf-mb-cancel" onClick={onClose} disabled={submitting}>{t("Cancel")}</button>
+          <button className="pf-mb-update" onClick={submit} disabled={submitting}>{submitting ? t("Updating...") : t("Update Password")}</button>
         </div>
       </div>
     </div>

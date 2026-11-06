@@ -18,6 +18,7 @@ import { listPersonnel, getAttendanceQr } from "../api/personnelManpower";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const STATUS_OPTIONS = ["Active", "Inactive"];
 
@@ -52,6 +53,7 @@ const getRemarks = (r) => r.remarks || r.notes || "—";
 const NameCell = ({ r }) => <span>{getName(r)}</span>;
 
 export default function PersonnelManpower() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canArchive, isOwner, user: currentUser } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -97,13 +99,13 @@ export default function PersonnelManpower() {
         setRecords(list);
       } catch (err) {
         setRecords([]);
-        setError(err?.message || "Couldn't load personnel records.");
+        setError(tr(err?.message || "Couldn't load personnel records."));
       } finally {
         setLoading(false);
       }
     };
     fetchRecords();
-  }, [refreshKey]);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
@@ -142,9 +144,9 @@ export default function PersonnelManpower() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -315,7 +317,7 @@ export default function PersonnelManpower() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -324,37 +326,36 @@ export default function PersonnelManpower() {
             <div className="pm-btn-group">
               <div className="pm-filter-wrap" ref={filterRef}>
                 <button className="pm-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="pm-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="pm-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="pm-filter-dropdown">
                     <div className="pm-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="pm-filter-section-label">Date Filter (Date Hired)</div>
+                    <div className="pm-filter-section-label">{tr("Date Filter (Date Hired)")}</div>
                     <div className="pm-filter-row">
                       <div className="pm-filter-group">
-                        <label className="pm-filter-label">Date Period</label>
+                        <label className="pm-filter-label">{tr("Date Period")}</label>
                         <select
                           className="pm-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="pm-filter-group">
-                          <label className="pm-filter-label">Week</label>
+                          <label className="pm-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="pm-filter-select"
@@ -366,15 +367,15 @@ export default function PersonnelManpower() {
 
                       {draft.period === "month" && (
                         <div className="pm-filter-group">
-                          <label className="pm-filter-label">Month</label>
+                          <label className="pm-filter-label">{tr("Month")}</label>
                           <select
                             className="pm-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -382,15 +383,15 @@ export default function PersonnelManpower() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="pm-filter-group">
-                          <label className="pm-filter-label">Year</label>
+                          <label className="pm-filter-label">{tr("Year")}</label>
                           <select
                             className="pm-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -399,48 +400,48 @@ export default function PersonnelManpower() {
 
                     {draft.period === "custom" && (
                       <div className="pm-filter-group">
-                        <label className="pm-filter-label">Start Date / End Date</label>
+                        <label className="pm-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="pm-filter-date-range">
                           <input type="date" className="pm-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="pm-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="pm-filter-section-label">Filters</div>
+                    <div className="pm-filter-section-label">{tr("Filters")}</div>
                     <div className="pm-filter-row">
                       <div className="pm-filter-group">
-                        <label className="pm-filter-label">Status</label>
+                        <label className="pm-filter-label">{tr("Status")}</label>
                         <select
                           className="pm-filter-select"
                           value={draft.status}
                           onChange={(e) => handleFilterChange("status", e.target.value)}
                         >
-                          <option value="All">All Statuses</option>
-                          {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          <option value="All">{tr("All Statuses")}</option>
+                          {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{tr(o)}</option>)}
                         </select>
                       </div>
                     </div>
 
                     <div className="pm-filter-actions">
-                      <button className="pm-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="pm-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="pm-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="pm-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <button className="pm-toolbar-btn" onClick={() => { setQrError(""); setQrOpen(true); }}><BsQrCode /> QR Generation</button>
+              <button className="pm-toolbar-btn" onClick={() => { setQrError(""); setQrOpen(true); }}><BsQrCode />{" "}{tr("QR Generation")}</button>
               <ExportMenu
                 rows={exportRows}
                 columns={exportColumns}
                 name={`personnel-${isOwnerTab ? "owner" : "farmers"}`}
-                title="Personnel Management Report"
+                title={tr("Personnel Management Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Personnel & Manpower"
@@ -463,8 +464,8 @@ export default function PersonnelManpower() {
             <div className="pm-stat-icon gold"><MdPeople /></div>
             <div>
               <h3>{total}</h3>
-              <p>Total Personnel</p>
-              <span>All Registered</span>
+              <p>{tr("Total Personnel")}</p>
+              <span>{tr("All Registered")}</span>
             </div>
           </div>
 
@@ -472,8 +473,8 @@ export default function PersonnelManpower() {
             <div className="pm-stat-icon green"><MdPerson /></div>
             <div>
               <h3>{activeCount}</h3>
-              <p>Active</p>
-              <span>Currently Employed</span>
+              <p>{tr("Active")}</p>
+              <span>{tr("Currently Employed")}</span>
             </div>
           </div>
 
@@ -481,8 +482,8 @@ export default function PersonnelManpower() {
             <div className="pm-stat-icon blue"><MdPersonOff /></div>
             <div>
               <h3>{inactiveCount}</h3>
-              <p>Inactive</p>
-              <span>Not Currently Active</span>
+              <p>{tr("Inactive")}</p>
+              <span>{tr("Not Currently Active")}</span>
             </div>
           </div>
         </div>
@@ -493,14 +494,12 @@ export default function PersonnelManpower() {
             className={`pm-tab ${activeTab === "farmers" ? "active" : ""}`}
             onClick={() => setActiveTab("farmers")}
           >
-            <MdPeople /> Personnel (Farmers)
-          </button>
+            <MdPeople />{" "}{tr("Personnel (Farmers)")}</button>
           <button
             className={`pm-tab ${activeTab === "owner" ? "active" : ""}`}
             onClick={() => setActiveTab("owner")}
           >
-            <MdPerson /> Owner
-          </button>
+            <MdPerson />{" "}{tr("Owner")}</button>
         </div>
 
         <TableSection className="pm-table-wrapper">
@@ -511,24 +510,24 @@ export default function PersonnelManpower() {
             <table className="pm-table">
               <thead>
                 <tr>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>Full Name{sortIndicator("name", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>Contact Number{sortIndicator("contact", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>Position{sortIndicator("position", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
-                  <th>Remarks</th>
-                  <th>Actions</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>{tr("Full Name")}{sortIndicator("name", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>{tr("Contact Number")}{sortIndicator("contact", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>{tr("Position")}{sortIndicator("position", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+                  <th>{tr("Remarks")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="6" className="pm-empty-state">Loading...</td></tr>
+                  <tr><td colSpan="6" className="pm-empty-state">{tr("Loading...")}</td></tr>
                 ) : owners.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="pm-empty-state">
                       <div className="pm-empty-content">
                         <FiMaximize />
-                        <h3>No owner found</h3>
-                        <p>Owner appears here automatically after registration.</p>
+                        <h3>{tr("No owner found")}</h3>
+                        <p>{tr("Owner appears here automatically after registration.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -542,9 +541,9 @@ export default function PersonnelManpower() {
                       <td>{getRemarks(r)}</td>
                       <td>
                         <div className="pm-actions">
-                          <button className="pm-btn-view" title={canViewRow(r) ? "View" : "You can only view your own record"} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                          <button className="pm-btn-view" title={canViewRow(r) ? tr("View") : tr("You can only view your own record")} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
                           {isOwner && !isOwnerRow(r) && (
-                            <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                            <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title={tr("Archive")}><FiArchive /></button>
                           )}
                         </div>
                       </td>
@@ -560,24 +559,24 @@ export default function PersonnelManpower() {
             <table className="pm-table">
               <thead>
                 <tr>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>Full Name{sortIndicator("name", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>Contact Number{sortIndicator("contact", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>Position{sortIndicator("position", sortColumn, sortDirection)}</th>
-                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
-                  <th>Remarks</th>
-                  <th>Actions</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("name")}>{tr("Full Name")}{sortIndicator("name", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("contact")}>{tr("Contact Number")}{sortIndicator("contact", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("position")}>{tr("Position")}{sortIndicator("position", sortColumn, sortDirection)}</th>
+                  <th className="pm-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+                  <th>{tr("Remarks")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="6" className="pm-empty-state">Loading personnel records...</td></tr>
+                  <tr><td colSpan="6" className="pm-empty-state">{tr("Loading personnel records...")}</td></tr>
                 ) : farmers.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="pm-empty-state">
                       <div className="pm-empty-content">
                         <FiMaximize />
-                        <h3>No personnel records found</h3>
-                        <p>Farmers appear here automatically once their account is approved by the Owner.</p>
+                        <h3>{tr("No personnel records found")}</h3>
+                        <p>{tr("Farmers appear here automatically once their account is approved by the Owner.")}</p>
                       </div>
                     </td>
                   </tr>
@@ -591,9 +590,9 @@ export default function PersonnelManpower() {
                       <td>{getRemarks(r)}</td>
                       <td>
                         <div className="pm-actions">
-                          <button className="pm-btn-view" title={canViewRow(r) ? "View" : "You can only view your own record"} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
+                          <button className="pm-btn-view" title={canViewRow(r) ? tr("View") : tr("You can only view your own record")} disabled={!canViewRow(r)} onClick={() => canViewRow(r) && navigate(`/personnel-visitors/personnel/view/${getId(r)}`)}><FiEye /></button>
                           {canArchive && (
-                          <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title="Archive"><FiArchive /></button>
+                          <button className="pm-btn-archive" onClick={() => requestArchive({ module: "Personnel & Manpower", moduleKey: "pb_personnel", record: r, name: r.fullName || r.name })} title={tr("Archive")}><FiArchive /></button>
                           )}
                         </div>
                       </td>
@@ -624,9 +623,9 @@ export default function PersonnelManpower() {
             <div className="qr-modal-header">
               <div className="qr-modal-title">
                 <BsQrCode />
-                <h3>QR Attendance</h3>
+                <h3>{tr("QR Attendance")}</h3>
               </div>
-              <button className="qr-close" onClick={() => setQrOpen(false)} aria-label="Close"><FiX /></button>
+              <button className="qr-close" onClick={() => setQrOpen(false)} aria-label={tr("Close")}><FiX /></button>
             </div>
 
 
@@ -637,9 +636,9 @@ export default function PersonnelManpower() {
                 {STATION_QR ? (
                   <img className="qr-station-img" src={STATION_QR} alt="Attendance QR code" loading="lazy" />
                 ) : (
-                  !qrError && <p className="pb-loading-text">Loading QR code...</p>
+                  !qrError && <p className="pb-loading-text">{tr("Loading QR code...")}</p>
                 )}
-                <span className="qr-frame-caption">Attendance QR</span>
+                <span className="qr-frame-caption">{tr("Attendance QR")}</span>
               </div>
 
               {}
@@ -648,8 +647,7 @@ export default function PersonnelManpower() {
                 onClick={() => STATION_QR && window.open(STATION_QR, "_blank", "noopener,noreferrer")}
                 disabled={!STATION_QR}
               >
-                <FiDownload /> Download QR
-              </button>
+                <FiDownload />{" "}{tr("Download QR")}</button>
             </div>
           </div>
         </div>

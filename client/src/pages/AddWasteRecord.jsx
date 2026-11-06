@@ -7,8 +7,10 @@ import { listPersonnel } from "../api/personnelManpower";
 import { useState, useEffect } from "react";
 import { useWasteOptions, NEW_VALUE, CUSTOM_MAX_LENGTH, validateCustom, normalizeCustom } from "../hooks/useWasteOptions";
 import { phToday } from "../phDate";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function AddWasteRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -55,7 +57,7 @@ export default function AddWasteRecord() {
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
   const [saving, setSaving] = useState(false);
 
@@ -91,7 +93,7 @@ export default function AddWasteRecord() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       navigate("/records/manure?tab=waste");
     } catch (err) {
-      setError(err?.message || "Couldn't save this record. Please try again.");
+      setError(tr(err?.message || "Couldn't save this record. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -119,22 +121,22 @@ export default function AddWasteRecord() {
           {/* WASTE DETAILS */}
           <div className="awr-section-header">
             <FiTrash2 />
-            <h3>Waste Details</h3>
+            <h3>{tr("Waste Details")}</h3>
             <div className="awr-line" />
           </div>
 
           <div className="awr-form-grid">
             <div className="awr-form-group">
-              <label>Date <span className="awr-req">*</span></label>
+              <label>{tr("Date")}{" "}<span className="awr-req">*</span></label>
               <input type="date" name="date" value={formData.date} onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="awr-form-group">
-              <label>Waste Type <span className="awr-req">*</span></label>
+              <label>{tr("Waste Type")}{" "}<span className="awr-req">*</span></label>
               <select name="wasteType" value={formData.wasteType} onChange={handleChange} required>
-                <option value="">Select waste type</option>
+                <option value="">{tr("Select waste type")}</option>
                 {wasteTypeOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.wasteType === NEW_VALUE && (
                 <input
@@ -142,7 +144,7 @@ export default function AddWasteRecord() {
                   className="awr-others-input"
                   value={newWasteType}
                   onChange={(e) => { setNewWasteType(e.target.value); setError(""); }}
-                  placeholder="Enter specific waste type"
+                  placeholder={tr("Enter specific waste type")}
                   maxLength={CUSTOM_MAX_LENGTH}
                   style={{ marginTop: "8px" }}
                   required
@@ -151,26 +153,26 @@ export default function AddWasteRecord() {
             </div>
 
             <div className="awr-form-group">
-              <label>Quantity / Unit <span className="awr-req">*</span></label>
+              <label>{tr("Quantity / Unit")}{" "}<span className="awr-req">*</span></label>
               <div className="awr-input-unit-select">
                 <input type="number" min="0" name="quantity" value={formData.quantity}
-                  onChange={handleChange} placeholder="Enter quantity" required />
+                  onChange={handleChange} placeholder={tr("Enter quantity")} required />
                 <select name="unit" value={formData.unit} onChange={handleChange}>
-                  <option value="kg">kg</option>
-                  <option value="pcs">pcs</option>
-                  <option value="heads">heads</option>
-                  <option value="bags">bags</option>
-                  <option value="liters">liters</option>
+                  <option value="kg">{tr("kg")}</option>
+                  <option value="pcs">{tr("pcs")}</option>
+                  <option value="heads">{tr("heads")}</option>
+                  <option value="bags">{tr("bags")}</option>
+                  <option value="liters">{tr("liters")}</option>
                 </select>
               </div>
             </div>
 
             <div className="awr-form-group">
-              <label>Disposal Method <span className="awr-req">*</span></label>
+              <label>{tr("Disposal Method")}{" "}<span className="awr-req">*</span></label>
               <select name="disposalMethod" value={formData.disposalMethod} onChange={handleChange} required>
-                <option value="">Select disposal method</option>
+                <option value="">{tr("Select disposal method")}</option>
                 {disposalMethodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.disposalMethod === NEW_VALUE && (
                 <input
@@ -178,7 +180,7 @@ export default function AddWasteRecord() {
                   className="awr-others-input"
                   value={newDisposalMethod}
                   onChange={(e) => { setNewDisposalMethod(e.target.value); setError(""); }}
-                  placeholder="Enter specific disposal method"
+                  placeholder={tr("Enter specific disposal method")}
                   maxLength={CUSTOM_MAX_LENGTH}
                   style={{ marginTop: "8px" }}
                   required
@@ -187,14 +189,14 @@ export default function AddWasteRecord() {
             </div>
 
             <div className="awr-form-group">
-              <label>Person Responsible <span className="awr-req">*</span></label>
+              <label>{tr("Person Responsible")}{" "}<span className="awr-req">*</span></label>
               <select
   name="personResponsible"
   value={formData.personResponsible}
   onChange={handleChange}
   required
 >
-  <option value="">Select person</option>
+  <option value="">{tr("Select person")}</option>
   {personnel.map((person) => (
     <option key={person} value={person}>
       {person}
@@ -207,24 +209,23 @@ export default function AddWasteRecord() {
           {/* ADDITIONAL INFORMATION */}
           <div className="awr-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="awr-line" />
           </div>
 
           <div className="awr-form-group awr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea name="remarks" value={formData.remarks} onChange={handleChange}
-              placeholder="Enter any remarks (optional)..." maxLength={255} />
+              placeholder={tr("Enter any remarks (optional)...")} maxLength={255} />
             <small className="awr-char-count">{formData.remarks.length} / 255</small>
           </div>
 
           {/* Actions */}
           <div className="awr-form-actions">
-            <p className="awr-req-note">Fields with * are required.</p>
+            <p className="awr-req-note">{tr("Fields with * are required.")}</p>
             <div className="awr-action-btns">
               <button type="button" className="awr-cancel-btn" onClick={() => navigate("/records/manure?tab=waste")}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" disabled={saving} className="awr-save-btn">
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>

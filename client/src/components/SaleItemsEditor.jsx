@@ -1,5 +1,6 @@
 import { FiPlus, FiTrash2 } from "react-icons/fi";
 import "./SaleItemsEditor.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const EGG_SIZES = ["Peewee", "Small", "Medium", "Large", "Extra Large", "Jumbo"];
 const UNITS = ["Pieces", "Trays"];
@@ -72,6 +73,7 @@ export function subtotalOf(item) {
 // item already accounts for) instead of flagging a false shortage on
 // a sale that hasn't actually changed.
 export default function SaleItemsEditor({ items, onChange, stockByType, originalItemsBySize }) {
+  const { t: tr } = useLanguage();
   const updateItem = (index, field, value) => {
     const next = items.map((it, i) => (i === index ? { ...it, [field]: value } : it));
     onChange(next);
@@ -109,43 +111,42 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
         return (
           <div className="sie-set" key={i}>
             <div className="sie-set-head">
-              <span className="sie-set-label">Egg Set {i + 1}</span>
+              <span className="sie-set-label">{tr("Egg Set")}{" "}{i + 1}</span>
               {items.length > 1 && (
-                <button type="button" className="sie-remove-btn" onClick={() => removeItem(i)} aria-label="Remove this egg set">
-                  <FiTrash2 /> Remove
-                </button>
+                <button type="button" className="sie-remove-btn" onClick={() => removeItem(i)} aria-label={tr("Remove this egg set")}>
+                  <FiTrash2 />{" "}{tr("Remove")}</button>
               )}
             </div>
 
             <div className="sie-set-grid">
               <div className="sie-form-group">
-                <label>Egg Size <span className="sie-req">*</span></label>
+                <label>{tr("Egg Size")}{" "}<span className="sie-req">*</span></label>
                 <select value={item.eggSize} onChange={(e) => updateItem(i, "eggSize", e.target.value)} required>
-                  <option value="">Select size</option>
-                  {EGG_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="">{tr("Select size")}</option>
+                  {EGG_SIZES.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
                 </select>
               </div>
 
               <div className="sie-form-group">
-                <label>Unit <span className="sie-req">*</span></label>
+                <label>{tr("Unit")}{" "}<span className="sie-req">*</span></label>
                 <select value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} required>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  {UNITS.map((u) => <option key={u} value={u}>{tr(u)}</option>)}
                 </select>
               </div>
 
               <div className="sie-form-group">
-                <label>Quantity Sold <span className="sie-req">*</span></label>
+                <label>{tr("Quantity Sold")}{" "}<span className="sie-req">*</span></label>
                 <input
                   type="text" inputMode="numeric"
                   value={item.quantitySold}
                   onChange={(e) => updateItem(i, "quantitySold", sanitizeWholeNumber(e.target.value))}
-                  placeholder={item.unit === "Trays" ? "Number of trays" : "Number of pieces"}
+                  placeholder={item.unit === "Trays" ? tr("Number of trays") : tr("Number of pieces")}
                   required
                 />
               </div>
 
               <div className="sie-form-group">
-                <label>Unit Price (per egg) <span className="sie-req">*</span></label>
+                <label>{tr("Unit Price (per egg)")}{" "}<span className="sie-req">*</span></label>
                 <div className="sie-input-with-prefix">
                   <span className="sie-prefix">₱</span>
                   <input
@@ -159,44 +160,41 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
               </div>
 
               <div className="sie-form-group">
-                <label>Eggs Equivalent</label>
+                <label>{tr("Eggs Equivalent")}</label>
                 <input type="text" value={`${eggsEquivalentOf(item)} eggs`} disabled className="sie-readonly" />
               </div>
 
               <div className="sie-form-group">
-                <label>Subtotal</label>
+                <label>{tr("Subtotal")}</label>
                 <input type="text" value={`₱${subtotalOf(item).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`} disabled className="sie-readonly" />
               </div>
             </div>
 
             {item.eggSize && avail != null && (
               <div className={`sie-stock-status ${exceeds ? "sie-stock-status-error" : ""}`}>
-                <span>Available: <strong>{avail} eggs</strong></span>
-                <span>Requested: <strong>{requested} eggs</strong></span>
-                <span>Remaining: <strong>{Math.max(0, avail - requested)} eggs</strong></span>
+                <span>{tr("Available:")}{" "}<strong>{avail}{" "}{tr("eggs")}</strong></span>
+                <span>{tr("Requested:")}{" "}<strong>{requested}{" "}{tr("eggs")}</strong></span>
+                <span>{tr("Remaining:")}{" "}<strong>{Math.max(0, avail - requested)}{" "}{tr("eggs")}</strong></span>
               </div>
             )}
 
             {exceeds && (
-              <div className="sie-set-error">
-                Exceeds current {item.eggSize} stock — only {avail} eggs available, {requested} requested.
-              </div>
+              <div className="sie-set-error">{tr("Exceeds current")}{" "}{item.eggSize}{" "}{tr("stock — only")}{" "}{avail}{" "}{tr("eggs available,")}{" "}{requested}{" "}{tr("requested.")}</div>
             )}
           </div>
         );
       })}
 
       <button type="button" className="sie-add-btn" onClick={addItem}>
-        <FiPlus /> Add Another Egg Set
-      </button>
+        <FiPlus />{" "}{tr("Add Another Egg Set")}</button>
 
       <div className="sie-totals">
         <div>
-          <span>Total Eggs</span>
-          <strong>{totalEggs.toLocaleString()} eggs</strong>
+          <span>{tr("Total Eggs")}</span>
+          <strong>{totalEggs.toLocaleString()}{" "}{tr("eggs")}</strong>
         </div>
         <div>
-          <span>Grand Total</span>
+          <span>{tr("Grand Total")}</span>
           <strong>₱{grandTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</strong>
         </div>
       </div>

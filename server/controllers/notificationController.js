@@ -15,7 +15,6 @@ const createNotification = async ({
   description,
   category,
   type = "alert",
-  priority = "Normal",
   roles = [],
   userId = null,
   referenceId = null,
@@ -37,7 +36,6 @@ const createNotification = async ({
       description,
       category,
       type,
-      priority,
       roles,
       userId,
       referenceId,
@@ -86,7 +84,6 @@ exports.getNotifications = async (req, res) => {
       description: n.description,
       category: n.category,
       type: n.type,
-      priority: String(n.priority).toLowerCase(), // Critical/Warning/Normal -> critical/warning/normal
       read: n.read,
       roles: n.roles,
       dateTime: n.createdAt,

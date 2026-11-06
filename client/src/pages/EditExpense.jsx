@@ -9,6 +9,7 @@ import {
   feedQuantityToKg,
   sackWeightHint,
 } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CATEGORIES = [
   "Feed Purchase", "Medicine", "Utilities", "Labor",
@@ -39,6 +40,7 @@ const feedSetSubtotal = (feedSet) =>
   Number(feedSet.quantity || 0) * Number(feedSet.unitPrice || 0);
 
 export default function EditExpense() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -121,10 +123,10 @@ export default function EditExpense() {
             );
           }
         } else {
-          setError(json?.message || "Failed to load record.");
+          setError(tr(json?.message || "Failed to load record."));
         }
       } catch (err) {
-        if (!cancelled) setError(err?.message || "Cannot connect to server. Please try again.");
+        if (!cancelled) setError(tr(err?.message || "Cannot connect to server. Please try again."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -132,7 +134,7 @@ export default function EditExpense() {
 
     fetchRecord();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     const { name } = e.target;
@@ -141,7 +143,7 @@ export default function EditExpense() {
     if (e.target.type === "date") {
       if (e.target.max && value > e.target.max) {
         value = e.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -279,11 +281,11 @@ export default function EditExpense() {
           };
 
       await updateExpenseRecord(id, payload);
-      setSuccess("Expense record updated successfully!");
+      setSuccess(tr("Expense record updated successfully!"));
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/sales-transactions/expenses"), 1000);
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -299,7 +301,7 @@ export default function EditExpense() {
           { label: "EDIT EXPENSE" },
         ]}
       >
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -328,7 +330,7 @@ export default function EditExpense() {
 
           <div className="ee-section-header">
             <FiInfo />
-            <h3>Expense Details</h3>
+            <h3>{tr("Expense Details")}</h3>
             <div className="ee-line" />
           </div>
 
@@ -339,23 +341,23 @@ export default function EditExpense() {
             </div>
 
             <div className="ee-form-group">
-              <label>Category <span className="req">*</span></label>
+              <label>{tr("Category")}{" "}<span className="req">*</span></label>
               <select name="category" value={form.category} onChange={handleChange} required>
-                <option value="">Select category</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="">{tr("Select category")}</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{tr(c)}</option>)}
               </select>
             </div>
 
             {isFeedPurchase && (
               <div className="ee-form-group">
-                <label>Supplier <span className="req">*</span></label>
-                <input type="text" name="supplier" value={form.supplier} onChange={handleChange} placeholder="Enter supplier name" required />
+                <label>{tr("Supplier")}{" "}<span className="req">*</span></label>
+                <input type="text" name="supplier" value={form.supplier} onChange={handleChange} placeholder={tr("Enter supplier name")} required />
               </div>
             )}
 
             {!isFeedPurchase && (
               <div className="ee-form-group">
-                <label>Amount <span className="req">*</span></label>
+                <label>{tr("Amount")}{" "}<span className="req">*</span></label>
                 <div className="ee-input-with-prefix">
                   <span className="ee-prefix">₱</span>
                   <input
@@ -367,7 +369,7 @@ export default function EditExpense() {
                     onChange={handleChange}
                     onKeyDown={blockInvalidNumberKeys}
                     onPaste={blockInvalidNumberPaste}
-                    placeholder="Enter amount"
+                    placeholder={tr("Enter amount")}
                     required
                   />
                 </div>
@@ -377,35 +379,35 @@ export default function EditExpense() {
             {isEquipment && (
               <>
                 <div className="ee-form-group">
-                  <label>Equipment/Tool Name <span className="req">*</span></label>
+                  <label>{tr("Equipment/Tool Name")}{" "}<span className="req">*</span></label>
                   <input type="text" name="equipmentName" value={form.equipmentName} onChange={handleChange} required />
                 </div>
 
                 <div className="ee-form-group">
-                  <label>Serial/ID No. <span className="ee-optional">(optional)</span></label>
+                  <label>{tr("Serial/ID No.")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
                   <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} />
                 </div>
 
                 <div className="ee-form-group ee-full-width">
-                  <label>Description/Specification <span className="req">*</span></label>
+                  <label>{tr("Description/Specification")}{" "}<span className="req">*</span></label>
                   <textarea name="description" value={form.description} onChange={handleChange} rows="3" required />
                 </div>
 
                 <div className="ee-form-group">
-                  <label>Quantity <span className="req">*</span></label>
+                  <label>{tr("Quantity")}{" "}<span className="req">*</span></label>
                   <input type="number" name="quantity" min="0" value={form.quantity} onChange={handleChange} onKeyDown={blockInvalidNumberKeys} onPaste={blockInvalidNumberPaste} required />
                 </div>
 
                 <div className="ee-form-group">
-                  <label>Unit <span className="req">*</span></label>
+                  <label>{tr("Unit")}{" "}<span className="req">*</span></label>
                   <select name="unit" value={form.unit} onChange={handleChange} required>
-                    <option value="">Select unit</option>
-                    <option value="pcs">pcs</option>
-                    <option value="units">units</option>
-                    <option value="sets">sets</option>
-                    <option value="pairs">pairs</option>
-                    <option value="kg">kg</option>
-                    <option value="liters">liters</option>
+                    <option value="">{tr("Select unit")}</option>
+                    <option value="pcs">{tr("pcs")}</option>
+                    <option value="units">{tr("units")}</option>
+                    <option value="sets">{tr("sets")}</option>
+                    <option value="pairs">{tr("pairs")}</option>
+                    <option value="kg">{tr("kg")}</option>
+                    <option value="liters">{tr("liters")}</option>
                   </select>
                 </div>
               </>
@@ -413,11 +415,10 @@ export default function EditExpense() {
 
             {!isFeedPurchase && (
               <div className="ee-form-group">
-                <label>Receipt <span className="ee-optional">(optional)</span></label>
+                <label>{tr("Receipt")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
                 <div className="ee-file-wrap">
                   <label className="ee-file-btn">
-                    <FiUpload /> Choose file
-                    <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFile} hidden />
+                    <FiUpload />{" "}{tr("Choose file")}<input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFile} hidden />
                   </label>
                   <span className="ee-file-name">
                     {form.receipt ? form.receipt.name : (existingReceipt || "No file chosen")}
@@ -427,11 +428,11 @@ export default function EditExpense() {
                 {preview && (
                   <div className="ee-file-preview">
                     <img src={preview} alt="Receipt preview" />
-                    <button type="button" className="ee-file-remove" onClick={removeFile}>Remove</button>
+                    <button type="button" className="ee-file-remove" onClick={removeFile}>{tr("Remove")}</button>
                   </div>
                 )}
 
-                <small>Upload a new receipt to replace the current one. JPG, PNG, or PDF (max 5MB).</small>
+                <small>{tr("Upload a new receipt to replace the current one. JPG, PNG, or PDF (max 5MB).")}</small>
               </div>
             )}
           </div>
@@ -440,7 +441,7 @@ export default function EditExpense() {
             <>
               <div className="ee-section-header">
                 <FiFileText />
-                <h3>Feed Sets</h3>
+                <h3>{tr("Feed Sets")}</h3>
                 <div className="ee-line" />
               </div>
 
@@ -448,20 +449,20 @@ export default function EditExpense() {
                 <div className="ee-feed-set-row" key={index}>
                   <div className="ee-form-grid">
                     <div className="ee-form-group">
-                      <label>Feed Type <span className="req">*</span></label>
+                      <label>{tr("Feed Type")}{" "}<span className="req">*</span></label>
                       <select
                         value={fs.feedType}
                         onChange={(e) => handleFeedSetChange(index, "feedType", e.target.value)}
                         required
                       >
-                        <option value="">Select feed type</option>
-                        <option value="Layer Feed">Layer Feed</option>
-                        <option value="Grower Feed">Grower Feed</option>
+                        <option value="">{tr("Select feed type")}</option>
+                        <option value="Layer Feed">{tr("Layer Feed")}</option>
+                        <option value="Grower Feed">{tr("Grower Feed")}</option>
                       </select>
                     </div>
 
                     <div className="ee-form-group">
-                      <label>Quantity <span className="req">*</span></label>
+                      <label>{tr("Quantity")}{" "}<span className="req">*</span></label>
                       <div className="ee-quantity-unit">
                         <input
                           type="number"
@@ -471,7 +472,7 @@ export default function EditExpense() {
                           onChange={(e) => handleFeedSetChange(index, "quantity", e.target.value)}
                           onKeyDown={blockInvalidNumberKeys}
                           onPaste={blockInvalidNumberPaste}
-                          placeholder="Enter quantity"
+                          placeholder={tr("Enter quantity")}
                           required
                         />
                         <select
@@ -479,8 +480,8 @@ export default function EditExpense() {
                           onChange={(e) => handleFeedSetChange(index, "unit", e.target.value)}
                           required
                         >
-                          <option value="Sacks">sacks</option>
-                          <option value="Kilogram">kg</option>
+                          <option value="Sacks">{tr("sacks")}</option>
+                          <option value="Kilogram">{tr("kg")}</option>
                         </select>
                       </div>
                       <small className="ee-unit-equivalent">
@@ -489,7 +490,7 @@ export default function EditExpense() {
                     </div>
 
                     <div className="ee-form-group">
-                      <label>Price per {fs.unit === "Sacks" ? "Sack" : "Kg"} <span className="req">*</span></label>
+                      <label>{tr("Price per")}{" "}{fs.unit === "Sacks" ? "Sack" : "Kg"} <span className="req">*</span></label>
                       <div className="ee-input-with-prefix">
                         <span className="ee-prefix">₱</span>
                         <input
@@ -500,14 +501,14 @@ export default function EditExpense() {
                           onChange={(e) => handleFeedSetChange(index, "unitPrice", e.target.value)}
                           onKeyDown={blockInvalidNumberKeys}
                           onPaste={blockInvalidNumberPaste}
-                          placeholder="Enter price per unit"
+                          placeholder={tr("Enter price per unit")}
                           required
                         />
                       </div>
                     </div>
 
                     <div className="ee-form-group">
-                      <label>Subtotal</label>
+                      <label>{tr("Subtotal")}</label>
                       <div className="ee-input-with-prefix">
                         <span className="ee-prefix">₱</span>
                         <input
@@ -516,7 +517,7 @@ export default function EditExpense() {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
-                          placeholder="Subtotal"
+                          placeholder={tr("Subtotal")}
                           disabled
                           readOnly
                         />
@@ -525,11 +526,10 @@ export default function EditExpense() {
 
                     {index === 0 && (
                       <div className="ee-form-group">
-                        <label>Receipt <span className="ee-optional">(optional)</span></label>
+                        <label>{tr("Receipt")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
                         <div className="ee-file-wrap">
                           <label className="ee-file-btn">
-                            <FiUpload /> Choose file
-                            <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFile} hidden />
+                            <FiUpload />{" "}{tr("Choose file")}<input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFile} hidden />
                           </label>
                           <span className="ee-file-name">
                             {form.receipt ? form.receipt.name : (existingReceipt || "No file chosen")}
@@ -539,11 +539,11 @@ export default function EditExpense() {
                         {preview && (
                           <div className="ee-file-preview">
                             <img src={preview} alt="Receipt preview" />
-                            <button type="button" className="ee-file-remove" onClick={removeFile}>Remove</button>
+                            <button type="button" className="ee-file-remove" onClick={removeFile}>{tr("Remove")}</button>
                           </div>
                         )}
 
-                        <small>Upload a new receipt to replace the current one. JPG, PNG, or PDF (max 5MB).</small>
+                        <small>{tr("Upload a new receipt to replace the current one. JPG, PNG, or PDF (max 5MB).")}</small>
                       </div>
                     )}
                   </div>
@@ -554,24 +554,21 @@ export default function EditExpense() {
                       className="ee-remove-feed-set-btn"
                       onClick={() => removeFeedSet(index)}
                     >
-                      <FiTrash2 /> Remove Feed Set
-                    </button>
+                      <FiTrash2 />{" "}{tr("Remove Feed Set")}</button>
                   )}
                 </div>
               ))}
 
-              <button type="button" className="ee-add-feed-set-btn" onClick={addFeedSet}>
-                + Add Another Feed Set
-              </button>
+              <button type="button" className="ee-add-feed-set-btn" onClick={addFeedSet}>{tr("+ Add Another Feed Set")}</button>
 
               <div className="ee-feed-summary">
                 <div className="ee-summary-card">
-                  <span>Total Quantity</span>
-                  <strong>{totalQuantityKg.toLocaleString()} kg</strong>
+                  <span>{tr("Total Quantity")}</span>
+                  <strong>{totalQuantityKg.toLocaleString()}{" "}{tr("kg")}</strong>
                 </div>
 
                 <div className="ee-summary-card">
-                  <span>Grand Total</span>
+                  <span>{tr("Grand Total")}</span>
                   <strong>
                     ₱
                     {feedPurchaseTotal.toLocaleString(undefined, {
@@ -586,28 +583,27 @@ export default function EditExpense() {
 
           <div className="ee-section-header">
             <FiFileText />
-            <h3>Additional Details</h3>
+            <h3>{tr("Additional Details")}</h3>
             <div className="ee-line" />
           </div>
 
           <div className="ee-form-group ee-full-width">
-            <label>Remarks <span className="ee-optional">(optional)</span></label>
+            <label>{tr("Remarks")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
             <textarea
               name="remarks"
               value={form.remarks}
               onChange={handleChange}
-              placeholder="Enter remarks or notes about this expense..."
+              placeholder={tr("Enter remarks or notes about this expense...")}
               maxLength={255}
             />
             <small className="ee-char-count">{(form.remarks || "").length} / 255</small>
           </div>
 
           <div className="ee-form-actions">
-            <p className="ee-required-note">Fields with * are required.</p>
+            <p className="ee-required-note">{tr("Fields with * are required.")}</p>
             <div className="ee-action-btns">
               <button type="button" className="ee-cancel-btn" onClick={() => navigate("/sales-transactions/expenses")} disabled={saving}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" disabled={saving} className="ee-save-btn">
                 <FiSave /> {saving ? "Saving..." : "Update Record"}
               </button>

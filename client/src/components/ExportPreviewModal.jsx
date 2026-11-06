@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { FiX, FiZoomIn, FiZoomOut, FiDownload, FiFileText, FiRepeat } from "react-icons/fi";
 import { buildReportBodyHtml, buildMultiSectionReportBodyHtml, getReportStyles, getMultiSectionExtraStyles } from "../exportTable";
 import "./ExportPreviewModal.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 /**
  * Export Preview Modal — shared component, per Reporting & Export
@@ -51,6 +52,7 @@ export default function ExportPreviewModal({
   onDownloadPdf,
   onDownloadExcel,
 }) {
+  const { t: tr } = useLanguage();
   const [zoom, setZoom] = useState(1);
   const [orientation, setOrientation] = useState("portrait");
   const iframeWrapRef = useRef(null);
@@ -77,28 +79,28 @@ export default function ExportPreviewModal({
         <div className="xpm-header">
           <div className="xpm-header-title">
             <FiFileText />
-            <span>Export Preview</span>
+            <span>{tr("Export Preview")}</span>
           </div>
           <div className="xpm-header-actions">
             <button
               className="xpm-orientation-btn"
               onClick={toggleOrientation}
               title={`Switch to ${orientation === "portrait" ? "Landscape" : "Portrait"}`}
-              aria-label="Toggle page orientation"
+              aria-label={tr("Toggle page orientation")}
             >
               <FiRepeat /> <span>{orientation === "portrait" ? "Portrait" : "Landscape"}</span>
             </button>
-            <button className="xpm-zoom-btn" onClick={zoomOut} title="Zoom out" aria-label="Zoom out"><FiZoomOut /></button>
+            <button className="xpm-zoom-btn" onClick={zoomOut} title={tr("Zoom out")} aria-label={tr("Zoom out")}><FiZoomOut /></button>
             <span className="xpm-zoom-level">{Math.round(zoom * 100)}%</span>
-            <button className="xpm-zoom-btn" onClick={zoomIn} title="Zoom in" aria-label="Zoom in"><FiZoomIn /></button>
-            <button className="xpm-close-btn" onClick={onClose} title="Close" aria-label="Close"><FiX /></button>
+            <button className="xpm-zoom-btn" onClick={zoomIn} title={tr("Zoom in")} aria-label={tr("Zoom in")}><FiZoomIn /></button>
+            <button className="xpm-close-btn" onClick={onClose} title={tr("Close")} aria-label={tr("Close")}><FiX /></button>
           </div>
         </div>
 
         <div className="xpm-body" ref={iframeWrapRef}>
           <div className={`xpm-page ${orientation === "landscape" ? "xpm-page-landscape" : ""}`} style={{ transform: `scale(${zoom})` }}>
             <iframe
-              title="Report preview"
+              title={tr("Report preview")}
               srcDoc={doc}
               className="xpm-iframe"
               sandbox=""
@@ -107,11 +109,11 @@ export default function ExportPreviewModal({
         </div>
 
         <div className="xpm-footer">
-          <button className="xpm-btn xpm-btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="xpm-btn xpm-btn-cancel" onClick={onClose}>{tr("Cancel")}</button>
           {onDownloadExcel && (
-            <button className="xpm-btn xpm-btn-excel" onClick={onDownloadExcel}><FiDownload /> Download Excel</button>
+            <button className="xpm-btn xpm-btn-excel" onClick={onDownloadExcel}><FiDownload />{" "}{tr("Download Excel")}</button>
           )}
-          <button className="xpm-btn xpm-btn-pdf" onClick={() => onDownloadPdf(orientation)}><FiDownload /> Download PDF</button>
+          <button className="xpm-btn xpm-btn-pdf" onClick={() => onDownloadPdf(orientation)}><FiDownload />{" "}{tr("Download PDF")}</button>
         </div>
       </div>
     </div>

@@ -25,6 +25,7 @@ import {
   FiChevronsRight,
 } from "react-icons/fi";
 import "./TablePagination.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const DEFAULT_PAGE_SIZES = [10, 25, 50];
 
@@ -96,6 +97,7 @@ export default function TablePagination({
   pageSizeOptions = DEFAULT_PAGE_SIZES,
   itemLabel = "records",
 }) {
+  const { t: tr } = useLanguage();
   if (!totalRecords) return null;
 
   const pages = Math.max(1, totalPages);
@@ -113,22 +115,21 @@ export default function TablePagination({
 
   return (
     <footer className="tp-pagination-footer">
-      <nav className="tp-pagination" aria-label="Table pagination">
-        <p className="tp-summary" aria-live="polite">
-          Showing <strong>{startIndex + 1}–{endIndex}</strong> of{" "}
+      <nav className="tp-pagination" aria-label={tr("Table pagination")}>
+        <p className="tp-summary" aria-live="polite">{tr("Showing")}{" "}<strong>{startIndex + 1}–{endIndex}</strong>{" "}{tr("of")}{" "}
           <strong>{totalRecords}</strong> {itemLabel}
         </p>
 
         {onPageSizeChange && (
           <label className="tp-size">
-            <span className="tp-size-text">Rows per page</span>
+            <span className="tp-size-text">{tr("Rows per page")}</span>
             <select
               className="tp-size-select"
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
             >
               {sizes.map((size) => (
-                <option key={size} value={size}>{size}</option>
+                <option key={size} value={size}>{tr(size)}</option>
               ))}
             </select>
           </label>
@@ -140,8 +141,8 @@ export default function TablePagination({
             className="tp-btn tp-btn-icon tp-btn-edge"
             onClick={() => goTo(1)}
             disabled={isFirst}
-            aria-label="First page"
-            title="First page"
+            aria-label={tr("First page")}
+            title={tr("First page")}
           >
             <FiChevronsLeft aria-hidden="true" />
           </button>
@@ -150,11 +151,11 @@ export default function TablePagination({
             className="tp-btn tp-btn-step"
             onClick={() => goTo(currentPage - 1)}
             disabled={isFirst}
-            aria-label="Previous page"
-            title="Previous page"
+            aria-label={tr("Previous page")}
+            title={tr("Previous page")}
           >
             <FiChevronLeft aria-hidden="true" />
-            <span className="tp-btn-text">Previous</span>
+            <span className="tp-btn-text">{tr("Previous")}</span>
           </button>
 
           <ul className="tp-pages">
@@ -182,10 +183,10 @@ export default function TablePagination({
             className="tp-btn tp-btn-step"
             onClick={() => goTo(currentPage + 1)}
             disabled={isLast}
-            aria-label="Next page"
-            title="Next page"
+            aria-label={tr("Next page")}
+            title={tr("Next page")}
           >
-            <span className="tp-btn-text">Next</span>
+            <span className="tp-btn-text">{tr("Next")}</span>
             <FiChevronRight aria-hidden="true" />
           </button>
           <button
@@ -193,8 +194,8 @@ export default function TablePagination({
             className="tp-btn tp-btn-icon tp-btn-edge"
             onClick={() => goTo(pages)}
             disabled={isLast}
-            aria-label="Last page"
-            title="Last page"
+            aria-label={tr("Last page")}
+            title={tr("Last page")}
           >
             <FiChevronsRight aria-hidden="true" />
           </button>

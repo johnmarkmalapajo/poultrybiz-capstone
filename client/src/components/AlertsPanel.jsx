@@ -4,6 +4,7 @@ import {
   FiTrendingDown, FiAlertTriangle, FiPackage, FiDroplet, FiBell, FiCheckCircle,
 } from "react-icons/fi";
 import "./AlertsPanel.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const ICONS = {
   "trending-down": <FiTrendingDown />,
@@ -13,18 +14,19 @@ const ICONS = {
 };
 
 export default function AlertsPanel({ alerts = [], title = "Alerts & Reminders" }) {
+  const { t: tr } = useLanguage();
   return (
     <div className="alerts-panel">
       <div className="alerts-header">
         <FiBell />
-        <h3>{title}</h3>
+        <h3>{tr(title)}</h3>
         {alerts.length > 0 && <span className="alerts-count">{alerts.length}</span>}
       </div>
 
       {alerts.length === 0 ? (
         <div className="alerts-empty">
           <FiCheckCircle />
-          <p>All good — no alerts right now.</p>
+          <p>{tr("All good — no alerts right now.")}</p>
         </div>
       ) : (
         <ul className="alerts-list">
@@ -32,8 +34,8 @@ export default function AlertsPanel({ alerts = [], title = "Alerts & Reminders" 
             <li key={a.id} className={`alert-item alert-${a.severity}`}>
               <div className="alert-icon">{ICONS[a.icon] || <FiBell />}</div>
               <div className="alert-body">
-                <span className="alert-title">{a.title}</span>
-                <span className="alert-message">{a.message}</span>
+                <span className="alert-title">{tr(a.title)}</span>
+                <span className="alert-message">{tr(a.message)}</span>
               </div>
             </li>
           ))}

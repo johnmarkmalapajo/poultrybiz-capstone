@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -8,11 +9,12 @@ const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   // Where to continue after logging in (e.g. the Attendance QR page), and
   // why the user was sent here. Only same-site paths are accepted.
   const redirectTo = safeRedirectPath(searchParams.get("redirect"));
-  const reasonMessage = SESSION_REASONS[searchParams.get("reason")] || "";
+  const reasonMessageEn = SESSION_REASONS[searchParams.get("reason")] || "";
   const [form, setForm]         = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -34,7 +36,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     if (!form.email.trim() || !form.password.trim()) {
-      setError("Please fill in all fields.");
+      setError(t("Please fill in all fields."));
       return;
     }
 
@@ -71,15 +73,15 @@ export default function Login() {
 
       } else {
         if (data.isPending) {
-          setError("⏳ Your account is still pending Owner approval. Please wait.");
+          setError(t("⏳ Your account is still pending Owner approval. Please wait."));
         } else if (data.isRejected) {
-          setError("❌ Your account has been rejected. Please contact the Owner.");
+          setError(t("❌ Your account has been rejected. Please contact the Owner."));
         } else {
-          setError(data.message || "Invalid email or password.");
+          setError(t(data.message || "Invalid email or password."));
         }
       }
     } catch {
-      setError("Cannot connect to server. Make sure backend is running.");
+      setError(t("Cannot connect to server. Make sure backend is running."));
     } finally {
       setLoading(false);
     }
@@ -88,14 +90,14 @@ export default function Login() {
   return (
     <div className="login-bg">
       <div className="login-card">
-        <h2 className="login-title">Login</h2>
-        {reasonMessage && !error && (
-          <div className="pb-warning-banner" role="status">{reasonMessage}</div>
+        <h2 className="login-title">{t("Login")}</h2>
+        {reasonMessageEn && !error && (
+          <div className="pb-warning-banner" role="status">{t(reasonMessageEn)}</div>
         )}
         <form className="login-form" onSubmit={handleSubmit} noValidate>
 
           <div className="login-field">
-            <label className="login-label">Email</label>
+            <label className="login-label">{t("Email")}</label>
             <input
               type="email"
               name="email"
@@ -108,7 +110,7 @@ export default function Login() {
           </div>
 
           <div className="login-field">
-            <label className="login-label">Password</label>
+            <label className="login-label">{t("Password")}</label>
             <div className="login-pass-wrap">
               <input
                 type={showPass ? "text" : "password"}
@@ -116,7 +118,7 @@ export default function Login() {
                 value={form.password}
                 onChange={handleChange}
                 className="login-input"
-                placeholder="Password"
+                placeholder={t("Password")}
                 autoComplete="current-password"
               />
               <span className="login-eye" onClick={() => setShowPass(!showPass)}>
@@ -133,14 +135,14 @@ export default function Login() {
                 onChange={(e) => setRemember(e.target.checked)}
                 className="login-check"
               />
-              Remember me
+              {t("Remember me")}
             </label>
             <button
               type="button"
               className="login-forgot"
               onClick={() => navigate("/forgot-password")}
             >
-              Forgot Password?
+              {t("Forgot Password?")}
             </button>
           </div>
 
@@ -154,14 +156,14 @@ export default function Login() {
           )}
 
           <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? <span className="login-spinner" /> : "Login"}
+            {loading ? <span className="login-spinner" /> : t("Login")}
           </button>
         </form>
 
         <p className="login-signup">
-          Don't have an account?{" "}
+          {t("Don't have an account?")}{" "}
           <span className="login-signup-link" onClick={() => navigate("/signup")}>
-            Create Now
+            {t("Create Now")}
           </span>
         </p>
       </div>

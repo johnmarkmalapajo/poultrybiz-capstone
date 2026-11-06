@@ -613,7 +613,6 @@ exports.updateFlockStatus = async (req, res) => {
         description: `Batch ${flock.batchId} has been marked as Culled — ${birdsBeforeCulling} birds affected as of ${cullDate.toLocaleDateString()}.`,
         category: "age",
         type: "alert",
-        priority: "High",
         roles: ["Owner", "Farmer"],
       });
     } else {

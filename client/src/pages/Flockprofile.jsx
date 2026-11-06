@@ -15,6 +15,7 @@ import "./Flockprofile.css";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 function computeAgeWeeks(dateStr) {
   if (!dateStr) return "";
@@ -57,6 +58,7 @@ const computeFlock = (f) => {
 };
 
 export default function FlockProfile() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canArchive, isOwner } = useUser();
   const [search, setSearch] = useState("");
@@ -90,7 +92,7 @@ export default function FlockProfile() {
         setFlocks([]);
         const msg = err?.message || "";
         if (msg !== "Owner access only.") {
-          setError(msg || "Couldn't load flock records.");
+          setError(tr(msg || "Couldn't load flock records."));
         }
       })
       .finally(() => setLoading(false));
@@ -106,7 +108,7 @@ export default function FlockProfile() {
       window.removeEventListener("pb_data_changed", fetchFlocks);
       window.removeEventListener("focus", fetchFlocks);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onClick = (e) => {
@@ -122,15 +124,15 @@ export default function FlockProfile() {
     if (draft.period === "custom") {
       const today = todayStr();
       if (draft.dateFrom && draft.dateFrom > today) {
-        setError("Start date cannot be a future date.");
+        setError(tr("Start date cannot be a future date."));
         return;
       }
       if (draft.dateTo && draft.dateTo > today) {
-        setError("End date cannot be a future date.");
+        setError(tr("End date cannot be a future date."));
         return;
       }
       if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-        setError("Start date cannot be later than end date.");
+        setError(tr("Start date cannot be later than end date."));
         return;
       }
     }
@@ -265,7 +267,7 @@ export default function FlockProfile() {
       await fetchFlocks();
     } catch (err) {
       console.error(err);
-      alert("Unable to archive flock.");
+      alert(tr("Unable to archive flock."));
     } finally {
       setConfirmArchive(null);
     }
@@ -279,7 +281,7 @@ export default function FlockProfile() {
       await fetchFlocks();
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Unable to update status.");
+      alert(tr(err?.message || "Unable to update status."));
     } finally {
       setStatusUpdating(null);
     }
@@ -362,15 +364,14 @@ export default function FlockProfile() {
         <div className="fp-toolbar">
           {isOwner && (
             <button className="fp-add-btn" onClick={() => navigate("/records/flock/add")}>
-              <FiPlus /> Add New Flock
-            </button>
+              <FiPlus />{" "}{tr("Add New Flock")}</button>
           )}
           <div className="fp-toolbar-right">
             <div className="fp-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -378,37 +379,36 @@ export default function FlockProfile() {
             <div className="fp-btn-group">
               <div className="fp-filter-wrap" ref={filterRef}>
                 <button className="fp-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="fp-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="fp-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="fp-filter-dropdown">
                     <div className="fp-filter-dropdown-header">
-                      <span>Filter Flocks</span>
+                      <span>{tr("Filter Flocks")}</span>
                     </div>
 
-                    <div className="fp-filter-section-label">Date Filter</div>
+                    <div className="fp-filter-section-label">{tr("Date Filter")}</div>
                     <div className="fp-filter-row">
                       <div className="fp-filter-group">
-                        <label className="fp-filter-label">Date Period</label>
+                        <label className="fp-filter-label">{tr("Date Period")}</label>
                         <select
                           className="fp-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="fp-filter-group">
-                          <label className="fp-filter-label">Week</label>
+                          <label className="fp-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="fp-filter-select"
@@ -420,13 +420,13 @@ export default function FlockProfile() {
 
                       {draft.period === "month" && (
                         <div className="fp-filter-group">
-                          <label className="fp-filter-label">Month</label>
+                          <label className="fp-filter-label">{tr("Month")}</label>
                           <select
                             className="fp-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -436,13 +436,13 @@ export default function FlockProfile() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="fp-filter-group">
-                          <label className="fp-filter-label">Year</label>
+                          <label className="fp-filter-label">{tr("Year")}</label>
                           <select
                             className="fp-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -453,63 +453,63 @@ export default function FlockProfile() {
 
                     {draft.period === "custom" && (
                       <div className="fp-filter-group">
-                        <label className="fp-filter-label">Start Date / End Date</label>
+                        <label className="fp-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="fp-filter-date-range">
                           <input type="date" className="fp-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="fp-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="fp-filter-section-label">Filters</div>
+                    <div className="fp-filter-section-label">{tr("Filters")}</div>
                     <div className="fp-filter-row">
                       <div className="fp-filter-group">
-                        <label className="fp-filter-label">Batch ID</label>
+                        <label className="fp-filter-label">{tr("Batch ID")}</label>
                         <select
                           className="fp-filter-select"
                           value={draft.batchId}
                           onChange={(e) => handleFilterChange("batchId", e.target.value)}
                         >
-                          <option value="All">All Batches</option>
+                          <option value="All">{tr("All Batches")}</option>
                           {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                         </select>
                       </div>
 
                       <div className="fp-filter-group">
-                        <label className="fp-filter-label">Breed</label>
+                        <label className="fp-filter-label">{tr("Breed")}</label>
                         <select
                           className="fp-filter-select"
                           value={draft.breed}
                           onChange={(e) => handleFilterChange("breed", e.target.value)}
                         >
-                          <option value="All">All Breeds</option>
+                          <option value="All">{tr("All Breeds")}</option>
                           {breeds.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                         </select>
                       </div>
 
                       <div className="fp-filter-group">
-                        <label className="fp-filter-label">Status</label>
+                        <label className="fp-filter-label">{tr("Status")}</label>
                         <select
                           className="fp-filter-select"
                           value={draft.status}
                           onChange={(e) => handleFilterChange("status", e.target.value)}
                         >
-                          <option value="All">All</option>
-                          <option value="Active">Active</option>
-                          <option value="Quarantined">Quarantined</option>
-                          <option value="Culled">Culled</option>
+                          <option value="All">{tr("All")}</option>
+                          <option value="Active">{tr("Active")}</option>
+                          <option value="Quarantined">{tr("Quarantined")}</option>
+                          <option value="Culled">{tr("Culled")}</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="fp-filter-actions">
-                      <button className="fp-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="fp-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="fp-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="fp-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -519,7 +519,7 @@ export default function FlockProfile() {
                 rows={exportRows}
                 columns={exportColumns}
                 name="flock-profiles"
-                title="Flock Inventory Report"
+                title={tr("Flock Inventory Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Flock Profile"
@@ -544,32 +544,32 @@ export default function FlockProfile() {
             <div className="fp-stat-icon gold"><FiGrid /></div>
             <div>
               <h3>{stats.total}</h3>
-              <p>Total Flock Records</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Total Flock Records")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="fp-stat-card">
             <div className="fp-stat-icon green"><FiUsers /></div>
             <div>
               <h3>{stats.birds.toLocaleString()}</h3>
-              <p>Total Current Birds</p>
-              <span>CURRENT</span>
+              <p>{tr("Total Current Birds")}</p>
+              <span>{tr("CURRENT")}</span>
             </div>
           </div>
           <div className="fp-stat-card">
             <div className="fp-stat-icon red"><FiHeart /></div>
             <div>
               <h3>{stats.avgMortality.toFixed(1)}%</h3>
-              <p>Average Mortality Rate</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Average Mortality Rate")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
           <div className="fp-stat-card">
             <div className="fp-stat-icon blue"><FiCalendar /></div>
             <div>
               <h3>{stats.avgAge}</h3>
-              <p>Average Age (Days)</p>
-              <span>{statCardSpanLabel}</span>
+              <p>{tr("Average Age (Days)")}</p>
+              <span>{tr(statCardSpanLabel)}</span>
             </div>
           </div>
         </div>
@@ -580,28 +580,28 @@ export default function FlockProfile() {
           <table className="fp-table">
             <thead>
               <tr>
-                <th className="fp-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("breed")}>BREED{sortIndicator("breed", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("supplier")}>SUPPLIER{sortIndicator("supplier", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("dateAcquired")}>DATE ACQUIRED{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("purchaseQty")}>Purchased Quantity{sortIndicator("purchaseQty", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("currentBirds")}>CURRENT BIRDS{sortIndicator("currentBirds", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("mortalityRate")}>MORTALITY RATE{sortIndicator("mortalityRate", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("age")}>AGE{sortIndicator("age", sortColumn, sortDirection)}</th>
-                <th className="fp-sortable-th" onClick={() => cycleSort("status")}>STATUS{sortIndicator("status", sortColumn, sortDirection)}</th>
-                <th>ACTIONS</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("breed")}>{tr("BREED")}{sortIndicator("breed", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("supplier")}>{tr("SUPPLIER")}{sortIndicator("supplier", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("dateAcquired")}>{tr("DATE ACQUIRED")}{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("purchaseQty")}>{tr("Purchased Quantity")}{sortIndicator("purchaseQty", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("currentBirds")}>{tr("CURRENT BIRDS")}{sortIndicator("currentBirds", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("mortalityRate")}>{tr("MORTALITY RATE")}{sortIndicator("mortalityRate", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("age")}>{tr("AGE")}{sortIndicator("age", sortColumn, sortDirection)}</th>
+                <th className="fp-sortable-th" onClick={() => cycleSort("status")}>{tr("STATUS")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+                <th>{tr("ACTIONS")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="10" className="fp-empty-state">Loading flock records...</td></tr>
+                <tr><td colSpan="10" className="fp-empty-state">{tr("Loading flock records...")}</td></tr>
               ) : filtered.length === 0 && flocks.length > 0 ? (
                 <tr>
                   <td colSpan="10" className="fp-empty-state">
                     <div className="fp-empty-content">
                       <FiMaximize />
-                      <h3>No flock records found</h3>
-                      <p>No matching flock records were found for your search.</p>
+                      <h3>{tr("No flock records found")}</h3>
+                      <p>{tr("No matching flock records were found for your search.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -610,12 +610,11 @@ export default function FlockProfile() {
                   <td colSpan="10" className="fp-empty-state">
                     <div className="fp-empty-content">
                       <FiMaximize />
-                      <h3>No flock records found</h3>
+                      <h3>{tr("No flock records found")}</h3>
                       <p>{isOwner ? "Click Add New Flock to create your first flock profile." : "No flock records to display."}</p>
                       {isOwner && (
                         <button className="fp-empty-add-btn" onClick={() => navigate("/records/flock/add")}>
-                          <FiPlus /> Add New Flock
-                        </button>
+                          <FiPlus />{" "}{tr("Add New Flock")}</button>
                       )}
                     </div>
                   </td>
@@ -637,7 +636,7 @@ export default function FlockProfile() {
                       <td>
                         {flock.status !== "Active" ? (
                           <span className="fp-status-badge" style={{ background: statusStyle(flock.status).bg, color: statusStyle(flock.status).color }}>
-                            {flock.status}
+                            {tr(flock.status)}
                           </span>
                         ) : (
                           <select
@@ -647,21 +646,21 @@ export default function FlockProfile() {
                             disabled={!isOwner || statusUpdating === flock._id}
                             onChange={(e) => handleStatusSelect(flock, e.target.value)}
                           >
-                            <option value="Active">Active</option>
-                            <option value="Culled">Culled</option>
+                            <option value="Active">{tr("Active")}</option>
+                            <option value="Culled">{tr("Culled")}</option>
                           </select>
                         )}
                       </td>
                       <td>
                         <div className="fp-actions">
                           {isOwner && (
-                          <button className="fp-btn-edit" title="Edit"
+                          <button className="fp-btn-edit" title={tr("Edit")}
                             onClick={() => navigate(`/records/flock/edit/${flock._id || flock.batchId}`)}>
                             <FiEdit2 />
                           </button>
                           )}
                           {canArchive && (
-                          <button className="fp-btn-archive" title="Archive" onClick={() => handleArchive(flock)}>
+                          <button className="fp-btn-archive" title={tr("Archive")} onClick={() => handleArchive(flock)}>
                             <FiArchive />
                           </button>
                           )}
@@ -690,13 +689,11 @@ export default function FlockProfile() {
       {confirmArchive && (
         <div className="fp-confirm-overlay" onClick={() => setConfirmArchive(null)}>
           <div className="fp-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="fp-confirm-title">Archive Flock</h3>
-            <p className="fp-confirm-message">
-              Move batch "{confirmArchive.batchId}" to the archive? You can restore it anytime from the Archive page.
-            </p>
+            <h3 className="fp-confirm-title">{tr("Archive Flock")}</h3>
+            <p className="fp-confirm-message">{tr("Move batch \"")}{confirmArchive.batchId}{tr("\" to the archive? You can restore it anytime from the Archive page.")}</p>
             <div className="fp-confirm-actions">
-              <button className="fp-confirm-cancel" onClick={() => setConfirmArchive(null)}>Cancel</button>
-              <button className="fp-confirm-archive" onClick={runArchiveConfirm}>Archive</button>
+              <button className="fp-confirm-cancel" onClick={() => setConfirmArchive(null)}>{tr("Cancel")}</button>
+              <button className="fp-confirm-archive" onClick={runArchiveConfirm}>{tr("Archive")}</button>
             </div>
           </div>
         </div>
@@ -706,20 +703,14 @@ export default function FlockProfile() {
       {pendingCull && (
         <div className="fp-confirm-overlay" onClick={() => !statusUpdating && setPendingCull(null)}>
           <div className="fp-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="fp-confirm-title">Confirm Culling</h3>
-            <p className="fp-confirm-message">
-              Are you sure you want to cull this flock?
-              <br /><br />
-              <strong>Batch ID:</strong> {pendingCull.batchId}<br />
-              <strong>Breed:</strong> {pendingCull.breed}<br />
-              <strong>Current Birds:</strong> {pendingCull.currentQuantity}
-              <br /><br />
-              This action will mark the flock as Culled and record the current birds as mortality.
-            </p>
+            <h3 className="fp-confirm-title">{tr("Confirm Culling")}</h3>
+            <p className="fp-confirm-message">{tr("Are you sure you want to cull this flock?")}<br /><br />
+              <strong>{tr("Batch ID:")}</strong> {pendingCull.batchId}<br />
+              <strong>{tr("Breed:")}</strong> {pendingCull.breed}<br />
+              <strong>{tr("Current Birds:")}</strong> {pendingCull.currentQuantity}
+              <br /><br />{tr("This action will mark the flock as Culled and record the current birds as mortality.")}</p>
             <div className="fp-confirm-actions">
-              <button className="fp-confirm-cancel" onClick={() => setPendingCull(null)} disabled={statusUpdating === pendingCull._id}>
-                Cancel
-              </button>
+              <button className="fp-confirm-cancel" onClick={() => setPendingCull(null)} disabled={statusUpdating === pendingCull._id}>{tr("Cancel")}</button>
               <button className="fp-confirm-archive" onClick={runCullConfirm} disabled={statusUpdating === pendingCull._id}>
                 {statusUpdating === pendingCull._id ? "Culling..." : "Confirm Culling"}
               </button>

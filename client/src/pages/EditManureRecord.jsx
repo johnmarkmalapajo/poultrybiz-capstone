@@ -6,6 +6,7 @@ import "./EditManureRecord.css";
 import { getManureRecord, updateManureRecord } from "../api/wasteManure";
 import { listHealthOptions } from "../api/healthOptions";
 import { useUser } from "../hooks/useUser";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_VALUE = "__new__";
 const METHOD_OPTIONS = ["Composting", "Drying", "Biogas", "Direct Application"];
@@ -17,6 +18,7 @@ const todayStr = () => {
 };
 
 export default function EditManureRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useUser();
@@ -49,7 +51,7 @@ export default function EditManureRecord() {
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
@@ -63,7 +65,7 @@ export default function EditManureRecord() {
       const fetched = (r.options || []).map((o) => o.value);
       setEndUseOptions([...END_USE_OPTIONS, ...fetched.filter((v) => !END_USE_OPTIONS.includes(v))]);
     }).catch(() => setEndUseOptions(END_USE_OPTIONS));
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const personResponsible = user?.name || user?.fullName || formData.personResponsible || "";
 
@@ -74,7 +76,7 @@ export default function EditManureRecord() {
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
 
   // Whole numbers only -- rejects anything that isn't plain digits (so
@@ -94,19 +96,19 @@ export default function EditManureRecord() {
     e.preventDefault();
     if (saving) return;
     if (!/^\d+$/.test(String(formData.quantityCollected))) {
-      setError("Quantity of Manure Collected must be a whole number (no negative numbers or decimals).");
+      setError(tr("Quantity of Manure Collected must be a whole number (no negative numbers or decimals)."));
       return;
     }
     if (formData.date && String(formData.date).slice(0, 10) > todayStr()) {
-      setError("Date cannot be a future date.");
+      setError(tr("Date cannot be a future date."));
       return;
     }
     if (formData.methodOfHandling === NEW_VALUE && !newMethodOfHandling.trim()) {
-      setError("Please enter the new Method of Handling.");
+      setError(tr("Please enter the new Method of Handling."));
       return;
     }
     if (formData.endUse === NEW_VALUE && !newEndUse.trim()) {
-      setError("Please enter the new End Use / Disposal.");
+      setError(tr("Please enter the new End Use / Disposal."));
       return;
     }
     try {
@@ -125,7 +127,7 @@ export default function EditManureRecord() {
       navigate("/records/manure");
     } catch (err) {
       setSaving(false);
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     }
   };
 
@@ -139,7 +141,7 @@ export default function EditManureRecord() {
           { label: "EDIT MANURE" },
         ]}
       >
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -164,54 +166,54 @@ export default function EditManureRecord() {
 
           <div className="emn-section-header">
             <FiPackage />
-            <h3>Manure Details</h3>
+            <h3>{tr("Manure Details")}</h3>
             <div className="emn-line" />
           </div>
 
           <div className="emn-form-grid">
             <div className="emn-form-group">
-              <label>Date <span className="emn-req">*</span></label>
+              <label>{tr("Date")}{" "}<span className="emn-req">*</span></label>
               <input type="date" name="date"
                 value={formData.date ? String(formData.date).slice(0, 10) : ""}
                 onChange={handleChange} max={todayStr()} required />
             </div>
 
             <div className="emn-form-group">
-              <label>Batch ID / House No. <span className="emn-req">*</span></label>
+              <label>{tr("Batch ID / House No.")}{" "}<span className="emn-req">*</span></label>
               <select name="batchId" value={formData.batchId} onChange={handleChange} required>
-                <option value="">Select batch / house</option>
+                <option value="">{tr("Select batch / house")}</option>
                 {formData.batchId && <option value={formData.batchId}>{formData.batchId}</option>}
               </select>
             </div>
 
             <div className="emn-form-group">
-              <label>Quantity of Manure Collected <span className="emn-req">*</span></label>
+              <label>{tr("Quantity of Manure Collected")}{" "}<span className="emn-req">*</span></label>
               <div className="emn-input-unit">
                 <input type="text" inputMode="numeric" name="quantityCollected" value={formData.quantityCollected}
                   onChange={handleQuantityChange} onPaste={handleQuantityPaste}
                   onKeyDown={(e) => ["-", "+", "e", "E", "."].includes(e.key) && e.preventDefault()}
-                  placeholder="Enter quantity" required />
-                <span className="emn-unit">kg</span>
+                  placeholder={tr("Enter quantity")} required />
+                <span className="emn-unit">{tr("kg")}</span>
               </div>
             </div>
 
             <div className="emn-form-group">
-              <label>Method of Handling <span className="emn-req">*</span></label>
+              <label>{tr("Method of Handling")}{" "}<span className="emn-req">*</span></label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <select name="methodOfHandling" value={formData.methodOfHandling} onChange={handleChange} style={{ flex: 1 }} required>
-                  <option value="">Select method</option>
+                  <option value="">{tr("Select method")}</option>
                   {formData.methodOfHandling && formData.methodOfHandling !== NEW_VALUE && !methodOptions.includes(formData.methodOfHandling) && (
                     <option value={formData.methodOfHandling}>{formData.methodOfHandling}</option>
                   )}
                   {methodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                  <option value={NEW_VALUE}>Others</option>
+                  <option value={NEW_VALUE}>{tr("Others")}</option>
                 </select>
                 {formData.methodOfHandling === NEW_VALUE && (
                   <input
                     type="text"
                     value={newMethodOfHandling}
                     onChange={(e) => setNewMethodOfHandling(e.target.value)}
-                    placeholder="Enter method..."
+                    placeholder={tr("Enter method...")}
                     style={{ flex: 1 }}
                     required
                   />
@@ -220,28 +222,28 @@ export default function EditManureRecord() {
             </div>
 
             <div className="emn-form-group">
-              <label>Storage Location <span className="emn-req">*</span></label>
+              <label>{tr("Storage Location")}{" "}<span className="emn-req">*</span></label>
               <input type="text" name="storageLocation" value={formData.storageLocation}
-                onChange={handleChange} placeholder="Enter storage location" required />
+                onChange={handleChange} placeholder={tr("Enter storage location")} required />
             </div>
 
             <div className="emn-form-group">
-              <label>End Use / Disposal <span className="emn-req">*</span></label>
+              <label>{tr("End Use / Disposal")}{" "}<span className="emn-req">*</span></label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <select name="endUse" value={formData.endUse} onChange={handleChange} style={{ flex: 1 }} required>
-                  <option value="">Select end use / disposal</option>
+                  <option value="">{tr("Select end use / disposal")}</option>
                   {formData.endUse && formData.endUse !== NEW_VALUE && !endUseOptions.includes(formData.endUse) && (
                     <option value={formData.endUse}>{formData.endUse}</option>
                   )}
                   {endUseOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                  <option value={NEW_VALUE}>Others</option>
+                  <option value={NEW_VALUE}>{tr("Others")}</option>
                 </select>
                 {formData.endUse === NEW_VALUE && (
                   <input
                     type="text"
                     value={newEndUse}
                     onChange={(e) => setNewEndUse(e.target.value)}
-                    placeholder="Enter end use / disposal..."
+                    placeholder={tr("Enter end use / disposal...")}
                     style={{ flex: 1 }}
                     required
                   />
@@ -250,33 +252,31 @@ export default function EditManureRecord() {
             </div>
 
             <div className="emn-form-group">
-              <label>Person Responsible</label>
+              <label>{tr("Person Responsible")}</label>
               <input type="text" value={personResponsible} disabled />
             </div>
           </div>
 
           <div className="emn-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="emn-line" />
           </div>
 
           <div className="emn-form-group emn-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea name="remarks" value={formData.remarks || ""} onChange={handleChange}
-              placeholder="Enter any remarks (optional)..." maxLength={255} />
+              placeholder={tr("Enter any remarks (optional)...")} maxLength={255} />
             <small className="emn-char-count">{(formData.remarks || "").length} / 255</small>
           </div>
 
           <div className="emn-form-actions">
-            <p className="emn-req-note">Fields with * are required.</p>
+            <p className="emn-req-note">{tr("Fields with * are required.")}</p>
             <div className="emn-action-btns">
               <button type="button" className="emn-cancel-btn" onClick={() => navigate("/records/manure")}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" disabled={saving} className="emn-save-btn">
-                <FiSave /> Update Record
-              </button>
+                <FiSave />{" "}{tr("Update Record")}</button>
             </div>
           </div>
 

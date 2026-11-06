@@ -98,7 +98,6 @@ exports.signup = async (req, res) => {
       description: `${user.name} (${user.email}) signed up as a Farmer and is waiting for your approval.`,
       category: "users",
       type: "alert",
-      priority: "Normal",
       roles: ["Owner"],
       referenceId: user._id,
       referenceModel: "User",

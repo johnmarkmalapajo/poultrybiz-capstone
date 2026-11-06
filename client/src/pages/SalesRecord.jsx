@@ -14,6 +14,7 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const summarizeSizes = (items) => {
   if (!items || !items.length) return "—";
@@ -22,6 +23,7 @@ const summarizeSizes = (items) => {
 };
 
 export default function SalesRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit } = useUser();
 
@@ -46,14 +48,14 @@ export default function SalesRecord() {
         const recs = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
         setRecords(recs);
       } else {
-        setError(data.message || "Failed to load records.");
+        setError(tr(data.message || "Failed to load records."));
       }
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const timer = setTimeout(() => fetchRecords(search), 400);
@@ -79,15 +81,15 @@ export default function SalesRecord() {
     if (draft.period === "custom") {
       const today = todayStr();
       if (draft.dateFrom && draft.dateFrom > today) {
-        setError("Start date cannot be a future date.");
+        setError(tr("Start date cannot be a future date."));
         return;
       }
       if (draft.dateTo && draft.dateTo > today) {
-        setError("End date cannot be a future date.");
+        setError(tr("End date cannot be a future date."));
         return;
       }
       if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-        setError("Start date cannot be later than end date.");
+        setError(tr("Start date cannot be later than end date."));
         return;
       }
     }
@@ -263,15 +265,14 @@ export default function SalesRecord() {
         {}
         <div className="sr-toolbar">
           <button className="add-sales-btn" onClick={() => navigate("/sales-transactions/sales/add")}>
-            <FiPlus /> Add Sales Record
-          </button>
+            <FiPlus />{" "}{tr("Add Sales Record")}</button>
 
           <div className="sr-toolbar-actions">
             <div className="sr-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search Sales..."
+                placeholder={tr("Search Sales...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -280,37 +281,36 @@ export default function SalesRecord() {
             <div className="sr-btn-group">
               <div className="sr-filter-wrap" ref={filterRef}>
                 <button className="sr-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="sr-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="sr-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="sr-filter-dropdown">
                     <div className="sr-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="sr-filter-section-label">Date Filter</div>
+                    <div className="sr-filter-section-label">{tr("Date Filter")}</div>
                     <div className="sr-filter-row">
                       <div className="sr-filter-group">
-                        <label className="sr-filter-label">Date Period</label>
+                        <label className="sr-filter-label">{tr("Date Period")}</label>
                         <select
                           className="sr-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="sr-filter-group">
-                          <label className="sr-filter-label">Week</label>
+                          <label className="sr-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="sr-filter-select"
@@ -322,15 +322,15 @@ export default function SalesRecord() {
 
                       {draft.period === "month" && (
                         <div className="sr-filter-group">
-                          <label className="sr-filter-label">Month</label>
+                          <label className="sr-filter-label">{tr("Month")}</label>
                           <select
                             className="sr-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -338,15 +338,15 @@ export default function SalesRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="sr-filter-group">
-                          <label className="sr-filter-label">Year</label>
+                          <label className="sr-filter-label">{tr("Year")}</label>
                           <select
                             className="sr-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -355,39 +355,39 @@ export default function SalesRecord() {
 
                     {draft.period === "custom" && (
                       <div className="sr-filter-group">
-                        <label className="sr-filter-label">Start Date / End Date</label>
+                        <label className="sr-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="sr-filter-date-range">
                           <input type="date" className="sr-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="sr-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="sr-filter-section-label">Filters</div>
+                    <div className="sr-filter-section-label">{tr("Filters")}</div>
                     <div className="sr-filter-row">
                       <div className="sr-filter-group">
-                        <label className="sr-filter-label">Egg Size</label>
+                        <label className="sr-filter-label">{tr("Egg Size")}</label>
                         <select
                           className="sr-filter-select"
                           value={draft.eggSize}
                           onChange={(e) => handleFilterChange("eggSize", e.target.value)}
                         >
-                          <option value="All">All Sizes</option>
+                          <option value="All">{tr("All Sizes")}</option>
                           {eggSizeOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
                     <div className="sr-filter-actions">
-                      <button className="sr-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="sr-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="sr-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="sr-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -397,7 +397,7 @@ export default function SalesRecord() {
                 rows={exportRows}
                 columns={exportColumns}
                 name="sales-record"
-                title="Sales Performance Report"
+                title={tr("Sales Performance Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Sales Record"
@@ -420,7 +420,7 @@ export default function SalesRecord() {
             <div className="sr-stat-icon green"><FiDollarSign /></div>
             <div>
               <h3>{formatPeso(liveStats.totalRevenue)}</h3>
-              <p>Total Revenue</p>
+              <p>{tr("Total Revenue")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -429,7 +429,7 @@ export default function SalesRecord() {
             <div className="sr-stat-icon blue"><FiTrendingUp /></div>
             <div>
               <h3>{formatEggs(liveStats.totalEggsSold)}</h3>
-              <p>Total Eggs Sold</p>
+              <p>{tr("Total Eggs Sold")}</p>
               <span>{statSpanLabel}</span>
             </div>
           </div>
@@ -442,19 +442,19 @@ export default function SalesRecord() {
         <TableSection className="sr-table-wrapper">
           <TableScroll>
           {loading ? (
-            <div className="sr-loading">Loading sales records...</div>
+            <div className="sr-loading">{tr("Loading sales records...")}</div>
           ) : (
             <table className="sr-table">
               <thead>
                 <tr>
-                  <th className="sr-sortable-th" onClick={() => cycleSort("saleId")}>Sale ID{sortIndicator("saleId", sortColumn, sortDirection)}</th>
-                  <th className="sr-sortable-th" onClick={() => cycleSort("dateOfSale")}>Date of Sale{sortIndicator("dateOfSale", sortColumn, sortDirection)}</th>
-                  <th className="sr-sortable-th" onClick={() => cycleSort("buyer")}>Buyer / Customer{sortIndicator("buyer", sortColumn, sortDirection)}</th>
-                  <th>Egg Sizes</th>
-                  <th className="sr-sortable-th" onClick={() => cycleSort("totalEggs")}>Total Eggs{sortIndicator("totalEggs", sortColumn, sortDirection)}</th>
-                  <th className="sr-sortable-th" onClick={() => cycleSort("grandTotal")}>Grand Total{sortIndicator("grandTotal", sortColumn, sortDirection)}</th>
-                  <th>Remarks</th>
-                  <th>Actions</th>
+                  <th className="sr-sortable-th" onClick={() => cycleSort("saleId")}>{tr("Sale ID")}{sortIndicator("saleId", sortColumn, sortDirection)}</th>
+                  <th className="sr-sortable-th" onClick={() => cycleSort("dateOfSale")}>{tr("Date of Sale")}{sortIndicator("dateOfSale", sortColumn, sortDirection)}</th>
+                  <th className="sr-sortable-th" onClick={() => cycleSort("buyer")}>{tr("Buyer / Customer")}{sortIndicator("buyer", sortColumn, sortDirection)}</th>
+                  <th>{tr("Egg Sizes")}</th>
+                  <th className="sr-sortable-th" onClick={() => cycleSort("totalEggs")}>{tr("Total Eggs")}{sortIndicator("totalEggs", sortColumn, sortDirection)}</th>
+                  <th className="sr-sortable-th" onClick={() => cycleSort("grandTotal")}>{tr("Grand Total")}{sortIndicator("grandTotal", sortColumn, sortDirection)}</th>
+                  <th>{tr("Remarks")}</th>
+                  <th>{tr("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -463,14 +463,13 @@ export default function SalesRecord() {
                     <td colSpan="8" className="sr-empty-state">
                       <div className="sr-empty-content">
                         <FiMaximize />
-                        <h3>No sales records found</h3>
-                        <p>Click Add Sales Record to log your first egg sale transaction.</p>
+                        <h3>{tr("No sales records found")}</h3>
+                        <p>{tr("Click Add Sales Record to log your first egg sale transaction.")}</p>
                         <button
                           className="sr-empty-add-btn"
                           onClick={() => navigate("/sales-transactions/sales/add")}
                         >
-                          <FiPlus /> Add Sales Record
-                        </button>
+                          <FiPlus />{" "}{tr("Add Sales Record")}</button>
                       </div>
                     </td>
                   </tr>
@@ -487,7 +486,7 @@ export default function SalesRecord() {
                       <td>
                         <div className="sr-action-buttons">
                           {canEdit && (
-                            <button className="sr-action-btn edit" title="Edit" onClick={() => navigate(`/sales-transactions/sales/edit/${r._id}`)}>
+                            <button className="sr-action-btn edit" title={tr("Edit")} onClick={() => navigate(`/sales-transactions/sales/edit/${r._id}`)}>
                               <FiEdit2 />
                             </button>
                           )}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiCheckCircle, FiAlertTriangle, FiAlertCircle, FiHelpCircle } from "react-icons/fi";
 import "./ProductionRateAlert.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 function getAlertState(rate) {
   if (rate >= 100)
@@ -35,6 +36,7 @@ export default function ProductionRateAlert({
   productionRate,
   lastUpdated,
 }) {
+  const { t: tr } = useLanguage();
   const hasValidQty = Number(currentQty) > 0;
 
   const rate =
@@ -62,17 +64,16 @@ export default function ProductionRateAlert({
         <div className="pra-head">
           <div className="pra-title">
             <span className="pra-dot" />
-            <h3>Production Rate Alert</h3>
+            <h3>{tr("Production Rate Alert")}</h3>
           </div>
           <span className="pra-badge pra-badge-gray">
-            <FiHelpCircle /> No Data
-          </span>
+            <FiHelpCircle />{" "}{tr("No Data")}</span>
         </div>
         <div className="pra-message">
           <FiHelpCircle className="pra-message-icon" />
-          <p>No valid bird count is available for this batch, so a production rate cannot be calculated.</p>
+          <p>{tr("No valid bird count is available for this batch, so a production rate cannot be calculated.")}</p>
         </div>
-        <div className="pra-updated">Last updated: {timeText}</div>
+        <div className="pra-updated">{tr("Last updated:")}{" "}{timeText}</div>
       </div>
     );
   }
@@ -86,7 +87,7 @@ export default function ProductionRateAlert({
       <div className="pra-head">
         <div className="pra-title">
           <span className="pra-dot" />
-          <h3>Production Rate Alert</h3>
+          <h3>{tr("Production Rate Alert")}</h3>
         </div>
         <span className={`pra-badge pra-badge-${state.tone}`}>
           <Icon /> {state.label}
@@ -96,7 +97,7 @@ export default function ProductionRateAlert({
       <div className="pra-rate-row">
         <div className="pra-rate-value">{clamped}<span>%</span></div>
         <div className="pra-rate-meta">
-          <span className="pra-rate-label">Production Rate</span>
+          <span className="pra-rate-label">{tr("Production Rate")}</span>
           <span className="pra-rate-sub">
             {typeof productionRate === "number"
               ? "Current production"
@@ -114,7 +115,7 @@ export default function ProductionRateAlert({
         <p>{state.message}</p>
       </div>
 
-      <div className="pra-updated">Last updated: {timeText}</div>
+      <div className="pra-updated">{tr("Last updated:")}{" "}{timeText}</div>
     </div>
   );
 }

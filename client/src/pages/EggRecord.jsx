@@ -23,8 +23,10 @@ import { listFlocks } from "../api/flockProfile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function EggRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -45,9 +47,7 @@ export default function EggRecord() {
     if (!text) return "";
     if (text.length <= 15) return text;
     return (
-      <button type="button" className="egg-view-remarks-link" onClick={() => setViewRecord(record)}>
-        View Remarks
-      </button>
+      <button type="button" className="egg-view-remarks-link" onClick={() => setViewRecord(record)}>{tr("View Remarks")}</button>
     );
   };
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "" });
@@ -57,7 +57,7 @@ export default function EggRecord() {
     fetchEggRecords();
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
     listFlocks().then((data) => setFlocks(Array.isArray(data) ? data : data.records || data.flocks || [])).catch(() => setFlocks([]));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onClick = (e) => {
@@ -79,7 +79,7 @@ export default function EggRecord() {
       setEggRecords(records);
     } catch (err) {
       setEggRecords([]);
-      setError(err?.message || "Couldn't load egg records.");
+      setError(tr(err?.message || "Couldn't load egg records."));
     } finally {
       setLoading(false);
     }
@@ -92,15 +92,15 @@ export default function EggRecord() {
     if (draft.period === "custom") {
       const today = todayStr();
       if (draft.dateFrom && draft.dateFrom > today) {
-        setError("Start date cannot be a future date.");
+        setError(tr("Start date cannot be a future date."));
         return;
       }
       if (draft.dateTo && draft.dateTo > today) {
-        setError("End date cannot be a future date.");
+        setError(tr("End date cannot be a future date."));
         return;
       }
       if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-        setError("Start date cannot be later than end date.");
+        setError(tr("Start date cannot be later than end date."));
         return;
       }
     }
@@ -449,15 +449,14 @@ export default function EggRecord() {
     >
         <div className="egg-toolbar">
           <button className="add-egg-btn" onClick={() => navigate("/records/egg/add")}>
-            <FiPlus /> Add Egg Record
-          </button>
+            <FiPlus />{" "}{tr("Add Egg Record")}</button>
 
           <div className="egg-toolbar-actions">
             <div className="egg-search-box">
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -466,37 +465,36 @@ export default function EggRecord() {
             <div className="egg-btn-group">
               <div className="egg-filter-wrap" ref={filterRef}>
                 <button className="egg-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="egg-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="egg-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="egg-filter-dropdown">
                     <div className="egg-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="egg-filter-section-label">Date Filter</div>
+                    <div className="egg-filter-section-label">{tr("Date Filter")}</div>
                     <div className="egg-filter-row">
                       <div className="egg-filter-group">
-                        <label className="egg-filter-label">Date Period</label>
+                        <label className="egg-filter-label">{tr("Date Period")}</label>
                         <select
                           className="egg-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="egg-filter-group">
-                          <label className="egg-filter-label">Week</label>
+                          <label className="egg-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="egg-filter-select"
@@ -508,13 +506,13 @@ export default function EggRecord() {
 
                       {draft.period === "month" && (
                         <div className="egg-filter-group">
-                          <label className="egg-filter-label">Month</label>
+                          <label className="egg-filter-label">{tr("Month")}</label>
                           <select
                             className="egg-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -524,13 +522,13 @@ export default function EggRecord() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="egg-filter-group">
-                          <label className="egg-filter-label">Year</label>
+                          <label className="egg-filter-label">{tr("Year")}</label>
                           <select
                             className="egg-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -541,42 +539,42 @@ export default function EggRecord() {
 
                     {draft.period === "custom" && (
                       <div className="egg-filter-group">
-                        <label className="egg-filter-label">Start Date / End Date</label>
+                        <label className="egg-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="egg-filter-date-range">
                           <input type="date" className="egg-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="egg-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="egg-filter-section-label">Filters</div>
+                    <div className="egg-filter-section-label">{tr("Filters")}</div>
                     <div className="egg-filter-row">
                       <div className="egg-filter-group">
-                        <label className="egg-filter-label">Report Scope</label>
+                        <label className="egg-filter-label">{tr("Report Scope")}</label>
                         <select
                           className="egg-filter-select"
                           value={draft.reportScope}
                           onChange={(e) => changeReportScope(e.target.value)}
                         >
-                          <option value="byBatch">By Batch</option>
-                          <option value="byBreed">By Breed</option>
+                          <option value="byBatch">{tr("By Batch")}</option>
+                          <option value="byBreed">{tr("By Breed")}</option>
                         </select>
                       </div>
 
                       {draft.reportScope === "byBatch" && (
                         <div className="egg-filter-group">
-                          <label className="egg-filter-label">Batch ID</label>
+                          <label className="egg-filter-label">{tr("Batch ID")}</label>
                           <select
                             className="egg-filter-select"
                             value={draft.batchId}
                             onChange={(e) => handleFilterChange("batchId", e.target.value)}
                           >
-                            <option value="All">All Batches</option>
+                            <option value="All">{tr("All Batches")}</option>
                             {batchOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -586,13 +584,13 @@ export default function EggRecord() {
 
                       {draft.reportScope === "byBreed" && (
                         <div className="egg-filter-group">
-                          <label className="egg-filter-label">Breed</label>
+                          <label className="egg-filter-label">{tr("Breed")}</label>
                           <select
                             className="egg-filter-select"
                             value={draft.breed}
                             onChange={(e) => handleFilterChange("breed", e.target.value)}
                           >
-                            <option value="All">All Breeds</option>
+                            <option value="All">{tr("All Breeds")}</option>
                             {breedOptions.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
@@ -602,8 +600,8 @@ export default function EggRecord() {
                     </div>
 
                     <div className="egg-filter-actions">
-                      <button className="egg-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="egg-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="egg-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="egg-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -613,7 +611,7 @@ export default function EggRecord() {
                 rows={eggReportRows}
                 columns={eggReportColumns}
                 name="egg-record"
-                title="Egg Production Report"
+                title={tr("Egg Production Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Egg Record"
@@ -641,8 +639,8 @@ export default function EggRecord() {
             <div className="egg-stat-icon gold"><FiLayers /></div>
             <div>
               <h3>{liveStats.totalEggs}</h3>
-              <p>Total Eggs</p>
-              <span>{statCardPeriodLabel}</span>
+              <p>{tr("Total Eggs")}</p>
+              <span>{tr(statCardPeriodLabel)}</span>
             </div>
           </div>
 
@@ -650,8 +648,8 @@ export default function EggRecord() {
             <div className="egg-stat-icon green"><FiCheckCircle /></div>
             <div>
               <h3>{liveStats.marketableEggs}</h3>
-              <p>Marketable Eggs</p>
-              <span>{statCardPeriodLabel}</span>
+              <p>{tr("Marketable Eggs")}</p>
+              <span>{tr(statCardPeriodLabel)}</span>
             </div>
           </div>
 
@@ -659,8 +657,8 @@ export default function EggRecord() {
             <div className="egg-stat-icon red"><FiAlertTriangle /></div>
             <div>
               <h3>{liveStats.crackedEggs}</h3>
-              <p>Cracked Eggs</p>
-              <span>{statCardPeriodLabel}</span>
+              <p>{tr("Cracked Eggs")}</p>
+              <span>{tr(statCardPeriodLabel)}</span>
             </div>
           </div>
         </div>
@@ -670,35 +668,35 @@ export default function EggRecord() {
           <table className="egg-table">
             <thead>
               <tr>
-                <th className="egg-sortable-th" onClick={() => cycleSort("date")}>DATE{sortIndicator("date", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("batchId")}>BATCH ID{sortIndicator("batchId", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("peewee")}>PEEWEE{sortIndicator("peewee", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("small")}>SMALL{sortIndicator("small", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("medium")}>MEDIUM{sortIndicator("medium", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("large")}>LARGE{sortIndicator("large", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("extraLarge")}>EXTRA LARGE{sortIndicator("extraLarge", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("jumbo")}>JUMBO{sortIndicator("jumbo", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("crackedEggs")}>CRACKED EGGS{sortIndicator("crackedEggs", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("goodEggs")}>GOOD EGGS{sortIndicator("goodEggs", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("totalEggs")}>TOTAL EGGS{sortIndicator("totalEggs", sortColumn, sortDirection)}</th>
-                <th className="egg-sortable-th" onClick={() => cycleSort("henDayPercent")}>HEN-DAY %{sortIndicator("henDayPercent", sortColumn, sortDirection)}</th>
-                <th>REMARKS</th>
-                <th>ACTIONS</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("date")}>{tr("DATE")}{sortIndicator("date", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("batchId")}>{tr("BATCH ID")}{sortIndicator("batchId", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("peewee")}>{tr("PEEWEE")}{sortIndicator("peewee", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("small")}>{tr("SMALL")}{sortIndicator("small", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("medium")}>{tr("MEDIUM")}{sortIndicator("medium", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("large")}>{tr("LARGE")}{sortIndicator("large", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("extraLarge")}>{tr("EXTRA LARGE")}{sortIndicator("extraLarge", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("jumbo")}>{tr("JUMBO")}{sortIndicator("jumbo", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("crackedEggs")}>{tr("CRACKED EGGS")}{sortIndicator("crackedEggs", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("goodEggs")}>{tr("GOOD EGGS")}{sortIndicator("goodEggs", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("totalEggs")}>{tr("TOTAL EGGS")}{sortIndicator("totalEggs", sortColumn, sortDirection)}</th>
+                <th className="egg-sortable-th" onClick={() => cycleSort("henDayPercent")}>{tr("HEN-DAY %")}{sortIndicator("henDayPercent", sortColumn, sortDirection)}</th>
+                <th>{tr("REMARKS")}</th>
+                <th>{tr("ACTIONS")}</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="14" className="egg-empty-state">Loading egg records...</td>
+                  <td colSpan="14" className="egg-empty-state">{tr("Loading egg records...")}</td>
                 </tr>
               ) : tableRecords.length === 0 && eggRecords.length > 0 ? (
                 <tr>
                   <td colSpan="14" className="egg-empty-state">
                     <div className="egg-empty-content">
                       <FiMaximize />
-                      <h3>No egg records found</h3>
-                      <p>No matching egg records were found for your search.</p>
+                      <h3>{tr("No egg records found")}</h3>
+                      <p>{tr("No matching egg records were found for your search.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -707,14 +705,13 @@ export default function EggRecord() {
                   <td colSpan="14" className="egg-empty-state">
                     <div className="egg-empty-content">
                       <FiMaximize />
-                      <h3>No egg records found</h3>
-                      <p>Click Add Egg Record to log your first egg collection.</p>
+                      <h3>{tr("No egg records found")}</h3>
+                      <p>{tr("Click Add Egg Record to log your first egg collection.")}</p>
                       <button
                         className="egg-empty-add-btn"
                         onClick={() => navigate("/records/egg/add")}
                       >
-                        <FiPlus /> Add Egg Record
-                      </button>
+                        <FiPlus />{" "}{tr("Add Egg Record")}</button>
                     </div>
                   </td>
                 </tr>
@@ -741,14 +738,14 @@ export default function EggRecord() {
                         {canEdit && (
                           <button
                             className="egg-action-btn edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/records/egg/edit/${record._id}`)}
                           >
                             <FiEdit2 />
                           </button>
                         )}
                         {canArchive && (
-                          <button className="egg-action-btn archive" onClick={() => requestArchive({ module: "Egg Records", moduleKey: "pb_eggs", record: record, name: record.batchId || record.date })} title="Archive">
+                          <button className="egg-action-btn archive" onClick={() => requestArchive({ module: "Egg Records", moduleKey: "pb_eggs", record: record, name: record.batchId || record.date })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                         )}
@@ -778,14 +775,14 @@ export default function EggRecord() {
       {viewRecord && (
         <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
           <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, textAlign: "left" }}>
-            <h3 className="pb-confirm-title">Egg Record — {viewRecord.batchId}</h3>
+            <h3 className="pb-confirm-title">{tr("Egg Record —")}{" "}{viewRecord.batchId}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
-              <div><small>Batch ID</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
-              <div><small>Date</small><p style={{ margin: 0 }}>{viewRecord.collectionDate ? new Date(viewRecord.collectionDate).toLocaleDateString("en-CA") : "—"}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}><small>Remarks</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
+              <div><small>{tr("Batch ID")}</small><p style={{ margin: 0 }}>{viewRecord.batchId}</p></div>
+              <div><small>{tr("Date")}</small><p style={{ margin: 0 }}>{viewRecord.collectionDate ? new Date(viewRecord.collectionDate).toLocaleDateString("en-CA") : "—"}</p></div>
+              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Remarks")}</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
             </div>
             <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>Close</button>
+              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
             </div>
           </div>
         </div>

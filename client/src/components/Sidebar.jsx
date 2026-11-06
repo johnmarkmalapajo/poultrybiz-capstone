@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useEffect } from "react"
 import "./Sidebar.css"
 import { Link, useLocation, useNavigate } from "react-router-dom"
@@ -24,6 +25,7 @@ export function openSidebar() {
 function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [profileVersion, setProfileVersion] = useState(0);
   const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -92,21 +94,21 @@ function Sidebar() {
           <li className={isActive("/dashboard") ? "active" : "secondary"}>
             <Link to="/dashboard" className="nav-link" onClick={closeMobile}>
               <img src={dashboardIcon} alt="Dashboard" className="menu-icon" />
-              Dashboard
+              {t("Dashboard")}
             </Link>
           </li>
 
           <li className={isActive("/records") ? "active" : "secondary"}>
             <Link to="/records" className="nav-link" onClick={closeMobile}>
               <img src={recordsIcon} alt="Records" className="menu-icon" />
-              Records
+              {t("Records")}
             </Link>
           </li>
 
           <li className={isActive("/inventory") ? "active" : "secondary"}>
             <Link to="/inventory" className="nav-link" onClick={closeMobile}>
               <img src={inventoryIcon} alt="Inventory" className="menu-icon" />
-              Inventory
+              {t("Inventory")}
             </Link>
           </li>
 
@@ -114,7 +116,7 @@ function Sidebar() {
             <li className={isActive("/sales-transactions") ? "active" : "secondary"}>
               <Link to="/sales-transactions" className="nav-link" onClick={closeMobile}>
                 <img src={salesTransactionsIcon} alt="Sales and Transactions" className="menu-icon" />
-                Sales and Transactions
+                {t("Sales and Transactions")}
               </Link>
             </li>
           )}
@@ -123,7 +125,7 @@ function Sidebar() {
             <li className={isActive("/personnel-visitors") ? "active" : "secondary"}>
               <Link to="/personnel-visitors" className="nav-link" onClick={closeMobile}>
                 <img src={userMenuIcon} alt="Personnel" className="menu-icon" />
-                Personnel and Visitors
+                {t("Personnel and Visitors")}
               </Link>
             </li>
           )}
@@ -131,14 +133,14 @@ function Sidebar() {
           <li className={isActive("/todo") || isActive("/owner/todo") ? "active" : "secondary"}>
             <Link to={canViewPersonnel ? "/owner/todo" : "/todo"} className="nav-link" onClick={closeMobile}>
               <img src={todoIcon} alt="To Do" className="menu-icon" />
-              To Do
+              {t("To Do")}
             </Link>
           </li>
 
           <li className={isActive("/notifications") ? "active" : "secondary"}>
             <Link to="/notifications" className="nav-link" onClick={closeMobile}>
               <img src={notificationsIcon} alt="Notifications" className="menu-icon" />
-              Notifications
+              {t("Notifications")}
               {unread > 0 && (
                 <span
                   className="notif-badge"
@@ -170,13 +172,13 @@ function Sidebar() {
           <li className={isActive("/settings") ? "active" : "secondary"}>
             <Link to="/settings" className="nav-link" onClick={closeMobile}>
               <img src={settingsIcon} alt="Settings" className="menu-icon" />
-              Settings
+              {t("Settings")}
             </Link>
           </li>
 
           <li className="secondary" onClick={() => setShowLogoutModal(true)} style={{ cursor: "pointer" }}>
             <img src={logoutIcon} alt="Logout" className="menu-icon" />
-            Logout
+            {t("Logout")}
           </li>
         </ul>
 
@@ -184,7 +186,7 @@ function Sidebar() {
           className="user"
           onClick={() => { navigate("/settings?view=profile", { state: { fromSidebar: true } }); closeMobile(); }}
           style={{ cursor: "pointer" }}
-          title="View Profile"
+          title={t("View Profile")}
         >
 
           <div className="user-info">
@@ -196,7 +198,7 @@ function Sidebar() {
             <div className="user-details">
               <p><strong>{user.name || "User"}</strong></p>
               <span>
-                  {user.role === "Owner" ? "Owner" : user.role}
+                  {t(user.role === "Owner" ? "Owner" : user.role)}
               </span>
             </div>
           </div>
@@ -206,14 +208,14 @@ function Sidebar() {
       {showLogoutModal && (
         <div className="logout-overlay" onClick={() => setShowLogoutModal(false)}>
           <div className="logout-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="logout-title">Log Out</h3>
-            <p className="logout-message">Are you sure you want to log out of your account?</p>
+            <h3 className="logout-title">{t("Log Out")}</h3>
+            <p className="logout-message">{t("Are you sure you want to log out of your account?")}</p>
             <div className="logout-actions">
               <button className="logout-btn-cancel" onClick={() => setShowLogoutModal(false)}>
-                Cancel
+                {t("Cancel")}
               </button>
               <button className="logout-btn-confirm" onClick={handleLogoutConfirm}>
-                Log Out
+                {t("Log Out")}
               </button>
             </div>
           </div>

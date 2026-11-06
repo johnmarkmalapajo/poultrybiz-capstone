@@ -1,5 +1,5 @@
 import { phToday } from "../phDate";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiInfo, FiGrid, FiFileText, FiBarChart2, FiSave, FiX,
@@ -8,6 +8,7 @@ import PageLayout from "../components/PageLayout";
 import "./AddEggRecord.css";
 import { createEggRecord, listEggRecords } from "../api/eggRecord";
 import { listFlocks } from "../api/flockProfile";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const SIZE_FIELDS = [
   { name: "peewee",     label: "Peewee" },
@@ -35,6 +36,8 @@ function productionStatus(rate) {
 }
 
 export default function AddEggRecord() {
+  const { t: tr } = useLanguage();
+  const submitLock = useRef(false); // blocks a second click before React re-renders
   const navigate = useNavigate();
   const today = localToday();
 
@@ -150,7 +153,7 @@ export default function AddEggRecord() {
       }
       return next;
     });
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
 
   // Selecting a batch auto-fills current birds
@@ -167,14 +170,14 @@ export default function AddEggRecord() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (saving || window.__pbSaving) return;
+    if (saving || submitLock.current) return;
 
     if (formData.collectionDate > today) {
-      setError("Collection Date cannot be a future date.");
+      setError(tr("Collection Date cannot be a future date."));
       return;
     }
     if (isDuplicateBatchDate) {
-      setError("This batch in this day is already collected. Please choose a different batch or date.");
+      setError(tr("This batch in this day is already collected. Please choose a different batch or date."));
       return;
     }
     if (eggTotalExceeded) {
@@ -182,7 +185,7 @@ export default function AddEggRecord() {
       return;
     }
 
-    window.__pbSaving = true;
+    submitLock.current = true;
     setSaving(true); setError(""); setSuccess("");
     try {
       const res = await createEggRecord({
@@ -195,13 +198,13 @@ export default function AddEggRecord() {
         ...prev,
         res?.record || { batchId: formData.batchId, collectionDate: formData.collectionDate },
       ]);
-      setSuccess("Egg record saved successfully!");
+      setSuccess(tr("Egg record saved successfully!"));
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       setTimeout(() => navigate("/records/egg"), 1200);
     } catch (err) {
-      setError(err?.message || "Cannot connect to server. Please try again.");
+      setError(tr(err?.message || "Cannot connect to server. Please try again."));
     } finally {
-      window.__pbSaving = false;
+      submitLock.current = false;
       setSaving(false);
     }
   };
@@ -224,46 +227,44 @@ export default function AddEggRecord() {
           {/* BATCH INFORMATION */}
           <div className="aer-section-header">
             <FiInfo />
-            <h3>Batch Information</h3>
+            <h3>{tr("Batch Information")}</h3>
             <div className="aer-line" />
           </div>
 
           <div className="aer-form-grid">
             <div className="aer-form-group">
-              <label>Batch <span className="aer-req">*</span></label>
+              <label>{tr("Batch")}{" "}<span className="aer-req">*</span></label>
               <select name="batchId" value={formData.batchId} onChange={handleBatchChange} required>
-                <option value="">Select Batch</option>
+                <option value="">{tr("Select Batch")}</option>
                 {batchOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
               </select>
-              <small>Only Active batches are eligible for Egg Record.</small>
+              <small>{tr("Only Active batches are eligible for Egg Record.")}</small>
               {allEligibleBatchIds.length > 0 && batchOptions.length === 0 && (
-                <small>All eligible batches already have an egg record for this date.</small>
+                <small>{tr("All eligible batches already have an egg record for this date.")}</small>
               )}
             </div>
 
             <div className="aer-form-group">
-              <label> Date <span className="aer-req">*</span></label>
+              <label>{" "}{tr("Date")}{" "}<span className="aer-req">*</span></label>
               <input type="date" name="collectionDate" value={formData.collectionDate} onChange={handleChange} max={today} required />
             </div>
           </div>
 
           {isDuplicateBatchDate && (
-            <div className="aer-error-banner">
-              This batch in this day is already collected. Please choose a different batch or date.
-            </div>
+            <div className="aer-error-banner">{tr("This batch in this day is already collected. Please choose a different batch or date.")}</div>
           )}
 
           {/* EGG COLLECTION */}
           <div className="aer-section-header">
             <FiGrid />
-            <h3>Egg Collection</h3>
+            <h3>{tr("Egg Collection")}</h3>
             <div className="aer-line" />
           </div>
 
           <div className="aer-count-grid">
             {COUNT_FIELDS.map((f) => (
               <div className="aer-form-group" key={f.name}>
-                <label>{f.label}</label>
+                <label>{tr(f.label)}</label>
                 <input
                   type="text" inputMode="numeric" name={f.name}
                   value={formData[f.name]} onChange={handleCountChange}
@@ -276,59 +277,57 @@ export default function AddEggRecord() {
           </div>
 
           {eggTotalExceeded && (
-            <div className="aer-error-banner">
-              Total eggs: {totalEggs}. Current chickens: {currentBirds}. Please reduce the egg quantities.
-            </div>
+            <div className="aer-error-banner">{tr("Total eggs:")}{" "}{totalEggs}{tr(". Current chickens:")}{" "}{currentBirds}{tr(". Please reduce the egg quantities.")}</div>
           )}
 
           {/* ADDITIONAL INFORMATION */}
           <div className="aer-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="aer-line" />
           </div>
 
           <div className="aer-form-group aer-full-width">
-            <label>Remarks <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
+            <label>{tr("Remarks")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
             <textarea name="remarks" value={formData.remarks} onChange={handleChange}
-              placeholder="Enter remarks or observations..." maxLength={500} />
+              placeholder={tr("Enter remarks or observations...")} maxLength={500} />
             <small className="aer-char-count">{formData.remarks.length} / 500</small>
           </div>
 
           {/* PRODUCTION SUMMARY (read-only) */}
           <div className="aer-section-header">
             <FiBarChart2 />
-            <h3>Production Summary</h3>
+            <h3>{tr("Production Summary")}</h3>
             <div className="aer-line" />
           </div>
 
           <div className="aer-result-grid">
             <div className="aer-result-card">
-              <h4>Current Birds</h4>
+              <h4>{tr("Current Birds")}</h4>
               <div className="aer-result-value">{currentBirds == null ? "--" : currentBirds}</div>
-              <p>From selected batch</p>
+              <p>{tr("From selected batch")}</p>
             </div>
 
             <div className="aer-result-card">
-              <h4>Good Eggs</h4>
+              <h4>{tr("Good Eggs")}</h4>
               <div className="aer-result-value">{goodEggs}</div>
-              <p>Sum of all egg sizes</p>
+              <p>{tr("Sum of all egg sizes")}</p>
             </div>
 
             <div className="aer-result-card">
-              <h4>Total Eggs</h4>
+              <h4>{tr("Total Eggs")}</h4>
               <div className="aer-result-value" style={eggTotalExceeded ? { color: "#d94f4f" } : undefined}>{totalEggs}</div>
-              <p>Good Eggs + Cracked Eggs</p>
+              <p>{tr("Good Eggs + Cracked Eggs")}</p>
             </div>
 
             <div className="aer-result-card">
-              <h4>Hen-Day Production</h4>
+              <h4>{tr("Hen-Day Production")}</h4>
               <div className="aer-result-value green">{henDayDisplay}</div>
-              <p>( Total Eggs / Current Birds ) × 100</p>
+              <p>{tr("( Total Eggs / Current Birds ) × 100")}</p>
             </div>
 
             <div className="aer-result-card">
-              <h4>Production Status</h4>
+              <h4>{tr("Production Status")}</h4>
               <div className="aer-result-value" style={{ fontSize: "1rem" }}>
                 {status ? (
                   <span style={{
@@ -336,11 +335,11 @@ export default function AddEggRecord() {
                     background: status.bg, color: status.color,
                     padding: "4px 12px", borderRadius: "999px", fontWeight: 700, fontSize: "0.85rem",
                   }}>
-                    {status.label}
+                    {tr(status.label)}
                   </span>
                 ) : "--"}
               </div>
-              <p>Based on Hen-Day %</p>
+              <p>{tr("Based on Hen-Day %")}</p>
             </div>
           </div>
 
@@ -350,8 +349,7 @@ export default function AddEggRecord() {
            
             <div className="aer-action-btns">
               <button type="button" className="aer-cancel-btn" onClick={() => navigate("/records/egg")} disabled={saving}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="aer-save-btn" disabled={saving || !!success || eggTotalExceeded || isDuplicateBatchDate}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>

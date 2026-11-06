@@ -23,6 +23,7 @@ import {
   getLastError,
 } from "../todoStore";
 import { getAccessibleCategories } from "../moduleRegistry";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FARMER_CATEGORIES = getAccessibleCategories({
   isOwner: false, canSeeFinancials: false, canViewPersonnel: false,
@@ -37,6 +38,7 @@ function withDisplayStatus(t) {
 }
 
 export default function FarmerTodo() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const me = getCurrentUser({ id: "me", userId: "me", name: "Farmer" });
   console.log("CURRENT USER:", me);
@@ -66,7 +68,7 @@ export default function FarmerTodo() {
     loadAll();
     const refresh = () => setTasks(buildTasks());
     return subscribeTodos(refresh);
-  }, [me.id]);
+  }, [me.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!highlightId || tasks.length === 0) return;
@@ -85,12 +87,11 @@ export default function FarmerTodo() {
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
-  const [priority, setPriority] = useState("All");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ title: "", type: FARMER_CATEGORIES[0], priority: "Medium", due: "" });
+  const [form, setForm] = useState({ title: "", type: FARMER_CATEGORIES[0], due: "" });
   const [confirm, setConfirm] = useState(null);
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmComplete, setConfirmComplete] = useState(null);
@@ -105,7 +106,6 @@ export default function FarmerTodo() {
     if (sourceTab !== "all" && t.source !== sourceTab) return false;
     if (viewingArchived) { if (!t.archived) return false; }
     else { if (t.archived) return false; if (status !== "All" && t.displayStatus !== status) return false; }
-    if (priority !== "All" && t.priority !== priority) return false;
     if (search) {
       const q = search.toLowerCase();
       const matches =
@@ -115,13 +115,12 @@ export default function FarmerTodo() {
       if (!matches) return false;
     }
     return true;
-  }), [tasks, sourceTab, status, priority, search, viewingArchived]);
+  }), [tasks, sourceTab, status, search, viewingArchived]);
 
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const sortAccessor = (row, col) => {
     if (col === "task") return row.title || "";
     if (col === "category") return row.type || row.module || "";
-    if (col === "priority") return { High: 3, Medium: 2, Low: 1 }[row.priority] ?? 0;
     if (col === "dueDate") return row.dueDate || "";
     if (col === "assignedBy") return row.assignedBy || "";
     if (col === "status") return row.displayStatus || "";
@@ -129,19 +128,19 @@ export default function FarmerTodo() {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [sourceTab, status, priority, search, viewingArchived]);
+  useEffect(() => { pager.setPage(1); }, [sourceTab, status, search, viewingArchived]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
   const active = tasks.filter((t) => !t.archived && (sourceTab === "all" || t.source === sourceTab));
   const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
-  const activeFilters = (status !== "All" ? 1 : 0) + (priority !== "All" ? 1 : 0);
+  const activeFilters = (status !== "All" ? 1 : 0);
 
   const handleViewTaskCategory = (t) => {
     const category = t.type || t.module;
     const route = getTaskCategoryRoute(category);
     if (!route) return;
     if (!canAccessCategory(category, { isOwner: false, canSeeFinancials: false, canViewPersonnel: false })) {
-      alert("Access Denied. You no longer have permission to access this module.");
+      alert(tr("Access Denied. You no longer have permission to access this module."));
       return;
     }
     navigate(route);
@@ -176,20 +175,20 @@ export default function FarmerTodo() {
     );
   }
 };
-  const openAdd = () => { setEditingId(null); setForm({ title: "", type: FARMER_CATEGORIES[0], priority: "Medium", due: "" }); setModalOpen(true); };
-  const openEdit = (t) => { setEditingId(t._id); setForm({ title: t.title, type: t.type, priority: t.priority, due: t.dueDate }); setModalOpen(true); };
+  const openAdd = () => { setEditingId(null); setForm({ title: "", type: FARMER_CATEGORIES[0], due: "" }); setModalOpen(true); };
+  const openEdit = (t) => { setEditingId(t._id); setForm({ title: t.title, type: t.type, due: t.dueDate }); setModalOpen(true); };
   const saveTask = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
       if (editingId) {
-        await updatePersonalTodoById(editingId, { title: form.title, type: form.type, priority: form.priority, dueDate: form.due }, me.userId);
+        await updatePersonalTodoById(editingId, { title: form.title, type: form.type, dueDate: form.due }, me.userId);
       } else {
-        await addPersonalTodo(me.userId, { title: form.title, type: form.type, priority: form.priority, dueDate: form.due });
+        await addPersonalTodo(me.userId, { title: form.title, type: form.type, dueDate: form.due });
         setSourceTab("personal");      }
       setModalOpen(false);
     } catch (err) {
-      setError(err?.message || "Couldn't save this task. Please try again.");
+      setError(tr(err?.message || "Couldn't save this task. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -212,7 +211,7 @@ const runArchiveConfirm = async () => {
     await deletePersonalTodoById(confirm.task._id, me.userId);
     setConfirm(null);
   };
-  const clearFilters = () => { setStatus("All"); setPriority("All"); };
+  const clearFilters = () => { setStatus("All"); };
 
   return (
     <PageLayout
@@ -220,26 +219,20 @@ const runArchiveConfirm = async () => {
     >
 
         <div className="todo-toolbar">
-          <button className="todo-add-btn" onClick={openAdd}><FiPlus /> New Task</button>
+          <button className="todo-add-btn" onClick={openAdd}><FiPlus />{" "}{tr("New Task")}</button>
           <div className="todo-toolbar-actions">
-            <div className="todo-search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search task..." /></div>
+            <div className="todo-search-box"><FiSearch /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Search task...")} /></div>
             <div className="todo-filter-wrap" ref={filterRef}>
               <button className="todo-filter-btn" onClick={() => setFilterOpen((o) => !o)}>
-                <FiFilter /> Filter{activeFilters > 0 && <span className="todo-filter-count">{activeFilters}</span>}
+                <FiFilter />{" "}{tr("Filter")}{activeFilters > 0 && <span className="todo-filter-count">{activeFilters}</span>}
               </button>
               {filterOpen && (
                 <div className="todo-filter-dropdown">
-                  <div className="todo-filter-head"><span>Filter</span><button className="todo-filter-clear" onClick={clearFilters}>Clear</button></div>
+                  <div className="todo-filter-head"><span>{tr("Filter")}</span><button className="todo-filter-clear" onClick={clearFilters}>{tr("Clear")}</button></div>
                   <div className="todo-filter-group">
-                    <label className="todo-filter-label">Status</label>
+                    <label className="todo-filter-label">{tr("Status")}</label>
                     <select className="todo-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                      <option>All</option><option>Pending</option><option>Completed</option><option>Overdue</option><option>Archived</option>
-                    </select>
-                  </div>
-                  <div className="todo-filter-group">
-                    <label className="todo-filter-label">Priority</label>
-                    <select className="todo-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
-                      <option>All</option><option>High</option><option>Medium</option><option>Low</option>
+                      <option value="All">{tr("All")}</option><option value="Pending">{tr("Pending")}</option><option value="Completed">{tr("Completed")}</option><option value="Overdue">{tr("Overdue")}</option><option value="Archived">{tr("Archived")}</option>
                     </select>
                   </div>
                 </div>
@@ -249,22 +242,16 @@ const runArchiveConfirm = async () => {
         </div>
 
         <div className="todo-tabs">
-          <button className={`todo-tab ${sourceTab === "all" ? "active" : ""}`} onClick={() => setSourceTab("all")}>
-            All
-          </button>
-          <button className={`todo-tab ${sourceTab === "assigned" ? "active" : ""}`} onClick={() => setSourceTab("assigned")}>
-            Assigned Tasks
-          </button>
-          <button className={`todo-tab ${sourceTab === "personal" ? "active" : ""}`} onClick={() => setSourceTab("personal")}>
-            My Tasks
-          </button>
+          <button className={`todo-tab ${sourceTab === "all" ? "active" : ""}`} onClick={() => setSourceTab("all")}>{tr("All")}</button>
+          <button className={`todo-tab ${sourceTab === "assigned" ? "active" : ""}`} onClick={() => setSourceTab("assigned")}>{tr("Assigned Tasks")}</button>
+          <button className={`todo-tab ${sourceTab === "personal" ? "active" : ""}`} onClick={() => setSourceTab("personal")}>{tr("My Tasks")}</button>
         </div>
 
         <div className="todo-stats">
-          <div className="todo-stat-card"><div className="todo-stat-icon gold"><FiList /></div><div><h3>{c.total}</h3><p>Total Tasks</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon orange"><FiClock /></div><div><h3>{c.pending}</h3><p>Pending</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon green"><FiCheckCircle /></div><div><h3>{c.completed}</h3><p>Completed</p></div></div>
-          <div className="todo-stat-card"><div className="todo-stat-icon red"><FiAlertTriangle /></div><div><h3>{c.overdue}</h3><p>Overdue</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon gold"><FiList /></div><div><h3>{c.total}</h3><p>{tr("Total Tasks")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon orange"><FiClock /></div><div><h3>{c.pending}</h3><p>{tr("Pending")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon green"><FiCheckCircle /></div><div><h3>{c.completed}</h3><p>{tr("Completed")}</p></div></div>
+          <div className="todo-stat-card"><div className="todo-stat-icon red"><FiAlertTriangle /></div><div><h3>{c.overdue}</h3><p>{tr("Overdue")}</p></div></div>
         </div>
 
         {error && <p style={{ color: "#d94f4f", fontSize: 13, margin: "0 0 10px" }}>{error}</p>}
@@ -275,22 +262,21 @@ const runArchiveConfirm = async () => {
             <thead>
               <tr>
                 <th style={{ width: 64 }}>{viewingArchived ? "" : "Done"}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("task")}>Task{sortIndicator("task", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("category")}>Category{sortIndicator("category", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("priority")}>Priority{sortIndicator("priority", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>Due Date{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("assignedBy")}>Assigned By{sortIndicator("assignedBy", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("status")}>Status{sortIndicator("status", sortColumn, sortDirection)}</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("task")}>{tr("Task")}{sortIndicator("task", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("category")}>{tr("Category")}{sortIndicator("category", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>{tr("Due Date")}{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("assignedBy")}>{tr("Assigned By")}{sortIndicator("assignedBy", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
+                <th style={{ width: 100 }}>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr className="todo-empty-row"><td colSpan={8}>Loading tasks…</td></tr>}
+              {loading && <tr className="todo-empty-row"><td colSpan={7}>{tr("Loading tasks…")}</td></tr>}
               {!loading && filtered.length === 0 && (
-                <tr className="todo-empty-row"><td colSpan={8}>
+                <tr className="todo-empty-row"><td colSpan={7}>
                   {viewingArchived
                     ? "No archived tasks."
-                    : (search || status !== "All" || priority !== "All")
+                    : (search || status !== "All")
                     ? "No Matching Tasks Found"
                     : sourceTab === "personal"
                     ? "No Personal Tasks Found"
@@ -303,10 +289,9 @@ const runArchiveConfirm = async () => {
                 const done = t.displayStatus === "Completed";
                 return (
                   <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
-                    <td>{viewingArchived ? <span className="todo-archived-tag">Archived</span> : <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggle(t)} title={done ? "Mark as pending" : "Mark as done"}>{done && <FiCheck />}</span>}</td>
+                    <td>{viewingArchived ? <span className="todo-archived-tag">{tr("Archived")}</span> : <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggle(t)} title={done ? tr("Mark as pending") : tr("Mark as done")}>{done && <FiCheck />}</span>}</td>
                     <td><span className="todo-task-title">{t.title}</span></td>
-                    <td>{t.type}</td>
-                    <td><span className={`priority ${(t.priority || "Medium").toLowerCase()}`}> {t.priority || "Medium"}</span></td>
+                    <td>{tr(t.type)}</td>
                     <td>{t.dueDate ? new Date(t.dueDate).toISOString().split("T")[0] : ""}</td>
                     <td>{t.assignedBy}</td>
                     <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
@@ -315,19 +300,19 @@ const runArchiveConfirm = async () => {
                         {t.source === "assigned" ? (
                           <>
                             {getTaskCategoryRoute(t.type || t.module) && (
-                              <button className="todo-icon-btn view" onClick={() => handleViewTaskCategory(t)} title="View Related Module"><FiEye /></button>
+                              <button className="todo-icon-btn view" onClick={() => handleViewTaskCategory(t)} title={tr("View Related Module")}><FiEye /></button>
                             )}
-                            <span className="todo-archived-tag" title="Assigned by Owner — managed from the Owner To Do page">Assigned</span>
+                            <span className="todo-archived-tag" title={tr("Assigned by Owner — managed from the Owner To Do page")}>{tr("Assigned")}</span>
                           </>
                         ) : viewingArchived ? (
                           <>
-                            <button className="todo-icon-btn restore" onClick={() => doRestore(t)} title="Restore"><FiRotateCcw /></button>
-                            <button className="todo-del-btn" onClick={() => setConfirm({ type: "delete", task: t })} title="Delete"><FiTrash2 /></button>
+                            <button className="todo-icon-btn restore" onClick={() => doRestore(t)} title={tr("Restore")}><FiRotateCcw /></button>
+                            <button className="todo-del-btn" onClick={() => setConfirm({ type: "delete", task: t })} title={tr("Delete")}><FiTrash2 /></button>
                           </>
                         ) : (
                           <>
-                            <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title="Edit"><FiEdit2 /></button>
-                            <button className="todo-icon-btn archive" onClick={() => askArchive(t)} title="Archive"><FiArchive /></button>
+                            <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title={tr("Edit")}><FiEdit2 /></button>
+                            <button className="todo-icon-btn archive" onClick={() => askArchive(t)} title={tr("Archive")}><FiArchive /></button>
                           </>
                         )}
                       </div>
@@ -357,12 +342,11 @@ const runArchiveConfirm = async () => {
           <div className="todo-modal" onClick={(e) => e.stopPropagation()}>
             <div className="todo-modal-head"><h3>{editingId ? "Edit Task" : "New Task"}</h3><button className="todo-modal-close" onClick={() => setModalOpen(false)}>✕</button></div>
             <div className="todo-modal-body">
-              <div className="todo-field"><label>Task Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Refill water dispensers" /></div>
-              <div className="todo-field"><label>Category</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{FARMER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-              <div className="todo-field"><label>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>High</option><option>Medium</option><option>Low</option></select></div>
-              <div className="todo-field"><label>Due Date</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
+              <div className="todo-field"><label>{tr("Task Title")}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("e.g. Refill water dispensers")} /></div>
+              <div className="todo-field"><label>{tr("Category")}</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{FARMER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="todo-field"><label>{tr("Due Date")}</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
             </div>
-            <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>Cancel</button><button className="todo-btn-save" onClick={saveTask} disabled={saving || !form.title.trim()}>{saving ? "Saving…" : editingId ? "Save Changes" : "Add Task"}</button></div>
+            <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>{tr("Cancel")}</button><button className="todo-btn-save" onClick={saveTask} disabled={saving || !form.title.trim()}>{saving ? "Saving…" : editingId ? "Save Changes" : "Add Task"}</button></div>
           </div>
         </div>
       )}
@@ -370,11 +354,11 @@ const runArchiveConfirm = async () => {
       {confirm && (
         <div className="todo-confirm-overlay" onClick={() => setConfirm(null)}>
           <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="todo-confirm-title">Delete Task</h3>
+            <h3 className="todo-confirm-title">{tr("Delete Task")}</h3>
             <p className="todo-confirm-message">{`Are you sure you want to delete "${confirm.task.title}"? This action cannot be undone.`}</p>
             <div className="todo-confirm-actions">
-              <button className="todo-confirm-cancel" onClick={() => setConfirm(null)}>Cancel</button>
-              <button className="todo-confirm-delete" onClick={runConfirm}>Delete</button>
+              <button className="todo-confirm-cancel" onClick={() => setConfirm(null)}>{tr("Cancel")}</button>
+              <button className="todo-confirm-delete" onClick={runConfirm}>{tr("Delete")}</button>
             </div>
           </div>
         </div>
@@ -383,11 +367,11 @@ const runArchiveConfirm = async () => {
       {confirmComplete && (
         <div className="todo-confirm-overlay" onClick={() => setConfirmComplete(null)}>
           <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="todo-confirm-title">Mark this task as completed?</h3>
-            <p className="todo-confirm-message">The task status will be changed to Completed.</p>
+            <h3 className="todo-confirm-title">{tr("Mark this task as completed?")}</h3>
+            <p className="todo-confirm-message">{tr("The task status will be changed to Completed.")}</p>
             <div className="todo-confirm-actions">
-              <button className="todo-confirm-cancel" onClick={() => setConfirmComplete(null)}>Cancel</button>
-              <button className="todo-btn-save" onClick={() => { doToggle(confirmComplete); setConfirmComplete(null); }}>Mark as Completed</button>
+              <button className="todo-confirm-cancel" onClick={() => setConfirmComplete(null)}>{tr("Cancel")}</button>
+              <button className="todo-btn-save" onClick={() => { doToggle(confirmComplete); setConfirmComplete(null); }}>{tr("Mark as Completed")}</button>
             </div>
           </div>
         </div>
@@ -402,29 +386,20 @@ const runArchiveConfirm = async () => {
       className="fp-confirm-modal"
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 className="fp-confirm-title">
-        Archive Personal Task
-      </h3>
+      <h3 className="fp-confirm-title">{tr("Archive Personal Task")}</h3>
 
-      <p className="fp-confirm-message">
-        Move task "{confirmArchive.title}" to the archive?
-        You can restore it anytime from the Archive page.
-      </p>
+      <p className="fp-confirm-message">{tr("Move task \"")}{confirmArchive.title}{tr("\" to the archive? You can restore it anytime from the Archive page.")}</p>
 
       <div className="fp-confirm-actions">
         <button
           className="fp-confirm-cancel"
           onClick={() => setConfirmArchive(null)}
-        >
-          Cancel
-        </button>
+        >{tr("Cancel")}</button>
 
         <button
           className="fp-confirm-archive"
           onClick={runArchiveConfirm}
-        >
-          Archive
-        </button>
+        >{tr("Archive")}</button>
       </div>
     </div>
   </div>

@@ -6,10 +6,12 @@ import PageLayout from "../components/PageLayout";
 import "./AddFeedInventory.css";
 import { createFeedInventory } from "../api/feedInventory";
 import { listFeedConsumption } from "../api/feedConsumption";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 
 export default function AddFeedInventory() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -46,7 +48,7 @@ export default function AddFeedInventory() {
     if (e.target.type === "date") {
       if (e.target.max && value > e.target.max) {
         value = e.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -77,7 +79,7 @@ export default function AddFeedInventory() {
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* ignore */ }
       navigate("/inventory/feed-inventory");
     } catch (err) {
-      setError(err?.message || "Couldn't save this record. Please try again.");
+      setError(tr(err?.message || "Couldn't save this record. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -98,84 +100,80 @@ export default function AddFeedInventory() {
           {/* FEED DETAILS */}
           <div className="afi-section-header">
             <FiInfo />
-            <h3>FEED DETAILS</h3>
+            <h3>{tr("FEED DETAILS")}</h3>
             <div className="afi-line"></div>
           </div>
 
           <div className="afi-form-grid">
             <div className="afi-form-group">
-              <label>Date Purchased <span className="afi-req">*</span></label>
+              <label>{tr("Date Purchased")}{" "}<span className="afi-req">*</span></label>
               <input type="date" name="date" value={form.date} onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="afi-form-group">
-              <label>Feed Type <span className="afi-req">*</span></label>
+              <label>{tr("Feed Type")}{" "}<span className="afi-req">*</span></label>
               <select name="feedType" value={form.feedType} onChange={handleChange} required>
-                <option value="">Select feed type</option>
-                {FEED_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                <option value="">{tr("Select feed type")}</option>
+                {FEED_TYPES.map((t) => <option key={t} value={t}>{tr(t)}</option>)}
               </select>
             </div>
 
             <div className="afi-form-group">
-              <label>Quantity In <span className="afi-req">*</span></label>
+              <label>{tr("Quantity In")}{" "}<span className="afi-req">*</span></label>
               <input
                 type="number" min="0" name="quantityIn"
                 value={form.quantityIn} onChange={handleChange}
-                placeholder="Enter quantity in (kg)" required
+                placeholder={tr("Enter quantity in (kg)")} required
               />
             </div>
 
             <div className="afi-form-group">
-              <label>Quantity Out <span className="afi-req">*</span></label>
+              <label>{tr("Quantity Out")}{" "}<span className="afi-req">*</span></label>
               <input
                 type="number" min="0" name="quantityOut"
                 value={form.quantityOut} readOnly
-                placeholder="Auto from Feed Consumption"
+                placeholder={tr("Auto from Feed Consumption")}
               />
-              <small>Auto-updated from Feed Consumption records.</small>
+              <small>{tr("Auto-updated from Feed Consumption records.")}</small>
             </div>
           </div>
 
           {/* AUTO-COMPUTED */}
           <div className="afi-section-header">
             <FiActivity />
-            <h3>AUTO-COMPUTED</h3>
+            <h3>{tr("AUTO-COMPUTED")}</h3>
             <div className="afi-line"></div>
           </div>
 
           <div className="afi-form-grid">
             <div className="afi-form-group">
-              <label>Balance</label>
+              <label>{tr("Balance")}</label>
               <input type="text" value={`${balance} kg`} disabled />
-              <small>Balance = Quantity In − Quantity Out</small>
+              <small>{tr("Balance = Quantity In − Quantity Out")}</small>
             </div>
           </div>
 
           {/* ADDITIONAL INFORMATION */}
           <div className="afi-section-header">
             <FiFileText />
-            <h3>ADDITIONAL INFORMATION</h3>
+            <h3>{tr("ADDITIONAL INFORMATION")}</h3>
             <div className="afi-line"></div>
           </div>
 
           <div className="afi-form-group afi-full-width">
-            <label>Notes</label>
+            <label>{tr("Notes")}</label>
             <textarea
               rows="6" name="notes" value={form.notes} onChange={handleChange}
-              placeholder="Enter notes for this transaction..." maxLength={255}
+              placeholder={tr("Enter notes for this transaction...")} maxLength={255}
             />
             <small>{form.notes.length} / 255</small>
           </div>
 
           {/* Actions */}
           <div className="afi-form-actions">
-            <button type="button" className="afi-cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>
-              Cancel
-            </button>
+            <button type="button" className="afi-cancel-btn" onClick={() => navigate("/inventory/feed-inventory")}>{tr("Cancel")}</button>
             <button type="submit" disabled={saving} className="afi-save-btn">
-              <FiSave />
-              Save Feed Record
-            </button>
+              <FiSave />{tr("Save Feed Record")}</button>
           </div>
         </form>
 

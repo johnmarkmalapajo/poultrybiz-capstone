@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import { useUser } from "../hooks/useUser";
+import { useLanguage } from "../i18n/LanguageContext";
 import "./Records.css";
 
 const cards = [
@@ -13,6 +14,7 @@ const cards = [
 ];
 
 export default function Records() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { isOwner } = useUser();
   const visibleCards = cards.filter((card) => !card.ownerOnly || isOwner);
@@ -31,8 +33,8 @@ export default function Records() {
               <span className="card-emoji">{card.emoji}</span>
             </div>
             <div className="card-body">
-              <span className="card-label">{card.label}</span>
-              <span className="card-desc">{card.description}</span>
+              <span className="card-label">{tr(card.label)}</span>
+              <span className="card-desc">{tr(card.description)}</span>
             </div>
             <span className="card-arrow">›</span>
           </button>

@@ -10,6 +10,7 @@ import { checkDependencies, DEPENDENCY_TYPE_BY_MODULE_KEY } from "../api/depende
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const MODULES = [
   "All", "Users","Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption", "Equipment", "Manure Records",
@@ -33,6 +34,7 @@ const fmtDate = (iso) => {
 };
 
 export default function Archive({ embedded = false, onBack }) {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const isOwner = currentUser.role === "Owner";
@@ -74,7 +76,7 @@ export default function Archive({ embedded = false, onBack }) {
         const list = Array.isArray(data) ? data : data.records || data.data || [];
         setRecords(list.slice().sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)));
       })
-      .catch((err) => { setRecords([]); setError(err?.message || "Couldn't load archived records."); })
+      .catch((err) => { setRecords([]); setError(tr(err?.message || "Couldn't load archived records.")); })
       .finally(() => setLoading(false));
   };
 
@@ -166,12 +168,12 @@ export default function Archive({ embedded = false, onBack }) {
     const recordId = confirmRec.recordId || confirmRec.payload?._id || confirmRec.payload?.id;
     try {
       if (restoreFn && recordId) await restoreFn(recordId, confirmRec.payload);
-      setToast(`Restored ${confirmRec.module} "${confirmRec.recordName}".`);
+      setToast(tr(`Restored ${confirmRec.module} "${confirmRec.recordName}".`));
       setConfirmRec(null);
       refresh();
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
     } catch (err) {
-      setToast(err?.message || "Couldn't restore this record. Please try again.");
+      setToast(tr(err?.message || "Couldn't restore this record. Please try again."));
     }
     clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(""), 3200);
@@ -191,11 +193,11 @@ export default function Archive({ embedded = false, onBack }) {
           await deleteArchiveEntry(confirmRec.id);
         }
       }
-      setToast(`Permanently deleted ${confirmRec.module} "${confirmRec.recordName}".`);
+      setToast(tr(`Permanently deleted ${confirmRec.module} "${confirmRec.recordName}".`));
       setConfirmRec(null);
       refresh();
     } catch (err) {
-      setToast(err?.message || "Couldn't delete this record. Please try again.");
+      setToast(tr(err?.message || "Couldn't delete this record. Please try again."));
     }
     clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(""), 3200);
@@ -210,7 +212,7 @@ export default function Archive({ embedded = false, onBack }) {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search record, module, or archived by..."
+                placeholder={tr("Search record, module, or archived by...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -219,21 +221,20 @@ export default function Archive({ embedded = false, onBack }) {
             <div className="arc-btn-group">
               <div className="arc-filter-wrap" ref={filterRef}>
                 <button className="arc-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="arc-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="arc-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="arc-filter-dropdown">
                     <div className="arc-filter-dropdown-header">
-                      <span>Filter Archive</span>
-                      <button className="arc-filter-clear" onClick={clearFilters}>Clear All</button>
+                      <span>{tr("Filter Archive")}</span>
+                      <button className="arc-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
                     </div>
                     <div className="arc-filter-group">
-                      <label className="arc-filter-label">Module</label>
+                      <label className="arc-filter-label">{tr("Module")}</label>
                       <select className="arc-filter-select" value={moduleFilter}
                         onChange={(e) => setModuleFilter(e.target.value)}>
-                        {MODULES.map((m) => <option key={m} value={m}>{m === "All" ? "All Modules" : m}</option>)}
+                        {MODULES.map((m) => <option key={m} value={m}>{m === "All" ? tr("All Modules") : tr(m)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -245,8 +246,7 @@ export default function Archive({ embedded = false, onBack }) {
 
         {activeFilterCount > 0 && (
           <div className="arc-active-filters">
-            <span className="arc-active-filter-tag">
-              Module: {moduleFilter}
+            <span className="arc-active-filter-tag">{tr("Module:")}{" "}{moduleFilter}
               <button onClick={() => setModuleFilter("All")}>✕</button>
             </span>
           </div>
@@ -257,15 +257,15 @@ export default function Archive({ embedded = false, onBack }) {
         <div className="arc-stats-grid">
           <div className="arc-stat-card">
             <div className="arc-stat-icon gold"><FiArchive /></div>
-            <div><h3>{stats.total}</h3><p>Total Archived</p><span>All Time</span></div>
+            <div><h3>{stats.total}</h3><p>{tr("Total Archived")}</p><span>{tr("All Time")}</span></div>
           </div>
           <div className="arc-stat-card">
             <div className="arc-stat-icon blue"><FiCalendar /></div>
-            <div><h3>{stats.thisMonth}</h3><p>Archived This Month</p><span>This Month</span></div>
+            <div><h3>{stats.thisMonth}</h3><p>{tr("Archived This Month")}</p><span>{tr("This Month")}</span></div>
           </div>
           <div className="arc-stat-card">
             <div className="arc-stat-icon green"><FiLayers /></div>
-            <div><h3>{stats.modules}</h3><p>Modules</p><span>Distinct</span></div>
+            <div><h3>{stats.modules}</h3><p>{tr("Modules")}</p><span>{tr("Distinct")}</span></div>
           </div>
         </div>
 
@@ -274,22 +274,22 @@ export default function Archive({ embedded = false, onBack }) {
           <table className="arc-table">
             <thead>
               <tr>
-                <th className="arc-sortable-th" onClick={() => cycleSort("archivedAt")}>Archive Date{sortIndicator("archivedAt", sortColumn, sortDirection)}</th>
-                <th className="arc-sortable-th" onClick={() => cycleSort("module")}>Module{sortIndicator("module", sortColumn, sortDirection)}</th>
-                <th className="arc-sortable-th" onClick={() => cycleSort("recordName")}>Record Name{sortIndicator("recordName", sortColumn, sortDirection)}</th>
-                <th className="arc-sortable-th" onClick={() => cycleSort("archivedBy")}>Archived By{sortIndicator("archivedBy", sortColumn, sortDirection)}</th>
-                <th>Actions</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("archivedAt")}>{tr("Archive Date")}{sortIndicator("archivedAt", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("module")}>{tr("Module")}{sortIndicator("module", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("recordName")}>{tr("Record Name")}{sortIndicator("recordName", sortColumn, sortDirection)}</th>
+                <th className="arc-sortable-th" onClick={() => cycleSort("archivedBy")}>{tr("Archived By")}{sortIndicator("archivedBy", sortColumn, sortDirection)}</th>
+                <th>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="5" className="arc-empty-state">Loading archived records...</td></tr>
+                <tr><td colSpan="5" className="arc-empty-state">{tr("Loading archived records...")}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="arc-empty-state">
                     <div className="arc-empty-content">
                       <FiArchive />
-                      <h3>No archived records found</h3>
+                      <h3>{tr("No archived records found")}</h3>
                       <p>{search || moduleFilter !== "All"
                         ? "No records match your search or filter."
                         : "Archived records from any module will appear here."}</p>
@@ -309,8 +309,8 @@ export default function Archive({ embedded = false, onBack }) {
                         <button
                           className="arc-action-btn restore"
                           onClick={() => askRestore(r)}
-                          title="Restore"
-                          aria-label="Restore"
+                          title={tr("Restore")}
+                          aria-label={tr("Restore")}
                         >
                         <FiRotateCcw />
                           </button>
@@ -320,8 +320,8 @@ export default function Archive({ embedded = false, onBack }) {
                           <button
                             className="arc-action-btn delete"
                             onClick={() => askDelete(r)}
-                            title="Delete"
-                            aria-label="Delete"
+                            title={tr("Delete")}
+                            aria-label={tr("Delete")}
                           >
                             <FiTrash2 />
                           </button>
@@ -354,26 +354,23 @@ export default function Archive({ embedded = false, onBack }) {
           <div className="arc-modal" onClick={(e) => e.stopPropagation()}>
             {confirmMode === "delete" ? (
               <>
-                <h3>Delete Permanently?</h3>
-                <p>
-                  This will permanently delete the <strong>{confirmRec.module}</strong> record<br />
-                  "<strong>{confirmRec.recordName}</strong>". This <strong>cannot be undone</strong>.
+                <h3>{tr("Delete Permanently?")}</h3>
+                <p>{tr("This will permanently delete the")}{" "}<strong>{tr(confirmRec.module)}</strong>{" "}{tr("record")}<br />
+                  "<strong>{confirmRec.recordName}</strong>{tr("\". This")}{" "}<strong>{tr("cannot be undone")}</strong>.
                 </p>
                 <div className="arc-modal-btns">
-                  <button className="arc-btn-cancel" onClick={() => setConfirmRec(null)}>Cancel</button>
-                  <button className="arc-btn-delete" onClick={doDelete}>Delete</button>
+                  <button className="arc-btn-cancel" onClick={() => setConfirmRec(null)}>{tr("Cancel")}</button>
+                  <button className="arc-btn-delete" onClick={doDelete}>{tr("Delete")}</button>
                 </div>
               </>
             ) : (
               <>
-                <h3>Restore Record?</h3>
-                <p>
-                  This will restore the <strong>{confirmRec.module}</strong> record<br />
-                  "<strong>{confirmRec.recordName}</strong>" back to its original module and set it <strong>Active</strong> again.
-                </p>
+                <h3>{tr("Restore Record?")}</h3>
+                <p>{tr("This will restore the")}{" "}<strong>{tr(confirmRec.module)}</strong>{" "}{tr("record")}<br />
+                  "<strong>{confirmRec.recordName}</strong>{tr("\" back to its original module and set it")}{" "}<strong>{tr("Active")}</strong>{" "}{tr("again.")}</p>
                 <div className="arc-modal-btns">
-                  <button className="arc-btn-cancel" onClick={() => setConfirmRec(null)}>Cancel</button>
-                  <button className="arc-btn-confirm" onClick={doRestore}>Restore</button>
+                  <button className="arc-btn-cancel" onClick={() => setConfirmRec(null)}>{tr("Cancel")}</button>
+                  <button className="arc-btn-confirm" onClick={doRestore}>{tr("Restore")}</button>
                 </div>
               </>
             )}
@@ -384,11 +381,9 @@ export default function Archive({ embedded = false, onBack }) {
       {depPreview && (
         <div className="arc-overlay" onClick={() => setDepPreview(null)}>
           <div className="arc-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Permanent Delete Blocked</h3>
+            <h3>{tr("Permanent Delete Blocked")}</h3>
             <p>
-              <strong>"{depPreview.record.recordName}"</strong> has related records
-              in other modules. Deleting it would affect this historical data.
-            </p>
+              <strong>"{depPreview.record.recordName}"</strong>{" "}{tr("has related records in other modules. Deleting it would affect this historical data.")}</p>
             <div className="arc-dep-list">
               {depPreview.connections.map((c) => (
                 c.path ? (
@@ -398,25 +393,20 @@ export default function Archive({ embedded = false, onBack }) {
                     onClick={() => navigate(c.path)}
                     title={`View ${c.module}`}
                   >
-                    <span>{c.module}</span>
+                    <span>{tr(c.module)}</span>
                     <span className="arc-dep-count">{c.count.toLocaleString()} →</span>
                   </button>
                 ) : (
                   <div key={c.moduleKey} className="arc-dep-row">
-                    <span>{c.module}</span>
+                    <span>{tr(c.module)}</span>
                     <span className="arc-dep-count">{c.count.toLocaleString()}</span>
                   </div>
                 )
               ))}
             </div>
-            <p>
-              This record cannot be permanently deleted while these connections
-              exist. It stays safely in Archive — restore it if you need to bring
-              it back, or keep it archived indefinitely. Click any module above
-              to review its records.
-            </p>
+            <p>{tr("This record cannot be permanently deleted while these connections exist. It stays safely in Archive — restore it if you need to bring it back, or keep it archived indefinitely. Click any module above to review its records.")}</p>
             <div className="arc-modal-btns">
-              <button className="arc-btn-cancel" onClick={() => setDepPreview(null)}>Cancel</button>
+              <button className="arc-btn-cancel" onClick={() => setDepPreview(null)}>{tr("Cancel")}</button>
             </div>
           </div>
         </div>

@@ -6,8 +6,10 @@ import "./EditWasteRecord.css";
 import { getWasteRecord, updateWasteRecord } from "../api/wasteManure";
 import { useWasteOptions, NEW_VALUE, CUSTOM_MAX_LENGTH, validateCustom, normalizeCustom } from "../hooks/useWasteOptions";
 import { phToday } from "../phDate";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function EditWasteRecord() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,7 @@ export default function EditWasteRecord() {
         const rec = json.record || json.data || json;
         setFormData((prev) => ({ ...prev, ...rec }));
       } catch (err) {
-        setError(err?.message || "Couldn't load this record.");
+        setError(tr(err?.message || "Couldn't load this record."));
       } finally {
         setLoading(false);
       }
@@ -56,7 +58,7 @@ export default function EditWasteRecord() {
     const futureBlocked = e.target.type === "date" && e.target.max && value > e.target.max;
     if (futureBlocked) value = e.target.max;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(futureBlocked ? "Date cannot be a future date." : "");
+    setError(futureBlocked ? tr("Date cannot be a future date.") : "");
   };
 
   const handleSubmit = async (e) => {
@@ -88,7 +90,7 @@ export default function EditWasteRecord() {
       navigate("/records/manure?tab=waste");
     } catch (err) {
       setSaving(false);
-      setError(err?.message || "Couldn't save changes. Please try again.");
+      setError(tr(err?.message || "Couldn't save changes. Please try again."));
     }
   };
 
@@ -102,7 +104,7 @@ export default function EditWasteRecord() {
           { label: "EDIT WASTE" },
         ]}
       >
-        <p className="pb-loading-text">Loading record...</p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -128,24 +130,24 @@ export default function EditWasteRecord() {
           {/* WASTE DETAILS */}
           <div className="ewr-section-header">
             <FiTrash2 />
-            <h3>Waste Details</h3>
+            <h3>{tr("Waste Details")}</h3>
             <div className="ewr-line" />
           </div>
 
           <div className="ewr-form-grid">
             <div className="ewr-form-group">
-              <label>Date <span className="ewr-req">*</span></label>
+              <label>{tr("Date")}{" "}<span className="ewr-req">*</span></label>
               <input type="date" name="date"
                 value={formData.date ? String(formData.date).slice(0, 10) : ""}
                 onChange={handleChange} max={phToday()} required />
             </div>
 
             <div className="ewr-form-group">
-              <label>Waste Type <span className="ewr-req">*</span></label>
+              <label>{tr("Waste Type")}{" "}<span className="ewr-req">*</span></label>
               <select name="wasteType" value={formData.wasteType} onChange={handleChange} required>
-                <option value="">Select waste type</option>
+                <option value="">{tr("Select waste type")}</option>
                 {wasteTypeOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.wasteType === NEW_VALUE && (
                 <input
@@ -153,7 +155,7 @@ export default function EditWasteRecord() {
                   className="ewr-others-input"
                   value={newWasteType}
                   onChange={(e) => { setNewWasteType(e.target.value); setError(""); }}
-                  placeholder="Enter specific waste type"
+                  placeholder={tr("Enter specific waste type")}
                   maxLength={CUSTOM_MAX_LENGTH}
                   style={{ marginTop: "8px" }}
                   required
@@ -162,26 +164,26 @@ export default function EditWasteRecord() {
             </div>
 
             <div className="ewr-form-group">
-              <label>Quantity / Unit <span className="ewr-req">*</span></label>
+              <label>{tr("Quantity / Unit")}{" "}<span className="ewr-req">*</span></label>
               <div className="ewr-input-unit-select">
                 <input type="number" min="0" name="quantity" value={formData.quantity}
-                  onChange={handleChange} placeholder="Enter quantity" required />
+                  onChange={handleChange} placeholder={tr("Enter quantity")} required />
                 <select name="unit" value={formData.unit} onChange={handleChange}>
-                  <option value="kg">kg</option>
-                  <option value="pcs">pcs</option>
-                  <option value="heads">heads</option>
-                  <option value="bags">bags</option>
-                  <option value="liters">liters</option>
+                  <option value="kg">{tr("kg")}</option>
+                  <option value="pcs">{tr("pcs")}</option>
+                  <option value="heads">{tr("heads")}</option>
+                  <option value="bags">{tr("bags")}</option>
+                  <option value="liters">{tr("liters")}</option>
                 </select>
               </div>
             </div>
 
             <div className="ewr-form-group">
-              <label>Disposal Method <span className="ewr-req">*</span></label>
+              <label>{tr("Disposal Method")}{" "}<span className="ewr-req">*</span></label>
               <select name="disposalMethod" value={formData.disposalMethod} onChange={handleChange} required>
-                <option value="">Select disposal method</option>
+                <option value="">{tr("Select disposal method")}</option>
                 {disposalMethodOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.disposalMethod === NEW_VALUE && (
                 <input
@@ -189,7 +191,7 @@ export default function EditWasteRecord() {
                   className="ewr-others-input"
                   value={newDisposalMethod}
                   onChange={(e) => { setNewDisposalMethod(e.target.value); setError(""); }}
-                  placeholder="Enter specific disposal method"
+                  placeholder={tr("Enter specific disposal method")}
                   maxLength={CUSTOM_MAX_LENGTH}
                   style={{ marginTop: "8px" }}
                   required
@@ -198,9 +200,9 @@ export default function EditWasteRecord() {
             </div>
 
             <div className="ewr-form-group">
-              <label>Person Responsible <span className="ewr-req">*</span></label>
+              <label>{tr("Person Responsible")}{" "}<span className="ewr-req">*</span></label>
               <select name="personResponsible" value={formData.personResponsible} onChange={handleChange} required>
-                <option value="">Select person</option>
+                <option value="">{tr("Select person")}</option>
                 {formData.personResponsible && (
                   <option value={formData.personResponsible}>{formData.personResponsible}</option>
                 )}
@@ -211,27 +213,25 @@ export default function EditWasteRecord() {
           {/* ADDITIONAL INFORMATION */}
           <div className="ewr-section-header">
             <FiFileText />
-            <h3>Additional Information</h3>
+            <h3>{tr("Additional Information")}</h3>
             <div className="ewr-line" />
           </div>
 
           <div className="ewr-form-group ewr-full-width">
-            <label>Remarks</label>
+            <label>{tr("Remarks")}</label>
             <textarea name="remarks" value={formData.remarks || ""} onChange={handleChange}
-              placeholder="Enter any remarks (optional)..." maxLength={255} />
+              placeholder={tr("Enter any remarks (optional)...")} maxLength={255} />
             <small className="ewr-char-count">{(formData.remarks || "").length} / 255</small>
           </div>
 
           {/* Actions */}
           <div className="ewr-form-actions">
-            <p className="ewr-req-note">Fields with * are required.</p>
+            <p className="ewr-req-note">{tr("Fields with * are required.")}</p>
             <div className="ewr-action-btns">
               <button type="button" className="ewr-cancel-btn" onClick={() => navigate("/records/manure?tab=waste")}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" disabled={saving} className="ewr-save-btn">
-                <FiSave /> Update Record
-              </button>
+                <FiSave />{" "}{tr("Update Record")}</button>
             </div>
           </div>
 

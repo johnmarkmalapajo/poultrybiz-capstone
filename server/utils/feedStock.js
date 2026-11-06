@@ -287,7 +287,6 @@ const notifyLowFeedStock = async (stock) => {
     )} ${stock.thresholdUnit}.`,
     category: "feed",
     type: "alert",
-    priority: stock.isOut ? "Critical" : "Warning",
     roles: ["Owner", "Farmer"],
     sourceId: `feed_${state}_${slug}_${stock.latestRestockId || "none"}_${stock.thresholdKg}`,
   });

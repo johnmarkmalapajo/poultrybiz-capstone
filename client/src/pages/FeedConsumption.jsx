@@ -25,10 +25,12 @@ import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { feedQuantityToKg } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
 
 export default function FeedConsumption() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive } = useUser();
 
@@ -67,8 +69,8 @@ export default function FeedConsumption() {
     } catch (err) {
       setRecords([]);
       setError(
-        err?.message ||
-          "Couldn't load feed consumption records."
+        tr(err?.message ||
+          "Couldn't load feed consumption records.")
       );
     }
   };
@@ -138,7 +140,7 @@ export default function FeedConsumption() {
         handleDataChanged
       );
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showFilter, setShowFilter] = useState(false);
 
@@ -217,9 +219,9 @@ export default function FeedConsumption() {
   const applyFilters = () => {
     if (draft.period === "custom") {
       const today = todayStr();
-      if (draft.dateFrom && draft.dateFrom > today) { setError("Start date cannot be a future date."); return; }
-      if (draft.dateTo && draft.dateTo > today) { setError("End date cannot be a future date."); return; }
-      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError("Start date cannot be later than end date."); return; }
+      if (draft.dateFrom && draft.dateFrom > today) { setError(tr("Start date cannot be a future date.")); return; }
+      if (draft.dateTo && draft.dateTo > today) { setError(tr("End date cannot be a future date.")); return; }
+      if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) { setError(tr("Start date cannot be later than end date.")); return; }
     }
     setError("");
     setFilters(draft);
@@ -505,9 +507,7 @@ export default function FeedConsumption() {
             )
           }
         >
-          <FiPlus />
-          Add Feed Consumption
-        </button>
+          <FiPlus />{tr("Add Feed Consumption")}</button>
 
         <div className="fc-toolbar-right">
           <div className="fc-search-box">
@@ -515,7 +515,7 @@ export default function FeedConsumption() {
 
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={tr("Search...")}
               value={search}
               onChange={(e) =>
                 setSearch(e.target.value)
@@ -532,10 +532,7 @@ export default function FeedConsumption() {
                 className="fc-toolbar-btn"
                 onClick={openFilterPanel}
               >
-                <FiFilter />
-                Filter
-
-                {activeFilterCount > 0 && (
+                <FiFilter />{tr("Filter")}{activeFilterCount > 0 && (
                   <span className="fc-filter-count">
                     {activeFilterCount}
                   </span>
@@ -545,30 +542,30 @@ export default function FeedConsumption() {
               {showFilter && (
                 <div className="fc-filter-dropdown">
                   <div className="fc-filter-dropdown-header">
-                    <span>Filter Records</span>
+                    <span>{tr("Filter Records")}</span>
                   </div>
 
-                  <div className="fc-filter-section-label">Date Filter</div>
+                  <div className="fc-filter-section-label">{tr("Date Filter")}</div>
                   <div className="fc-filter-row">
                     <div className="fc-filter-group">
-                      <label className="fc-filter-label">Date Period</label>
+                      <label className="fc-filter-label">{tr("Date Period")}</label>
                       <select
                         className="fc-filter-select"
                         value={draft.period}
                         onChange={(e) => handleFilterChange("period", e.target.value)}
                       >
-                        <option value="all">All Records</option>
-                        <option value="today">Today</option>
-                        <option value="week">Week</option>
-                        <option value="month">Month</option>
-                        <option value="year">Year</option>
-                        <option value="custom">Custom Range</option>
+                        <option value="all">{tr("All Records")}</option>
+                        <option value="today">{tr("Today")}</option>
+                        <option value="week">{tr("Week")}</option>
+                        <option value="month">{tr("Month")}</option>
+                        <option value="year">{tr("Year")}</option>
+                        <option value="custom">{tr("Custom Range")}</option>
                       </select>
                     </div>
 
                     {draft.period === "week" && (
                       <div className="fc-filter-group">
-                        <label className="fc-filter-label">Week</label>
+                        <label className="fc-filter-label">{tr("Week")}</label>
                         <input
                           type="week"
                           className="fc-filter-select"
@@ -580,15 +577,15 @@ export default function FeedConsumption() {
 
                     {draft.period === "month" && (
                       <div className="fc-filter-group">
-                        <label className="fc-filter-label">Month</label>
+                        <label className="fc-filter-label">{tr("Month")}</label>
                         <select
                           className="fc-filter-select"
                           value={draft.month}
                           onChange={(e) => handleFilterChange("month", e.target.value)}
                         >
-                          <option value="All">Select Month</option>
+                          <option value="All">{tr("Select Month")}</option>
                           {monthOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
@@ -596,15 +593,15 @@ export default function FeedConsumption() {
 
                     {(draft.period === "month" || draft.period === "year") && (
                       <div className="fc-filter-group">
-                        <label className="fc-filter-label">Year</label>
+                        <label className="fc-filter-label">{tr("Year")}</label>
                         <select
                           className="fc-filter-select"
                           value={draft.year}
                           onChange={(e) => handleFilterChange("year", e.target.value)}
                         >
-                          <option value="All">Select Year</option>
+                          <option value="All">{tr("Select Year")}</option>
                           {yearOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
@@ -613,7 +610,7 @@ export default function FeedConsumption() {
 
                   {draft.period === "custom" && (
                     <div className="fc-filter-group">
-                      <label className="fc-filter-label">Start Date / End Date</label>
+                      <label className="fc-filter-label">{tr("Start Date / End Date")}</label>
                       <div className="fc-filter-date-range">
                         <input
                           type="date"
@@ -621,9 +618,9 @@ export default function FeedConsumption() {
                           value={draft.dateFrom}
                           max={draft.dateTo || todayStr()}
                           onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-                          aria-label="From date"
+                          aria-label={tr("From date")}
                         />
-                        <span>to</span>
+                        <span>{tr("to")}</span>
                         <input
                           type="date"
                           className="fc-filter-select"
@@ -631,17 +628,15 @@ export default function FeedConsumption() {
                           min={draft.dateFrom || undefined}
                           max={todayStr()}
                           onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-                          aria-label="To date"
+                          aria-label={tr("To date")}
                         />
                       </div>
                     </div>
                   )}
 
-                  <div className="fc-filter-section-label">Filters</div>
+                  <div className="fc-filter-section-label">{tr("Filters")}</div>
                   <div className="fc-filter-group">
-                    <label className="fc-filter-label">
-                      Batch ID
-                    </label>
+                    <label className="fc-filter-label">{tr("Batch ID")}</label>
 
                     <select
                       className="fc-filter-select"
@@ -653,9 +648,7 @@ export default function FeedConsumption() {
                         )
                       }
                     >
-                      <option value="All">
-                        All Batches
-                      </option>
+                      <option value="All">{tr("All Batches")}</option>
 
                       {batchOptions.map((option) => (
                         <option
@@ -669,9 +662,7 @@ export default function FeedConsumption() {
                   </div>
 
                   <div className="fc-filter-group">
-                    <label className="fc-filter-label">
-                      Feed Type
-                    </label>
+                    <label className="fc-filter-label">{tr("Feed Type")}</label>
 
                     <select
                       className="fc-filter-select"
@@ -683,9 +674,7 @@ export default function FeedConsumption() {
                         )
                       }
                     >
-                      <option value="All">
-                        All Feed Types
-                      </option>
+                      <option value="All">{tr("All Feed Types")}</option>
 
                       {FEED_TYPE_OPTIONS.map(
                         (option) => (
@@ -701,8 +690,8 @@ export default function FeedConsumption() {
                   </div>
 
                   <div className="fc-filter-actions">
-                    <button className="fc-filter-clear" onClick={clearFilters}>Clear All</button>
-                    <button className="fc-filter-apply" onClick={applyFilters}>Apply</button>
+                    <button className="fc-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                    <button className="fc-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                   </div>
                 </div>
               )}
@@ -712,7 +701,7 @@ export default function FeedConsumption() {
               rows={exportRows}
               columns={exportColumns}
               name="feed-consumption"
-              title="Feed Consumption Report"
+              title={tr("Feed Consumption Report")}
               meta={exportMeta}
               pdfExtra={{
                 period: exportMeta.period,
@@ -766,7 +755,7 @@ export default function FeedConsumption() {
 
           <div>
             <h3>{totalRecords}</h3>
-            <p>Total Records</p>
+            <p>{tr("Total Records")}</p>
             <span>{statCardSpanLabel}</span>
           </div>
         </div>
@@ -778,9 +767,8 @@ export default function FeedConsumption() {
 
           <div>
             <h3>
-              {Number(totalConsumed.toFixed(2))} kg
-            </h3>
-            <p>Total Consumed</p>
+              {Number(totalConsumed.toFixed(2))}{" "}{tr("kg")}</h3>
+            <p>{tr("Total Consumed")}</p>
             <span>{statCardSpanLabel}</span>
           </div>
         </div>
@@ -792,7 +780,7 @@ export default function FeedConsumption() {
 
           <div>
             <h3>{batchesFed}</h3>
-            <p>Batches Fed</p>
+            <p>{tr("Batches Fed")}</p>
             <span>{statCardSpanLabel}</span>
           </div>
         </div>
@@ -804,7 +792,7 @@ export default function FeedConsumption() {
 
           <div>
             <h3>{feedTypesUsed}</h3>
-            <p>Feed Types Used</p>
+            <p>{tr("Feed Types Used")}</p>
             <span>{statCardSpanLabel}</span>
           </div>
         </div>
@@ -820,9 +808,7 @@ export default function FeedConsumption() {
                 onClick={() =>
                   cycleSort("date")
                 }
-              >
-                Date
-                {sortIndicator(
+              >{tr("Date")}{sortIndicator(
                   "date",
                   sortColumn,
                   sortDirection
@@ -834,9 +820,7 @@ export default function FeedConsumption() {
                 onClick={() =>
                   cycleSort("batchId")
                 }
-              >
-                Batch ID
-                {sortIndicator(
+              >{tr("Batch ID")}{sortIndicator(
                   "batchId",
                   sortColumn,
                   sortDirection
@@ -848,9 +832,7 @@ export default function FeedConsumption() {
                 onClick={() =>
                   cycleSort("feedType")
                 }
-              >
-                Feed Type
-                {sortIndicator(
+              >{tr("Feed Type")}{sortIndicator(
                   "feedType",
                   sortColumn,
                   sortDirection
@@ -864,17 +846,15 @@ export default function FeedConsumption() {
                     "quantityConsumed"
                   )
                 }
-              >
-                Quantity Consumed
-                {sortIndicator(
+              >{tr("Quantity Consumed")}{sortIndicator(
                   "quantityConsumed",
                   sortColumn,
                   sortDirection
                 )}
               </th>
 
-              <th>Notes</th>
-              <th>Actions</th>
+              <th>{tr("Notes")}</th>
+              <th>{tr("Actions")}</th>
             </tr>
           </thead>
 
@@ -884,9 +864,7 @@ export default function FeedConsumption() {
                 <td
                   colSpan="6"
                   className="fc-empty-state"
-                >
-                  Loading feed consumption...
-                </td>
+                >{tr("Loading feed consumption...")}</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
@@ -897,15 +875,9 @@ export default function FeedConsumption() {
                   <div className="fc-empty-content">
                     <FiMaximize />
 
-                    <h3>
-                      No feed consumption records
-                      found
-                    </h3>
+                    <h3>{tr("No feed consumption records found")}</h3>
 
-                    <p>
-                      Click Add Feed Consumption to
-                      record your first entry.
-                    </p>
+                    <p>{tr("Click Add Feed Consumption to record your first entry.")}</p>
 
                     <button
                       className="fc-empty-add-btn"
@@ -915,9 +887,7 @@ export default function FeedConsumption() {
                         )
                       }
                     >
-                      <FiPlus />
-                      Add Feed Consumption
-                    </button>
+                      <FiPlus />{tr("Add Feed Consumption")}</button>
                   </div>
                 </td>
               </tr>
@@ -962,7 +932,7 @@ export default function FeedConsumption() {
                       {canEdit && (
                         <button
                           className="fc-btn-edit"
-                          title="Edit"
+                          title={tr("Edit")}
                           onClick={() =>
                             navigate(
                               `/inventory/feed-consumption/edit/${
@@ -991,7 +961,7 @@ export default function FeedConsumption() {
                                 record.batchId,
                             })
                           }
-                          title="Archive"
+                          title={tr("Archive")}
                         >
                           <FiArchive />
                         </button>

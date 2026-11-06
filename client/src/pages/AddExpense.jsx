@@ -17,6 +17,7 @@ import {
   feedQuantityToKg,
   sackWeightHint,
 } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CATEGORIES = [
   "Feed Purchase",
@@ -63,6 +64,7 @@ const feedSetSubtotal = (feedSet) =>
   Number(feedSet.quantity || 0) * Number(feedSet.unitPrice || 0);
 
 export default function AddExpense() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { sackWeightFor } = useFeedStock();
@@ -144,7 +146,7 @@ export default function AddExpense() {
     if (e.target.type === "date") {
       if (e.target.max && value > e.target.max) {
         value = e.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -424,7 +426,7 @@ export default function AddExpense() {
       await createExpenseRecord(payload);
 
       setSuccess(
-        "Expense record saved successfully!"
+        tr("Expense record saved successfully!")
       );
 
       setForm({
@@ -466,8 +468,8 @@ export default function AddExpense() {
       }, 1000);
     } catch (err) {
       setError(
-        err?.message ||
-          "Cannot connect to server. Please try again."
+        tr(err?.message ||
+          "Cannot connect to server. Please try again.")
       );
     } finally {
       setSaving(false);
@@ -510,7 +512,7 @@ export default function AddExpense() {
       >
         <div className="ae-section-header">
           <FiInfo />
-          <h3>Expense Details</h3>
+          <h3>{tr("Expense Details")}</h3>
           <div className="ae-line" />
         </div>
 
@@ -534,8 +536,7 @@ export default function AddExpense() {
           </div>
 
           <div className="ae-form-group">
-            <label>
-              Category{" "}
+            <label>{tr("Category")}{" "}
               <span className="req">*</span>
             </label>
 
@@ -545,9 +546,7 @@ export default function AddExpense() {
               onChange={handleChange}
               required
             >
-              <option value="">
-                Select category
-              </option>
+              <option value="">{tr("Select category")}</option>
 
               {CATEGORIES.map((category) => (
                 <option
@@ -563,8 +562,7 @@ export default function AddExpense() {
           {isEquipment ? (
             <>
               <div className="ae-form-group">
-                <label>
-                  Equipment/Tool Name{" "}
+                <label>{tr("Equipment/Tool Name")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -573,17 +571,14 @@ export default function AddExpense() {
                   name="equipmentName"
                   value={form.equipmentName}
                   onChange={handleChange}
-                  placeholder="Enter equipment/tool name"
+                  placeholder={tr("Enter equipment/tool name")}
                   required
                 />
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Serial/ID No.{" "}
-                  <span className="ae-optional">
-                    (optional)
-                  </span>
+                <label>{tr("Serial/ID No.")}{" "}
+                  <span className="ae-optional">{tr("(optional)")}</span>
                 </label>
 
                 <input
@@ -591,13 +586,12 @@ export default function AddExpense() {
                   name="serialNo"
                   value={form.serialNo}
                   onChange={handleChange}
-                  placeholder="Enter serial or ID number"
+                  placeholder={tr("Enter serial or ID number")}
                 />
               </div>
 
               <div className="ae-form-group ae-full-width">
-                <label>
-                  Description/Specification{" "}
+                <label>{tr("Description/Specification")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -606,14 +600,13 @@ export default function AddExpense() {
                   value={form.description}
                   onChange={handleChange}
                   rows="3"
-                  placeholder="Enter description or specification"
+                  placeholder={tr("Enter description or specification")}
                   required
                 />
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Quantity{" "}
+                <label>{tr("Quantity")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -626,14 +619,13 @@ export default function AddExpense() {
                   onChange={handleChange}
                   onKeyDown={blockInvalidNumberKeys}
                   onPaste={blockInvalidNumberPaste}
-                  placeholder="Enter quantity"
+                  placeholder={tr("Enter quantity")}
                   required
                 />
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Unit{" "}
+                <label>{tr("Unit")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -643,19 +635,18 @@ export default function AddExpense() {
                   onChange={handleChange}
                   required
                 >
-                  <option value="">Select unit</option>
-                  <option value="pcs">pcs</option>
-                  <option value="units">units</option>
-                  <option value="sets">sets</option>
-                  <option value="pairs">pairs</option>
-                  <option value="kg">kg</option>
-                  <option value="liters">liters</option>
+                  <option value="">{tr("Select unit")}</option>
+                  <option value="pcs">{tr("pcs")}</option>
+                  <option value="units">{tr("units")}</option>
+                  <option value="sets">{tr("sets")}</option>
+                  <option value="pairs">{tr("pairs")}</option>
+                  <option value="kg">{tr("kg")}</option>
+                  <option value="liters">{tr("liters")}</option>
                 </select>
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Amount{" "}
+                <label>{tr("Amount")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -678,19 +669,13 @@ export default function AddExpense() {
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Receipt{" "}
-                  <span className="ae-optional">
-                    (optional)
-                  </span>
+                <label>{tr("Receipt")}{" "}
+                  <span className="ae-optional">{tr("(optional)")}</span>
                 </label>
 
                 <div className="ae-file-wrap">
                   <label className="ae-file-btn">
-                    <FiUpload />
-                    Choose file
-
-                    <input
+                    <FiUpload />{tr("Choose file")}<input
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleFile}
@@ -716,22 +701,17 @@ export default function AddExpense() {
                       type="button"
                       className="ae-file-remove"
                       onClick={removeFile}
-                    >
-                      Remove
-                    </button>
+                    >{tr("Remove")}</button>
                   </div>
                 )}
 
-                <small>
-                  Upload a receipt image or PDF (max 5MB). JPG, PNG, or PDF.
-                </small>
+                <small>{tr("Upload a receipt image or PDF (max 5MB). JPG, PNG, or PDF.")}</small>
               </div>
             </>
           ) : isFeedPurchase ? (
             <>
               <div className="ae-form-group">
-                <label>
-                  Feed Type{" "}
+                <label>{tr("Feed Type")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -748,23 +728,16 @@ export default function AddExpense() {
                   }
                   required
                 >
-                  <option value="">
-                    Select feed type
-                  </option>
+                  <option value="">{tr("Select feed type")}</option>
 
-                  <option value="Layer Feed">
-                    Layer Feed
-                  </option>
+                  <option value="Layer Feed">{tr("Layer Feed")}</option>
 
-                  <option value="Grower Feed">
-                    Grower Feed
-                  </option>
+                  <option value="Grower Feed">{tr("Grower Feed")}</option>
                 </select>
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Supplier{" "}
+                <label>{tr("Supplier")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -773,14 +746,13 @@ export default function AddExpense() {
                   name="supplier"
                   value={form.supplier}
                   onChange={handleChange}
-                  placeholder="Enter supplier name"
+                  placeholder={tr("Enter supplier name")}
                   required
                 />
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Quantity{" "}
+                <label>{tr("Quantity")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -801,7 +773,7 @@ export default function AddExpense() {
                     }
                     onKeyDown={blockInvalidNumberKeys}
                     onPaste={blockInvalidNumberPaste}
-                    placeholder="Enter quantity"
+                    placeholder={tr("Enter quantity")}
                     required
                   />
 
@@ -818,13 +790,9 @@ export default function AddExpense() {
                     }
                     required
                   >
-                    <option value="Sacks">
-                      sacks
-                    </option>
+                    <option value="Sacks">{tr("sacks")}</option>
 
-                    <option value="Kilogram">
-                      kg
-                    </option>
+                    <option value="Kilogram">{tr("kg")}</option>
                   </select>
                 </div>
 
@@ -837,8 +805,7 @@ export default function AddExpense() {
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Price per{" "}
+                <label>{tr("Price per")}{" "}
                   {feedSets[0].unit === "Sacks"
                     ? "Sack"
                     : "Kg"}{" "}
@@ -866,14 +833,14 @@ export default function AddExpense() {
                     }
                     onKeyDown={blockInvalidNumberKeys}
                     onPaste={blockInvalidNumberPaste}
-                    placeholder="Enter price per unit"
+                    placeholder={tr("Enter price per unit")}
                     required
                   />
                 </div>
               </div>
 
               <div className="ae-form-group">
-                <label>Subtotal</label>
+                <label>{tr("Subtotal")}</label>
 
                 <div className="ae-input-with-prefix">
                   <span className="ae-prefix">
@@ -888,7 +855,7 @@ export default function AddExpense() {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
-                    placeholder="Subtotal"
+                    placeholder={tr("Subtotal")}
                     disabled
                     readOnly
                   />
@@ -896,19 +863,13 @@ export default function AddExpense() {
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Receipt{" "}
-                  <span className="ae-optional">
-                    (optional)
-                  </span>
+                <label>{tr("Receipt")}{" "}
+                  <span className="ae-optional">{tr("(optional)")}</span>
                 </label>
 
                 <div className="ae-file-wrap">
                   <label className="ae-file-btn">
-                    <FiUpload />
-                    Choose file
-
-                    <input
+                    <FiUpload />{tr("Choose file")}<input
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleFile}
@@ -934,16 +895,11 @@ export default function AddExpense() {
                       type="button"
                       className="ae-file-remove"
                       onClick={removeFile}
-                    >
-                      Remove
-                    </button>
+                    >{tr("Remove")}</button>
                   </div>
                 )}
 
-                <small>
-                  Upload a receipt image or PDF
-                  (max 5MB). JPG, PNG, or PDF.
-                </small>
+                <small>{tr("Upload a receipt image or PDF (max 5MB). JPG, PNG, or PDF.")}</small>
               </div>
 
               <div className="ae-feed-sets">
@@ -963,8 +919,7 @@ export default function AddExpense() {
                           key={actualIndex}
                         >
                           <div className="ae-feed-set-header">
-                            <span>
-                              Feed Set{" "}
+                            <span>{tr("Feed Set")}{" "}
                               {actualIndex + 1}
                             </span>
 
@@ -977,15 +932,12 @@ export default function AddExpense() {
                                 )
                               }
                             >
-                              <FiTrash2 />
-                              Remove
-                            </button>
+                              <FiTrash2 />{tr("Remove")}</button>
                           </div>
 
                           <div className="ae-feed-set-grid">
                             <div className="ae-form-group">
-                              <label>
-                                Feed Type{" "}
+                              <label>{tr("Feed Type")}{" "}
                                 <span className="req">
                                   *
                                 </span>
@@ -1004,23 +956,16 @@ export default function AddExpense() {
                                 }
                                 required
                               >
-                                <option value="">
-                                  Select feed type
-                                </option>
+                                <option value="">{tr("Select feed type")}</option>
 
-                                <option value="Layer Feed">
-                                  Layer Feed
-                                </option>
+                                <option value="Layer Feed">{tr("Layer Feed")}</option>
 
-                                <option value="Grower Feed">
-                                  Grower Feed
-                                </option>
+                                <option value="Grower Feed">{tr("Grower Feed")}</option>
                               </select>
                             </div>
 
                             <div className="ae-form-group">
-                              <label>
-                                Quantity{" "}
+                              <label>{tr("Quantity")}{" "}
                                 <span className="req">
                                   *
                                 </span>
@@ -1043,7 +988,7 @@ export default function AddExpense() {
                                   }
                                   onKeyDown={blockInvalidNumberKeys}
                                   onPaste={blockInvalidNumberPaste}
-                                  placeholder="Enter quantity"
+                                  placeholder={tr("Enter quantity")}
                                   required
                                 />
 
@@ -1060,13 +1005,9 @@ export default function AddExpense() {
                                   }
                                   required
                                 >
-                                  <option value="Sacks">
-                                    sacks
-                                  </option>
+                                  <option value="Sacks">{tr("sacks")}</option>
 
-                                  <option value="Kilogram">
-                                    kg
-                                  </option>
+                                  <option value="Kilogram">{tr("kg")}</option>
                                 </select>
                               </div>
 
@@ -1079,8 +1020,7 @@ export default function AddExpense() {
                             </div>
 
                             <div className="ae-form-group">
-                              <label>
-                                Price per{" "}
+                              <label>{tr("Price per")}{" "}
                                 {feedSet.unit ===
                                 "Sacks"
                                   ? "Sack"
@@ -1111,14 +1051,14 @@ export default function AddExpense() {
                                   }
                                   onKeyDown={blockInvalidNumberKeys}
                                   onPaste={blockInvalidNumberPaste}
-                                  placeholder="Enter price per unit"
+                                  placeholder={tr("Enter price per unit")}
                                   required
                                 />
                               </div>
                             </div>
 
                             <div className="ae-form-group">
-                              <label>Subtotal</label>
+                              <label>{tr("Subtotal")}</label>
 
                               <div className="ae-input-with-prefix">
                                 <span className="ae-prefix">
@@ -1136,7 +1076,7 @@ export default function AddExpense() {
                                       maximumFractionDigits: 2,
                                     }
                                   )}
-                                  placeholder="Subtotal"
+                                  placeholder={tr("Subtotal")}
                                   disabled
                                   readOnly
                                 />
@@ -1144,19 +1084,13 @@ export default function AddExpense() {
                             </div>
 
                             <div className="ae-form-group ae-feed-receipt">
-                              <label>
-                                Receipt{" "}
-                                <span className="ae-optional">
-                                  (optional)
-                                </span>
+                              <label>{tr("Receipt")}{" "}
+                                <span className="ae-optional">{tr("(optional)")}</span>
                               </label>
 
                               <div className="ae-file-wrap">
                                 <label className="ae-file-btn">
-                                  <FiUpload />
-                                  Choose file
-
-                                  <input
+                                  <FiUpload />{tr("Choose file")}<input
                                     type="file"
                                     accept=".jpg,.jpeg,.png,.pdf"
                                     onChange={(e) =>
@@ -1187,16 +1121,10 @@ export default function AddExpense() {
                                       actualIndex
                                     )
                                   }
-                                >
-                                  Remove
-                                </button>
+                                >{tr("Remove")}</button>
                               )}
 
-                              <small>
-                                Upload a receipt image
-                                or PDF. JPG, PNG, or
-                                PDF.
-                              </small>
+                              <small>{tr("Upload a receipt image or PDF. JPG, PNG, or PDF.")}</small>
                             </div>
                           </div>
                         </div>
@@ -1209,26 +1137,18 @@ export default function AddExpense() {
                 type="button"
                 className="ae-add-feed-set"
                 onClick={addFeedSet}
-              >
-                + Add Another Feed Set
-              </button>
+              >{tr("+ Add Another Feed Set")}</button>
 
               <div className="ae-feed-summary">
                 <div className="ae-summary-card">
-                  <span>
-                    Total Quantity
-                  </span>
+                  <span>{tr("Total Quantity")}</span>
 
                   <strong>
-                    {totalQuantityKg.toLocaleString()}{" "}
-                    kg
-                  </strong>
+                    {totalQuantityKg.toLocaleString()}{" "}{tr("kg")}</strong>
                 </div>
 
                 <div className="ae-summary-card">
-                  <span>
-                    Grand Total
-                  </span>
+                  <span>{tr("Grand Total")}</span>
 
                   <strong>
                     ₱
@@ -1246,8 +1166,7 @@ export default function AddExpense() {
           ) : (
             <>
               <div className="ae-form-group">
-                <label>
-                  Amount{" "}
+                <label>{tr("Amount")}{" "}
                   <span className="req">*</span>
                 </label>
 
@@ -1265,26 +1184,20 @@ export default function AddExpense() {
                     onChange={handleChange}
                     onKeyDown={blockInvalidNumberKeys}
                     onPaste={blockInvalidNumberPaste}
-                    placeholder="Enter amount"
+                    placeholder={tr("Enter amount")}
                     required
                   />
                 </div>
               </div>
 
               <div className="ae-form-group">
-                <label>
-                  Receipt{" "}
-                  <span className="ae-optional">
-                    (optional)
-                  </span>
+                <label>{tr("Receipt")}{" "}
+                  <span className="ae-optional">{tr("(optional)")}</span>
                 </label>
 
                 <div className="ae-file-wrap">
                   <label className="ae-file-btn">
-                    <FiUpload />
-                    Choose file
-
-                    <input
+                    <FiUpload />{tr("Choose file")}<input
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleFile}
@@ -1310,16 +1223,11 @@ export default function AddExpense() {
                       type="button"
                       className="ae-file-remove"
                       onClick={removeFile}
-                    >
-                      Remove
-                    </button>
+                    >{tr("Remove")}</button>
                   </div>
                 )}
 
-                <small>
-                  Upload a receipt image or PDF
-                  (max 5MB). JPG, PNG, or PDF.
-                </small>
+                <small>{tr("Upload a receipt image or PDF (max 5MB). JPG, PNG, or PDF.")}</small>
               </div>
             </>
           )}
@@ -1327,23 +1235,20 @@ export default function AddExpense() {
 
         <div className="ae-section-header">
           <FiFileText />
-          <h3>Additional Details</h3>
+          <h3>{tr("Additional Details")}</h3>
           <div className="ae-line" />
         </div>
 
         <div className="ae-form-group ae-full-width">
-          <label>
-            Remarks{" "}
-            <span className="ae-optional">
-              (optional)
-            </span>
+          <label>{tr("Remarks")}{" "}
+            <span className="ae-optional">{tr("(optional)")}</span>
           </label>
 
           <textarea
             name="remarks"
             value={form.remarks}
             onChange={handleChange}
-            placeholder="Enter remarks or notes about this expense..."
+            placeholder={tr("Enter remarks or notes about this expense...")}
             maxLength={255}
           />
 
@@ -1353,9 +1258,7 @@ export default function AddExpense() {
         </div>
 
         <div className="ae-form-actions">
-          <p className="ae-required-note">
-            Fields with * are required.
-          </p>
+          <p className="ae-required-note">{tr("Fields with * are required.")}</p>
 
           <div className="ae-action-btns">
             <button
@@ -1368,9 +1271,7 @@ export default function AddExpense() {
               }
               disabled={saving}
             >
-              <FiX />
-              Cancel
-            </button>
+              <FiX />{tr("Cancel")}</button>
 
             <button
               type="submit"

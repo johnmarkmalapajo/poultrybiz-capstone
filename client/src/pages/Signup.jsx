@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -7,6 +8,7 @@ const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const [form, setForm] = useState({
     name: "",
@@ -51,12 +53,12 @@ export default function Signup() {
   };
 
   const validate = () => {
-    if (!form.name.trim()) return "Full name is required.";
-    if (!form.email.trim()) return "Email is required.";
+    if (!form.name.trim()) return t("Full name is required.");
+    if (!form.email.trim()) return t("Email is required.");
     if (form.password.length < 6)
-      return "Password must be at least 6 characters.";
+      return t("Password must be at least 6 characters.");
     if (form.password !== form.confirmPassword)
-      return "Passwords do not match.";
+      return t("Passwords do not match.");
 
     return "";
   };
@@ -90,7 +92,7 @@ export default function Signup() {
       const data = await response.json();
 
       if (!data.success) {
-        setError(data.message || "Registration failed.");
+        setError(t(data.message || "Registration failed."));
         return;
       }
 
@@ -110,7 +112,7 @@ export default function Signup() {
       navigate("/pending-approval");
     } catch (error) {
       console.error(error);
-      setError("Cannot connect to the server.");
+      setError(t("Cannot connect to the server."));
     } finally {
       setLoading(false);
     }
@@ -119,12 +121,12 @@ export default function Signup() {
   return (
     <div className="su-bg">
       <div className="su-card">
-        <h2 className="su-title">Create Account</h2>
+        <h2 className="su-title">{t("Create Account")}</h2>
 
         <form className="su-form" onSubmit={handleSubmit} noValidate>
 
           <div className="su-field">
-            <label className="su-label">Full Name</label>
+            <label className="su-label">{t("Full Name")}</label>
 
             <input
               type="text"
@@ -138,7 +140,7 @@ export default function Signup() {
           </div>
 
           <div className="su-field">
-            <label className="su-label">Email</label>
+            <label className="su-label">{t("Email")}</label>
 
             <input
               type="email"
@@ -152,14 +154,14 @@ export default function Signup() {
           </div>
 
           <div className="su-field">
-            <label className="su-label">Password</label>
+            <label className="su-label">{t("Password")}</label>
 
             <div className="su-pass-wrap">
               <input
                 type={showPass ? "text" : "password"}
                 name="password"
                 className="su-input"
-                placeholder="Minimum 6 characters"
+                placeholder={t("Minimum 6 characters")}
                 autoComplete="new-password"
                 value={form.password}
                 onChange={handleChange}
@@ -175,14 +177,14 @@ export default function Signup() {
           </div>
 
           <div className="su-field">
-            <label className="su-label">Confirm Password</label>
+            <label className="su-label">{t("Confirm Password")}</label>
 
             <div className="su-pass-wrap">
               <input
                 type={showConfirm ? "text" : "password"}
                 name="confirmPassword"
                 className="su-input"
-                placeholder="Confirm password"
+                placeholder={t("Confirm password")}
                 autoComplete="new-password"
                 value={form.confirmPassword}
                 onChange={handleChange}
@@ -198,13 +200,13 @@ export default function Signup() {
           </div>
 
           <div className="su-field">
-            <label className="su-label">Role</label>
+            <label className="su-label">{t("Role")}</label>
 
             <div className="su-select-wrap">
               <input
                 type="text"
                 className="su-select"
-                value={assignedRole}
+                value={t(assignedRole)}
                 readOnly
                 disabled
               />
@@ -222,8 +224,8 @@ export default function Signup() {
             }}
           >
             {assignedRole === "Owner"
-              ? "As the first account, you'll be registered as the Owner and can log in right away."
-              : "Farmer account requires Owner approval before you can log in."}
+              ? t("As the first account, you'll be registered as the Owner and can log in right away.")
+              : t("Farmer account requires Owner approval before you can log in.")}
           </div>
 
           {error && <p className="su-error">{error}</p>}
@@ -233,18 +235,18 @@ export default function Signup() {
             className="su-btn"
             disabled={loading}
           >
-            {loading ? <span className="su-spinner" /> : "Register"}
+            {loading ? <span className="su-spinner" /> : t("Register")}
           </button>
 
         </form>
 
         <p className="su-login">
-          Already have an account?{" "}
+          {t("Already have an account?")}{" "}
           <span
             className="su-login-link"
             onClick={() => navigate("/login")}
           >
-            Login
+            {t("Login")}
           </span>
         </p>
       </div>

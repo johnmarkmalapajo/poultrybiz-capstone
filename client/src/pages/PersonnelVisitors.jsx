@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import "./PersonnelVisitors.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const cards = [
   {
@@ -24,6 +25,7 @@ const cards = [
 ];
 
 export default function PersonnelVisitors() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   return (
@@ -40,8 +42,8 @@ export default function PersonnelVisitors() {
               <span className="pv-card-emoji">{card.emoji}</span>
             </div>
             <div className="pv-card-body">
-              <span className="pv-card-label">{card.label}</span>
-              <span className="pv-card-desc">{card.description}</span>
+              <span className="pv-card-label">{tr(card.label)}</span>
+              <span className="pv-card-desc">{tr(card.description)}</span>
             </div>
             <span className="pv-card-arrow">›</span>
           </button>

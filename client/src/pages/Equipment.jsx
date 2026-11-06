@@ -15,10 +15,12 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const CONDITION_OPTIONS = ["In Use", "Idle", "For Repair", "For Disposal"];
 
 export default function Equipment() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { canEdit, canArchive, canSeeFinancials, isOwner } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
@@ -35,13 +37,13 @@ export default function Equipment() {
         setRecords(Array.isArray(data) ? data : data.records || data.data || []);
       } catch (err) {
         setRecords([]);
-        setError(err?.message || "Couldn't load equipment records.");
+        setError(tr(err?.message || "Couldn't load equipment records."));
       } finally {
         setLoading(false);
       }
     })();
     getFarmInfo().then((d) => setFarmInfo(d)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showFilter, setShowFilter] = useState(false);
   const defaultFilters = { condition: "All", period: "all", year: "All", month: "All", week: "", dateFrom: "", dateTo: "" };
@@ -64,15 +66,15 @@ export default function Equipment() {
     if (draft.period === "custom") {
       const today = todayStr();
       if (draft.dateFrom && draft.dateFrom > today) {
-        setError("Start date cannot be a future date.");
+        setError(tr("Start date cannot be a future date."));
         return;
       }
       if (draft.dateTo && draft.dateTo > today) {
-        setError("End date cannot be a future date.");
+        setError(tr("End date cannot be a future date."));
         return;
       }
       if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-        setError("Start date cannot be later than end date.");
+        setError(tr("Start date cannot be later than end date."));
         return;
       }
     }
@@ -231,9 +233,7 @@ export default function Equipment() {
         <div className="eq-toolbar">
           {isOwner && (
             <button className="eq-add-btn" onClick={() => navigate("/sales-transactions/expenses/add?category=Equipment")}>
-              <FiPlus />
-              Add Equipment
-            </button>
+              <FiPlus />{tr("Add Equipment")}</button>
           )}
 
           <div className="eq-toolbar-right">
@@ -241,7 +241,7 @@ export default function Equipment() {
               <FiSearch />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={tr("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -251,37 +251,36 @@ export default function Equipment() {
               {}
               <div className="eq-filter-wrap" ref={filterRef}>
                 <button className="eq-toolbar-btn" onClick={openFilterPanel}>
-                  <FiFilter /> Filter
-                  {activeFilterCount > 0 && <span className="eq-filter-count">{activeFilterCount}</span>}
+                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="eq-filter-count">{activeFilterCount}</span>}
                 </button>
 
                 {showFilter && (
                   <div className="eq-filter-dropdown">
                     <div className="eq-filter-dropdown-header">
-                      <span>Filter Records</span>
+                      <span>{tr("Filter Records")}</span>
                     </div>
 
-                    <div className="eq-filter-section-label">Date Filter</div>
+                    <div className="eq-filter-section-label">{tr("Date Filter")}</div>
                     <div className="eq-filter-row">
                       <div className="eq-filter-group">
-                        <label className="eq-filter-label">Date Period</label>
+                        <label className="eq-filter-label">{tr("Date Period")}</label>
                         <select
                           className="eq-filter-select"
                           value={draft.period}
                           onChange={(e) => handleFilterChange("period", e.target.value)}
                         >
-                          <option value="all">All Records</option>
-                          <option value="today">Today</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="all">{tr("All Records")}</option>
+                          <option value="today">{tr("Today")}</option>
+                          <option value="week">{tr("Week")}</option>
+                          <option value="month">{tr("Month")}</option>
+                          <option value="year">{tr("Year")}</option>
+                          <option value="custom">{tr("Custom Range")}</option>
                         </select>
                       </div>
 
                       {draft.period === "week" && (
                         <div className="eq-filter-group">
-                          <label className="eq-filter-label">Week</label>
+                          <label className="eq-filter-label">{tr("Week")}</label>
                           <input
                             type="week"
                             className="eq-filter-select"
@@ -293,15 +292,15 @@ export default function Equipment() {
 
                       {draft.period === "month" && (
                         <div className="eq-filter-group">
-                          <label className="eq-filter-label">Month</label>
+                          <label className="eq-filter-label">{tr("Month")}</label>
                           <select
                             className="eq-filter-select"
                             value={draft.month}
                             onChange={(e) => handleFilterChange("month", e.target.value)}
                           >
-                            <option value="All">Select Month</option>
+                            <option value="All">{tr("Select Month")}</option>
                             {monthOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -309,15 +308,15 @@ export default function Equipment() {
 
                       {(draft.period === "month" || draft.period === "year") && (
                         <div className="eq-filter-group">
-                          <label className="eq-filter-label">Year</label>
+                          <label className="eq-filter-label">{tr("Year")}</label>
                           <select
                             className="eq-filter-select"
                             value={draft.year}
                             onChange={(e) => handleFilterChange("year", e.target.value)}
                           >
-                            <option value="All">Select Year</option>
+                            <option value="All">{tr("Select Year")}</option>
                             {yearOptions.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
+                              <option key={opt} value={opt}>{tr(opt)}</option>
                             ))}
                           </select>
                         </div>
@@ -326,39 +325,39 @@ export default function Equipment() {
 
                     {draft.period === "custom" && (
                       <div className="eq-filter-group">
-                        <label className="eq-filter-label">Start Date / End Date</label>
+                        <label className="eq-filter-label">{tr("Start Date / End Date")}</label>
                         <div className="eq-filter-date-range">
                           <input type="date" className="eq-filter-select" value={draft.dateFrom}
                             max={draft.dateTo || todayStr()}
-                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label="From date" />
-                          <span>to</span>
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
                           <input type="date" className="eq-filter-select" value={draft.dateTo}
                             min={draft.dateFrom || undefined} max={todayStr()}
-                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label="To date" />
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)} aria-label={tr("To date")} />
                         </div>
                       </div>
                     )}
 
-                    <div className="eq-filter-section-label">Filters</div>
+                    <div className="eq-filter-section-label">{tr("Filters")}</div>
                     <div className="eq-filter-row">
                       <div className="eq-filter-group">
-                        <label className="eq-filter-label">Condition</label>
+                        <label className="eq-filter-label">{tr("Condition")}</label>
                         <select
                           className="eq-filter-select"
                           value={draft.condition}
                           onChange={(e) => handleFilterChange("condition", e.target.value)}
                         >
-                          <option value="All">All Conditions</option>
+                          <option value="All">{tr("All Conditions")}</option>
                           {CONDITION_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                            <option key={opt} value={opt}>{tr(opt)}</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
                     <div className="eq-filter-actions">
-                      <button className="eq-filter-clear" onClick={clearFilters}>Clear All</button>
-                      <button className="eq-filter-apply" onClick={applyFilters}>Apply</button>
+                      <button className="eq-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                      <button className="eq-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                     </div>
                   </div>
                 )}
@@ -368,7 +367,7 @@ export default function Equipment() {
                 rows={filtered}
                 columns={exportColumns}
                 name="equipment-tools"
-                title="Equipment & Tools Report"
+                title={tr("Equipment & Tools Report")}
                 meta={exportMeta}
                 pdfExtra={{ period: exportMeta.period, summary: exportSummary, hideApprovalAndTagline: true }}
                 moduleLabel="Equipment & Tools"
@@ -391,8 +390,8 @@ export default function Equipment() {
             <div className="eq-stat-icon gold"><FiGrid /></div>
             <div>
               <h3>{totalItems}</h3>
-              <p>Total Items</p>
-              <span>All Records</span>
+              <p>{tr("Total Items")}</p>
+              <span>{tr("All Records")}</span>
             </div>
           </div>
 
@@ -400,8 +399,8 @@ export default function Equipment() {
             <div className="eq-stat-icon blue"><FiPackage /></div>
             <div>
               <h3>{totalQuantity}</h3>
-              <p>Total Quantity</p>
-              <span>All Units</span>
+              <p>{tr("Total Quantity")}</p>
+              <span>{tr("All Units")}</span>
             </div>
           </div>
 
@@ -410,8 +409,8 @@ export default function Equipment() {
               <div className="eq-stat-icon green"><FiDollarSign /></div>
               <div>
                 <h3>{peso(totalValue)}</h3>
-                <p>Total Value</p>
-                <span>Acquisition Cost</span>
+                <p>{tr("Total Value")}</p>
+                <span>{tr("Acquisition Cost")}</span>
               </div>
             </div>
           )}
@@ -420,8 +419,8 @@ export default function Equipment() {
             <div className="eq-stat-icon green"><FiCheckCircle /></div>
             <div>
               <h3>{inUseCount}</h3>
-              <p>In Use</p>
-              <span>Items</span>
+              <p>{tr("In Use")}</p>
+              <span>{tr("Items")}</span>
             </div>
           </div>
         </div>
@@ -431,36 +430,34 @@ export default function Equipment() {
           <table className="eq-table">
             <thead>
               <tr>
-                <th className="eq-sortable-th" onClick={() => cycleSort("itemNo")}>Item No.{sortIndicator("itemNo", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("name")}>Equipment/Tool Name{sortIndicator("name", sortColumn, sortDirection)}</th>
-                <th>Description/Specifications</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("serialNo")}>Serial/ID No.{sortIndicator("serialNo", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("quantity")}>Quantity{sortIndicator("quantity", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("unit")}>Unit{sortIndicator("unit", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("condition")}>Condition{sortIndicator("condition", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("location")}>Location/Storage{sortIndicator("location", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("custodian")}>Custodian/Assigned To{sortIndicator("custodian", sortColumn, sortDirection)}</th>
-                <th className="eq-sortable-th" onClick={() => cycleSort("dateAcquired")}>Date Acquired{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
-                {canSeeFinancials && <th className="eq-sortable-th" onClick={() => cycleSort("cost")}>Acquisition Cost{sortIndicator("cost", sortColumn, sortDirection)}</th>}
-                <th>Remarks</th>
-                <th>Actions</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("itemNo")}>{tr("Item No.")}{sortIndicator("itemNo", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("name")}>{tr("Equipment/Tool Name")}{sortIndicator("name", sortColumn, sortDirection)}</th>
+                <th>{tr("Description/Specifications")}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("serialNo")}>{tr("Serial/ID No.")}{sortIndicator("serialNo", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("quantity")}>{tr("Quantity")}{sortIndicator("quantity", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("unit")}>{tr("Unit")}{sortIndicator("unit", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("condition")}>{tr("Condition")}{sortIndicator("condition", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("location")}>{tr("Location/Storage")}{sortIndicator("location", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("custodian")}>{tr("Custodian/Assigned To")}{sortIndicator("custodian", sortColumn, sortDirection)}</th>
+                <th className="eq-sortable-th" onClick={() => cycleSort("dateAcquired")}>{tr("Date Acquired")}{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
+                {canSeeFinancials && <th className="eq-sortable-th" onClick={() => cycleSort("cost")}>{tr("Acquisition Cost")}{sortIndicator("cost", sortColumn, sortDirection)}</th>}
+                <th>{tr("Remarks")}</th>
+                <th>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={canSeeFinancials ? 13 : 12} className="eq-empty-state">Loading equipment records...</td></tr>
+                <tr><td colSpan={canSeeFinancials ? 13 : 12} className="eq-empty-state">{tr("Loading equipment records...")}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={canSeeFinancials ? 13 : 12} className="eq-empty-state">
                     <div className="eq-empty-content">
                       <FiMaximize />
-                      <h3>No equipment records found</h3>
+                      <h3>{tr("No equipment records found")}</h3>
                       <p>{isOwner ? "Click Add Equipment to record your first item." : "No equipment records to display."}</p>
                       {isOwner && (
                         <button className="eq-empty-add-btn" onClick={() => navigate("/sales-transactions/expenses/add?category=Equipment")}>
-                          <FiPlus />
-                          Add Equipment
-                        </button>
+                          <FiPlus />{tr("Add Equipment")}</button>
                       )}
                     </div>
                   </td>
@@ -487,14 +484,14 @@ export default function Equipment() {
                         {canEdit && (
                           <button
                             className="eq-btn-edit"
-                            title="Edit"
+                            title={tr("Edit")}
                             onClick={() => navigate(`/inventory/equipment/edit/${r._id || r.id}`)}
                           >
                             <FiEdit2 />
                           </button>
                         )}
                         {canArchive && (
-                          <button className="eq-btn-archive" onClick={() => requestArchive({ module: "Equipment & Tools", moduleKey: "pb_equipment", record: r, name: r.name || r.equipmentName })} title="Archive">
+                          <button className="eq-btn-archive" onClick={() => requestArchive({ module: "Equipment & Tools", moduleKey: "pb_equipment", record: r, name: r.name || r.equipmentName })} title={tr("Archive")}>
                             <FiArchive />
                           </button>
                         )}

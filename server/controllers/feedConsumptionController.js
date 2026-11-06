@@ -88,7 +88,6 @@ exports.createFeedConsumption = async (req, res) => {
 
         category: "feed",
         type: "alert",
-        priority: "Warning",
 
         roles: ["Owner", "Farmer"],
       });

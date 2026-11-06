@@ -1,4 +1,5 @@
 import "./ArchiveConfirmModal.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 /**
  * ArchiveConfirmModal — same visual design across every page (matches the
@@ -9,18 +10,17 @@ import "./ArchiveConfirmModal.css";
  * and `confirmArchive` straight through.
  */
 export default function ArchiveConfirmModal({ pending, onCancel, onConfirm }) {
+  const { t: tr } = useLanguage();
   if (!pending) return null;
 
   return (
     <div className="pb-confirm-overlay" onClick={onCancel}>
       <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="pb-confirm-title">Archive Record</h3>
-        <p className="pb-confirm-message">
-          Move "{pending.name || "this record"}" to the archive? You can restore it anytime from the Archive page.
-        </p>
+        <h3 className="pb-confirm-title">{tr("Archive Record")}</h3>
+        <p className="pb-confirm-message">{tr("Move \"")}{pending.name || "this record"}{tr("\" to the archive? You can restore it anytime from the Archive page.")}</p>
         <div className="pb-confirm-actions">
-          <button className="pb-confirm-cancel" onClick={onCancel}>Cancel</button>
-          <button className="pb-confirm-archive" onClick={onConfirm}>Archive</button>
+          <button className="pb-confirm-cancel" onClick={onCancel}>{tr("Cancel")}</button>
+          <button className="pb-confirm-archive" onClick={onConfirm}>{tr("Archive")}</button>
         </div>
       </div>
     </div>

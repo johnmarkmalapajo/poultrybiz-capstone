@@ -12,11 +12,13 @@ import "./AddQuarantineIsolation.css";
 import { createQuarantineRecord, listQuarantineRecords } from "../api/quarantineIsolation";
 import { listFlocks } from "../api/flockProfile";
 import { listHealthOptions } from "../api/healthOptions";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_VALUE = "__new__";
 const backRoute = "/records/quarantine?tab=isolation";
 
 export default function AddQuarantineIsolation() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -95,7 +97,7 @@ export default function AddQuarantineIsolation() {
     if (e.target.type === "date") {
       if (e.target.max && value > e.target.max) {
         value = e.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -119,15 +121,15 @@ export default function AddQuarantineIsolation() {
     if (saving) return;
 
     if (formData.symptoms === NEW_VALUE && !newSymptom.trim()) {
-      setError("Please enter the Symptoms/Reasons.");
+      setError(tr("Please enter the Symptoms/Reasons."));
       return;
     }
     if (formData.dateIsolated > today) {
-      setError("Date Isolated cannot be in the future.");
+      setError(tr("Date Isolated cannot be in the future."));
       return;
     }
     if (!/^\d+$/.test(String(formData.headCount).trim()) || Number(formData.headCount) <= 0) {
-      setError("Number of Birds Isolated must be a whole number greater than zero.");
+      setError(tr("Number of Birds Isolated must be a whole number greater than zero."));
       return;
     }
     if (headCountExceedsAvailable) {
@@ -157,7 +159,7 @@ export default function AddQuarantineIsolation() {
       } catch {}
       navigate(backRoute);
     } catch (err) {
-      setError(err?.message || "Couldn't save this record. Please try again.");
+      setError(tr(err?.message || "Couldn't save this record. Please try again."));
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -178,20 +180,19 @@ export default function AddQuarantineIsolation() {
 
         <div className="aqi-section-header">
           <FiAlertCircle />
-          <h3>Isolation Details</h3>
+          <h3>{tr("Isolation Details")}</h3>
           <div className="aqi-line" />
         </div>
 
         <div className="aqi-form-grid">
           <div className="aqi-form-group">
-            <label>Isolation ID</label>
+            <label>{tr("Isolation ID")}</label>
             <input type="text" value={nextIsolationId} disabled />
-            <small>Automatically generated when this record is saved.</small>
+            <small>{tr("Automatically generated when this record is saved.")}</small>
           </div>
 
           <div className="aqi-form-group">
-            <label>
-              Batch ID <span className="aqi-req">*</span>
+            <label>{tr("Batch ID")}{" "}<span className="aqi-req">*</span>
             </label>
             <select
               name="batchId"
@@ -199,7 +200,7 @@ export default function AddQuarantineIsolation() {
               onChange={handleBatchChange}
               required
             >
-              <option value="">Select batch ID</option>
+              <option value="">{tr("Select batch ID")}</option>
               {batchOptions.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
@@ -209,8 +210,7 @@ export default function AddQuarantineIsolation() {
           </div>
 
           <div className="aqi-form-group">
-            <label>
-              Date Isolated <span className="aqi-req">*</span>
+            <label>{tr("Date Isolated")}{" "}<span className="aqi-req">*</span>
             </label>
             <input
               type="date"
@@ -223,8 +223,7 @@ export default function AddQuarantineIsolation() {
           </div>
 
           <div className="aqi-form-group">
-            <label>
-              Number of Birds Isolated <span className="aqi-req">*</span>
+            <label>{tr("Number of Birds Isolated")}{" "}<span className="aqi-req">*</span>
             </label>
             <input
               type="text"
@@ -237,30 +236,28 @@ export default function AddQuarantineIsolation() {
                   headCount: e.target.value.replace(/[^\d]/g, ""),
                 }))
               }
-              placeholder="Enter number of birds"
+              placeholder={tr("Enter number of birds")}
               required
             />
             {selectedFlock && (
-              <small style={headCountExceedsAvailable ? { color: "#c0392b" } : undefined}>
-                Available birds in this batch: {availableBirds}
+              <small style={headCountExceedsAvailable ? { color: "#c0392b" } : undefined}>{tr("Available birds in this batch:")}{" "}{availableBirds}
               </small>
             )}
           </div>
 
           <div className="aqi-form-group">
-            <label>Location</label>
+            <label>{tr("Location")}</label>
             <input
               type="text"
               name="location"
               value={formData.location}
               onChange={handleChange}
-              placeholder="e.g. Isolation Pen 2"
+              placeholder={tr("e.g. Isolation Pen 2")}
             />
           </div>
 
           <div className="aqi-form-group">
-            <label>
-              Symptoms / Reasons <span className="aqi-req">*</span>
+            <label>{tr("Symptoms / Reasons")}{" "}<span className="aqi-req">*</span>
             </label>
             <div style={{ display: "flex", gap: "10px" }}>
               <select
@@ -270,46 +267,45 @@ export default function AddQuarantineIsolation() {
                 style={{ flex: 1 }}
                 required
               >
-                <option value="">Select symptoms/reasons</option>
+                <option value="">{tr("Select symptoms/reasons")}</option>
                 {symptomOptions.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
-                <option value={NEW_VALUE}>Others</option>
+                <option value={NEW_VALUE}>{tr("Others")}</option>
               </select>
               {formData.symptoms === NEW_VALUE && (
                 <input
                   type="text"
                   value={newSymptom}
                   onChange={(e) => setNewSymptom(e.target.value)}
-                  placeholder="Enter symptoms/reason..."
+                  placeholder={tr("Enter symptoms/reason...")}
                   style={{ flex: 1 }}
                   required
                 />
               )}
             </div>
-            <small>Shared with Diagnosis's Presumptive Diagnosis list. This will be saved and available in future Symptoms/Reasons and Presumptive Diagnosis dropdowns.</small>
+            <small>{tr("Shared with Diagnosis's Presumptive Diagnosis list. This will be saved and available in future Symptoms/Reasons and Presumptive Diagnosis dropdowns.")}</small>
           </div>
         </div>
 
         <div className="aqi-section-header">
           <FiFileText />
-          <h3>Remarks</h3>
+          <h3>{tr("Remarks")}</h3>
           <div className="aqi-line" />
         </div>
 
         <div className="aqi-form-group aqi-full-width">
-          <label>
-            Remarks <span className="aqi-optional">(optional)</span>
+          <label>{tr("Remarks")}{" "}<span className="aqi-optional">{tr("(optional)")}</span>
           </label>
           <textarea
             name="remarks"
             value={formData.remarks}
             onChange={handleChange}
-            placeholder="Any additional notes about this isolation event..."
+            placeholder={tr("Any additional notes about this isolation event...")}
             maxLength={255}
           />
           <div className="aqi-char-row">
-            <small>Optional remarks for this record.</small>
+            <small>{tr("Optional remarks for this record.")}</small>
             <small className="aqi-char-count">
               {formData.remarks.length} / 255
             </small>
@@ -317,15 +313,14 @@ export default function AddQuarantineIsolation() {
         </div>
 
         <div className="aqi-form-actions">
-          <p className="aqi-req-note">Fields with * are required.</p>
+          <p className="aqi-req-note">{tr("Fields with * are required.")}</p>
           <div className="aqi-action-btns">
             <button
               type="button"
               className="aqi-cancel-btn"
               onClick={() => navigate(backRoute)}
             >
-              <FiX /> Cancel
-            </button>
+              <FiX />{" "}{tr("Cancel")}</button>
             <button type="submit" disabled={saving || headCountExceedsAvailable} className="aqi-save-btn">
               <FiSave /> {saving ? "Saving..." : "Save Record"}
             </button>

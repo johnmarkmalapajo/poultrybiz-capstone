@@ -202,7 +202,6 @@ exports.createQuarantineRecord = async (req, res) => {
           description: `Health issue detected in Batch ${batchId}: ${resolvedSymptoms}. Reported ${new Date(dateIsolated).toLocaleDateString()} at ${new Date().toLocaleTimeString()}.`,
           category: "health",
           type: "alert",
-          priority: "High",
           roles: ["Owner", "Farmer"],
         });
       }

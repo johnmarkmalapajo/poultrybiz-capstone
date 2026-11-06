@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Breadcrumb from "../components/Breadcrumb";
 import "./Inventory.css";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const cards = [
   { id: "feed-inventory",   label: "Feed Inventory",          emoji: "🌾", description: "Track feed stock levels and supplies",  color: "#e8a020", bg: "#fff8ec", path: "/inventory/feed-inventory" },
@@ -10,6 +11,7 @@ const cards = [
 ];
 
 export default function Inventory() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
 
   return (
@@ -31,8 +33,8 @@ export default function Inventory() {
                 <span className="inv-card-emoji">{card.emoji}</span>
               </div>
               <div className="inv-card-body">
-                <span className="inv-card-label">{card.label}</span>
-                <span className="inv-card-desc">{card.description}</span>
+                <span className="inv-card-label">{tr(card.label)}</span>
+                <span className="inv-card-desc">{tr(card.description)}</span>
               </div>
               <span className="inv-card-arrow">›</span>
             </button>

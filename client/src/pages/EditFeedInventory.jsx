@@ -8,11 +8,13 @@ import {
   updateFeedInventory,
 } from "../api/feedInventory";
 import { useFeedStock, resolveSackWeight } from "../hooks/useFeedStock";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 const QUANTITY_UNITS = ["sacks", "kg"];
 
 export default function EditFeedInventory() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -97,7 +99,7 @@ export default function EditFeedInventory() {
         });
       } catch (err) {
         setError(
-          err?.message || "Couldn't load this feed inventory record."
+          tr(err?.message || "Couldn't load this feed inventory record.")
         );
       } finally {
         setLoading(false);
@@ -105,7 +107,7 @@ export default function EditFeedInventory() {
     };
 
     fetchRecord();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (event) => {
     const { name } = event.target;
@@ -114,7 +116,7 @@ export default function EditFeedInventory() {
     if (event.target.type === "date") {
       if (event.target.max && value > event.target.max) {
         value = event.target.max;
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -182,22 +184,22 @@ export default function EditFeedInventory() {
 
     if (!isLinked) {
       if (!form.date) {
-        setError("Please select the purchase date.");
+        setError(tr("Please select the purchase date."));
         return;
       }
 
       if (!form.feedType) {
-        setError("Please select a feed type.");
+        setError(tr("Please select a feed type."));
         return;
       }
 
       if (form.quantity === "" || quantity <= 0) {
-        setError("Please enter a valid quantity.");
+        setError(tr("Please enter a valid quantity."));
         return;
       }
 
       if (form.quantityUnit === "sacks" && !Number.isInteger(quantity)) {
-        setError("Sack quantity must be a whole number.");
+        setError(tr("Sack quantity must be a whole number."));
         return;
       }
     }
@@ -229,7 +231,7 @@ export default function EditFeedInventory() {
       navigate("/inventory/feed-inventory");
     } catch (err) {
       setError(
-        err?.message || "Couldn't update this feed inventory record."
+        tr(err?.message || "Couldn't update this feed inventory record.")
       );
       setSaving(false);
     } finally {
@@ -255,9 +257,7 @@ export default function EditFeedInventory() {
           },
         ]}
       >
-        <p className="pb-loading-text">
-          Loading record...
-        </p>
+        <p className="pb-loading-text">{tr("Loading record...")}</p>
       </PageLayout>
     );
   }
@@ -291,14 +291,13 @@ export default function EditFeedInventory() {
 
         <div className="efi-section-header">
           <FiInfo />
-          <h3>FEED PURCHASE DETAILS</h3>
+          <h3>{tr("FEED PURCHASE DETAILS")}</h3>
           <div className="efi-line"></div>
         </div>
 
         <div className="efi-form-grid">
           <div className="efi-form-group">
-            <label>
-              Date Purchased{" "}
+            <label>{tr("Date Purchased")}{" "}
               <span className="efi-req">*</span>
             </label>
 
@@ -315,8 +314,7 @@ export default function EditFeedInventory() {
           </div>
 
           <div className="efi-form-group">
-            <label>
-              Feed Type{" "}
+            <label>{tr("Feed Type")}{" "}
               <span className="efi-req">*</span>
             </label>
 
@@ -327,9 +325,7 @@ export default function EditFeedInventory() {
               disabled={isLinked}
               required
             >
-              <option value="">
-                Select feed type
-              </option>
+              <option value="">{tr("Select feed type")}</option>
 
               {FEED_TYPES.map((feedType) => (
                 <option
@@ -343,8 +339,7 @@ export default function EditFeedInventory() {
           </div>
 
           <div className="efi-form-group">
-            <label>
-              Quantity{" "}
+            <label>{tr("Quantity")}{" "}
               <span className="efi-req">*</span>
             </label>
 
@@ -360,7 +355,7 @@ export default function EditFeedInventory() {
                 name="quantity"
                 value={form.quantity}
                 onChange={handleChange}
-                placeholder="Enter quantity"
+                placeholder={tr("Enter quantity")}
                 disabled={isLinked}
                 readOnly={isLinked}
                 required
@@ -371,7 +366,7 @@ export default function EditFeedInventory() {
                 value={form.quantityUnit}
                 onChange={handleUnitChange}
                 disabled={isLinked}
-                aria-label="Quantity unit"
+                aria-label={tr("Quantity unit")}
               >
                 {QUANTITY_UNITS.map((unit) => (
                   <option
@@ -394,18 +389,18 @@ export default function EditFeedInventory() {
 
         <div className="efi-section-header">
           <FiFileText />
-          <h3>ADDITIONAL INFORMATION</h3>
+          <h3>{tr("ADDITIONAL INFORMATION")}</h3>
           <div className="efi-line"></div>
         </div>
 
         <div className="efi-form-group efi-full-width">
-          <label>Remarks</label>
+          <label>{tr("Remarks")}</label>
 
           <textarea
             name="notes"
             value={form.notes}
             onChange={handleChange}
-            placeholder="Enter remarks about this feed purchase..."
+            placeholder={tr("Enter remarks about this feed purchase...")}
             maxLength={255}
           />
 
@@ -424,9 +419,7 @@ export default function EditFeedInventory() {
               )
             }
             disabled={saving}
-          >
-            Cancel
-          </button>
+          >{tr("Cancel")}</button>
 
           <button
             type="submit"

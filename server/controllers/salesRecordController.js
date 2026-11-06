@@ -190,7 +190,6 @@ async function checkNetLoss() {
       description: `Recorded transactions currently show a net loss of PHP ${Math.abs(net).toLocaleString()}.`,
       category: "sales",
       type: "alert",
-      priority: "Critical",
       roles: ["Owner"],
     });
   }

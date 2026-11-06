@@ -25,12 +25,6 @@ const FARMER_ALLOWED_CATEGORIES = [
   "equipment", "age", "task", "todo",
 ];
 
-const PRIORITY_STYLE = {
-  Critical: { bg: "#fde8e8", fg: "#b42318", label: "Critical" },
-  Warning: { bg: "#fff4d6", fg: "#9a6700", label: "Warning" },
-  Normal: { bg: "#e8f3ea", fg: "#256c3b", label: "Normal" },
-};
-
 const escapeHtml = (value) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -80,16 +74,10 @@ async function resolveRecipients(notification) {
 }
 
 function buildEmail(notification, user) {
-  const priority = PRIORITY_STYLE[notification.priority] || PRIORITY_STYLE.Normal;
   const typeLabel = notification.type === "reminder" ? "Reminder" : "Alert";
   const link = clientBaseUrl() ? `${clientBaseUrl()}/notifications` : "";
 
-  const subjectPrefix =
-    notification.priority && notification.priority !== "Normal"
-      ? `[${notification.priority}] `
-      : "";
-
-  const subject = `${subjectPrefix}${notification.title} — PoultryBiz`;
+  const subject = `${notification.title} — PoultryBiz`;
 
   const htmlContent = `
     <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #eee;">
@@ -98,9 +86,6 @@ function buildEmail(notification, user) {
 
       <p>Hi <strong>${escapeHtml(user.name)}</strong>,</p>
 
-      <span style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;background:${priority.bg};color:${priority.fg};">
-        ${priority.label}
-      </span>
       <span style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;background:#f3efe9;color:#3b2008;text-transform:capitalize;">
         ${escapeHtml(notification.category)}
       </span>

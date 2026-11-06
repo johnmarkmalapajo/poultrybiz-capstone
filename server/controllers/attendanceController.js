@@ -158,7 +158,6 @@ exports.checkAttendance = async (req, res) => {
           description: `${req.user.name} (${req.user.role}) checked in at ${formatPhTime(now)}.`,
           category: "personnel",
           type: "alert",
-          priority: "Normal",
           roles: ["Owner"],
         });
 

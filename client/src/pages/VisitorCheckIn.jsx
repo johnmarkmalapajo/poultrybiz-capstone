@@ -3,6 +3,7 @@ import { FiCheckCircle, FiUser, FiCalendar, FiClipboard, FiTruck, FiShield } fro
 import "./VisitorCheckIn.css";
 import { registerVisitorCheckIn } from "../api/visitorLog";
 import logo from "../assets/logo.png";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const _ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const today = () => _ymd();
@@ -21,6 +22,7 @@ const BIO_QUESTIONS = [
 ];
 
 export default function VisitorCheckIn() {
+  const { t: tr } = useLanguage();
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({
     // Visitor info
@@ -38,7 +40,7 @@ export default function VisitorCheckIn() {
     if (k === "dateOfVisit") {
       if (v > today()) {
         v = today();
-        setError("Date cannot be a future date.");
+        setError(tr("Date cannot be a future date."));
       } else {
         setError("");
       }
@@ -70,7 +72,7 @@ export default function VisitorCheckIn() {
       await registerVisitorCheckIn(payload);
       setDone(true);
     } catch (err) {
-      setError(err?.message || "Couldn't submit your registration. Please try again.");
+      setError(tr(err?.message || "Couldn't submit your registration. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -94,12 +96,10 @@ export default function VisitorCheckIn() {
         <div className="vc-card">
           <div className="vc-success">
             <div className="vc-success-icon"><FiCheckCircle /></div>
-            <h2>Registration Complete!</h2>
+            <h2>{tr("Registration Complete!")}</h2>
             <p className="vc-success-name">{form.fullName}</p>
-            <p className="vc-success-meta">Your visit on {form.dateOfVisit} has been recorded. Thank you!</p>
-            <button className="vc-btn vc-btn-ghost" onClick={() => { setForm({ ...form, purpose: "", vehiclePlate: "" }); setDone(false); }}>
-              Register another visit
-            </button>
+            <p className="vc-success-meta">{tr("Your visit on")}{" "}{form.dateOfVisit}{" "}{tr("has been recorded. Thank you!")}</p>
+            <button className="vc-btn vc-btn-ghost" onClick={() => { setForm({ ...form, purpose: "", vehiclePlate: "" }); setDone(false); }}>{tr("Register another visit")}</button>
           </div>
         </div>
       </div>
@@ -112,53 +112,53 @@ export default function VisitorCheckIn() {
         {/* Brand */}
         <div className="vc-brand">
           <div className="qc-logo"><img src={logo} alt="PoultryBiz" style={{ width: 55, height: 55, objectFit: "contain" }} /></div>
-          <div><h1>PoultryBiz</h1><p>Visitor Registration</p></div>
+          <div><h1>{tr("PoultryBiz")}</h1><p>{tr("Visitor Registration")}</p></div>
         </div>
 
         {/* Visitor Information */}
-        <div className="vc-section-head"><FiUser /> Visitor Information</div>
+        <div className="vc-section-head"><FiUser />{" "}{tr("Visitor Information")}</div>
         <div className="vc-field">
-          <label>Full Name <span className="req">*</span></label>
-          <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Juan Dela Cruz" required />
+          <label>{tr("Full Name")}{" "}<span className="req">*</span></label>
+          <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder={tr("Juan Dela Cruz")} required />
         </div>
         <div className="vc-field">
-          <label>Address <span className="req">*</span></label>
-          <input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Brgy., Municipality, Province" required />
+          <label>{tr("Address")}{" "}<span className="req">*</span></label>
+          <input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder={tr("Brgy., Municipality, Province")} required />
         </div>
         <div className="vc-field">
-          <label>Affiliation / Company / Organization <span className="req">*</span></label>
-          <input value={form.affiliation} onChange={(e) => set("affiliation", e.target.value)} placeholder="Company or organization" required />
+          <label>{tr("Affiliation / Company / Organization")}{" "}<span className="req">*</span></label>
+          <input value={form.affiliation} onChange={(e) => set("affiliation", e.target.value)} placeholder={tr("Company or organization")} required />
         </div>
         <div className="vc-field">
-          <label>Contact Number <span className="req">*</span></label>
+          <label>{tr("Contact Number")}{" "}<span className="req">*</span></label>
           <input value={form.contactNumber} onChange={(e) => set("contactNumber", e.target.value)} placeholder="0917 000 0000" required />
         </div>
 
         {/* Visit Information */}
-        <div className="vc-section-head"><FiClipboard /> Visit Information</div>
+        <div className="vc-section-head"><FiClipboard />{" "}{tr("Visit Information")}</div>
         <div className="vc-field">
-          <label><FiCalendar /> Date of Visit <span className="req">*</span></label>
+          <label><FiCalendar />{" "}{tr("Date of Visit")}{" "}<span className="req">*</span></label>
           <input type="date" value={form.dateOfVisit} max={today()} onChange={(e) => set("dateOfVisit", e.target.value)} required />
         </div>
         <div className="vc-field">
-          <label>Purpose of Visit <span className="req">*</span></label>
-          <input value={form.purpose} onChange={(e) => set("purpose", e.target.value)} placeholder="e.g., Flock inspection, Feed delivery" required />
+          <label>{tr("Purpose of Visit")}{" "}<span className="req">*</span></label>
+          <input value={form.purpose} onChange={(e) => set("purpose", e.target.value)} placeholder={tr("e.g., Flock inspection, Feed delivery")} required />
         </div>
         <div className="vc-field">
-          <label><FiTruck /> Vehicle Plate Number</label>
-          <input value={form.vehiclePlate} onChange={(e) => set("vehiclePlate", e.target.value)} placeholder="ABC 1234 (if any)" />
+          <label><FiTruck />{" "}{tr("Vehicle Plate Number")}</label>
+          <input value={form.vehiclePlate} onChange={(e) => set("vehiclePlate", e.target.value)} placeholder={tr("ABC 1234 (if any)")} />
         </div>
 
         {/* Biosecurity Questionnaire */}
-        <div className="vc-section-head"><FiShield /> Biosecurity Questionnaire</div>
+        <div className="vc-section-head"><FiShield />{" "}{tr("Biosecurity Questionnaire")}</div>
         {BIO_QUESTIONS.map(([key, q]) => (
           <div className="vc-question" key={key}>
-            <span className="vc-q-text">{q} <span className="req">*</span></span>
+            <span className="vc-q-text">{tr(q)} <span className="req">*</span></span>
             <YesNo name={key} />
             {key === "otherFarm7d" && form.otherFarm7d === "Yes" && (
               <div className="vc-field vc-subfield">
-                <label>Farm Name / Location <span className="req">*</span></label>
-                <input value={form.otherFarmName} onChange={(e) => set("otherFarmName", e.target.value)} placeholder="Name / location of the other farm" required />
+                <label>{tr("Farm Name / Location")}{" "}<span className="req">*</span></label>
+                <input value={form.otherFarmName} onChange={(e) => set("otherFarmName", e.target.value)} placeholder={tr("Name / location of the other farm")} required />
               </div>
             )}
           </div>
@@ -171,7 +171,7 @@ export default function VisitorCheckIn() {
         )}
 
         <button className="vc-btn" type="submit" disabled={saving}><FiCheckCircle /> {saving ? "Submitting..." : "Submit Registration"}</button>
-        <p className="vc-hint">By submitting, your visit and biosecurity declaration are recorded for farm safety.</p>
+        <p className="vc-hint">{tr("By submitting, your visit and biosecurity declaration are recorded for farm safety.")}</p>
       </form>
     </div>
   );

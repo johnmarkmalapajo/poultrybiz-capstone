@@ -6,8 +6,8 @@ import PageLayout from "../components/PageLayout";
 import "./AddTask.css";
 import { createPersonnelTask } from "../api/personnelManpower";
 import { getPersonnel } from "../api/personnelManpower";
+import { useLanguage } from "../i18n/LanguageContext";
 
-const PRIORITIES = ["High", "Medium", "Low"];
 const STATUSES = ["Pending", "Completed"];
 
 const FARMER_CATEGORIES = [
@@ -31,6 +31,7 @@ const initials = (name) =>
 const today = () => phToday();
 
 export default function AddTask() {
+  const { t: tr } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -42,7 +43,6 @@ export default function AddTask() {
     work: "",
     assignedDate: today(),
     dueDate: "",
-    priority: "Medium",
     status: "Pending",
     category: "",
     notes: "",
@@ -56,9 +56,9 @@ export default function AddTask() {
         setPerson(rec && (rec._id || rec.profile || rec.fullName) ? rec : null);
         setFormData((prev) => ({ ...prev, category: categoriesFor(rec)[0] }));
       })
-      .catch((err) => setError(err?.message || "Couldn't load this personnel record."))
+      .catch((err) => setError(tr(err?.message || "Couldn't load this personnel record.")))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const personName = fullName(person);
 
@@ -84,13 +84,12 @@ export default function AddTask() {
   description: formData.notes,
   assignedDate: formData.assignedDate,
   dueDate: formData.dueDate,
-  priority: formData.priority,
   status: formData.status,
   remarks: "",
 });
   navigate(`/personnel-visitors/personnel/view/${id}`);
 } catch (err) {
-      setError(err?.message || "Couldn't assign this task. Please try again.");
+      setError(tr(err?.message || "Couldn't assign this task. Please try again."));
     } finally {
       setSaving(false);
       window.__pbSaving = false;
@@ -113,99 +112,91 @@ export default function AddTask() {
           <div className="at-for-banner">
             <span className="at-tfb-avatar">{initials(personName)}</span>
             <div>
-              <div className="at-tfb-label">Assigning task to</div>
+              <div className="at-tfb-label">{tr("Assigning task to")}</div>
               <div className="at-tfb-name">{loading ? "Loading..." : personName}</div>
             </div>
           </div>
 
           <div className="at-section-header">
             <FiClipboard />
-            <h3>Task Details</h3>
+            <h3>{tr("Task Details")}</h3>
             <div className="at-line" />
           </div>
 
           <div className="at-form-group at-full-width">
-            <label>Work Assigned <span className="at-req">*</span></label>
+            <label>{tr("Work Assigned")}{" "}<span className="at-req">*</span></label>
             <input
               type="text"
               name="work"
               value={formData.work}
               onChange={handleChange}
-              placeholder="e.g., Morning feeding (Cage 1-4)"
+              placeholder={tr("e.g., Morning feeding (Cage 1-4)")}
               required
             />
           </div>
 
           <div className="at-form-group at-full-width">
-            <label>Category <span className="at-req">*</span></label>
+            <label>{tr("Category")}{" "}<span className="at-req">*</span></label>
             <select name="category" value={formData.category} onChange={handleChange} required>
-              {categoriesFor(person).map((c) => <option key={c} value={c}>{c}</option>)}
+              {categoriesFor(person).map((c) => <option key={c} value={c}>{tr(c)}</option>)}
             </select>
           </div>
 
           <div className="at-section-header">
             <FiCalendar />
-            <h3>Schedule</h3>
+            <h3>{tr("Schedule")}</h3>
             <div className="at-line" />
           </div>
 
           <div className="at-form-grid">
             <div className="at-form-group">
-              <label>Assigned Date <span className="at-req">*</span></label>
+              <label>{tr("Assigned Date")}{" "}<span className="at-req">*</span></label>
               <input type="date" name="assignedDate" value={formData.assignedDate} onChange={handleChange} required />
             </div>
 
             <div className="at-form-group">
-              <label>Due Date <span className="at-req">*</span></label>
+              <label>{tr("Due Date")}{" "}<span className="at-req">*</span></label>
               <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
             </div>
           </div>
 
           <div className="at-section-header">
             <FiFlag />
-            <h3>Priority &amp; Status</h3>
+            <h3>{tr("Status")}</h3>
             <div className="at-line" />
           </div>
 
           <div className="at-form-grid">
             <div className="at-form-group">
-              <label>Priority <span className="at-req">*</span></label>
-              <select name="priority" value={formData.priority} onChange={handleChange} required>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-
-            <div className="at-form-group">
-              <label>Status <span className="at-req">*</span></label>
+              <label>{tr("Status")}{" "}<span className="at-req">*</span></label>
               <select name="status" value={formData.status} onChange={handleChange} required>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {STATUSES.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="at-section-header">
             <FiFileText />
-            <h3>Additional Notes</h3>
+            <h3>{tr("Additional Notes")}</h3>
             <div className="at-line" />
           </div>
 
           <div className="at-form-group at-full-width">
-            <label>Notes <span style={{ color: "#a39e94", fontWeight: 400 }}>(optional)</span></label>
+            <label>{tr("Notes")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
             <textarea
               rows="4"
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              placeholder="Extra instructions or details..."
+              placeholder={tr("Extra instructions or details...")}
             />
           </div>
 
           <div className="at-form-actions">
-            <p className="at-req-note">Fields with * are required.</p>
+            <p className="at-req-note">{tr("Fields with * are required.")}</p>
             <div className="at-action-btns">
               <button type="button" className="at-cancel-btn" onClick={() => navigate(`/personnel-visitors/personnel/view/${id}`)} disabled={saving}>
-                <FiX /> Cancel
-              </button>
+                <FiX />{" "}{tr("Cancel")}</button>
               <button type="submit" className="at-save-btn" disabled={saving}>
                 <FiSave /> {saving ? "Saving..." : "Save Record"}
               </button>

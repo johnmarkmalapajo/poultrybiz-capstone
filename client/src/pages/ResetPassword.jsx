@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n/LanguageContext";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -7,6 +8,7 @@ const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -23,9 +25,9 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
-    if (!token) { setError("Invalid or missing reset token."); return; }
+    if (form.password.length < 6) { setError(t("Password must be at least 6 characters.")); return; }
+    if (form.password !== form.confirmPassword) { setError(t("Passwords do not match.")); return; }
+    if (!token) { setError(t("Invalid or missing reset token.")); return; }
 
     setLoading(true);
     try {
@@ -38,10 +40,10 @@ export default function ResetPassword() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.message || "Something went wrong.");
+        setError(t(data.message || "Something went wrong."));
       }
     } catch {
-      setError("Cannot connect to server. Make sure backend is running.");
+      setError(t("Cannot connect to server. Make sure backend is running."));
     } finally {
       setLoading(false);
     }
@@ -51,9 +53,9 @@ export default function ResetPassword() {
     return (
       <div className="rp-bg">
         <div className="rp-card">
-          <p className="rp-error">Invalid or missing reset token.</p>
+          <p className="rp-error">{t("Invalid or missing reset token.")}</p>
           <button className="rp-btn" onClick={() => navigate("/forgot-password")}>
-            Request New Link
+            {t("Request New Link")}
           </button>
         </div>
       </div>
@@ -66,12 +68,12 @@ export default function ResetPassword() {
         {!success ? (
           <>
             <div className="rp-icon-wrap">🔒</div>
-            <h2 className="rp-title">Reset Password</h2>
-            <p className="rp-desc">Enter your new password below.</p>
+            <h2 className="rp-title">{t("Reset Password")}</h2>
+            <p className="rp-desc">{t("Enter your new password below.")}</p>
 
             <form className="rp-form" onSubmit={handleSubmit} noValidate>
               <div className="rp-field">
-                <label className="rp-label">New Password</label>
+                <label className="rp-label">{t("New Password")}</label>
                 <div className="rp-pass-wrap">
                   <input
                     type={showPass ? "text" : "password"}
@@ -79,7 +81,7 @@ export default function ResetPassword() {
                     value={form.password}
                     onChange={handleChange}
                     className="rp-input"
-                    placeholder="Min. 6 characters"
+                    placeholder={t("Min. 6 characters")}
                     autoComplete="new-password"
                   />
                   <span className="rp-eye" onClick={() => setShowPass(!showPass)}>
@@ -89,7 +91,7 @@ export default function ResetPassword() {
               </div>
 
               <div className="rp-field">
-                <label className="rp-label">Confirm New Password</label>
+                <label className="rp-label">{t("Confirm New Password")}</label>
                 <div className="rp-pass-wrap">
                   <input
                     type={showConfirm ? "text" : "password"}
@@ -97,7 +99,7 @@ export default function ResetPassword() {
                     value={form.confirmPassword}
                     onChange={handleChange}
                     className="rp-input"
-                    placeholder="Re-enter new password"
+                    placeholder={t("Re-enter new password")}
                     autoComplete="new-password"
                   />
                   <span className="rp-eye" onClick={() => setShowConfirm(!showConfirm)}>
@@ -109,17 +111,17 @@ export default function ResetPassword() {
               {error && <p className="rp-error">{error}</p>}
 
               <button type="submit" className="rp-btn" disabled={loading}>
-                {loading ? <span className="rp-spinner" /> : "Reset Password"}
+                {loading ? <span className="rp-spinner" /> : t("Reset Password")}
               </button>
             </form>
           </>
         ) : (
           <div className="rp-success">
             <div className="rp-success-icon">✓</div>
-            <h2 className="rp-title">Password Reset!</h2>
-            <p className="rp-desc">Your password has been successfully changed. You can now login with your new password.</p>
+            <h2 className="rp-title">{t("Password Reset!")}</h2>
+            <p className="rp-desc">{t("Your password has been successfully changed. You can now login with your new password.")}</p>
             <button className="rp-btn" onClick={() => navigate("/login")}>
-              Back to Login
+              {t("Back to Login")}
             </button>
           </div>
         )}
