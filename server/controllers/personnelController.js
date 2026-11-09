@@ -1,66 +1,51 @@
 const mongoose = require("mongoose");
-const Personnel = require("../models/Personnel");
+const PersonalTodo = require("../models/PersonalTodo");
 const User = require("../models/User");
-const Archive = require("../models/Archive");
-const { createAuditLog } = require("./auditController");
-const { createArchiveEntry } = require("./archiveController");
-const { assertNoDependencies } = require("./dependencyController");
+const Personnel = require("../models/Personnel");
 const PersonnelTask = require("../models/PersonnelTask");
-const Attendance = require("../models/Attendance");
+const { createAuditLog } = require("./auditController");
+const { createNotification } = require("./notificationController");
+const { createArchiveEntry } = require("./archiveController");
+const Archive = require("../models/Archive");
+const { canUseCategory } = require("../utils/moduleRegistry");
 
-exports.createPersonnel = async (req, res) => {
-  try {
-    const existing = await Personnel.findOne({
-      user: req.body.user,
-    });
-
-    if (existing) {
-      return res.status(400).json({
-        message: "Personnel record already exists.",
-      });
-    }
-
-    const record = await Personnel.create(req.body);
-
-    const populated = await Personnel.findById(record._id).populate("user");
-
-    res.status(201).json(populated);
-  } catch (err) {
-    res.status(400).json({
-      message: err.message,
-    });
+// How long the task is expected to take -- a distinct concept from Due
+// Date (a deadline). Optional, never required, never used to
+// auto-complete a task. Returns null when omitted/empty, or
+// { value, unit } when provided; throws on an invalid shape/value.
+function parseEstimatedDuration(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    const err = new Error("Estimated Duration must include a value and a unit.");
+    err.status = 400;
+    throw err;
   }
-};
+  const { value, unit } = raw;
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    const err = new Error("Estimated Duration must be a positive number.");
+    err.status = 400;
+    throw err;
+  }
+  const u = ["minutes", "hours"].includes(unit) ? unit : "minutes";
+  return { value: n, unit: u };
+}
 
-exports.getAllPersonnel = async (req, res) => {
+exports.getAllPersonalTodos = async (req, res) => {
   try {
-    const existingPersonnelUserIds = await Personnel.distinct("user");
-    const usersMissingPersonnel = await User.find({
-      _id: { $nin: existingPersonnelUserIds },
-      status: { $ne: "Archived" },
-    });
-
-    if (usersMissingPersonnel.length > 0) {
-      await Personnel.insertMany(
-        usersMissingPersonnel.map((u) => ({
-          user: u._id,
-          position: u.role === "Owner" ? "Owner" : "",
-          shiftHours: "",
-          status: "Active",
-          dateHired: u.createdAt || new Date(),
-          assignedWork: "",
-          remarks: "",
-        }))
-      );
-    }
-
-    const records = await Personnel.find({
-      archived: false,
-    })
-      .populate("user")
+    const todos = await PersonalTodo.find({ archived: false })
+      .populate("user", "name role")
       .sort({ createdAt: -1 });
 
-    res.json(records);
+    const scoped = todos.filter((t) => {
+      const ownerRole = t.user?.role;
+      if (ownerRole !== "Farmer") return false;
+      if (String(t.user?._id) === String(req.user.id)) return false;
+      return true;
+    });
+
+    res.json(scoped);
   } catch (err) {
     res.status(500).json({
       message: err.message,
@@ -68,325 +53,407 @@ exports.getAllPersonnel = async (req, res) => {
   }
 };
 
-exports.getPersonnel = async (req, res) => {
+exports.getPersonalTodos = async (req, res) => {
   try {
-    const record = await Personnel.findById(req.params.id).populate({
-      path: "user",
-      select: "name email phone address avatar role status",
-    });
+    const requestedUserId = req.query.userId ? String(req.query.userId) : "";
+    let ownerId = req.user.id;
 
-    if (!record) {
-      return res.status(404).json({
-        message: "Personnel record not found.",
-      });
+    if (
+      requestedUserId &&
+      requestedUserId !== String(req.user.id) &&
+      req.user.role === "Owner"
+    ) {
+      const target = mongoose.isValidObjectId(requestedUserId)
+        ? await User.findById(requestedUserId).select("role")
+        : null;
+
+      if (!target || target.role !== "Farmer") {
+        return res.status(403).json({
+          message: "You can only view your own personal tasks.",
+        });
+      }
+
+      ownerId = target._id;
     }
 
-    const targetRole = record.user?.role || "";
-    const isTargetOwner = targetRole === "Owner";
-    const isOwnRecord = String(record.user?._id) === String(req.user.id);
-    if (req.user.role !== "Owner" && isTargetOwner && !isOwnRecord) {
+    const todos = await PersonalTodo.find({
+      user: ownerId,
+      archived: false,
+    }).sort({ createdAt: -1 });
+
+    res.json(todos);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.createPersonalTodo = async (req, res) => {
+  try {
+    const ownerId = req.user.id;
+
+    const category = req.body.type || "Records";
+    if (!canUseCategory(category, req.user.role)) {
       return res.status(403).json({
-        message: "You can only view your own record.",
+        success: false,
+        message: "You are not authorized to use this Category.",
       });
     }
 
-    res.json(record);
+    const estimatedDuration = parseEstimatedDuration(req.body.estimatedDuration);
+
+    const todo = await PersonalTodo.create({
+      user: ownerId,
+      title: req.body.title,
+      description: req.body.description || "",
+      type: category,
+      dueDate: req.body.dueDate,
+      estimatedDuration,
+      status: "Pending",
+    });
+
+    const personnel = await Personnel.findOne({
+  $or: [
+    { user: ownerId },
+    { _id: ownerId },
+  ],
+});
+
+if (personnel) {
+  await PersonnelTask.create({
+    personnel: personnel._id,
+    work: todo.title,
+    module: todo.type,
+    description: todo.description,
+    dueDate: todo.dueDate,
+    status: "Pending",
+    assignedBy: req.user._id,
+
+    linkedPersonalTodo: todo._id,
+  });
+}
+
+    await createAuditLog({
+      user: req.user?.name,
+      role: req.user?.role,
+      module: "Personal To-Do",
+      action: "Added",
+      description: `Added personal to-do "${todo.title}".`,
+    });
+
+    if (req.user?.role === "Farmer") {
+      await createNotification({
+        title: "New Personal Task",
+        description: `${req.user.name} created a new personal task: "${todo.title}".`,
+        category: "task",
+        type: "alert",
+        roles: ["Owner"],
+      });
+    }
+
+    res.status(201).json(todo);
   } catch (err) {
-    res.status(500).json({
+    res.status(err.status || 500).json({
       message: err.message,
     });
   }
 };
 
-exports.updatePersonnel = async (req, res) => {
+exports.updatePersonalTodo = async (req, res) => {
   try {
-    const existing = await Personnel.findById(req.params.id).populate("user");
+    const existing = await PersonalTodo.findById(req.params.id);
 
     if (!existing) {
       return res.status(404).json({
-        message: "Personnel record not found.",
+        message: "Todo not found.",
       });
     }
 
-    const targetRole = existing.user?.role || "";
-    const requesterRole = req.user.role;
+    const isMine = String(existing.user) === String(req.user.id);
+    const ownerCheckingFarmerTask = !isMine && req.user.role === "Owner";
 
-    if (requesterRole !== "Owner") {
+    if (!isMine && !ownerCheckingFarmerTask) {
       return res.status(403).json({
-        message: "You don't have permission to edit this record.",
+        success: false,
+        message: "You do not have permission to edit this personal task.",
       });
     }
 
-    const updates = { ...req.body };
-    if (targetRole === "Owner") {
-      delete updates.position;
+    if (req.body.status && !["Pending", "Completed"].includes(req.body.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Personal Tasks may only be Pending or Completed.",
+      });
     }
 
-    const record = await Personnel.findByIdAndUpdate(
+    // The Owner can only check / uncheck (mark done or pending) a Farmer's
+    // personal task -- every other field stays editable by its creator only.
+    let updateData = { ...req.body };
+
+    // Date Created is backend-generated (PersonalTodo's own `timestamps:
+    // true`) and must never be overwritten by an edit, however it arrives
+    // in the request body; "_id" and "user" are likewise never something a
+    // PATCH-style body should be allowed to touch.
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+    delete updateData._id;
+    delete updateData.user;
+
+    if (ownerCheckingFarmerTask) {
+      if (!req.body.status) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only mark a Farmer's personal task as done or pending.",
+        });
+      }
+      updateData = { status: req.body.status };
+    } else if (updateData.estimatedDuration !== undefined) {
+      updateData = { ...updateData, estimatedDuration: parseEstimatedDuration(updateData.estimatedDuration) };
+    }
+
+    const todo = await PersonalTodo.findByIdAndUpdate(
       req.params.id,
-      updates,
+      updateData,
       {
         new: true,
-        runValidators: true,
       }
-    ).populate("user");
+    );
 
-    if (!record) {
+    if (!todo) {
       return res.status(404).json({
-        message: "Personnel record not found.",
+        message: "Todo not found.",
       });
     }
+
+    await createAuditLog({
+      user: req.user?.name,
+      role: req.user?.role,
+      module: "Personal To-Do",
+      action: "Edited",
+      description: req.body.status === "Completed"
+        ? `Marked personal to-do "${todo.title}" as Completed.`
+        : `Updated personal to-do "${todo.title}".`,
+    });
+
+    // Keep the linked PersonnelTask (created alongside every personal task)
+    // in step with the personal task's completion state.
+    if (updateData.status) {
+      await PersonnelTask.findOneAndUpdate(
+        { linkedPersonalTodo: todo._id },
+        {
+          status: updateData.status,
+          completedDate: updateData.status === "Completed" ? new Date() : null,
+        }
+      );
+    }
+
+    if (req.body.status === "Completed" && req.user?.role === "Farmer") {
+      await createNotification({
+        title: "Personal Task Completed",
+        description: `${req.user.name} completed a personal task: "${todo.title}".`,
+        category: "task",
+        type: "alert",
+        roles: ["Owner"],
+      });
+    }
+
+    if (ownerCheckingFarmerTask && req.body.status === "Completed") {
+      await createNotification({
+        title: "Personal Task Marked Done",
+        description: `${req.user.name} marked your personal task "${todo.title}" as completed.`,
+        category: "task",
+        type: "alert",
+        userId: existing.user,
+        referenceId: todo._id,
+        referenceModel: "PersonalTodo",
+      });
+    }
+
+    res.json(todo);
+  } catch (err) {
+    res.status(err.status || 500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.deletePersonalTodo = async (req, res) => {
+  try {
+    const existing = await PersonalTodo.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({
+        message: "Todo not found.",
+      });
+    }
+    if (String(existing.user) !== String(req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to delete this personal task.",
+      });
+    }
+
+    const todo = await PersonalTodo.findByIdAndDelete(req.params.id);
+
+    await PersonnelTask.findOneAndDelete({
+      linkedPersonalTodo: todo._id,
+    });
+
+    await Archive.findOneAndDelete({
+      moduleKey: "pb_personal_todos",
+      recordId: todo._id,
+    });
+
+    if (!todo) {
+      return res.status(404).json({
+        message: "Todo not found.",
+      });
+    }
+
+    await createAuditLog({
+      user: req.user?.name,
+      role: req.user?.role,
+      module: "Personal To-Do",
+      action: "Deleted",
+      description: `Deleted personal to-do "${todo.title}".`,
+    });
+
+    res.json({
+      message: "Todo deleted successfully.",
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.archivePersonalTodo = async (req, res) => {
+  try {
+    const todo = await PersonalTodo.findById(req.params.id);
+
+    if (!todo) {
+      return res.status(404).json({
+        success: false,
+        message: "Todo not found.",
+      });
+    }
+
+    if (String(todo.user) !== String(req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to archive this personal task.",
+      });
+    }
+
+    todo.archived = true;
+    todo.archivedAt = new Date();
+    todo.archivedBy = req.user.name;
+
+    await todo.save();
+
+    const PersonnelTask = require("../models/PersonnelTask");
+
+await PersonnelTask.findOneAndUpdate(
+  { linkedPersonalTodo: todo._id },
+  {
+    archived: true,
+    archivedAt: todo.archivedAt,
+    archivedBy: req.user.name,
+  }
+);
+
+    await createArchiveEntry({
+      module: "Personal Todo",
+      moduleKey: "pb_personal_todos",
+      recordId: todo._id,
+      recordName: todo.title,
+      archivedBy: req.user.name,
+      payload: todo.toObject(),
+    });
+
     await createAuditLog({
       user: req.user.name,
       role: req.user.role,
-      module: "Personnel",
-      action: "Edited",
-      description: `Updated personnel status of '${record.user?.name || record.fullName || "Personnel"}' to '${record.status}'.`,
+      module: "Personal Todo",
+      action: "Archived",
+      description: `Archived todo "${todo.title}".`,
+      prev: todo,
+      next: null,
     });
 
-    res.json(record);
+    return res.json({
+      success: true,
+      message: "Todo archived successfully.",
+    });
+
   } catch (err) {
-    res.status(400).json({
-      message: err.message,
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to archive todo.",
     });
   }
 };
 
-exports.archivePersonnel = async (req, res) => {
-  const session = await mongoose.startSession();
+exports.restorePersonalTodo = async (req, res) => {
   try {
-    await session.withTransaction(async () => {
-      const record = await Personnel.findById(req.params.id).populate("user").session(session);
+    const todo = await PersonalTodo.findById(req.params.id);
 
-      if (!record) {
-        throw Object.assign(new Error("Personnel record not found."), { status: 404 });
-      }
-
-      const targetRole = record.user?.role || "";
-
-      if (targetRole === "Owner") {
-        throw Object.assign(new Error("The Owner's record can't be archived."), { status: 403 });
-      }
-
-      if (req.user.role !== "Owner") {
-        throw Object.assign(new Error("You don't have permission to archive this record."), { status: 403 });
-      }
-
-      record.archived = true;
-      record.archivedAt = new Date();
-      await record.save({ session });
-
-      if (record.user?._id) {
-        await User.findByIdAndUpdate(
-          record.user._id,
-          {
-            archived: true,
-            archivedAt: new Date(),
-            archivedBy: req.user.name,
-          },
-          { session }
-        );
-
-        await Archive.create([{
-          module: "Users",
-          moduleKey: "users",
-          recordId: record.user._id,
-          recordName: record.user?.name,
-          archivedBy: req.user.name,
-          archivedAt: new Date(),
-          payload: record.user.toObject(),
-        }], { session });
-      }
-
-      await createArchiveEntry({
-        module: "Personnel & Manpower",
-        moduleKey: "pb_personnel",
-        recordId: record._id,
-        recordName: record.user?.name || record.position || "Personnel",
-        archivedBy: req.user.name,
-        payload: record.toObject(),
-      });
-
-      await createAuditLog({
-        user: req.user.name,
-        role: req.user.role,
-        module: "Personnel",
-        action: "Archived",
-        description: `Archived personnel record for '${record.user?.name || "Personnel"}' — their login access was revoked.`,
-      });
-    });
-
-    res.json({
-      message: "Personnel archived successfully.",
-    });
-  } catch (err) {
-    res.status(err.status || 500).json({
-      message: err.status ? err.message : err.message,
-    });
-  } finally {
-    session.endSession();
-  }
-};
-
-exports.restorePersonnel = async (req, res) => {
-  const session = await mongoose.startSession();
-  try {
-    await session.withTransaction(async () => {
-      const record = await Personnel.findById(req.params.id).populate("user").session(session);
-
-      if (!record) {
-        throw Object.assign(new Error("Personnel record not found."), { status: 404 });
-      }
-
-      if (req.user.role !== "Owner") {
-        throw Object.assign(new Error("Only the Owner can restore personnel records."), { status: 403 });
-      }
-
-      record.archived = false;
-      record.archivedAt = null;
-      await record.save({ session });
-
-      if (record.user?._id) {
-        await User.findByIdAndUpdate(
-          record.user._id,
-          {
-            archived: false,
-            archivedAt: null,
-            archivedBy: null,
-          },
-          { session }
-        );
-
-        await Archive.findOneAndDelete(
-          { moduleKey: "users", recordId: record.user._id },
-          { session }
-        );
-      }
-
-      await Archive.findOneAndDelete(
-        { moduleKey: "pb_personnel", recordId: record._id },
-        { session }
-      );
-
-      await createAuditLog({
-        user: req.user.name,
-        role: req.user.role,
-        module: "Personnel",
-        action: "Restored",
-        description: `Restored personnel record for '${record.user?.name || "Personnel"}' — their login access was reinstated.`,
-      });
-    });
-
-    res.json({
-      message: "Personnel restored successfully.",
-    });
-  } catch (err) {
-    res.status(err.status || 500).json({
-      message: err.message,
-    });
-  } finally {
-    session.endSession();
-  }
-};
-
-exports.deletePersonnel = async (req, res) => {
-  try {
-    if (req.user.role !== "Owner") {
-      return res.status(403).json({
-        message: "Only the Owner can permanently delete a personnel record.",
-      });
-    }
-
-    const block = await assertNoDependencies("personnel", req.params.id);
-    if (block) {
-      return res.status(409).json(block);
-    }
-
-    const record = await Personnel.findByIdAndDelete(req.params.id);
-
-    if (!record) {
+    if (!todo) {
       return res.status(404).json({
-        message: "Personnel record not found.",
+        success: false,
+        message: "Todo not found.",
       });
     }
+
+    if (String(todo.user) !== String(req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to restore this personal task.",
+      });
+    }
+
+    todo.archived = false;
+    todo.archivedAt = null;
+    todo.archivedBy = null;
+
+    await todo.save();
+
+    await PersonnelTask.findOneAndUpdate(
+      { linkedPersonalTodo: todo._id },
+      {
+        archived: false,
+        archivedAt: null,
+        archivedBy: null,
+      }
+    );
 
     await Archive.findOneAndDelete({
-      moduleKey: "pb_personnel",
-      recordId: record._id,
+      moduleKey: "pb_personal_todos",
+      recordId: todo._id,
     });
 
-    res.json({
-      message: "Personnel deleted successfully.",
+    await createAuditLog({
+      user: req.user.name,
+      role: req.user.role,
+      module: "Personal Todo",
+      action: "Restored",
+      description: `Restored todo "${todo.title}".`,
     });
+
+    return res.json({
+      success: true,
+      message: "Todo restored successfully.",
+    });
+
   } catch (err) {
-    res.status(500).json({
-      message: err.message,
-    });
-  }
-};
+    console.error(err);
 
-exports.getAllAssignedTasks = async (req, res) => {
-  try {
-    const tasks = await PersonnelTask.find()
-      .populate({
-        path: "personnel",
-        populate: {
-          path: "user",
-          select: "name role",
-        },
-      })
-      .sort({ createdAt: -1 });
-
-    const visibleTasks =
-      req.user.role === "Owner"
-        ? tasks
-        : tasks.filter((task) => task.personnel?.user?.role !== "Owner");
-
-    const result = visibleTasks.map((task) => ({
-      _id: task._id,
-
-      personnelId: task.personnel?._id,
-      farmerId: task.personnel?.user?._id,
-      farmerName: task.personnel?.user?.name || "Unknown",
-      assignedBy: task.assignedBy,
-
-      title: task.work,
-      description: task.description,
-      type: task.module || "Records",
-
-      assignedDate: task.assignedDate,
-      dueDate: task.dueDate,
-      status: task.status,
-      remarks: task.remarks,
-      createdAt: task.createdAt,
-
-      archived: task.archived,
-      archivedAt: task.archivedAt,
-      archivedBy: task.archivedBy,
-
-      linkedPersonalTodo: task.linkedPersonalTodo,
-    }));
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({
-      message: err.message,
-    });
-  }
-};
-
-exports.getPersonnelAttendance = async (req, res) => {
-  try {
-    const attendance = await Attendance.find({
-      personnel: req.params.id,
-    }).sort({ date: -1 });
-
-    res.json({
-      records: attendance,
-    });
-  } catch (err) {
-    res.status(500).json({
-      message: err.message,
+    return res.status(500).json({
+      success: false,
+      message: "Unable to restore todo.",
     });
   }
 };

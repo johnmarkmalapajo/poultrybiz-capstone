@@ -1,4 +1,5 @@
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from "./client";
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, API_BASE } from "./client";
+import { getToken } from "./session";
 
 const PATH = "/api/v1/personnel";
 
@@ -56,3 +57,41 @@ export const deletePersonalTodo = (id) =>
 
 export const getFarmerList = () =>
   apiGet(PATH);
+
+// --- Primary / Secondary tasks (Proof of Completion) --------------------
+
+// The authenticated Farmer's own Primary + Secondary tasks for today
+// (server lazily creates any missing daily/lifetime occurrence).
+export const getMyTasksToday = () =>
+  apiGet(`${PATH}/my-tasks/today`);
+
+// Owner-or-self permanent task history for one Farmer (Personnel module),
+// filterable by date range and Primary/Secondary category.
+export const getTaskOccurrenceHistory = (personnelId, params) =>
+  apiGet(`${PATH}/${personnelId}/tasks/history`, params);
+
+// Required Proof of Completion submission: photo + remarks in one
+// multipart request. Uses raw fetch (like uploadReceipt) since the shared
+// request() helper only sends JSON bodies.
+export const submitTaskProof = async (occurrenceId, { photo, remarks }) => {
+  const formData = new FormData();
+  formData.append("photo", photo);
+  formData.append("remarks", remarks);
+
+  const response = await fetch(`${API_BASE}${PATH}/occurrences/${occurrenceId}/submit`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: formData,
+  });
+
+  let data;
+  try { data = await response.json(); } catch { data = {}; }
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to submit Proof of Completion.");
+  }
+
+  return data;
+};

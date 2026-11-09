@@ -4,6 +4,50 @@
    responsive behavior. Every page that uses <Breadcrumb/> automatically gets
    an identical breadcrumb — no per-page overrides needed. */
 
+/* Header row: [hamburger] breadcrumb ........ [Notification Bell]. The row
+   carries the spacing the breadcrumb used to have on its own. The hamburger is
+   hidden on desktop (see below), so there the row is just breadcrumb + Bell. */
+.pb-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.pb-header-row > .pb-breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.pb-header-row > .pb-bell { margin-left: auto; }
+
+/* Phones: two rows, so neither the Bell nor the hamburger ever takes width away
+   from the breadcrumb (long names such as "Quarantine and Isolation > Add
+   Isolation Record" need all of it):
+     [hamburger] ................. [Bell]
+     BREADCRUMB (full width)                                                   */
+@media (max-width: 600px) {
+  .pb-header-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "menu . bell"
+      "crumb crumb crumb";
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 8px;
+  }
+  .pb-header-row > .pb-hamburger { grid-area: menu; }
+  .pb-header-row > .pb-bell { grid-area: bell; margin-left: 0; }
+  .pb-header-row > .pb-breadcrumb {
+    grid-area: crumb;
+    height: 28px;
+    min-height: 28px;
+  }
+}
+
 .pb-breadcrumb {
   display: flex;
   align-items: center;

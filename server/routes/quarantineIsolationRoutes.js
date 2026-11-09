@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect, recordEditor } = require("../middleware/authMiddleware");
 
 const {
   createQuarantineRecord,
@@ -10,6 +10,7 @@ const {
   updateQuarantineRecord,
   updateIsolationProgress,
   correctIsolationProgress,
+  releaseQuarantineRecord,
   archiveQuarantineRecord,
   restoreQuarantineRecord,
   deleteQuarantineRecord,
@@ -26,6 +27,7 @@ router.post("/", protect, preventDuplicateSubmission, createQuarantineRecord);
 // UPDATE
 router.put("/:id", protect, updateQuarantineRecord);
 router.patch("/:id/progress", protect, updateIsolationProgress);
+router.patch("/:id/release", protect, recordEditor, releaseQuarantineRecord);
 router.patch("/:id/progress/:updateId", protect, correctIsolationProgress);
 
 // DELETE

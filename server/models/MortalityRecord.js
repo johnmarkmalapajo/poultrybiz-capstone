@@ -56,6 +56,14 @@ const mortalityRecordSchema = new mongoose.Schema(
       default: null,
     },
 
+    // The Quarantine record whose release created this Mortality Record.
+    // The unique index below guarantees one release can never create two.
+    sourceQuarantineId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "QuarantineIsolation",
+      default: null,
+    },
+
     // Computed by backend
     currentBirds: {
       type: Number,
@@ -81,6 +89,14 @@ const mortalityRecordSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+  }
+);
+
+mortalityRecordSchema.index(
+  { sourceQuarantineId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { sourceQuarantineId: { $type: "objectId" } },
   }
 );
 

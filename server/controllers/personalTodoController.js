@@ -9,6 +9,29 @@ const { createArchiveEntry } = require("./archiveController");
 const Archive = require("../models/Archive");
 const { canUseCategory } = require("../utils/moduleRegistry");
 
+// How long the task is expected to take -- a distinct concept from Due
+// Date (a deadline). Optional, never required, never used to
+// auto-complete a task. Returns null when omitted/empty, or
+// { value, unit } when provided; throws on an invalid shape/value.
+function parseEstimatedDuration(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    const err = new Error("Estimated Duration must include a value and a unit.");
+    err.status = 400;
+    throw err;
+  }
+  const { value, unit } = raw;
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    const err = new Error("Estimated Duration must be a positive number.");
+    err.status = 400;
+    throw err;
+  }
+  const u = ["minutes", "hours"].includes(unit) ? unit : "minutes";
+  return { value: n, unit: u };
+}
+
 exports.getAllPersonalTodos = async (req, res) => {
   try {
     const todos = await PersonalTodo.find({ archived: false })
@@ -78,12 +101,15 @@ exports.createPersonalTodo = async (req, res) => {
       });
     }
 
+    const estimatedDuration = parseEstimatedDuration(req.body.estimatedDuration);
+
     const todo = await PersonalTodo.create({
       user: ownerId,
       title: req.body.title,
       description: req.body.description || "",
       type: category,
       dueDate: req.body.dueDate,
+      estimatedDuration,
       status: "Pending",
     });
 
@@ -128,7 +154,7 @@ if (personnel) {
 
     res.status(201).json(todo);
   } catch (err) {
-    res.status(500).json({
+    res.status(err.status || 500).json({
       message: err.message,
     });
   }
@@ -172,6 +198,8 @@ exports.updatePersonalTodo = async (req, res) => {
         });
       }
       updateData = { status: req.body.status };
+    } else if (updateData.estimatedDuration !== undefined) {
+      updateData = { ...updateData, estimatedDuration: parseEstimatedDuration(updateData.estimatedDuration) };
     }
 
     const todo = await PersonalTodo.findByIdAndUpdate(
@@ -234,7 +262,7 @@ exports.updatePersonalTodo = async (req, res) => {
 
     res.json(todo);
   } catch (err) {
-    res.status(500).json({
+    res.status(err.status || 500).json({
       message: err.message,
     });
   }

@@ -9,8 +9,8 @@ const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
 const { createNotification } = require("./notificationController");
 const Archive = require("../models/Archive");
-const { QUARANTINE_DAYS } = require("../utils/dateGuard");
-const { describeAutoRelease } = require("../utils/quarantineRelease");
+const { QUARANTINE_DAYS, phToday, quarantineDurationDays } = require("../utils/dateGuard");
+const { describeAutoRelease, hasOngoingIsolation } = require("../utils/quarantineRelease");
 
 const computeVitaminsGiven = async (batchId) => {
   const records = await HealthRecord.find({
@@ -44,6 +44,16 @@ const withVitaminsGiven = async (record) => {
     obj.releaseEligibleDate = autoReleaseDate;
     obj.autoReleaseDate = autoReleaseDate;
     obj.releaseBlockedReason = releaseBlockedReason;
+    // Whole days under quarantine, counted from the batch's real start date
+    // (Flock Profile Date Acquired) to Philippine today while Ongoing, or to
+    // the actual release date once Released. Computed on every request, so it
+    // is never stored and never goes stale.
+    obj.quarantineDurationDays = quarantineDurationDays({
+      startDate: obj.dateAcquired,
+      status: obj.status,
+      releasedDate: obj.releasedDate,
+      releasedAt: obj.updatedAt,
+    });
   }
   return obj;
 };
@@ -396,6 +406,256 @@ exports.updateQuarantineRecord = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: err.message,
+    });
+  }
+};
+
+// Releases an Ongoing Quarantine record from the release dialog.
+//
+//   body: { hadDeaths: boolean, deceasedCount?: whole number > 0 }
+//
+// Everything happens in ONE transaction, so it either fully applies or not at
+// all:
+//   1. Atomic compare-and-set Ongoing -> Released. Only one request can win,
+//      so a double-click / retry gets a 409 and changes nothing.
+//   2. When birds died: one Mortality Record (unique per quarantine record, so
+//      the database itself refuses a second one) and the matching deduction
+//      from the Flock Profile -- the same figures Isolation progress updates.
+//   3. The Flock Profile goes back to Active only when it is "Quarantined"
+//      (a Culled batch is never reactivated), exactly like the automatic
+//      release.
+// The automatic 14-day release (utils/quarantineRelease.js) is untouched; it
+// still skips any record that is no longer Ongoing.
+const RELEASE_CAUSE_OF_DEATH = "Died during quarantine";
+const MAX_RELEASE_ATTEMPTS = 3;
+
+const releaseError = (status, message) => Object.assign(new Error(message), { status });
+
+const runRelease = async (req) => {
+  const { hadDeaths, deceasedCount } = req.body || {};
+
+  if (typeof hadDeaths !== "boolean") {
+    throw releaseError(400, "Please choose whether any birds died during this quarantine period.");
+  }
+
+  let deaths = 0;
+  if (hadDeaths) {
+    // Only a real number or a numeric string is accepted; arrays, objects and
+    // booleans would otherwise coerce into a valid-looking value ([3] -> "3").
+    if (
+      (typeof deceasedCount !== "number" && typeof deceasedCount !== "string") ||
+      !isWholeNumber(deceasedCount) ||
+      !Number.isSafeInteger(Number(deceasedCount)) ||
+      Number(deceasedCount) <= 0
+    ) {
+      throw releaseError(400, "Number of Deceased Birds must be a whole number greater than zero.");
+    }
+    deaths = Number(deceasedCount);
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let outcome = null;
+
+    await session.withTransaction(async () => {
+      const record = await QuarantineIsolation.findById(req.params.id).session(session);
+
+      if (!record) throw releaseError(404, "Record not found.");
+      if (record.recordType !== "Quarantine") {
+        throw releaseError(400, "Only Quarantine records can be released here.");
+      }
+      if (record.archived) {
+        throw releaseError(400, "An archived Quarantine record cannot be released. Restore it first.");
+      }
+      if (record.status !== "Ongoing") {
+        throw releaseError(409, "This Quarantine record has already been released.");
+      }
+      if (await hasOngoingIsolation(record.batchId)) {
+        throw releaseError(400, "This batch has an ongoing Isolation. Complete the Isolation before releasing the quarantine.");
+      }
+
+      const flock = await Flock.findOne({ batchId: record.batchId }).session(session);
+      if (!flock) throw releaseError(400, "The linked Flock Profile was not found.");
+
+      const releasedDate = phToday();
+      const birdsBefore = flock.currentQuantity || 0;
+      let mortalityObjectId = null;
+
+      if (deaths > 0) {
+        const allowed = Math.min(record.headCount || 0, birdsBefore);
+        if (deaths > allowed) {
+          throw releaseError(
+            400,
+            `Number of Deceased Birds (${deaths}) cannot exceed the birds in this quarantine (${allowed}).`
+          );
+        }
+        mortalityObjectId = new mongoose.Types.ObjectId();
+      }
+
+      // 1. Claim the release. A concurrent request that already released it
+      //    makes this return null, so nothing below runs twice.
+      const claimed = await QuarantineIsolation.findOneAndUpdate(
+        { _id: record._id, recordType: "Quarantine", status: "Ongoing", archived: false },
+        {
+          $set: {
+            status: "Released",
+            releasedDate,
+            releaseMethod: "Manual",
+            releaseFinalizedAt: new Date(),
+            releaseDeaths: deaths,
+            releaseMortalityRecordId: mortalityObjectId,
+          },
+          ...(deaths > 0 ? { $inc: { headCount: -deaths } } : {}),
+        },
+        { returnDocument: "after", session }
+      );
+      if (!claimed) throw releaseError(409, "This Quarantine record has already been released.");
+
+      // 2. Mortality Record + Flock deduction (only when birds died).
+      let mortalityRecord = null;
+      if (deaths > 0) {
+        flock.totalMortality = (flock.totalMortality || 0) + deaths;
+        flock.currentQuantity = Math.max(0, birdsBefore - deaths);
+        flock.mortalityRate =
+          flock.quantityPurchased > 0
+            ? Number(((flock.totalMortality / flock.quantityPurchased) * 100).toFixed(2))
+            : 0;
+
+        const mortalityId = await generateMortalityId();
+        const created = await MortalityRecord.create(
+          [
+            {
+              _id: mortalityObjectId,
+              mortalityId,
+              date: releasedDate,
+              batchId: record.batchId,
+              sourceQuarantineId: record._id,
+              numberOfMortality: deaths,
+              causeOfDeath: RELEASE_CAUSE_OF_DEATH,
+              suspectedDisease: "",
+              remarks: `Recorded when the quarantine of Batch ${record.batchId} was released.`,
+              currentBirds: flock.currentQuantity,
+              mortalityRate: flock.mortalityRate,
+            },
+          ],
+          { session }
+        );
+        mortalityRecord = created[0];
+      }
+
+      // 3. A quarantined batch becomes Active again; Culled stays Culled.
+      const reactivated = flock.status === "Quarantined";
+      if (reactivated) flock.status = "Active";
+
+      if (deaths > 0 || reactivated) await flock.save({ session });
+
+      outcome = { record: claimed, mortalityRecord, flock, deaths, birdsBefore, reactivated, releasedDate };
+    });
+
+    return outcome;
+  } finally {
+    session.endSession();
+  }
+};
+
+exports.releaseQuarantineRecord = async (req, res) => {
+  try {
+    let outcome = null;
+
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        outcome = await runRelease(req);
+        break;
+      } catch (err) {
+        if (err?.code === 11000) {
+          // A second Mortality Record for the same release: the first one won.
+          if (err.keyPattern?.sourceQuarantineId) {
+            throw releaseError(409, "This Quarantine record has already been released.");
+          }
+          // Two requests picked the same next Mortality ID at once -- retry.
+          if (err.keyPattern?.mortalityId && attempt < MAX_RELEASE_ATTEMPTS) continue;
+        }
+        throw err;
+      }
+    }
+
+    const { record, mortalityRecord, flock, deaths, birdsBefore, reactivated, releasedDate } = outcome;
+
+    // Everything below only reports what already committed. None of it can
+    // fail the release, and the notification uses a fixed sourceId so it is
+    // created once per record.
+    await createAuditLog({
+      user: req.user.name,
+      role: req.user.role,
+      module: "Quarantine & Isolation",
+      action: "Edited",
+      description: `Released Quarantine record for batch '${record.batchId}' on ${releasedDate}. ${
+        deaths > 0 ? `${deaths} bird(s) died during quarantine.` : "No deaths during quarantine."
+      }`,
+    });
+
+    if (mortalityRecord) {
+      await createAuditLog({
+        user: req.user.name,
+        role: req.user.role,
+        module: "Mortality Record",
+        action: "Added",
+        description: `Added mortality record for Batch ${record.batchId} from its quarantine release.`,
+        prev: null,
+        next: mortalityRecord,
+      });
+
+      const pct = birdsBefore > 0 ? (deaths / birdsBefore) * 100 : 0;
+      if (pct >= 5 || deaths >= 5) {
+        await createNotification({
+          title: "High Mortality Detected",
+          description: `High mortality detected in Batch ${record.batchId}. ${deaths} bird(s) recorded at quarantine release.`,
+          category: "mortality",
+          type: "alert",
+          roles: ["Owner", "Farmer"],
+        });
+      }
+    }
+
+    if (reactivated) {
+      await createAuditLog({
+        user: req.user.name,
+        role: req.user.role,
+        module: "Flock Profile",
+        action: "Edited",
+        description: `Batch ${record.batchId} status changed from Quarantined to Active after quarantine release.`,
+      });
+    }
+
+    await createNotification({
+      title: "Quarantine Released",
+      description: `Batch ${record.batchId} was released from quarantine on ${releasedDate}. ${
+        deaths > 0 ? `${deaths} bird(s) died during quarantine and were recorded as mortality.` : "No deaths were reported."
+      }`,
+      category: "quarantine",
+      type: "alert",
+      roles: ["Owner"],
+      referenceId: record._id,
+      referenceModel: "QuarantineIsolation",
+      sourceId: `quarantine_released_${record._id}`,
+    });
+
+    return res.json({
+      success: true,
+      message:
+        deaths > 0
+          ? `Quarantine released. ${deaths} death(s) recorded and deducted from the flock.`
+          : "Quarantine released.",
+      record: await withVitaminsGiven(record),
+      mortalityRecord: mortalityRecord || null,
+      currentQuantity: flock.currentQuantity,
+    });
+  } catch (err) {
+    if (!err.status) console.error(err);
+
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.status ? err.message : "Couldn't release this quarantine record. Nothing was changed. Please try again.",
     });
   }
 };

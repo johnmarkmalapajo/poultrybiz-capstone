@@ -3,6 +3,19 @@
 // Review wording with a native speaker before the defense.
 
 export const TL_RECORDS = {
+  "QUARANTINE DURATION": "TAGAL NG QUARANTINE",
+  "Quarantine Duration": "Tagal ng Quarantine",
+  "day": "araw",
+  "days": "araw",
+  "Release Quarantine Record": "Ilabas ang Quarantine Record",
+  "Did any birds die during this quarantine period?": "May namatay bang mga ibon sa panahon ng quarantine na ito?",
+  "Yes, there were deaths.": "Oo, may mga namatay.",
+  "No deaths.": "Walang namatay.",
+  "Number of Deceased Birds": "Bilang ng mga Namatay na Ibon",
+  "Confirm Release": "Kumpirmahin ang Paglabas",
+  "Releasing...": "Inilalabas...",
+  "Maximum:": "Pinakamarami:",
+  "Change status to Released": "Palitan ang katayuan sa Released",
   "Couldn't load flock records.": "Hindi ma-load ang mga record ng flock.",
   "Unable to archive flock.": "Hindi ma-archive ang flock.",
   "Unable to update status.": "Hindi ma-update ang katayuan.",

@@ -319,11 +319,62 @@
 }
 .vp-dd-item:hover { background: var(--gold-light); color: var(--gold-dark); }
 .vp-dd-item.active { background: var(--gold-light); color: var(--gold-dark); font-weight: 700; }
-/* ── Tasks tab — two separate sections (Personal / Assigned), never
-   merged into one table ── */
+/* Wider variant of the shared Filter dropdown, used by the Task History
+   tab to hold Category/From/To fields instead of a simple option list
+   (see client/src/pages/ToDo.css for the todo-filter-* classes reused
+   inside it). */
+.vp-dd-menu-wide { min-width: 260px; padding: 14px; gap: 12px; }
+.vp-dd-menu-wide .todo-select { width: 100%; }
+.vp-dd-menu-wide input[type="date"] { width: 100%; box-sizing: border-box; }
+
+/* ── Tasks tab — three independent sections (Primary / Secondary /
+   Personal), never merged into one table. Primary and Secondary are
+   omitted entirely when the selected Personnel record belongs to the
+   Owner. ── */
 .vp-task-sections { display: flex; flex-direction: column; gap: 28px; }
+/* Each group wraps one heading + its table card as siblings -- the
+   heading is deliberately NOT inside the card (todo-table-wrapper), so it
+   is never enclosed by the table's own border. */
+.vp-task-group { display: flex; flex-direction: column; }
 .vp-task-section-title {
   font-family: var(--font-display); font-size: 15px; font-weight: 800;
   color: #47321C; margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 2px solid var(--gold);
+}
+.vp-row-actions-group { display: flex; align-items: center; gap: 6px; }
+
+/* ── Task History — combined "Completion Details" cell (photo + remarks
+   from the same completion record, never mixed with another). ── */
+.vp-completion-cell { min-width: 200px; max-width: 280px; vertical-align: top; }
+.vp-completion-photo { margin-bottom: 6px; }
+.vp-completion-thumb-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-body); color: var(--gold-dark, #a06a1a);
+}
+.vp-completion-thumb {
+  width: 36px; height: 36px; object-fit: cover; border-radius: 6px;
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.vp-completion-thumb-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--text-xs); font-weight: 700; text-decoration: underline;
+  white-space: nowrap;
+}
+.vp-completion-thumb-btn:hover .vp-completion-thumb-label { color: var(--gold); }
+.vp-completion-no-photo,
+.vp-completion-no-remarks { color: var(--text-muted); font-size: var(--text-xs); }
+.vp-completion-remarks-text {
+  margin: 0; font-size: var(--text-sm); color: var(--text-primary);
+  line-height: 1.5; word-break: break-word; white-space: pre-wrap;
+}
+.vp-completion-toggle {
+  background: none; border: none; padding: 2px 0 0; margin: 0;
+  cursor: pointer; font-family: var(--font-body); font-size: var(--text-xs);
+  font-weight: 700; color: var(--gold-dark, #a06a1a); text-decoration: underline;
+}
+.vp-completion-toggle:hover { color: var(--gold); }
+
+@media (max-width: 480px) {
+  .vp-dd-menu-wide { min-width: 0; width: calc(100vw - 48px); }
 }

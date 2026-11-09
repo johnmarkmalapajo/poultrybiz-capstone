@@ -20,7 +20,9 @@ import {
 import {
   refreshPersonalTodos, getCachedPersonalTodos, updatePersonalTodoById,
   getCurrentUser as getTodoUser, subscribe as subscribeTodos,
+  refreshMyTasksToday, getCachedPrimaryTasks, getCachedSecondaryTasks,
 } from "../todoStore";
+import ProofOfCompletionModal from "../components/ProofOfCompletionModal";
 import "./EggRecord.css";
 import "./Dashboard.css";
 import "./ToDo.css";
@@ -472,6 +474,7 @@ function Dashboard() {
   const [alertsLoading, setAlertsLoading] = useState(true);
 
   const { user, role, canSeeFinancials } = useUser();
+  const isFarmer = role === "Farmer";
   const navigate = useNavigate();
   const TODO_LIMIT = 3;
   const { t: tr } = useLanguage();
@@ -531,18 +534,47 @@ function Dashboard() {
     return subscribeNotifs(update);
   }, [role]);
 
+  // Builds the Dashboard To Do widget's row list. For a Farmer this merges
+  // their own Primary + Secondary tasks (completion status comes from each
+  // task's own occurrence, not from the task definition) with their
+  // personal todos; the Owner Dashboard's To Do visibility is unchanged --
+  // it only ever showed the Owner's own personal todos, same as before.
+  const buildDashboardTasks = () => {
+    const personal = getCachedPersonalTodos()
+      .filter((t) => !t.archived)
+      .map((t) => ({ _id: t._id, title: t.title, dueDate: t.dueDate, status: t.status, kind: "personal", raw: t }));
+
+    if (!isFarmer) return personal;
+
+    const primary = getCachedPrimaryTasks().map((t) => ({
+      _id: t._id, title: t.title, dueDate: null,
+      status: t.occurrence?.status || "Pending", kind: "primary", task: t, occurrence: t.occurrence,
+    }));
+    const secondary = getCachedSecondaryTasks().map((t) => ({
+      _id: t._id, title: t.title, dueDate: t.dueDate,
+      status: t.occurrence?.status || "Pending", kind: "secondary", task: t, occurrence: t.occurrence,
+    }));
+
+    // Primary/Secondary first so a Farmer's assigned work is front and
+    // center, personal todos after.
+    return [...primary, ...secondary, ...personal];
+  };
+
   const fetchTasks = async () => {
     setTasksLoading(true);
-    await refreshPersonalTodos(todoUser.userId);
+    await Promise.all([
+      refreshPersonalTodos(todoUser.userId),
+      isFarmer ? refreshMyTasksToday() : Promise.resolve(),
+    ]);
     setTasksLoading(false);
   };
   useEffect(() => {
     const update = () => {
-      setTasks(getCachedPersonalTodos().filter((t) => !t.archived));
+      setTasks(buildDashboardTasks());
     };
     fetchTasks().then(update);
     return subscribeTodos(update);
-  }, [todoUser.userId]);
+  }, [todoUser.userId, isFarmer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchDashboard();
@@ -556,12 +588,21 @@ function Dashboard() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [confirmComplete, setConfirmComplete] = useState(null);
+  const [proofTarget, setProofTarget] = useState(null); // { task, occurrence }
 
   const doToggle = async (t) => {
     await updatePersonalTodoById(t._id, { status: t.status === "Completed" ? "Pending" : "Completed" }, todoUser.userId);
   };
 
+  // Clicking Done opens the exact same required Proof of Completion modal
+  // used on the To Do page -- there is no separate completion workflow for
+  // Dashboard tasks. Personal todos (unrelated, pre-existing functionality)
+  // keep their own simple confirm-and-toggle flow.
   const toggleTask = (t) => {
+    if (t.kind === "primary" || t.kind === "secondary") {
+      if (t.status !== "Completed") setProofTarget({ task: t.task, occurrence: t.occurrence });
+      return;
+    }
     if (t.status !== "Completed") {
       setConfirmComplete(t);
     } else {
@@ -660,7 +701,7 @@ function Dashboard() {
   const hasPieData = pieData.some((d) => d.value > 0);
 
   return (
-    <PageLayout breadcrumbItems={[{ label: "DASHBOARD" }]}>
+    <PageLayout breadcrumbItems={[{ label: "DASHBOARD" }]} className="dash-page">
       <div className="dash-header">
         <div>
           <h2 className="title">
@@ -672,31 +713,19 @@ function Dashboard() {
               : tr("Here's what's happening in your farm today")}
           </p>
         </div>
-      </div>
 
-      {}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ minWidth: "150px" }}>
-          {loading && (
-            <span style={{
-              fontSize: "12px", fontWeight: "600", color: "var(--text-second, #6b6457)",
-              background: "var(--gold-light, #fdf3e3)",
-              padding: "4px 14px", borderRadius: "20px",
-            }}>
-              {tr("Loading dashboard...")}
-            </span>
-          )}
-        </div>
-
-        <button onClick={fetchDashboard} style={{
-          background: "var(--gold-light, #fdf3e3)", color: "var(--gold-dark, #c8930c)",
-          border: "none", borderRadius: "8px",
-          padding: "6px 16px", fontSize: "13px",
-          fontWeight: "600", cursor: "pointer",
-          transition: "background 0.2s",
-        }}>
-          {tr("Refresh")}
-        </button>
+        {/* Loading indicator for the automatic data loads (first load, window
+            focus, pb_data_changed). It sits in the greeting row so it takes no
+            row of its own and never shifts the page when it appears. */}
+        {loading && (
+          <span style={{
+            fontSize: "12px", fontWeight: "600", color: "var(--text-second, #6b6457)",
+            background: "var(--gold-light, #fdf3e3)",
+            padding: "4px 14px", borderRadius: "20px",
+          }}>
+            {tr("Loading dashboard...")}
+          </span>
+        )}
       </div>
 
       {}
@@ -832,19 +861,23 @@ function Dashboard() {
               <p className="card-empty">{tr("No personal tasks yet.")}</p>
             ) : tasks.slice(0, TODO_LIMIT).map((t) => {
               const done = t.status === "Completed";
+              const isAssigned = t.kind === "primary" || t.kind === "secondary";
               return (
-                <div className="todo-row" key={t._id}>
+                <div className="todo-row" key={`${t.kind}-${t._id}`}>
                   <span
-                    className={`todo-check ${done ? "checked" : ""}`}
+                    className={`todo-check ${done ? "checked" : ""} ${done && isAssigned ? "todo-check-readonly" : ""}`}
                     onClick={() => toggleTask(t)}
-                    title={done ? tr("Mark as pending") : tr("Mark as done")}
+                    title={done ? (isAssigned ? tr("Completed — Proof of Completion submitted") : tr("Mark as pending")) : tr("Mark as done")}
                   >
                     {done && <FiCheck />}
                   </span>
                   <span className="todo-date">
                     {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ""}
                   </span>
-                  <span className={`todo-task ${done ? "done" : ""}`}>{t.title}</span>
+                  <span className={`todo-task ${done ? "done" : ""}`}>
+                    {t.title}
+                    {isAssigned && <span className={`poc-category-tag poc-${t.kind}`} style={{ marginLeft: 8 }}>{tr(t.kind === "primary" ? "Primary" : "Secondary")}</span>}
+                  </span>
                 </div>
               );
             })}
@@ -887,6 +920,15 @@ function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {proofTarget && (
+        <ProofOfCompletionModal
+          task={proofTarget.task}
+          occurrence={proofTarget.occurrence}
+          onClose={() => setProofTarget(null)}
+          onSubmitted={() => setTasks(buildDashboardTasks())}
+        />
       )}
     </PageLayout>
   );

@@ -1,0 +1,57 @@
+/* NotificationBell.css — header Bell shown in the shared breadcrumb header
+   row (see Breadcrumb.jsx). Colors/typography follow the existing PoultryBiz
+   header controls (gold #E4AF1F, brown #47321C, alert red #d94f4f). */
+
+.pb-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e4e0d8;
+  color: #47321C;
+  font-size: 20px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: background 0.2s, border-color 0.2s;
+}
+.pb-bell:hover { background: #fdf3e3; border-color: #E4AF1F; }
+.pb-bell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(228, 175, 31, 0.35);
+}
+/* Currently on the Notifications page */
+.pb-bell-active { background: #E4AF1F; border-color: #E4AF1F; }
+.pb-bell-active:hover { background: #c8930c; border-color: #c8930c; }
+
+.pb-bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 2px solid #f5f5f5; /* separates the badge from the page background */
+  background: #d94f4f;
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+/* Phones: the Bell shares the first header row with the 40px hamburger, so
+   match its size (see the phone layout in Breadcrumb.css). */
+@media (max-width: 600px) {
+  .pb-bell { width: 40px; height: 40px; }
+}

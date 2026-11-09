@@ -69,3 +69,9 @@ export const updatePersonnelTask = (personnelId, taskId, payload) =>
 
 export const deletePersonnelTask = (personnelId, taskId) =>
   apiDelete(`${PATH}/${personnelId}/tasks/${taskId}`);
+
+// Owner-or-self permanent Primary/Secondary task completion history (used
+// by the Personnel module's "Task History" section), filterable by date
+// range (`from`/`to`, YYYY-MM-DD) and category ("Primary"/"Secondary").
+export const getPersonnelTaskHistory = (personnelId, params) =>
+  apiGet(`${PATH}/${personnelId}/tasks/history`, params);

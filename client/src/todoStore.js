@@ -12,7 +12,10 @@ import {
   getFarmerList as apiGetFarmerList,
   archivePersonalTodo as apiArchivePersonalTodo,
   restorePersonalTodo as apiRestorePersonalTodo,
-  
+  getMyTasksToday as apiGetMyTasksToday,
+  submitTaskProof as apiSubmitTaskProof,
+  getTaskOccurrenceHistory as apiGetTaskOccurrenceHistory,
+
 } from "./api/todo";
 
 export const getCurrentUser = (fallback = null) => {
@@ -30,7 +33,7 @@ export const getCurrentUser = (fallback = null) => {
   return fallback;
 };
 
-let cache = { assignedAll: [], assigned: [], personal: [], personalOthers: [] };
+let cache = { assignedAll: [], assigned: [], personal: [], personalOthers: [], primary: [], secondary: [] };
 let lastError = null;
 const listeners = new Set();
 const notify = () => listeners.forEach((cb) => cb());
@@ -42,6 +45,38 @@ export const getCachedAllAssignedTasks = () => cache.assignedAll;
 export const getCachedAssignedTasks    = () => cache.assigned;
 export const getCachedPersonalTodos    = () => cache.personal;
 export const getCachedOthersPersonalTodos = () => cache.personalOthers;
+export const getCachedPrimaryTasks     = () => cache.primary;
+export const getCachedSecondaryTasks   = () => cache.secondary;
+
+// Farmer's own Primary + Secondary tasks for "today" (server generates any
+// missing daily/lifetime occurrence lazily -- no cron job involved).
+export async function refreshMyTasksToday() {
+  try {
+    const result = await apiGetMyTasksToday();
+    cache.primary = result.primary || [];
+    cache.secondary = result.secondary || [];
+    lastError = null;
+  } catch (err) {
+    lastError = err;
+  }
+  notify();
+  return { primary: cache.primary, secondary: cache.secondary };
+}
+
+// Required Proof of Completion submission. Refreshes the Farmer's own
+// Primary/Secondary cache afterward so the To Do page and Dashboard (which
+// both read the same cache) update immediately on success.
+export async function submitTaskProofById(occurrenceId, payload) {
+  const result = await apiSubmitTaskProof(occurrenceId, payload);
+  await refreshMyTasksToday();
+  return result;
+}
+
+// Owner-or-self permanent task history for one Farmer (Personnel module).
+export async function getTaskOccurrenceHistory(personnelId, params) {
+  const result = await apiGetTaskOccurrenceHistory(personnelId, params);
+  return result.records || [];
+}
 
 export async function refreshAllAssignedTasks() {
   try { cache.assignedAll = await listAllAssignedTasks(); lastError = null; }

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiArchive, FiRotateCcw, FiTrash2, FiList, FiClock, FiCheckCircle, FiAlertTriangle, FiEye } from "react-icons/fi";
+import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiArchive, FiRotateCcw, FiTrash2, FiList, FiClock, FiCheckCircle, FiAlertTriangle, FiEye, FiToggleLeft, FiToggleRight } from "react-icons/fi";
 import { getTaskCategoryRoute } from "../taskCategoryRoutes";
 import { getAccessibleCategories, canAccessCategory } from "../moduleRegistry";
 import { listPersonalTodos } from "../api/todo";
@@ -21,6 +21,28 @@ import {
   addPersonalTodo,
 } from "../todoStore";
 import { useLanguage } from "../i18n/LanguageContext";
+
+// Estimated Duration is a distinct concept from Due Date: how long a task
+// is expected to take, not a deadline. Applies to every category.
+function formatEstimatedDuration(est) {
+  if (!est || est.value == null) return "—";
+  const unit = est.unit === "hours"
+    ? (est.value === 1 ? "hr" : "hrs")
+    : (est.value === 1 ? "min" : "mins");
+  return `${est.value} ${unit}`;
+}
+
+// Date Created is backend-generated and immutable -- this is only a
+// preview of what the Owner will see once the task actually saves (the
+// real timestamp is set server-side at that moment). Shown as the current
+// Philippine calendar date since that's the farm's own local day.
+function phTodayDisplay() {
+  try {
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
 
 function withDisplayStatus(t) {
   if (t.status === "Completed") return { ...t, displayStatus: "Completed" };
@@ -68,9 +90,12 @@ export default function AdminTodo() {
   };
 
   const mergeTaskSources = () => {
+    // Replaces the old single "Assigned Task" source: every PersonnelTask
+    // is now either a recurring Primary task or a one-off Secondary task
+    // (see server/models/PersonnelTask.js's `category` field).
     const assigned = getCachedAllAssignedTasks()
       .filter((t) => !t.linkedPersonalTodo)
-      .map((t) => ({ ...t, source: "assigned" }));
+      .map((t) => ({ ...t, source: t.category === "Primary" ? "primary" : "secondary" }));
     const others = getCachedOthersPersonalTodos().map((t) => ({
       ...t,
       source: "personal",
@@ -99,11 +124,15 @@ export default function AdminTodo() {
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [editingTask, setEditingTask] = useState(null);  const canReassignEditingTask = isOwner;
-  const [form, setForm] = useState({ title: "", type: "Records", due: "", farmerId: "" });
+  const [form, setForm] = useState({
+    title: "", type: "Records", due: "",
+    estimatedDurationValue: "", estimatedDurationUnit: "minutes",
+    farmerId: "", category: "Secondary",
+  });
   const [isPersonal, setIsPersonal] = useState(false);  const [pendingPersonal, setPendingPersonal] = useState([]);
   const [pendingAssigned, setPendingAssigned] = useState([]);
   const [loadingWorkload, setLoadingWorkload] = useState(false);
-  const [confirm, setConfirm] = useState(null);  const [sourceTab, setSourceTab] = useState("assigned");
+  const [confirm, setConfirm] = useState(null);  const [sourceTab, setSourceTab] = useState("primary");
   useEffect(() => {
     if (!modalOpen || isPersonal || !form.farmerId) {
       setPendingPersonal([]);
@@ -137,7 +166,7 @@ export default function AdminTodo() {
     if (!highlightId || tasks.length === 0) return;
     const target = tasks.find((t) => t._id === highlightId);
     if (target) {
-      const targetTab = (target.source === "assigned" || target.source === "personal") ? "assigned" : "all";
+      const targetTab = (target.source === "primary" || target.source === "secondary") ? target.source : "all";
       if (targetTab !== sourceTab) {
         setSourceTab(targetTab);
         return;      }
@@ -149,11 +178,14 @@ export default function AdminTodo() {
   }, [highlightId, tasks, sourceTab]);
 
 const viewingArchived = status === "Archived";
+  // Primary tasks never have a Due Date -- while viewing the Primary
+  // Tasks tab specifically, the column itself is omitted entirely rather
+  // than showing a column full of placeholder dashes.
+  const hideDueDateColumn = sourceTab === "primary";
   const inSourceTab = (t) => {
     if (sourceTab === "all") return true;
-    // "Assigned Tasks" = tasks the Owner assigned to Farmers + the personal
-    // tasks Farmers created for themselves (so the Owner can follow up on both).
-    if (sourceTab === "assigned") return t.source === "assigned" || t.source === "personal";
+    if (sourceTab === "primary") return t.source === "primary";
+    if (sourceTab === "secondary") return t.source === "secondary";
     return t.source === "own-personal";  };
   const filtered = useMemo(() => tasks.filter((t) => {
     if (!inSourceTab(t)) return false;
@@ -176,7 +208,16 @@ const viewingArchived = status === "Archived";
     if (col === "task") return row.title || "";
     if (col === "category") return row.type || row.module || "";
     if (col === "assignedTo") return row.farmerName || "";
-    if (col === "dueDate") return row.dueDate || "";
+    if (col === "estimatedDuration") {
+      const est = row.estimatedDuration;
+      if (!est || est.value == null) return -1;
+      return est.unit === "hours" ? est.value * 60 : est.value;
+    }
+    if (col === "dueDate") {
+      if (row.source === "personal" || row.source === "own-personal") return row.dueDate || "";
+      return row.category === "Primary" ? "" : (row.dueDate || "");
+    }
+    if (col === "dateCreated") return row.dateCreated || row.createdAt || "";
     if (col === "status") return row.displayStatus || "";
     return "";
   };
@@ -194,14 +235,36 @@ const viewingArchived = status === "Archived";
     return personal ? all : all.filter((c) => c !== "Flock Profile");
   };
 
+  // The active task tab decides the new task's default category -- never
+  // a stale/arbitrary default that could be saved without the Owner
+  // noticing. "All" has no single category to infer, so it keeps the
+  // previous default (Secondary).
   const openAdd = () => {
     setEditingTask(null);
-    setIsPersonal(false);
+    const personalDefault = sourceTab === "personal";
+    const categoryDefault = sourceTab === "primary" ? "Primary" : "Secondary";
+    setIsPersonal(personalDefault);
     const defaultFarmerId = farmers[0]?.id || "";
-    setForm({ title: "", type: categoryOptionsFor(false)[0], due: "", farmerId: defaultFarmerId });
+    setForm({
+      title: "", type: categoryOptionsFor(personalDefault)[0], due: "",
+      estimatedDurationValue: "", estimatedDurationUnit: "minutes",
+      farmerId: defaultFarmerId, category: categoryDefault,
+    });
     setModalOpen(true);
   };
-  const openEdit = (t) => { setEditingTask(t); setForm({ title: t.title, type: t.type, due: t.dueDate, farmerId: t.personnelId }); setModalOpen(true); };
+  const openEdit = (t) => {
+    setEditingTask(t);
+    setForm({
+      title: t.title,
+      type: t.type,
+      due: t.dueDate ? String(t.dueDate).split("T")[0] : "",
+      estimatedDurationValue: t.estimatedDuration?.value != null ? String(t.estimatedDuration.value) : "",
+      estimatedDurationUnit: t.estimatedDuration?.unit || "minutes",
+      farmerId: t.personnelId,
+      category: t.category || "Secondary",
+    });
+    setModalOpen(true);
+  };
 
   const handleViewTaskCategory = (t) => {
     const category = t.type || t.module;
@@ -226,36 +289,52 @@ const viewingArchived = status === "Archived";
 
     setSaving(true);
     setError("");
+    // Estimated Duration applies to every category, including Primary.
+    const estimatedDuration = form.estimatedDurationValue
+      ? { value: Number(form.estimatedDurationValue), unit: form.estimatedDurationUnit }
+      : null;
     try {
       if (editingTask) {
+        // editingTask rows are always Primary/Secondary (never personal --
+        // personal rows have no Edit action). Due Date is never
+        // applicable to Primary; optional for Secondary.
         const payload = {
           work: form.title.trim(),
           module: form.type,
-          dueDate: form.due,
+          estimatedDuration,
+          dueDate: form.category === "Primary" ? null : (form.due || null),
         };
         if (form.farmerId !== editingTask.personnelId) {
           payload.personnelId = form.farmerId;
         }
         await updateAssignedTaskById(editingTask.personnelId, editingTask._id, payload);
       } else if (isPersonal) {
-        await addPersonalTodo(user.id, { title: form.title.trim(), type: form.type, dueDate: form.due });
+        await addPersonalTodo(user.id, { title: form.title.trim(), type: form.type, dueDate: form.due, estimatedDuration });
         setSourceTab("personal");      } else {
         await assignTask(
           form.farmerId,
           {
             title: form.title.trim(),
             type: form.type,
-            dueDate: form.due,
+            category: form.category,
+            estimatedDuration,
+            // Due Date is never applicable to Primary tasks (perpetually
+            // recurring); optional for Secondary.
+            dueDate: form.category === "Primary" ? null : (form.due || null),
           },
           user?.name || "Owner"
         );
+        setSourceTab(form.category === "Primary" ? "primary" : "secondary");
       }
 
       setForm({
         title: "",
         type: "Records",
         due: "",
+        estimatedDurationValue: "",
+        estimatedDurationUnit: "minutes",
         farmerId: farmers[0]?.id || "",
+        category: "Secondary",
       });
       setEditingTask(null);
       setModalOpen(false);
@@ -268,6 +347,19 @@ const viewingArchived = status === "Archived";
   };
 const doRestore = (t) => updateAssignedTaskById( t.personnelId, t._id, { archived: false } );
 const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
+
+// Deactivating a Primary/Secondary task definition stops it from producing
+// any new daily/lifetime occurrences going forward, without deleting the
+// task or any of its historical occurrences (unlike Archive, which hides
+// the task entirely).
+const toggleActiveFor = async (t) => {
+  try {
+    await updateAssignedTaskById(t.personnelId, t._id, { active: !(t.active !== false) });
+    await loadAll();
+  } catch (err) {
+    setError(tr(err?.message || "Couldn't update this task. Please try again."));
+  }
+};
 
   const runArchiveConfirm = async () => {
   if (!confirmArchive) return;
@@ -346,7 +438,8 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
 
         <div className="todo-tabs">
           <button className={`todo-tab ${sourceTab === "all" ? "active" : ""}`} onClick={() => setSourceTab("all")}>{tr("All")}</button>
-          <button className={`todo-tab ${sourceTab === "assigned" ? "active" : ""}`} onClick={() => setSourceTab("assigned")}>{tr("Assigned Tasks")}</button>
+          <button className={`todo-tab ${sourceTab === "primary" ? "active" : ""}`} onClick={() => setSourceTab("primary")}>{tr("Primary Tasks")}</button>
+          <button className={`todo-tab ${sourceTab === "secondary" ? "active" : ""}`} onClick={() => setSourceTab("secondary")}>{tr("Secondary Tasks")}</button>
           <button className={`todo-tab ${sourceTab === "personal" ? "active" : ""}`} onClick={() => setSourceTab("personal")}>{tr("My Tasks")}</button>
         </div>
 
@@ -368,23 +461,29 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                 <th className="todo-sortable-th" onClick={() => cycleSort("task")}>{tr("Task")}{sortIndicator("task", sortColumn, sortDirection)}</th>
                 <th className="todo-sortable-th" onClick={() => cycleSort("category")}>{tr("Category")}{sortIndicator("category", sortColumn, sortDirection)}</th>
                 <th className="todo-sortable-th" onClick={() => cycleSort("assignedTo")}>{tr("Assigned To")}{sortIndicator("assignedTo", sortColumn, sortDirection)}</th>
-                <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>{tr("Due Date")}{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
+                <th className="todo-sortable-th" onClick={() => cycleSort("dateCreated")}>{tr("Date Created")}{sortIndicator("dateCreated", sortColumn, sortDirection)}</th>
+                {!hideDueDateColumn && (
+                  <th className="todo-sortable-th" onClick={() => cycleSort("dueDate")}>{tr("Due Date")}{sortIndicator("dueDate", sortColumn, sortDirection)}</th>
+                )}
+                <th className="todo-sortable-th" onClick={() => cycleSort("estimatedDuration")}>{tr("Estimated Duration")}{sortIndicator("estimatedDuration", sortColumn, sortDirection)}</th>
                 <th className="todo-sortable-th" onClick={() => cycleSort("status")}>{tr("Status")}{sortIndicator("status", sortColumn, sortDirection)}</th>
                 <th style={{ width: 100 }}>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr className="todo-empty-row"><td colSpan={7}>{tr("Loading tasks…")}</td></tr>}
+              {loading && <tr className="todo-empty-row"><td colSpan={hideDueDateColumn ? 8 : 9}>{tr("Loading tasks…")}</td></tr>}
               {!loading && filtered.length === 0 && (
-                <tr className="todo-empty-row"><td colSpan={7}>
+                <tr className="todo-empty-row"><td colSpan={hideDueDateColumn ? 8 : 9}>
                   {viewingArchived
                     ? "No archived tasks."
                     : (search || status !== "All")
                     ? "No Matching Tasks Found"
                     : sourceTab === "personal"
                     ? "No Personal Tasks Found"
-                    : sourceTab === "assigned"
-                    ? "No Assigned Tasks Found"
+                    : sourceTab === "primary"
+                    ? "No Primary Tasks Found"
+                    : sourceTab === "secondary"
+                    ? "No Secondary Tasks Found"
                     : "No Tasks Found"}
                 </td></tr>
               )}
@@ -393,15 +492,47 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                 const farmerName = t.farmerName || "Unknown";
                 const isPersonal = t.source === "personal";
                 const isOwnPersonal = t.source === "own-personal";
-                const canManageAssigned = !isPersonal && !isOwnPersonal && isOwner;
+                const isFarmerAssigned = t.source === "primary" || t.source === "secondary";
+                const canManageAssigned = isFarmerAssigned && isOwner;
+                const isActive = t.active !== false;
                 return (
                   <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
-                    <td>{viewingArchived ? <span className="todo-archived-tag">{tr("Archived")}</span> : (isOwnPersonal || isOwner) ? <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggleDone(t)} title={done ? tr("Mark as pending") : tr("Mark as done")}>{done && <FiCheck />}</span> : <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? tr("Completed") : tr("Not yet completed")}>{done && <FiCheck />}</span>}</td>
+                    <td>
+                      {viewingArchived ? (
+                        <span className="todo-archived-tag">{tr("Archived")}</span>
+                      ) : isFarmerAssigned ? (
+                        // Completion now requires the Farmer's own Proof of
+                        // Completion submission -- the Owner can no longer
+                        // mark it done directly from here. See Personnel ›
+                        // Task History for each day's submission.
+                        <span className="todo-check todo-check-readonly" title={tr("Completion is submitted by the Farmer with Proof of Completion — see Personnel › Task History")}>—</span>
+                      ) : (isOwnPersonal || isOwner) ? (
+                        <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggleDone(t)} title={done ? tr("Mark as pending") : tr("Mark as done")}>{done && <FiCheck />}</span>
+                      ) : (
+                        <span className={`todo-check todo-check-readonly ${done ? "checked" : ""}`} title={done ? tr("Completed") : tr("Not yet completed")}>{done && <FiCheck />}</span>
+                      )}
+                    </td>
                     <td><span className="todo-task-title">{t.title}</span></td>
                     <td>{tr(t.type)}</td>
                     <td>{farmerName}</td>
-                    <td>{t.dueDate ? String(t.dueDate).split("T")[0] : ""}</td>
-                    <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
+                    <td>{(t.dateCreated || t.createdAt) ? String(t.dateCreated || t.createdAt).split("T")[0] : "—"}</td>
+                    {!hideDueDateColumn && (
+                      <td>
+                        {isFarmerAssigned
+                          ? (t.category === "Primary" ? "—" : (t.dueDate ? String(t.dueDate).split("T")[0] : "—"))
+                          : (t.dueDate ? String(t.dueDate).split("T")[0] : "—")}
+                      </td>
+                    )}
+                    <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
+                    <td>
+                      {isFarmerAssigned ? (
+                        <span className={`status ${isActive ? "pending" : "archived"}`} title={tr("Daily completion status is tracked per occurrence — see Personnel › Task History")}>
+                          {isActive ? tr("Active") : tr("Deactivated")}
+                        </span>
+                      ) : (
+                        <span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span>
+                      )}
+                    </td>
                     <td>
                       <div className="todo-row-actions">
                         {isPersonal ? null : isOwnPersonal ? (
@@ -423,6 +554,13 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                             {getTaskCategoryRoute(t.type || t.module) && (
                               <button className="todo-icon-btn view" onClick={() => handleViewTaskCategory(t)} title={tr("View Related Module")}><FiEye /></button>
                             )}
+                            <button
+                              className="todo-icon-btn"
+                              onClick={() => toggleActiveFor(t)}
+                              title={isActive ? tr("Deactivate — stop producing new daily occurrences") : tr("Reactivate")}
+                            >
+                              {isActive ? <FiToggleRight /> : <FiToggleLeft />}
+                            </button>
                             <button className="todo-icon-btn edit" onClick={() => openEdit(t)} title={tr("Edit")}><FiEdit2 /></button>
                             <button className="todo-icon-btn archive" onClick={() => setConfirmArchive(t)} title={tr("Archive")}> <FiArchive /></button>
                           </>
@@ -456,6 +594,21 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
             <div className="todo-modal-body">
               <div className="todo-field"><label>{tr("Task Title")}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("e.g. Review egg production")} /></div>
 
+              {/* Date Created is backend-generated and immutable -- shown
+                  here so the Owner isn't left guessing, but never editable.
+                  When adding a new task, this previews today's Philippine
+                  date (the actual timestamp is set by the server at the
+                  moment of creation); when editing, it shows the task's
+                  real, original Date Created. */}
+              <div className="todo-field">
+                <label>{tr("Date Created")}</label>
+                <span className="todo-archived-tag" title={tr("Automatically recorded when the task is created — never editable.")}>
+                  {editingTask
+                    ? ((editingTask.dateCreated || editingTask.createdAt) ? String(editingTask.dateCreated || editingTask.createdAt).split("T")[0] : "—")
+                    : phTodayDisplay()}
+                </span>
+              </div>
+
               {!editingTask && (
                 <div className="todo-field" style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
                   <input type="checkbox" id="isPersonalTask" checked={isPersonal} onChange={(e) => {
@@ -464,6 +617,25 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                     setForm((f) => ({ ...f, type: categoryOptionsFor(personal)[0] || f.type }));
                   }} style={{ width: 16, height: 16, margin: 0, marginTop: 2, flexShrink: 0 }} />
                   <label htmlFor="isPersonalTask" style={{ display: "inline", margin: 0, cursor: "pointer", lineHeight: 1.3 }}>{tr("Personal task (for myself)")}</label>
+                </div>
+              )}
+
+              {!isPersonal && !editingTask && (
+                <div className="todo-field">
+                  <label>{tr("Task Category")}</label>
+                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                    <option value="Primary">{tr("Primary — recurring daily responsibility")}</option>
+                    <option value="Secondary">{tr("Secondary — one-off special assignment")}</option>
+                  </select>
+                </div>
+              )}
+
+              {!isPersonal && editingTask && (
+                <div className="todo-field">
+                  <label>{tr("Task Category")}</label>
+                  <span className="todo-archived-tag" title={tr("Task category cannot be changed after creation.")}>
+                    {tr(form.category === "Primary" ? "Primary" : "Secondary")}
+                  </span>
                 </div>
               )}
 
@@ -511,14 +683,15 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                         <div className="pw-section">
                           <div className="pw-section-title">{tr("Pending Assigned Tasks")}</div>
                           <table className="pw-table pw-table-assigned">
-                            <thead><tr><th>{tr("Assigned By")}</th><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
+                            <thead><tr><th>{tr("Assigned By")}</th><th>{tr("Category")}</th><th>{tr("Task Title")}</th><th>{tr("Estimated Duration")}</th><th>{tr("Due Date")}</th><th>{tr("Status")}</th></tr></thead>
                             <tbody>
                               {pendingAssigned.map((t) => (
                                 <tr key={t._id}>
                                   <td title={t.assignedBy}>{t.assignedBy || "—"}</td>
                                   <td title={t.type}>{t.type ? tr(t.type) : "—"}</td>
                                   <td title={t.title}>{t.title}</td>
-                                  <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
+                                  <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
+                                  <td>{t.category === "Primary" ? "—" : (t.dueDate ? String(t.dueDate).split("T")[0] : "—")}</td>
                                   <td>{tr(t.status)}</td>
                                 </tr>
                               ))}
@@ -531,7 +704,47 @@ const archiveTask = (t) => archiveAssignedTaskById( t.personnelId, t._id );
                 </div>
               )}
               <div className="todo-field"><label>{tr("Category")}</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{categoryOptionsFor(isPersonal).map((c) => <option key={c}>{c}</option>)}</select></div>
-              <div className="todo-field"><label>{tr("Due Date")}</label><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
+
+              {/* Estimated Duration -- how long the task is expected to
+                  take. Optional, applies to every category including
+                  Primary, and never auto-completes or expires a task. */}
+              <div className="todo-field">
+                <label>{tr("Estimated Duration")}{" "}<span className="pw-hint">{tr("(optional)")}</span></label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    style={{ flex: 1 }}
+                    value={form.estimatedDurationValue}
+                    onChange={(e) => setForm({ ...form, estimatedDurationValue: e.target.value })}
+                    placeholder={tr("e.g. 30")}
+                  />
+                  <select
+                    style={{ flex: 1 }}
+                    value={form.estimatedDurationUnit}
+                    onChange={(e) => setForm({ ...form, estimatedDurationUnit: e.target.value })}
+                  >
+                    <option value="minutes">{tr("Minutes")}</option>
+                    <option value="hours">{tr("Hours")}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Due Date -- an optional deadline, distinct from Estimated
+                  Duration. Never applicable to Primary tasks; optional for
+                  Secondary and Personal tasks. */}
+              {(isPersonal || form.category === "Secondary") && (
+                <div className="todo-field">
+                  <label>{tr("Due Date")}{" "}<span className="pw-hint">{tr("(optional)")}</span></label>
+                  <input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} />
+                </div>
+              )}
+              {!isPersonal && form.category === "Primary" && (
+                <p className="pw-hint" style={{ margin: "-6px 0 0" }}>
+                  {tr("Primary tasks are recurring daily responsibilities — no Due Date applies.")}
+                </p>
+              )}
             </div>
             <div className="todo-modal-foot"><button className="todo-btn-cancel" onClick={() => setModalOpen(false)}>{tr("Cancel")}</button><button className="todo-btn-save" onClick={saveTask} disabled={saving || !form.title.trim() || (!isPersonal && !form.farmerId)}>{saving ? "Saving…" : editingTask ? "Save Changes" : "Add Task"}</button></div>
           </div>

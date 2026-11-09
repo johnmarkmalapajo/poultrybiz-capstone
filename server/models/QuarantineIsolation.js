@@ -74,6 +74,23 @@ const QuarantineIsolationSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Set when a user releases a Quarantine record through the release
+    // dialog (releaseMethod "Manual"). releaseDeaths is how many birds the
+    // user reported as dead during quarantine (0 = none), and
+    // releaseMortalityRecordId is the single Mortality Record that was
+    // created for them (null when there were no deaths).
+    releaseDeaths: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    releaseMortalityRecordId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MortalityRecord",
+      default: null,
+    },
+
     // -------------------------
     // ISOLATION
     // -------------------------

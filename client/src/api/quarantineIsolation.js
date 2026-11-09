@@ -14,6 +14,8 @@ export const getQuarantineRecord    = (id)      => apiGet(`${PATH}/${id}`);
 export const createQuarantineRecord = (payload) => apiPost(PATH, payload);
 export const updateQuarantineRecord = (id, payload) => apiPut(`${PATH}/${id}`, payload);
 export const updateIsolationProgress = (id, payload) => apiPatch(`${PATH}/${id}/progress`, payload);
+// Releases an Ongoing Quarantine record. payload: { hadDeaths, deceasedCount? }
+export const releaseQuarantineRecord = (id, payload) => apiPatch(`${PATH}/${id}/release`, payload);
 export const correctIsolationProgress = (id, updateId, payload) => apiPatch(`${PATH}/${id}/progress/${updateId}`, payload);
 export const deleteQuarantineRecord = (id)      => apiDelete(`${PATH}/${id}`);
 export const archiveQuarantineRecord = (id) => apiPut(`${PATH}/${id}/archive`, {});

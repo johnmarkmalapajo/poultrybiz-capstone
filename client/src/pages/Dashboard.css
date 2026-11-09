@@ -44,6 +44,20 @@
    page-shell-related is declared here anymore. Only Dashboard's own
    content styling (header, cards, charts, to-do, alerts) lives below. ── */
 
+/* ── Compact vertical rhythm for this page only ──
+   PageLayout's shared .pl-main gap (32/24/20/16px across breakpoints) is
+   tuned for simpler, single-column pages. The Dashboard stacks several
+   dense sections (header, KPI cards, charts + calendar) in the same
+   column, so that gap repeats three times and reads as large empty bands.
+   <PageLayout className="dash-page"> (see Dashboard.jsx) adds this class
+   to the shared shell so the Dashboard can use a tighter gap at every
+   breakpoint without changing the default every other page still relies
+   on. Each step mirrors PageLayout's own breakpoints, just tightened. */
+.dash-page .pl-main { gap: 24px; }
+@media (max-width: 1024px) { .dash-page .pl-main { gap: 20px; } }
+@media (max-width: 768px)  { .dash-page .pl-main { gap: 16px; } }
+@media (max-width: 480px)  { .dash-page .pl-main { gap: 14px; } }
+
 /* ── Content header ── */
 .dash-header {
   display: flex;

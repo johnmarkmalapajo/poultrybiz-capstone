@@ -7,8 +7,6 @@ import {getPersonnelTask, updatePersonnelTask,} from "../api/personnelManpower";
 import { getPersonnel } from "../api/personnelManpower";
 import { useLanguage } from "../i18n/LanguageContext";
 
-const STATUSES = ["Pending", "Completed"];
-
 const FARMER_CATEGORIES = [
   "Flock Record", "Egg Record", "Health Record", "Quarantine and Isolation",
   "Manure and Waste Record", "Mortality Record", "Feed Inventory",
@@ -44,8 +42,12 @@ export default function EditTask() {
   const [formData, setFormData] = useState({
     work: "",
     assignedDate: "",
+    estimatedDurationValue: "",
+    estimatedDurationUnit: "minutes",
     dueDate: "",
-    status: "Pending",
+    taskCategory: "Secondary", // Primary/Secondary -- locked after creation
+    active: true,
+    dateCreated: "",
     category: "",
     notes: "",
   });
@@ -66,8 +68,12 @@ export default function EditTask() {
           setFormData({
             work: t.title || t.work || t.task || "",
             assignedDate: toDateInput(t.assignedDate) || t.assignedDate || "",
-            dueDate: toDateInput(t.dueDate) || t.dueDate || "",
-            status: t.status || "Pending",
+            estimatedDurationValue: t.estimatedDuration?.value != null ? String(t.estimatedDuration.value) : "",
+            estimatedDurationUnit: t.estimatedDuration?.unit || "minutes",
+            dueDate: toDateInput(t.dueDate) || "",
+            taskCategory: t.category === "Primary" ? "Primary" : "Secondary",
+            active: t.active !== false,
+            dateCreated: t.dateCreated || t.createdAt || "",
             category: t.type || t.module || categoriesFor(personRec)[0],
             notes: t.description || t.notes || "",
           });
@@ -80,8 +86,8 @@ export default function EditTask() {
   }, [id, taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     setError("");
   };
 
@@ -97,11 +103,17 @@ export default function EditTask() {
       module: formData.category,
       description: formData.notes,
       assignedDate: formData.assignedDate,
-      dueDate: formData.dueDate,
-      status: formData.status,
+      active: formData.active,
+      // Estimated Duration applies to every category, including Primary.
+      // Completion itself is never set from here -- it always requires
+      // the Farmer's own Proof of Completion submission (photo + remarks).
+      estimatedDuration: formData.estimatedDurationValue
+        ? { value: Number(formData.estimatedDurationValue), unit: formData.estimatedDurationUnit }
+        : null,
+      // Due Date is never applicable to Primary tasks (perpetually
+      // recurring); optional for Secondary.
+      dueDate: formData.taskCategory === "Primary" ? null : (formData.dueDate || null),
     };
-
-    console.log("Submitting payload:", payload);
 
     try {
       await updatePersonnelTask(id, taskId, payload);
@@ -176,6 +188,13 @@ export default function EditTask() {
             </select>
           </div>
 
+          <div className="et-form-group et-full-width">
+            <label>{tr("Task Type")}</label>
+            <span className="todo-archived-tag" title={tr("Task type (Primary/Secondary) cannot be changed after creation.")}>
+              {tr(formData.taskCategory === "Primary" ? "Primary — recurring daily responsibility" : "Secondary — one-off special assignment")}
+            </span>
+          </div>
+
           <div className="et-section-header">
             <FiCalendar />
             <h3>{tr("Schedule")}</h3>
@@ -189,9 +208,52 @@ export default function EditTask() {
             </div>
 
             <div className="et-form-group">
-              <label>{tr("Due Date")}{" "}<span className="et-req">*</span></label>
-              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
+              <label>{tr("Date Created")}</label>
+              <span className="todo-archived-tag" title={tr("Automatically recorded when the task was created — never editable.")}>
+                {formData.dateCreated ? toDateInput(formData.dateCreated) : "—"}
+              </span>
             </div>
+
+            <div className="et-form-group">
+              <label>{tr("Estimated Duration")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="number"
+                  name="estimatedDurationValue"
+                  min="0.01"
+                  step="any"
+                  style={{ flex: 1 }}
+                  value={formData.estimatedDurationValue}
+                  onChange={handleChange}
+                  placeholder={tr("e.g. 30")}
+                />
+                <select
+                  name="estimatedDurationUnit"
+                  style={{ flex: 1 }}
+                  value={formData.estimatedDurationUnit}
+                  onChange={handleChange}
+                >
+                  <option value="minutes">{tr("Minutes")}</option>
+                  <option value="hours">{tr("Hours")}</option>
+                </select>
+              </div>
+            </div>
+
+            {formData.taskCategory === "Secondary" ? (
+              <div className="et-form-group">
+                <label>{tr("Due Date")}{" "}<span style={{ color: "#a39e94", fontWeight: 400 }}>{tr("(optional)")}</span></label>
+                <input
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleChange}
+                />
+              </div>
+            ) : (
+              <p className="et-req-note">
+                {tr("Primary tasks are recurring daily responsibilities — no Due Date applies.")}
+              </p>
+            )}
           </div>
 
           <div className="et-section-header">
@@ -201,11 +263,20 @@ export default function EditTask() {
           </div>
 
           <div className="et-form-grid">
-            <div className="et-form-group">
-              <label>{tr("Status")}{" "}<span className="et-req">*</span></label>
-              <select name="status" value={formData.status} onChange={handleChange} required>
-                {STATUSES.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
-              </select>
+            <div className="et-form-group et-full-width">
+              <label>
+                <input
+                  type="checkbox"
+                  name="active"
+                  checked={formData.active}
+                  onChange={handleChange}
+                  style={{ width: 16, height: 16, marginRight: 8, verticalAlign: "middle" }}
+                />
+                {tr("Active — keeps producing new daily/lifetime occurrences")}
+              </label>
+              <p className="et-req-note" style={{ marginTop: 6 }}>
+                {tr("Completion is submitted by the Farmer with Proof of Completion (photo + remarks) — it can no longer be set directly here. See Personnel › Task History for every submission.")}
+              </p>
             </div>
           </div>
 

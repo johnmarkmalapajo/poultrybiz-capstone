@@ -28,6 +28,14 @@ const personalTodoSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // How long the task is expected to take -- a distinct concept from Due
+    // Date (a deadline). Optional, never required, never used to
+    // auto-complete a task.
+    estimatedDuration: {
+      value: { type: Number, default: null, min: 0.01 },
+      unit: { type: String, enum: ["minutes", "hours"], default: "minutes" },
+    },
+
     status: {
       type: String,
       enum: ["Pending", "Completed"],

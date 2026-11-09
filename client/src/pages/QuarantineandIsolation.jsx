@@ -13,7 +13,8 @@ import "./QuarantineandIsolation.css";
 import { archiveRow } from "../archiveRow";
 import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
 import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
-import { listQuarantineRecords, updateIsolationProgress, correctIsolationProgress } from "../api/quarantineIsolation";
+import { listQuarantineRecords, updateIsolationProgress, correctIsolationProgress, releaseQuarantineRecord } from "../api/quarantineIsolation";
+import { phToday, phDaysBetween } from "../phDate";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
@@ -47,6 +48,23 @@ export default function QuarantineIsolation() {
   const [progConfirming, setProgConfirming] = useState(false);
   const [progSaving, setProgSaving] = useState(false);
   const [progError, setProgError] = useState("");
+
+  // Release Quarantine dialog. choice: "" (not chosen) | "yes" | "no".
+  const [releaseRecord, setReleaseRecord] = useState(null);
+  const [releaseChoice, setReleaseChoice] = useState("");
+  const [releaseDeaths, setReleaseDeaths] = useState("");
+  const [releaseSaving, setReleaseSaving] = useState(false);
+  const [releaseError, setReleaseError] = useState("");
+  const releaseInFlight = useRef(false);
+
+  // Today's Philippine date. Re-checked every minute so an Ongoing duration
+  // rolls over at midnight Manila time even if the page stays open; the state
+  // only changes (and the table only re-renders) when the date changes.
+  const [phNow, setPhNow] = useState(phToday());
+  useEffect(() => {
+    const id = setInterval(() => setPhNow(phToday()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -188,6 +206,74 @@ export default function QuarantineIsolation() {
     }
   };
 
+  const openReleaseModal = (record) => {
+    setReleaseRecord(record);
+    setReleaseChoice("");
+    setReleaseDeaths("");
+    setReleaseError("");
+  };
+
+  const closeReleaseModal = () => {
+    if (releaseSaving) return;
+    setReleaseRecord(null);
+    setReleaseChoice("");
+    setReleaseDeaths("");
+    setReleaseError("");
+  };
+
+  const releaseDeathsNum = releaseDeaths === "" ? NaN : Number(releaseDeaths);
+  const releaseMax = Number(releaseRecord?.headCount) || 0;
+
+  // Returns an error message, or "" when the dialog can be confirmed.
+  const releaseValidation = () => {
+    if (!releaseChoice) return "Please choose whether any birds died during this quarantine period.";
+    if (releaseChoice === "yes") {
+      if (releaseDeaths === "") return "Enter the number of deceased birds.";
+      if (!Number.isInteger(releaseDeathsNum) || releaseDeathsNum <= 0) {
+        return "Number of Deceased Birds must be a whole number greater than zero.";
+      }
+      if (releaseDeathsNum > releaseMax) {
+        return `Number of Deceased Birds cannot exceed the birds in this quarantine (${releaseMax}).`;
+      }
+    }
+    return "";
+  };
+
+  const confirmRelease = async () => {
+    // The ref blocks a second click that lands before React re-renders the
+    // disabled button; the server also refuses a repeat on its own.
+    if (releaseInFlight.current || releaseSaving || !releaseRecord) return;
+
+    const problem = releaseValidation();
+    if (problem) {
+      setReleaseError(problem);
+      return;
+    }
+
+    releaseInFlight.current = true;
+    setReleaseSaving(true);
+    setReleaseError("");
+    try {
+      await releaseQuarantineRecord(releaseRecord._id, {
+        hadDeaths: releaseChoice === "yes",
+        ...(releaseChoice === "yes" ? { deceasedCount: releaseDeathsNum } : {}),
+      });
+      setReleaseRecord(null);
+      setReleaseChoice("");
+      setReleaseDeaths("");
+      await fetchRecords();
+      try { window.dispatchEvent(new Event("pb_data_changed")); } catch { /* refresh signal is optional */ }
+    } catch (err) {
+      setReleaseError(err?.message || "Couldn't release this quarantine record. Please try again.");
+      // The release may have gone through even if the reply was lost (timeout,
+      // double submit, another user). Reload so the table shows the real state.
+      fetchRecords();
+    } finally {
+      releaseInFlight.current = false;
+      setReleaseSaving(false);
+    }
+  };
+
   const quarantineRecords = allRecords.filter((r) => r.recordType !== "Isolation");
   const isolationRecords = allRecords.filter((r) => r.recordType === "Isolation");
 
@@ -292,6 +378,21 @@ export default function QuarantineIsolation() {
     ))
   );
 
+  // Days under quarantine. Ongoing rows are counted live against today's
+  // Philippine date; Released rows use the final figure the server computed
+  // from the actual release date. Returns null when it can't be worked out.
+  const durationDaysOf = (r) => {
+    if (r.status === "Ongoing") {
+      const live = phDaysBetween(r.dateAcquired, phNow);
+      if (live !== null) return live;
+    }
+    return Number.isInteger(r.quarantineDurationDays) ? r.quarantineDurationDays : null;
+  };
+  const durationLabel = (r) => {
+    const n = durationDaysOf(r);
+    return n === null ? "—" : `${n} ${tr(n === 1 ? "day" : "days")}`;
+  };
+
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const quarantineAccessor = (row, col) => {
     if (col === "batchId") return row.batchId || "";
@@ -300,6 +401,7 @@ export default function QuarantineIsolation() {
     if (col === "breed") return row.breed || "";
     if (col === "headCount") return Number(row.headCount) || 0;
     if (col === "releasedDate") return row.releasedDate || "";
+    if (col === "quarantineDuration") return durationDaysOf(row) ?? -1;
     if (col === "status") return row.status || "";
     return "";
   };
@@ -389,6 +491,7 @@ export default function QuarantineIsolation() {
     { key: "headCount", label: "Head Count" },
     { key: "vitaminsGiven", label: "Vitamins Given" },
     { key: "releasedDate", label: "Date Released" },
+    { key: "quarantineDuration", label: "Quarantine Duration" },
     { key: "status", label: "Status" },
   ];
   const quarantineExportRows = filteredQuarantine.map((r) => ({
@@ -399,6 +502,7 @@ export default function QuarantineIsolation() {
     headCount: r.headCount ?? 0,
     vitaminsGiven: r.vitaminsGiven || "—",
     releasedDate: r.releasedDate || "—",
+    quarantineDuration: durationLabel(r),
     status: r.status || "—",
   }));
   const isolationExportColumns = [
@@ -673,15 +777,16 @@ export default function QuarantineIsolation() {
                   <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>{tr("HEAD COUNT")}{sortIndicator("headCount", sortColumn, sortDirection)}</th>
                   <th>{tr("VITAMINS GIVEN")}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("releasedDate")}>{tr("DATE RELEASED")}{sortIndicator("releasedDate", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("quarantineDuration")}>{tr("QUARANTINE DURATION")}{sortIndicator("quarantineDuration", sortColumn, sortDirection)}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("status")}>{tr("STATUS")}{sortIndicator("status", sortColumn, sortDirection)}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="8" className="qi-empty-state">{tr("Loading quarantine records...")}</td></tr>
+                  <tr><td colSpan="9" className="qi-empty-state">{tr("Loading quarantine records...")}</td></tr>
                 ) : filteredQuarantine.length === 0 && quarantineRecords.length > 0 ? (
                   <tr>
-                    <td colSpan="8" className="qi-empty-state">
+                    <td colSpan="9" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
                         <h3>{tr("No quarantine and isolation records found")}</h3>
@@ -691,7 +796,7 @@ export default function QuarantineIsolation() {
                   </tr>
                 ) : filteredQuarantine.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="qi-empty-state">
+                    <td colSpan="9" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
                         <h3>{tr("No quarantine and isolation records found")}</h3>
@@ -710,8 +815,20 @@ export default function QuarantineIsolation() {
                       <td className="qi-center">{r.headCount}</td>
                       <td>{r.vitaminsGiven || "—"}</td>
                       <td>{r.releasedDate || "—"}</td>
+                      <td className="qi-center">{durationLabel(r)}</td>
                       <td>
-                        <span className={statusClass(r.status)}>{r.status || "—"}</span>
+                        {r.status === "Ongoing" && canEdit ? (
+                          <button
+                            type="button"
+                            className={`qi-status-trigger-btn ${statusClass(r.status)}`}
+                            title={tr("Change status to Released")}
+                            onClick={() => openReleaseModal(r)}
+                          >
+                            {tr(r.status)} <FiChevronDown className="qi-status-chevron" />
+                          </button>
+                        ) : (
+                          <span className={statusClass(r.status)}>{r.status || "—"}</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -984,6 +1101,81 @@ export default function QuarantineIsolation() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {releaseRecord && (
+        <div className="pb-confirm-overlay" onClick={closeReleaseModal}>
+          <div
+            className="pb-confirm-modal qi-release-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qi-release-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="pb-confirm-title" id="qi-release-title">{tr("Release Quarantine Record")}</h3>
+            <p className="pb-confirm-message qi-release-batch">
+              {tr("Batch ID")}: <strong>{releaseRecord.batchId}</strong>{" · "}
+              {tr("HEAD COUNT")}: <strong>{releaseRecord.headCount}</strong>
+            </p>
+
+            {releaseError && <div className="pb-error-banner">{tr(releaseError)}</div>}
+
+            <p className="qi-release-question">{tr("Did any birds die during this quarantine period?")}</p>
+            <div className="qi-release-choices" role="radiogroup" aria-label={tr("Did any birds die during this quarantine period?")}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={releaseChoice === "yes"}
+                className={`qi-release-choice qi-release-choice-yes ${releaseChoice === "yes" ? "is-selected" : ""}`}
+                disabled={releaseSaving}
+                onClick={() => { setReleaseChoice("yes"); setReleaseError(""); }}
+              >
+                {tr("Yes, there were deaths.")}
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={releaseChoice === "no"}
+                className={`qi-release-choice qi-release-choice-no ${releaseChoice === "no" ? "is-selected" : ""}`}
+                disabled={releaseSaving}
+                onClick={() => { setReleaseChoice("no"); setReleaseDeaths(""); setReleaseError(""); }}
+              >
+                {tr("No deaths.")}
+              </button>
+            </div>
+
+            {releaseChoice === "yes" && (
+              <div className="qi-progress-field qi-release-field">
+                <label htmlFor="qi-release-deaths">{tr("Number of Deceased Birds")}</label>
+                <input
+                  id="qi-release-deaths"
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  disabled={releaseSaving}
+                  value={releaseDeaths}
+                  onChange={(e) => { setReleaseDeaths(e.target.value.replace(/[^\d]/g, "")); setReleaseError(""); }}
+                  placeholder="0"
+                />
+                <small>{tr("Maximum:")}{" "}{releaseMax}</small>
+              </div>
+            )}
+
+            <div className="pb-confirm-actions">
+              <button type="button" className="pb-confirm-cancel" onClick={closeReleaseModal} disabled={releaseSaving}>
+                {tr("Cancel")}
+              </button>
+              <button
+                type="button"
+                className="pb-confirm-archive"
+                onClick={confirmRelease}
+                disabled={releaseSaving || !!releaseValidation()}
+              >
+                {releaseSaving ? tr("Releasing...") : tr("Confirm Release")}
+              </button>
+            </div>
           </div>
         </div>
       )}

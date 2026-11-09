@@ -8,13 +8,11 @@ import recordsIcon from "../assets/records.svg"
 import inventoryIcon from "../assets/inventory.svg"
 import salesTransactionsIcon from "../assets/sales-transactions.svg"
 import todoIcon from "../assets/todo.svg"
-import notificationsIcon from "../assets/notifications.svg"
 import settingsIcon from "../assets/settings.svg"
 import logoutIcon from "../assets/logout.svg"
 import userMenuIcon from "../assets/user.svg"
 import userIcon from "../assets/donlogo.png"
 import { useUser } from "../hooks/useUser"
-import { getUnreadCount, refresh as refreshNotifs, subscribe as subscribeNotifs } from "../notifStore"
 import { FiX } from "react-icons/fi"
 import { logout } from "../api/auth";
 
@@ -27,22 +25,15 @@ function Sidebar() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [profileVersion, setProfileVersion] = useState(0);
-  const { user, role, canSeeFinancials, canViewPersonnel } = useUser();
+  const { user, canSeeFinancials, canViewPersonnel } = useUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     const handler = () => setProfileVersion((v) => v + 1);
     window.addEventListener("pb_user_updated", handler);
     return () => window.removeEventListener("pb_user_updated", handler);
   }, []);
-
-  useEffect(() => {
-    const update = () => setUnread(getUnreadCount(role));
-    refreshNotifs(role).then(update);
-    return subscribeNotifs(update);
-  }, [role]);
 
   useState(() => {
     const handler = () => setMobileOpen(true);
@@ -134,36 +125,6 @@ function Sidebar() {
             <Link to={canViewPersonnel ? "/owner/todo" : "/todo"} className="nav-link" onClick={closeMobile}>
               <img src={todoIcon} alt="To Do" className="menu-icon" />
               {t("To Do")}
-            </Link>
-          </li>
-
-          <li className={isActive("/notifications") ? "active" : "secondary"}>
-            <Link to="/notifications" className="nav-link" onClick={closeMobile}>
-              <img src={notificationsIcon} alt="Notifications" className="menu-icon" />
-              {t("Notifications")}
-              {unread > 0 && (
-                <span
-                  className="notif-badge"
-                  style={{
-                    marginLeft: "auto",
-                    background: "#d94f4f",
-                    color: "#fff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    fontFamily: "'Poppins', sans-serif",
-                    minWidth: "18px",
-                    height: "18px",
-                    borderRadius: "10px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0 5px",
-                    lineHeight: 1,
-                  }}
-                >
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
             </Link>
           </li>
 
