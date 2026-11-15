@@ -17,14 +17,14 @@ import { listQuarantineRecords, updateIsolationProgress, correctIsolationProgres
 import { phToday, phDaysBetween } from "../phDate";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
 export default function QuarantineIsolation() {
   const { t: tr } = useLanguage();
   const navigate = useNavigate();
-  const { canEdit, canArchive } = useUser();
+  const { canEdit, canArchive, isOwner } = useUser();
   const { pending: archivePending, requestArchive, cancelArchive, confirmArchive } = useArchiveConfirm();
   const [params] = useSearchParams();
 
@@ -55,6 +55,9 @@ export default function QuarantineIsolation() {
   const [releaseDeaths, setReleaseDeaths] = useState("");
   const [releaseSaving, setReleaseSaving] = useState(false);
   const [releaseError, setReleaseError] = useState("");
+  // Set once the Owner has typed in the quantity field, so its validation
+  // message shows beside the input only after they started typing.
+  const [releaseTouched, setReleaseTouched] = useState(false);
   const releaseInFlight = useRef(false);
 
   // Today's Philippine date. Re-checked every minute so an Ongoing duration
@@ -210,6 +213,7 @@ export default function QuarantineIsolation() {
     setReleaseRecord(record);
     setReleaseChoice("");
     setReleaseDeaths("");
+    setReleaseTouched(false);
     setReleaseError("");
   };
 
@@ -218,26 +222,56 @@ export default function QuarantineIsolation() {
     setReleaseRecord(null);
     setReleaseChoice("");
     setReleaseDeaths("");
+    setReleaseTouched(false);
     setReleaseError("");
   };
 
   const releaseDeathsNum = releaseDeaths === "" ? NaN : Number(releaseDeaths);
-  const releaseMax = Number(releaseRecord?.headCount) || 0;
+  // Deaths can never exceed the batch's current flock quantity (the server
+  // enforces the same limit inside the release transaction).
+  const releaseMax = Number(releaseRecord?.currentFlockQuantity ?? releaseRecord?.headCount) || 0;
 
   // Returns an error message, or "" when the dialog can be confirmed.
   const releaseValidation = () => {
-    if (!releaseChoice) return "Please choose whether any birds died during this quarantine period.";
+    if (!releaseChoice) return "Please choose whether any chickens died while this batch was under quarantine.";
     if (releaseChoice === "yes") {
-      if (releaseDeaths === "") return "Enter the number of deceased birds.";
+      if (releaseDeaths === "") return "Enter the number of deceased chickens.";
       if (!Number.isInteger(releaseDeathsNum) || releaseDeathsNum <= 0) {
-        return "Number of Deceased Birds must be a whole number greater than zero.";
+        return "Number of Deceased Chickens must be a whole number greater than zero.";
       }
       if (releaseDeathsNum > releaseMax) {
-        return `Number of Deceased Birds cannot exceed the birds in this quarantine (${releaseMax}).`;
+        return `Number of Deceased Chickens cannot exceed the current flock quantity (${releaseMax}).`;
       }
     }
     return "";
   };
+
+  // Release state on today's Philippine date (re-evaluated every minute via
+  // phNow, so a row turns Eligible at 12:00 AM Manila time without a reload).
+  // The server decides the real eligibility when the Owner confirms.
+  const releaseStateOf = (r) => {
+    if (r.status === "Released") return "Released";
+    const due = r.expectedReleaseDate;
+    if (!due) return "Quarantined";
+    if (phNow < due) return "Quarantined";
+    if (phNow === due) return "Eligible for Release";
+    return "Overdue";
+  };
+  // The Status column shows only the record's actual status: Quarantined
+  // or Released. Release eligibility (Day 14 on) only decides whether the
+  // Owner's Status action is enabled.
+  const statusBadgeClass = (r) =>
+    r.status === "Released" ? "qi-status qi-status-released" : "qi-status qi-status-ongoing";
+  const releaseBlockedReasonOf = (r) => {
+    if (!r.expectedReleaseDate) return r.releaseBlockedReason || "The quarantine start date is unknown.";
+    if (phNow < r.expectedReleaseDate) {
+      const left = phDaysBetween(phNow, r.expectedReleaseDate);
+      return `Release is available on ${r.expectedReleaseDate} (${left} day${left === 1 ? "" : "s"} left).`;
+    }
+    // Eligible by date; the server may still report an ongoing Isolation.
+    return r.releaseBlockedReason || "";
+  };
+
 
   const confirmRelease = async () => {
     // The ref blocks a second click that lands before React re-renders the
@@ -378,13 +412,14 @@ export default function QuarantineIsolation() {
     ))
   );
 
-  // Days under quarantine. Ongoing rows are counted live against today's
-  // Philippine date; Released rows use the final figure the server computed
-  // from the actual release date. Returns null when it can't be worked out.
+  // Days under quarantine, the start date counting as Day 1 (same rule as
+  // the server). Ongoing rows are counted live against today's Philippine
+  // date; Released rows use the final figure the server computed from the
+  // actual release date. Returns null when it can't be worked out.
   const durationDaysOf = (r) => {
     if (r.status === "Ongoing") {
       const live = phDaysBetween(r.dateAcquired, phNow);
-      if (live !== null) return live;
+      if (live !== null) return live + 1;
     }
     return Number.isInteger(r.quarantineDurationDays) ? r.quarantineDurationDays : null;
   };
@@ -402,7 +437,8 @@ export default function QuarantineIsolation() {
     if (col === "headCount") return Number(row.headCount) || 0;
     if (col === "releasedDate") return row.releasedDate || "";
     if (col === "quarantineDuration") return durationDaysOf(row) ?? -1;
-    if (col === "status") return row.status || "";
+    if (col === "expectedReleaseDate") return row.expectedReleaseDate || "";
+    if (col === "status") return releaseStateOf(row);
     return "";
   };
   const isolationAccessor = (row, col) => {
@@ -424,6 +460,20 @@ export default function QuarantineIsolation() {
   useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters, activeTab]);
   const pageQuarantine = sortedQuarantine.slice(pager.startIndex, pager.endIndex);
   const pageIsolation = sortedIsolation.slice(pager.startIndex, pager.endIndex);
+
+  // A notification's View opens this page with ?record=<id> (a Quarantine
+  // reminder / release, or an Isolation record such as "Disease Detected"):
+  // open that record's tab, clear the search / filters if they hide it, then
+  // show its page, scroll to it and highlight it briefly. Same shared
+  // behavior as every other module (useRecordFocus).
+  const focus = useRecordFocus({
+    rows: activeSorted,
+    allRows: [...quarantineRecords, ...isolationRecords],
+    pager,
+    ready: !loading,
+    reveal: (rec) =>
+      handleTabChange(isolationRecords.some((r) => r._id === rec._id) ? "isolation" : "quarantine"),
+  });
 
   const statusClass = (status) => {
     const s = (status || "").toLowerCase();
@@ -774,6 +824,7 @@ export default function QuarantineIsolation() {
                   <th className="qi-sortable-th" onClick={() => cycleSort("breed")}>{tr("BREED")}{sortIndicator("breed", sortColumn, sortDirection)}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("source")}>{tr("SUPPLIER")}{sortIndicator("source", sortColumn, sortDirection)}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("dateAcquired")}>{tr("DATE ACQUIRED")}{sortIndicator("dateAcquired", sortColumn, sortDirection)}</th>
+                  <th className="qi-sortable-th" onClick={() => cycleSort("expectedReleaseDate")}>{tr("EXPECTED RELEASE")}{sortIndicator("expectedReleaseDate", sortColumn, sortDirection)}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("headCount")}>{tr("HEAD COUNT")}{sortIndicator("headCount", sortColumn, sortDirection)}</th>
                   <th>{tr("VITAMINS GIVEN")}</th>
                   <th className="qi-sortable-th" onClick={() => cycleSort("releasedDate")}>{tr("DATE RELEASED")}{sortIndicator("releasedDate", sortColumn, sortDirection)}</th>
@@ -783,10 +834,10 @@ export default function QuarantineIsolation() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="9" className="qi-empty-state">{tr("Loading quarantine records...")}</td></tr>
+                  <tr><td colSpan="10" className="qi-empty-state">{tr("Loading quarantine records...")}</td></tr>
                 ) : filteredQuarantine.length === 0 && quarantineRecords.length > 0 ? (
                   <tr>
-                    <td colSpan="9" className="qi-empty-state">
+                    <td colSpan="10" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
                         <h3>{tr("No quarantine and isolation records found")}</h3>
@@ -796,7 +847,7 @@ export default function QuarantineIsolation() {
                   </tr>
                 ) : filteredQuarantine.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="qi-empty-state">
+                    <td colSpan="10" className="qi-empty-state">
                       <div className="qi-empty-content">
                         <FiMaximize />
                         <h3>{tr("No quarantine and isolation records found")}</h3>
@@ -805,33 +856,44 @@ export default function QuarantineIsolation() {
                     </td>
                   </tr>
                 ) : (
-                  pageQuarantine.map((r) => (
-                    <tr key={r._id}>
+                  pageQuarantine.map((r) => {
+                    const blockedReason = r.status === "Ongoing" ? releaseBlockedReasonOf(r) : "";
+                    const statusText = r.status === "Released" ? "Released" : "Quarantined";
+                    return (
+                    <tr key={r._id} {...focus.rowProps(r._id)}>
                       <td><span className="qi-batch-badge">{r.batchId}</span></td>
                       <td>{r.breed || "—"}</td>
                       <td>{r.source}</td>
                       <td>{r.dateAcquired  ? new Date(r.dateAcquired).toISOString().split("T")[0]
                         : "—"}</td>
+                      <td>{r.expectedReleaseDate || "—"}</td>
                       <td className="qi-center">{r.headCount}</td>
                       <td>{r.vitaminsGiven || "—"}</td>
                       <td>{r.releasedDate || "—"}</td>
                       <td className="qi-center">{durationLabel(r)}</td>
                       <td>
-                        {r.status === "Ongoing" && canEdit ? (
+                        {r.status === "Ongoing" && isOwner ? (
+                          // Owner only. Clickable from Day 14 (the expected
+                          // release date) on; before it (or while an
+                          // Isolation is ongoing) disabled, saying why.
                           <button
                             type="button"
-                            className={`qi-status-trigger-btn ${statusClass(r.status)}`}
-                            title={tr("Change status to Released")}
+                            className={`qi-status-trigger-btn ${statusBadgeClass(r)}`}
+                            title={blockedReason ? tr(blockedReason) : tr("Release this batch from quarantine")}
+                            aria-label={blockedReason ? `${tr(statusText)} — ${tr(blockedReason)}` : `${tr(statusText)} — ${tr("Release this batch from quarantine")}`}
+                            disabled={!!blockedReason}
                             onClick={() => openReleaseModal(r)}
                           >
-                            {tr(r.status)} <FiChevronDown className="qi-status-chevron" />
+                            {tr(statusText)} {!blockedReason && <FiChevronDown className="qi-status-chevron" />}
                           </button>
                         ) : (
-                          <span className={statusClass(r.status)}>{r.status || "—"}</span>
+                          // Farmers (and Released rows) only see the status.
+                          <span className={statusBadgeClass(r)}>{tr(statusText)}</span>
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -883,7 +945,7 @@ export default function QuarantineIsolation() {
                   </tr>
                 ) : (
                   pageIsolation.map((r) => (
-                    <tr key={r._id}>
+                    <tr key={r._id} {...focus.rowProps(r._id)}>
                       <td>{r.isolationId || "—"}</td>
                       <td><span className="qi-batch-badge">{r.batchId}</span></td>
                       <td>{r.dateIsolated}</td>
@@ -1114,16 +1176,17 @@ export default function QuarantineIsolation() {
             aria-labelledby="qi-release-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="pb-confirm-title" id="qi-release-title">{tr("Release Quarantine Record")}</h3>
+            <h3 className="pb-confirm-title" id="qi-release-title">{tr("Quarantine Mortality Confirmation")}</h3>
             <p className="pb-confirm-message qi-release-batch">
               {tr("Batch ID")}: <strong>{releaseRecord.batchId}</strong>{" · "}
-              {tr("HEAD COUNT")}: <strong>{releaseRecord.headCount}</strong>
+              {tr("Expected Release")}: <strong>{releaseRecord.expectedReleaseDate || "—"}</strong>{" · "}
+              {tr("Current Flock Quantity")}: <strong>{releaseMax}</strong>
             </p>
 
             {releaseError && <div className="pb-error-banner">{tr(releaseError)}</div>}
 
-            <p className="qi-release-question">{tr("Did any birds die during this quarantine period?")}</p>
-            <div className="qi-release-choices" role="radiogroup" aria-label={tr("Did any birds die during this quarantine period?")}>
+            <p className="qi-release-question">{tr("Did any chickens die while this batch was under quarantine?")}</p>
+            <div className="qi-release-choices" role="radiogroup" aria-label={tr("Did any chickens die while this batch was under quarantine?")}>
               <button
                 type="button"
                 role="radio"
@@ -1132,7 +1195,7 @@ export default function QuarantineIsolation() {
                 disabled={releaseSaving}
                 onClick={() => { setReleaseChoice("yes"); setReleaseError(""); }}
               >
-                {tr("Yes, there were deaths.")}
+                {tr("YES")}
               </button>
               <button
                 type="button"
@@ -1142,13 +1205,13 @@ export default function QuarantineIsolation() {
                 disabled={releaseSaving}
                 onClick={() => { setReleaseChoice("no"); setReleaseDeaths(""); setReleaseError(""); }}
               >
-                {tr("No deaths.")}
+                {tr("NO")}
               </button>
             </div>
 
             {releaseChoice === "yes" && (
               <div className="qi-progress-field qi-release-field">
-                <label htmlFor="qi-release-deaths">{tr("Number of Deceased Birds")}</label>
+                <label htmlFor="qi-release-deaths">{tr("Number of Deceased Chickens")} <span className="qi-required">*</span></label>
                 <input
                   id="qi-release-deaths"
                   type="text"
@@ -1156,11 +1219,20 @@ export default function QuarantineIsolation() {
                   autoFocus
                   disabled={releaseSaving}
                   value={releaseDeaths}
-                  onChange={(e) => { setReleaseDeaths(e.target.value.replace(/[^\d]/g, "")); setReleaseError(""); }}
+                  onChange={(e) => { setReleaseDeaths(e.target.value.replace(/[^\d]/g, "")); setReleaseError(""); setReleaseTouched(true); }}
                   placeholder="0"
+                  aria-invalid={releaseTouched && !!releaseValidation()}
+                  aria-describedby="qi-release-deaths-msg"
                 />
-                <small>{tr("Maximum:")}{" "}{releaseMax}</small>
+                {releaseTouched && releaseValidation() && (
+                  <span id="qi-release-deaths-msg" className="qi-field-error" role="alert">{tr(releaseValidation())}</span>
+                )}
+                <small>{tr("Maximum:")}{" "}{releaseMax}. {tr("A Mortality Record is created automatically and this number is deducted from the batch.")}</small>
               </div>
+            )}
+
+            {releaseChoice === "no" && (
+              <p className="qi-release-note">{tr("No Mortality Record will be created and the flock quantity stays the same.")}</p>
             )}
 
             <div className="pb-confirm-actions">

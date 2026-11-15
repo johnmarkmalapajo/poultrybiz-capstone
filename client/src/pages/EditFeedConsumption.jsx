@@ -8,160 +8,16 @@ import {
   updateFeedConsumption,
 } from "../api/feedConsumption";
 import { listFlocks } from "../api/flockProfile";
-import { useFeedStock, resolveSackWeight } from "../hooks/useFeedStock";
+import { useFeedStock, resolveSackWeight, batchFeedSuggestion } from "../hooks/useFeedStock";
 import { useLanguage } from "../i18n/LanguageContext";
+import { BatchMultiSelect, AllocationHint } from "./AddFeedConsumption";
 
 const FEED_TYPES = ["Grower Feed", "Layer Feed"];
 const QUANTITY_UNITS = ["sacks", "kg"];
 
-function getFeedPlan(week) {
-  if (week == null || isNaN(week) || week < 17) return null;
-
-  if (week === 17) {
-    return {
-      grower: 100,
-      layer: 0,
-      gPerHead: 75,
-    };
-  }
-
-  if (week === 18) {
-    return {
-      grower: 100,
-      layer: 0,
-      gPerHead: 85,
-    };
-  }
-
-  if (week === 19) {
-    return {
-      grower: 75,
-      layer: 25,
-      gPerHead: 90,
-    };
-  }
-
-  if (week === 20) {
-    return {
-      grower: 50,
-      layer: 50,
-      gPerHead: 95,
-    };
-  }
-
-  if (week === 21) {
-    return {
-      grower: 25,
-      layer: 75,
-      gPerHead: 100,
-    };
-  }
-
-  if (week === 22) {
-    return {
-      grower: 0,
-      layer: 100,
-      gPerHead: 105,
-    };
-  }
-
-  return {
-    grower: 0,
-    layer: 100,
-    gPerHead: 110,
-  };
-}
-
-function planLabel(plan) {
-  if (!plan) return "";
-
-  const parts = [];
-
-  if (plan.grower) {
-    parts.push(`${plan.grower}% Grower Feed`);
-  }
-
-  if (plan.layer) {
-    parts.push(`${plan.layer}% Layer Feed`);
-  }
-
-  return `${parts.join(" + ")} (${plan.gPerHead} g/head/day)`;
-}
-
-function primaryFeed(plan) {
-  if (!plan) return "";
-
-  return plan.layer > plan.grower
-    ? "Layer Feed"
-    : "Grower Feed";
-}
-
-function getAgeWeeks(flock) {
-  if (!flock) return null;
-
-  const direct =
-    flock.currentAgeWeeks ??
-    flock.ageWeeks ??
-    flock.currentAge ??
-    flock.ageInWeeks ??
-    flock.age;
-
-  if (direct != null && direct !== "") {
-    return Math.floor(Number(direct));
-  }
-
-  const start =
-    flock.dateAcquired ||
-    flock.startDate ||
-    flock.hatchDate ||
-    flock.dateOfArrival ||
-    flock.acquisitionDate;
-
-  if (start) {
-    const ms =
-      Date.now() - new Date(start).getTime();
-
-    if (!isNaN(ms)) {
-      return Math.max(
-        0,
-        Math.floor(
-          ms / (7 * 24 * 60 * 60 * 1000)
-        )
-      );
-    }
-  }
-
-  return null;
-}
-
-function getQuantity(flock) {
-  if (!flock) return null;
-
-  const quantity =
-    flock.currentQuantity ??
-    flock.currentBirds ??
-    flock.quantity ??
-    flock.headCount ??
-    flock.quantityPurchased ??
-    flock.numberOfBirds ??
-    flock.birdCount;
-
-  const number = Number(quantity);
-
-  return isNaN(number) || number <= 0
-    ? null
-    : number;
-}
-
-function computeConsumedKg(quantity, plan) {
-  if (!quantity || !plan) return "";
-
-  return String(
-    Math.round(
-      (quantity * plan.gPerHead / 1000) * 100
-    ) / 100
-  );
-}
+// Feed plan by age, bird counts and the suggested total quantity come from
+// the shared helpers in hooks/useFeedStock.js (batchFeedSuggestion), so
+// Add and Edit always calculate the same way.
 
 export default function EditFeedConsumption() {
   const { t: tr } = useLanguage();
@@ -170,7 +26,12 @@ export default function EditFeedConsumption() {
 
   const [batches, setBatches] = useState([]);
   const [flockList, setFlockList] = useState([]);
-  const [autoMeta, setAutoMeta] = useState({});
+  // Batches on this entry. `batchesChanged` = the user changed them, so the
+  // per-batch details are re-read from the flocks; otherwise the details
+  // saved with the entry are kept.
+  const [selectedBatches, setSelectedBatches] = useState([]);
+  const [savedBatches, setSavedBatches] = useState([]);
+  const [batchesChanged, setBatchesChanged] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -178,7 +39,6 @@ export default function EditFeedConsumption() {
 
   const [form, setForm] = useState({
     date: "",
-    batchId: "",
     feedType: "",
     quantityConsumed: "",
     quantityUnit: "kg",
@@ -210,9 +70,12 @@ export default function EditFeedConsumption() {
           json.records ||
           (Array.isArray(json) ? json : []);
 
+        // Batches that can receive feed: not archived and not culled.
+        // (Batches already on this entry are always listed -- see below.)
         const ids = [
           ...new Set(
             list
+              .filter((flock) => !flock.isArchived && flock.status !== "Culled")
               .map((flock) => flock.batchId)
               .filter(Boolean)
           ),
@@ -281,12 +144,21 @@ export default function EditFeedConsumption() {
                 .toISOString()
                 .split("T")[0]
             : "",
-          batchId: record.batchId || "",
           feedType: record.feedType || "",
           quantityConsumed,
           quantityUnit,
           notes: record.notes || "",
         });
+
+        // Multi-batch entries list every batch; older single-batch entries
+        // only have batchId.
+        const recordBatches = record.batchIds?.length
+          ? record.batchIds
+          : record.batchId
+          ? [record.batchId]
+          : [];
+        setSelectedBatches(recordBatches);
+        setSavedBatches(recordBatches);
 
         setSavedSnapshot({
           feedType: record.feedType || "",
@@ -355,41 +227,34 @@ export default function EditFeedConsumption() {
     }));
   };
 
-  const handleBatchChange = (event) => {
-    const batchId = event.target.value;
+  // Same as Add Feed Consumption: pick the feed type and fill in the TOTAL
+  // quantity (kg) for all selected batches when every batch's age and bird
+  // count are known.
+  const handleBatchesChange = (batchIds) => {
+    setSelectedBatches(batchIds);
+    setBatchesChanged(true);
+    const suggestion = batchFeedSuggestion(flockList, batchIds);
 
-    const flock = flockList.find(
-      (item) => item.batchId === batchId
-    );
-
-    const age = getAgeWeeks(flock);
-    const quantity = getQuantity(flock);
-    const plan = getFeedPlan(age);
-
-    setAutoMeta({
-      currentAge: age,
-      currentQuantity: quantity,
-      feedTransition: planLabel(plan),
-      gPerHeadPerDay:
-        plan?.gPerHead ?? null,
-    });
-
-    setForm((current) => {
-      const next = {
+    if (suggestion.totalKg != null && suggestion.feedType) {
+      setForm((current) => ({
         ...current,
-        batchId,
-      };
-
-      if (plan && quantity) {
-        next.feedType = primaryFeed(plan);
-        next.quantityConsumed =
-          computeConsumedKg(quantity, plan);
-        next.quantityUnit = "kg";
-      }
-
-      return next;
-    });
+        feedType: suggestion.feedType,
+        quantityConsumed: String(suggestion.totalKg),
+        quantityUnit: "kg",
+      }));
+    }
   };
+
+  // Batches already on this entry stay selectable even if they were culled
+  // or archived since.
+  const batchOptions = [
+    ...savedBatches.filter((id) => !batches.includes(id)),
+    ...batches,
+  ];
+
+  const requestedKg =
+    (Number(form.quantityConsumed) || 0) *
+    (form.quantityUnit === "sacks" ? sackWeightKg : 1);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -405,8 +270,8 @@ export default function EditFeedConsumption() {
       return;
     }
 
-    if (!form.batchId) {
-      setError(tr("Please select a batch."));
+    if (!selectedBatches.length) {
+      setError(tr("Please select at least one Batch ID."));
       return;
     }
 
@@ -433,13 +298,19 @@ export default function EditFeedConsumption() {
     setSaving(true);
 
     try {
+      const suggestion = batchesChanged
+        ? batchFeedSuggestion(flockList, selectedBatches)
+        : null;
+
       const payload = {
         date: form.date,
-        batchId: form.batchId,
+        batchIds: selectedBatches,
         feedType: form.feedType,
         quantityConsumed: quantity,
         quantityUnit: form.quantityUnit,
-        ...autoMeta,
+        ...(suggestion
+          ? { ...suggestion.singleMeta, batchMeta: suggestion.batchMeta }
+          : {}),
         notes: form.notes,
       };
 
@@ -549,27 +420,11 @@ export default function EditFeedConsumption() {
               <span className="efc-req">*</span>
             </label>
 
-            <select
-              name="batchId"
-              value={form.batchId}
-              onChange={handleBatchChange}
-              required
-            >
-              <option value="">
-                {batches.length
-                  ? "Select batch"
-                  : "No batches available"}
-              </option>
-
-              {batches.map((batchId) => (
-                <option
-                  key={batchId}
-                  value={batchId}
-                >
-                  {batchId}
-                </option>
-              ))}
-            </select>
+            <BatchMultiSelect
+              options={batchOptions}
+              value={selectedBatches}
+              onChange={handleBatchesChange}
+            />
           </div>
 
           <div className="efc-form-group">
@@ -637,6 +492,7 @@ export default function EditFeedConsumption() {
                 ? `1 sack = ${sackWeightKg} kg`
                 : "Quantity is recorded in kilograms."}
             </small>
+            <AllocationHint totalKg={requestedKg} batchIds={selectedBatches} flockList={flockList} />
           </div>
         </div>
 

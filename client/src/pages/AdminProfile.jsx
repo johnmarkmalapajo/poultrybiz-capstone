@@ -4,17 +4,135 @@ import Sidebar from "../components/Sidebar";
 import {
   FiBell, FiCalendar, FiCamera, FiMail, FiPhone, FiUser, FiClock, FiMapPin,
   FiLock, FiEye, FiEyeOff, FiSave, FiX, FiCheckCircle, FiSettings, FiImage,
+  FiType, FiRotateCcw, FiMinus, FiPlus,
 } from "react-icons/fi";
 import "./Profile.css";
 import { useUser } from "../hooks/useUser";
-import { updateStoredUser } from "../hooks/useUser";
+import { updateStoredUser, TEXT_SIZES, normalizeTextSize, applyTextSize } from "../hooks/useUser";
 import {
   getMyProfile,
   updateMyProfile,
   changeMyPassword,
   uploadAvatar,
   uploadFarmLogo,
+  updateTextSize,
 } from "../api/profile";
+
+const storedTextSize = () => {
+  try { return normalizeTextSize(JSON.parse(localStorage.getItem("user") || "{}").textSize); }
+  catch { return "default"; }
+};
+
+/**
+ * My Profile > Text Size, shared by the Owner (AdminProfile) and Farmer
+ * (FarmerProfile) pages. Picking a size applies it to the whole app at once
+ * (no refresh) and saves it on the signed-in account right away, so it is
+ * the same after logout / login and on every device. Each account keeps its
+ * own size. If saving fails, the previous size comes back.
+ */
+export function TextSizeSection() {
+  const { t } = useLanguage();
+  const [size, setSize] = useState(storedTextSize);
+  const [status, setStatus] = useState(null); // null | saving | saved | error
+  const savedRef = useRef(size);
+  const requestRef = useRef(0);
+
+  // The account's size can arrive from the server after this page opened
+  // (AuthGate refreshes the stored user).
+  useEffect(() => {
+    const onUser = () => {
+      const v = storedTextSize();
+      savedRef.current = v;
+      setSize(v);
+    };
+    window.addEventListener("pb_user_updated", onUser);
+    return () => window.removeEventListener("pb_user_updated", onUser);
+  }, []);
+
+  const choose = async (value) => {
+    value = normalizeTextSize(value);
+    if (value === size && status !== "error") return;
+    const request = ++requestRef.current;
+    setSize(value);
+    applyTextSize(value);
+    setStatus("saving");
+    try {
+      await updateTextSize(value);
+      if (request !== requestRef.current) return;
+      savedRef.current = value;
+      updateStoredUser({ textSize: value });
+      setStatus("saved");
+    } catch {
+      if (request !== requestRef.current) return;
+      setSize(savedRef.current);
+      applyTextSize(savedRef.current);
+      setStatus("error");
+    }
+  };
+
+  const index = TEXT_SIZES.findIndex((s) => s.value === size);
+  const current = TEXT_SIZES[index] || TEXT_SIZES[1];
+
+  return (
+    <div className="pf-card pf-section pf-textsize">
+      <div className="pf-section-head"><div className="pf-section-ico"><FiType /></div><h2>{t("Text Size")}</h2></div>
+      <p className="pf-textsize-note">{t("Adjust the text size used across PoultryBiz. It is saved to your account and applies on every device you sign in to.")}</p>
+
+      <div className="pf-textsize-current">
+        <button
+          type="button"
+          className="pf-textsize-step"
+          onClick={() => choose(TEXT_SIZES[Math.max(0, index - 1)].value)}
+          disabled={index <= 0}
+          aria-label={t("Decrease text size")}
+        ><FiMinus /></button>
+        <span className="pf-textsize-label" aria-live="polite">
+          {t("Current size:")} <strong>{t(current.label)}</strong>
+        </span>
+        <button
+          type="button"
+          className="pf-textsize-step"
+          onClick={() => choose(TEXT_SIZES[Math.min(TEXT_SIZES.length - 1, index + 1)].value)}
+          disabled={index >= TEXT_SIZES.length - 1}
+          aria-label={t("Increase text size")}
+        ><FiPlus /></button>
+      </div>
+
+      <div className="pf-textsize-options" role="radiogroup" aria-label={t("Text Size")}>
+        {TEXT_SIZES.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            role="radio"
+            aria-checked={size === s.value}
+            className={`pf-textsize-option${size === s.value ? " active" : ""}`}
+            onClick={() => choose(s.value)}
+          >
+            {/* Fixed sample size (not scaled) so each option shows how big it is. */}
+            <span className="pf-textsize-sample" style={{ fontSize: `${Math.round(18 * s.scale)}px` }} aria-hidden="true">Aa</span>
+            <span className="pf-textsize-name">{t(s.label)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="pf-textsize-foot">
+        <span className={`pf-textsize-status${status === "error" ? " error" : ""}`} role="status">
+          {status === "saving" && t("Saving...")}
+          {status === "saved" && <><FiCheckCircle /> {t("Saved to your account")}</>}
+          {status === "error" && t("Couldn't save the text size. Please try again.")}
+        </span>
+        <button
+          type="button"
+          className="pf-btn pf-btn-cancel pf-textsize-reset"
+          onClick={() => choose("default")}
+          disabled={size === "default"}
+        >
+          <FiRotateCcw /> {t("Reset to Default")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const EMPTY_ADMIN = {
   fullName: "", email: "", phone: "", address: "", avatar: "",
@@ -282,6 +400,8 @@ const onPickLogo = (e) => {
                 </div>
               </div>
             </div>
+
+            <TextSizeSection />
 
             {}
             {isOwner && (

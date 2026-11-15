@@ -1,7 +1,7 @@
 import { phToday } from "../phDate";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiInfo, FiFileText, FiSave, FiX } from "react-icons/fi";
+import { FiInfo, FiFileText, FiSave, FiX, FiChevronDown } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddFeedConsumption.css";
 import { createFeedConsumption } from "../api/feedConsumption";
@@ -11,6 +11,8 @@ import {
   feedQuantityToKg,
   convertFeedQuantity,
   sackWeightHint,
+  splitByBirds,
+  batchFeedSuggestion,
 } from "../hooks/useFeedStock";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -40,105 +42,111 @@ const blockInvalidQuantityPaste = (e) => {
   }
 };
 
-// ── Feed transition rules by current age (weeks) ──
-function getFeedPlan(week) {
-  if (week == null || isNaN(week) || week < 17) return null;
-  if (week === 17) return { grower: 100, layer: 0, gPerHead: 75 };
-  if (week === 18) return { grower: 100, layer: 0, gPerHead: 85 };
-  if (week === 19) return { grower: 75, layer: 25, gPerHead: 90 };
-  if (week === 20) return { grower: 50, layer: 50, gPerHead: 95 };
-  if (week === 21) return { grower: 25, layer: 75, gPerHead: 100 };
-  if (week === 22) return { grower: 0, layer: 100, gPerHead: 105 };
+/**
+ * Batch ID dropdown with checkboxes (Add + Edit Feed Consumption).
+ * - "Select All" at the top selects every listed batch, or clears them all
+ *   when all are selected; it shows a partial (indeterminate) state when
+ *   only some are selected.
+ * - Stays open while ticking boxes; closes on an outside click / tap, Escape,
+ *   or clicking the field again.
+ * - The field shows the selected IDs (and how many when several are picked).
+ * - Each ID can be selected only once; the selection is kept in list order.
+ */
+export function BatchMultiSelect({ options, value, onChange, placeholder = "Select batch", emptyText = "No batches available" }) {
+  const { t: tr } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  const allRef = useRef(null);
 
-  return {
-    grower: 0,
-    layer: 100,
-    gPerHead: 110,
-  };
+  const picked = options.filter((id) => value.includes(id));
+  const allSelected = options.length > 0 && picked.length === options.length;
+  const someSelected = picked.length > 0 && !allSelected;
+
+  useEffect(() => {
+    if (allRef.current) allRef.current.indeterminate = someSelected;
+  }, [someSelected, open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("touchstart", outside);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("touchstart", outside);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  // Keeps the order of the list and never repeats an ID. IDs that are not in
+  // the list (e.g. a culled batch already on an entry being edited) stay.
+  const ordered = (ids) => [
+    ...value.filter((id) => !options.includes(id) && ids.includes(id)),
+    ...options.filter((id) => ids.includes(id)),
+  ];
+  const toggle = (id) => onChange(ordered(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]));
+  const toggleAll = () =>
+    onChange(allSelected ? value.filter((id) => !options.includes(id)) : ordered([...new Set([...value, ...options])]));
+
+  const shown = value.length <= 3 ? value.join(", ") : `${value.slice(0, 2).join(", ")} +${value.length - 2} ${tr("more")}`;
+
+  return (
+    <div className="afc-ms" ref={boxRef}>
+      <button
+        type="button"
+        className={`afc-ms-field${open ? " is-open" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={!options.length && !value.length}
+      >
+        <span className={`afc-ms-text${value.length ? "" : " is-placeholder"}`}>
+          {value.length ? shown : tr(options.length ? placeholder : emptyText)}
+        </span>
+        {value.length > 1 && <span className="afc-ms-count">{value.length} {tr("selected")}</span>}
+        <FiChevronDown className="afc-ms-caret" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="afc-ms-panel" role="listbox" aria-multiselectable="true">
+          {options.length > 0 && (
+            <label className="afc-ms-option afc-ms-all">
+              <input ref={allRef} type="checkbox" checked={allSelected} onChange={toggleAll} />
+              <span>{tr("Select All")}</span>
+              <small>{picked.length}/{options.length}</small>
+            </label>
+          )}
+          {options.map((id) => (
+            <label key={id} className="afc-ms-option" role="option" aria-selected={value.includes(id)}>
+              <input type="checkbox" checked={value.includes(id)} onChange={() => toggle(id)} />
+              <span>{id}</span>
+            </label>
+          ))}
+          {!options.length && <p className="afc-ms-empty">{tr(emptyText)}</p>}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function planLabel(p) {
-  if (!p) return "";
-
-  const parts = [];
-
-  if (p.grower) {
-    parts.push(`${p.grower}% Grower Feed`);
-  }
-
-  if (p.layer) {
-    parts.push(`${p.layer}% Layer Feed`);
-  }
-
-  return `${parts.join(" + ")} (${p.gPerHead} g/head/day)`;
-}
-
-function primaryFeed(p) {
-  if (!p) return "";
-
-  return p.layer > p.grower ? "Layer Feed" : "Grower Feed";
-}
-
-// Current age (weeks)
-function getAgeWeeks(f) {
-  if (!f) return null;
-
-  const direct =
-    f.currentAgeWeeks ??
-    f.ageWeeks ??
-    f.currentAge ??
-    f.ageInWeeks ??
-    f.age;
-
-  if (direct != null && direct !== "") {
-    return Math.floor(Number(direct));
-  }
-
-  const start =
-    f.dateAcquired ||
-    f.startDate ||
-    f.hatchDate ||
-    f.dateOfArrival ||
-    f.acquisitionDate;
-
-  if (start) {
-    const ms = Date.now() - new Date(start).getTime();
-
-    if (!isNaN(ms)) {
-      return Math.max(
-        0,
-        Math.floor(ms / (7 * 24 * 60 * 60 * 1000))
-      );
-    }
-  }
-
-  return null;
-}
-
-// Current quantity (head count)
-function getQuantity(f) {
-  if (!f) return null;
-
-  const q =
-    f.currentQuantity ??
-    f.currentBirds ??
-    f.quantity ??
-    f.headCount ??
-    f.quantityPurchased ??
-    f.numberOfBirds ??
-    f.birdCount;
-
-  const n = Number(q);
-
-  return isNaN(n) || n <= 0 ? null : n;
-}
-
-// Quantity consumed in kg
-function computeConsumedKg(qty, plan) {
-  if (!qty || !plan) return "";
-
-  return String(
-    Math.round((qty * plan.gPerHead / 1000) * 100) / 100
+// "B-001 12.5 kg · B-002 7.5 kg" -- how the total will be shared.
+export function AllocationHint({ totalKg, batchIds, flockList }) {
+  const { t: tr } = useLanguage();
+  if (batchIds.length < 2) return null;
+  const shares = totalKg > 0 ? splitByBirds(totalKg, batchIds, flockList) : [];
+  return (
+    <small className="afc-ms-hint">
+      {tr("Quantity Consumed is the total for all selected batches (deducted once from stock), shared by bird count")}
+      {shares.length ? ": " : "."}
+      {shares.map((s, i) => (
+        <span key={s.batchId}>
+          {i > 0 && " · "}
+          <strong>{s.batchId}</strong> {s.kg.toLocaleString()} kg{s.birds ? ` (${s.birds.toLocaleString()} ${tr("birds")})` : ""}
+        </span>
+      ))}
+    </small>
   );
 }
 
@@ -149,7 +157,7 @@ export default function AddFeedConsumption() {
   const [batches, setBatches] = useState([]);
   const [saving, setSaving] = useState(false);
   const [flockList, setFlockList] = useState([]);
-  const [autoMeta, setAutoMeta] = useState({});
+  const [selectedBatches, setSelectedBatches] = useState([]);
   const {
     loading: stockLoading,
     stockFor,
@@ -158,7 +166,6 @@ export default function AddFeedConsumption() {
 
   const [form, setForm] = useState({
     date: getTodayDateString(),
-    batchId: "",
     feedType: "",
     quantityConsumed: "",
     quantityUnit: "kg",
@@ -178,9 +185,11 @@ export default function AddFeedConsumption() {
           json.records ||
           (Array.isArray(json) ? json : []);
 
+        // Batches that can receive feed: not archived and not culled.
         const ids = [
           ...new Set(
             list
+              .filter((f) => !f.isArchived && f.status !== "Culled")
               .map((f) => f.batchId)
               .filter(Boolean)
           ),
@@ -196,6 +205,10 @@ export default function AddFeedConsumption() {
 
     fetchBatches();
   }, []);
+
+  // Only batches still in the available list count as selected, so the
+  // selection follows the list if it changes.
+  const activeBatches = selectedBatches.filter((id) => batches.includes(id));
 
   const selectedStock = form.feedType ? stockFor(form.feedType) : null;
   const sackWeightKg = sackWeightFor(form.feedType);
@@ -272,54 +285,37 @@ export default function AddFeedConsumption() {
     }));
   };
 
-  // When a batch is selected:
-  // pull current age + quantity from the flock,
-  // auto-determine the feed transition,
-  // and auto-compute Quantity Consumed.
-  const handleBatchChange = (e) => {
-    const batchId = e.target.value;
-    const flock = flockList.find(
-      (f) => f.batchId === batchId
-    );
+  // When the selected batches change: pull each batch's current age and bird
+  // count, pick the feed type, and fill in the TOTAL Quantity Consumed for all
+  // of them (each batch's birds x its age-based g/head/day), as the single
+  // batch dropdown always did for one batch.
+  const handleBatchesChange = (batchIds) => {
+    setSelectedBatches(batchIds);
+    const suggestion = batchFeedSuggestion(flockList, batchIds);
 
-    const age = getAgeWeeks(flock);
-    const qty = getQuantity(flock);
-    const plan = getFeedPlan(age);
-
-    setAutoMeta({
-      currentAge: age,
-      currentQuantity: qty,
-      feedTransition: planLabel(plan),
-      gPerHeadPerDay: plan?.gPerHead ?? null,
-    });
-
-    setForm((current) => {
-      const next = {
+    if (suggestion.totalKg != null && suggestion.feedType) {
+      setForm((current) => ({
         ...current,
-        batchId,
-      };
-
-      if (plan && qty) {
-        const consumedKg = computeConsumedKg(qty, plan);
-
-        next.feedType = primaryFeed(plan);
-
-        next.quantityConsumed = convertFeedQuantity(
-          consumedKg,
+        feedType: suggestion.feedType,
+        quantityConsumed: convertFeedQuantity(
+          String(suggestion.totalKg),
           "kg",
           current.quantityUnit,
-          sackWeightFor(next.feedType)
-        );
-      }
-
-      return next;
-    });
+          sackWeightFor(suggestion.feedType)
+        ),
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (saving) return;
+
+    if (!activeBatches.length) {
+      setError(tr("Please select at least one Batch ID."));
+      return;
+    }
 
     if (form.date > getTodayDateString()) {
       setError(tr("The date cannot be in the future."));
@@ -341,9 +337,14 @@ export default function AddFeedConsumption() {
       return;
     }
 
+    // ONE entry for all selected batches; the server stores how the total
+    // is shared (by bird count) and deducts the total from stock once.
+    const suggestion = batchFeedSuggestion(flockList, activeBatches);
     const payload = {
       ...form,
-      ...autoMeta,
+      ...suggestion.singleMeta,
+      batchIds: activeBatches,
+      batchMeta: suggestion.batchMeta,
     };
 
     if (window.__pbSaving) return;
@@ -428,24 +429,11 @@ export default function AddFeedConsumption() {
             <label>{tr("Batch ID")}{" "}<span className="afc-req">*</span>
             </label>
 
-            <select
-              name="batchId"
-              value={form.batchId}
-              onChange={handleBatchChange}
-              required
-            >
-              <option value="">
-                {batches.length
-                  ? "Select batch"
-                  : "No batches available"}
-              </option>
-
-              {batches.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+            <BatchMultiSelect
+              options={batches}
+              value={activeBatches}
+              onChange={handleBatchesChange}
+            />
           </div>
 
           <div className="afc-form-group">
@@ -511,6 +499,7 @@ export default function AddFeedConsumption() {
     {exceedsStock &&
       " Quantity consumed cannot exceed the available feed stock."}
   </small>
+  <AllocationHint totalKg={requestedKg} batchIds={activeBatches} flockList={flockList} />
 </div>
         </div>
 

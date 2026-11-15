@@ -3,9 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX, FiUserPlus } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditSalesRecord.css";
-import { getSalesRecord, updateSalesRecord, getEggStockSummary } from "../api/salesRecord";
+import { getSalesRecord, updateSalesRecord, getEggStockSummary, getEggPrices } from "../api/salesRecord";
 import { listCustomers } from "../api/customers";
-import SaleItemsEditor, { emptyItem, validateItems, eggsEquivalentOf } from "../components/SaleItemsEditor";
+import SaleItemsEditor, { emptyItem, validateItems, eggsEquivalentOf, priceText } from "../components/SaleItemsEditor";
 import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_CUSTOMER_VALUE = "__new__";
@@ -24,6 +24,9 @@ export default function EditSalesRecord() {
   const [originalItemsBySize, setOriginalItemsBySize] = useState({});
   const [remarks, setRemarks]       = useState("");
   const [stockByType, setStockByType] = useState({});
+  // Egg Pricing, used only when an egg set's size is changed (a saved set
+  // keeps its historical Unit Price).
+  const [eggPrices, setEggPrices] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -68,7 +71,11 @@ export default function EditSalesRecord() {
                 eggSize: it.eggSize || "",
                 unit: it.unit || "Pieces",
                 quantitySold: it.quantitySold != null ? String(it.quantitySold) : "",
-                unitPrice: it.unitPrice != null ? String(it.unitPrice) : "",
+                unitPrice: priceText(it.unitPrice),
+                // The sale's own size and price: kept as they are unless
+                // the size is changed.
+                savedSize: it.eggSize || "",
+                savedUnitPrice: priceText(it.unitPrice),
               }))
             : [emptyItem()];
           setItems(loadedItems);
@@ -94,6 +101,12 @@ export default function EditSalesRecord() {
     fetchRecord();
     return () => { cancelled = true; };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    getEggPrices()
+      .then((d) => setEggPrices(d?.prices || {}))
+      .catch(() => setEggPrices(null));
+  }, []);
 
   const isNewCustomer = customerId === NEW_CUSTOMER_VALUE;
 
@@ -132,7 +145,7 @@ export default function EditSalesRecord() {
       setError(tr("Please enter the new customer's name."));
       return;
     }
-    const itemsError = validateItems(items);
+    const itemsError = validateItems(items, eggPrices);
     if (itemsError) {
       setError(itemsError);
       return;
@@ -148,7 +161,8 @@ export default function EditSalesRecord() {
         eggSize: it.eggSize,
         unit: it.unit,
         quantitySold: parseFloat(it.quantitySold) || 0,
-        unitPrice: parseFloat(it.unitPrice) || 0,
+        // Sent as typed (e.g. "6.25"): never parsed to an integer or re-rounded.
+        unitPrice: String(it.unitPrice ?? "").trim(),
       })),
       remarks,
       ...(isNewCustomer ? { newCustomer } : { customerId }),
@@ -265,6 +279,7 @@ export default function EditSalesRecord() {
             onChange={setItems}
             stockByType={stockByType}
             originalItemsBySize={originalItemsBySize}
+            prices={eggPrices}
           />
 
           <div className="esr-section-header">

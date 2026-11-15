@@ -133,3 +133,32 @@
   font-size: 14px;
   color: #aaa;
 }
+/* ── "+ Add New Location/Storage" modal (LocationStorageSelect, also used by
+   Add Equipment). The card/buttons reuse the shared .pb-confirm-* modal. ── */
+.eeq-loc-modal { text-align: left; width: 380px; }
+.eeq-loc-modal .pb-confirm-title { text-align: center; margin-bottom: 18px; }
+.eeq-loc-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: #47321C;
+  margin-bottom: 8px;
+}
+.eeq-loc-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1.5px solid #e8e2d4;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  color: #333;
+  outline: none;
+}
+.eeq-loc-input:focus { border-color: var(--color-accent); }
+.eeq-loc-input[aria-invalid="true"] { border-color: #c0392b; }
+.eeq-loc-error { margin-bottom: 4px; }
+.eeq-loc-modal .pb-confirm-actions { margin-top: 20px; }
+.eeq-loc-modal button:disabled { opacity: 0.6; cursor: not-allowed; }

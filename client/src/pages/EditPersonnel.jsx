@@ -6,6 +6,7 @@ import "./EditPersonnel.css";
 import { getPersonnel, updatePersonnel } from "../api/personnelManpower";
 import { useUser } from "../hooks/useUser";
 import { useLanguage } from "../i18n/LanguageContext";
+import { SavedOptionSelect } from "./EditEquipment";
 
 const STATUS_OPTIONS = ["Active", "Inactive"];
 const SHIFT_OPTIONS = [
@@ -13,6 +14,23 @@ const SHIFT_OPTIONS = [
   "Afternoon (2:00 PM - 10:00 PM)",
   "Evening (10:00 PM - 6:00 AM)",
 ];
+
+// Texts of the Position dropdown (saved "personnelPosition" options). These
+// are job titles, not the account roles (Owner / Farmer) that decide what a
+// user may do in PoultryBiz -- changing one never changes the other.
+const POSITION_TEXT = {
+  name: "position",
+  placeholder: "Select position",
+  addOption: "+ Add New Position",
+  title: "Add New Position",
+  fieldLabel: "Position Name",
+  inputPlaceholder: "e.g., Poultry Technician",
+  required: "Position name is required.",
+  duplicate: "This position already exists.",
+  saveError: "Couldn't save this position. Please try again.",
+};
+// "Owner" is the farm owner's own fixed position.
+const RESERVED_POSITIONS = { owner: "\"Owner\" is reserved for the farm owner and can't be assigned." };
 
 const prof = (r) => (r ? r.profile || r.myProfile || r.user || r : {});
 const getName = (r) => {
@@ -225,18 +243,18 @@ export default function EditPersonnel() {
 
           <div className="ep-form-grid">
             <div className="ep-form-group">
-              <label>{tr("Position / Role")}{" "}<span className="ep-req">*</span>
+              <label htmlFor="ep-position">{tr("Position / Role")}{" "}<span className="ep-req">*</span>
                 {!canEditPosition && <span className="ep-lock-badge">{isTargetOwner ? "Fixed" : "Owner only"}</span>}
               </label>
-              <input
-                type="text"
-                name="position"
+              <SavedOptionSelect
+                id="ep-position"
+                category="personnelPosition"
                 value={formData.position}
-                onChange={handleChange}
-                placeholder={tr("e.g., Poultry Technician")}
-                required
+                onChange={(position) => setFormData((prev) => ({ ...prev, position }))}
+                text={POSITION_TEXT}
+                reserved={RESERVED_POSITIONS}
                 disabled={!canEditPosition}
-                readOnly={!canEditPosition}
+                canAdd={canEditPosition}
               />
               {!canEditPosition && (
                 <small>

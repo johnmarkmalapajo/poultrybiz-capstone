@@ -8,7 +8,8 @@ const PersonnelTask = require("../models/PersonnelTask");
 const Personnel = require("../models/Personnel");
 const User = require("../models/User");
 const { createNotification } = require("../controllers/notificationController");
-const { runQuarantineAutoRelease } = require("../utils/quarantineRelease");
+const { runQuarantineReleaseReminders } = require("../utils/quarantineRelease");
+const { runDailyTaskReminders } = require("../utils/taskReminders");
 
 const ALL_ROLES = ["Owner", "Farmer"];
 const todayStr = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -117,24 +118,27 @@ async function diagnosisScheduleCheck() {
   }
 }
 
-// Quarantine records are released automatically once they complete the
-// 14-day period (see utils/quarantineRelease.js). The job runs every hour
-// on Philippine time and again whenever the database (re)connects, so a
-// release that came due while the server was off is processed on startup.
-const runQuarantineRelease = (trigger) =>
-  runQuarantineAutoRelease(trigger).catch((e) =>
-    console.error(`Quarantine auto-release (${trigger}) failed:`, e)
+// Quarantine release reminders (upcoming / eligible / overdue, see
+// utils/quarantineRelease.js). Quarantine is never released automatically --
+// only the Owner releases a batch. The job runs every hour on Philippine
+// time (so the day's reminders go out right after 12:00 AM Asia/Manila) and
+// again whenever the database (re)connects, so a reminder that came due
+// while the server was off is still sent. Each reminder has a fixed
+// sourceId, so re-running never duplicates one.
+const runQuarantineReminders = (trigger) =>
+  runQuarantineReleaseReminders(trigger).catch((e) =>
+    console.error(`Quarantine release reminders (${trigger}) failed:`, e)
   );
 
-function registerQuarantineReleaseJob() {
-  cron.schedule("0 * * * *", () => runQuarantineRelease("hourly"), {
+function registerQuarantineReminderJob() {
+  cron.schedule("0 * * * *", () => runQuarantineReminders("hourly"), {
     timezone: "Asia/Manila",
   });
 
-  mongoose.connection.on("connected", () => runQuarantineRelease("database connected"));
+  mongoose.connection.on("connected", () => runQuarantineReminders("database connected"));
 
   if (mongoose.connection.readyState === 1) {
-    runQuarantineRelease("startup");
+    runQuarantineReminders("startup");
   }
 }
 
@@ -148,6 +152,8 @@ async function equipmentCheck() {
       category: "equipment",
       type: "reminder",
       roles: ALL_ROLES,
+      referenceId: eq._id,
+      referenceModel: "Equipment",
       sourceId: `equipment_${eq._id}_poor`,
     });
   }
@@ -156,6 +162,9 @@ async function equipmentCheck() {
 async function taskDueCheck() {
   const tasks = await PersonnelTask.find({
     status: "Pending",
+    // A task the Owner deactivated is out of the Farmer's To Do list, so it
+    // must not keep producing Due Today / Overdue reminders either.
+    active: { $ne: false },
     dueDate: { $lte: endOfToday() },
   }).populate({ path: "personnel", populate: { path: "user", select: "name" } });
 
@@ -170,6 +179,8 @@ async function taskDueCheck() {
       category: "todo",
       type: "reminder",
       userId: farmerUserId || null,
+      referenceId: task._id,
+      referenceModel: "PersonnelTask",
       sourceId: `task_due_${task._id}_farmer_${todayStr()}`,
     });
 
@@ -179,6 +190,8 @@ async function taskDueCheck() {
       category: "todo",
       type: "reminder",
       roles: ["Owner"],
+      referenceId: task._id,
+      referenceModel: "PersonnelTask",
       sourceId: `task_due_${task._id}_mgmt_${todayStr()}`,
     });
   }
@@ -213,6 +226,8 @@ async function cullingEligibilityCheck() {
         category: "age",
         type: "reminder",
         roles: ALL_ROLES,
+        referenceId: flock._id,
+        referenceModel: "Flock",
         sourceId: `cull_eligible_${flock.batchId}_${todayStr()}`,
       });
     }
@@ -230,6 +245,29 @@ async function pendingApprovalCheck() {
       roles: ["Owner"],
       sourceId: `pending_approval_${todayStr()}`,
     });
+  }
+}
+
+// Daily Task Reminders (see utils/taskReminders.js): one reminder per
+// Owner-assigned task, per Farmer, per Philippine day. Same schedule pattern
+// as the quarantine reminders -- hourly on Asia/Manila time (so the day's
+// reminders go out right after 12:00 AM PH time), plus on every database
+// (re)connect and at startup, so a day missed while the server was off is
+// still covered. The per-day sourceId keeps every re-run duplicate-free.
+const runTaskReminders = (trigger) =>
+  runDailyTaskReminders(trigger).catch((e) =>
+    console.error(`Daily task reminders (${trigger}) failed:`, e)
+  );
+
+function registerDailyTaskReminderJob() {
+  cron.schedule("0 * * * *", () => runTaskReminders("hourly"), {
+    timezone: "Asia/Manila",
+  });
+
+  mongoose.connection.on("connected", () => runTaskReminders("database connected"));
+
+  if (mongoose.connection.readyState === 1) {
+    runTaskReminders("startup");
   }
 }
 
@@ -285,7 +323,8 @@ function registerNotificationCronJobs() {
     }
   });
 
-  registerQuarantineReleaseJob();
+  registerQuarantineReminderJob();
+  registerDailyTaskReminderJob();
 
   console.log("Notification cron jobs registered.");
 }

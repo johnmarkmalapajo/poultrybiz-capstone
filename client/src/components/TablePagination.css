@@ -236,3 +236,79 @@
   .tp-btn-step .tp-btn-text { display: none; }
   .tp-size-text { display: none; }
 }
+/* =====================================================================
+   Shared record-table typography
+   ---------------------------------------------------------------------
+   Every module's record table sits in TableScroll (div.tp-table-scroll),
+   so this is the one place the table text sizes are set. The scale is the
+   one most modules already used (Flock Profile's), now applied to all of
+   them so the same screen width shows the same sizes everywhere:
+
+                     header (th)   record text (td)   cell padding
+     desktop/tablet  11px          13px               13–14px 16px
+     ≤ 768px         12px          12px               10px 12px
+     ≤ 480px         11px          11px               8px 10px
+
+   Badges / status labels / batch IDs are 11px at every width; icon action
+   buttons are 32×32 (28×28 at ≤ 480px) with a 14px icon. Pagination text
+   comes from the pagination styles above (already shared).
+   Empty-state rows (one cell spanning the table) keep their own styling.
+   ===================================================================== */
+.tp-table-scroll > table > thead > tr > th {
+  padding: 13px 16px;
+  font-family: "Poppins", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.tp-table-scroll > table > tbody > tr > td:not([colspan]) {
+  padding: 14px 16px;
+  font-family: "Lato", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Status labels, badges, batch IDs, tags */
+.tp-table-scroll > table > tbody > tr > td :is(.status, .badge, [class$="-badge"], [class*="-badge "], [class$="-tag"], [class*="-tag "]) {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Icon-only row actions (edit / archive / view / more) */
+.tp-table-scroll > table > tbody > tr > td :is([class*="-btn-edit"], [class*="-btn-archive"], [class*="-btn-view"], [class*="-action-btn"], .todo-icon-btn, .ur-menu-trigger) {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  font-size: 14px;
+}
+
+.tp-table-scroll > table > tbody > tr > td :is([class*="-btn-edit"], [class*="-btn-archive"], [class*="-btn-view"], [class*="-action-btn"], .todo-icon-btn, .ur-menu-trigger) svg {
+  width: 1em;
+  height: 1em;
+}
+
+@media (max-width: 768px) {
+  .tp-table-scroll > table > thead > tr > th,
+  .tp-table-scroll > table > tbody > tr > td:not([colspan]) {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tp-table-scroll > table > thead > tr > th,
+  .tp-table-scroll > table > tbody > tr > td:not([colspan]) {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .tp-table-scroll > table > tbody > tr > td :is([class*="-btn-edit"], [class*="-btn-archive"], [class*="-btn-view"], [class*="-action-btn"], .todo-icon-btn, .ur-menu-trigger) {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+}

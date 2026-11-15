@@ -30,6 +30,13 @@
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
+  /* Always keep the vertical scrollbar's space, even on a page short enough
+     not to scroll. Otherwise a short page (e.g. Visitor's Log with a few
+     visitors) is ~15px wider than a long one, and width-based layouts --
+     such as the shared pagination footer, which switches between one row and
+     two rows by its own width -- look different from module to module at the
+     same window size. Phones / overlay scrollbars reserve nothing. */
+  scrollbar-gutter: stable;
 }
 
 /* ============ RESPONSIVE ============ */

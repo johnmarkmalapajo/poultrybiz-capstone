@@ -249,3 +249,6 @@
     flex-direction: column;
   }
 }
+/* Egg Pricing hints under Unit Price */
+.sie-price-note { color: #BB8D6B !important; font-weight: 600; }
+.sie-price-missing { color: #d94f4f !important; font-weight: 600; }

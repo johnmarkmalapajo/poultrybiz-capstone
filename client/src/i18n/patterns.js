@@ -39,7 +39,7 @@ export const PATTERNS = [
 
   // ---- Notification descriptions ----
   [/^(.+) \((.+)\) checked in at (.+) on (.+)\. Purpose: (.+)\.$/, "$1 ($2) ay nag-check in nang $3 noong $4. Layunin: $5."],
-  [/^(.+) \((.+)\) checked in at (.+)\.$/, "$1 ($2) ay nag-check in nang $3."],
+  [/^(.+) \((.+)\) checked in at (.+)\.$/, "$1 ($2) ay nag-Time In nang $3."],
   [/^(.+) \((.+)\) signed up as a Farmer and is waiting for your approval\.$/, "$1 ($2) ay nag-sign up bilang Magsasaka at naghihintay ng iyong pag-apruba."],
   [/^An attempt to log (.+) (\S+) of (.+) \(batch '(.+)'\) was blocked — only (.+) of stock is available\.$/, "Isang pagtatangkang i-log ang $1 $2 ng $3 (batch '$4') ay hinarang — $5 lang ng stock ang magagamit."],
   [/^Batch (.+) has been marked as Culled — (\d+) birds affected as of (.+)\.$/, "Ang Batch $1 ay namarkahang Culled — $2 manok ang apektado simula $3."],
@@ -51,6 +51,9 @@ export const PATTERNS = [
   [/^(.+) reassigned a task to you: "(.+)"\.$/, 'Itinalaga ulit ni $1 sa iyo ang gawain: "$2".'],
   [/^(.+) marked your assigned task "(.+)" as completed\.$/, 'Minarkahan ni $1 na tapos na ang itinalaga mong gawain na "$2".'],
   [/^(.+) updated your assigned task: "(.+)"\.$/, 'In-update ni $1 ang itinalaga mong gawain: "$2".'],
+  [/^Daily Task Reminder: (.+) is still assigned to you\. Please check your To Do list\. \(Category: (Primary|Secondary) · Date: (.+)\)$/, (_, task, cat, day) => `Paalala sa Gawain Ngayong Araw: Nakatalaga pa rin sa iyo ang ${task}. Pakitingnan ang iyong listahan ng Gagawin. (Kategorya: ${cat === "Primary" ? "Pangunahin" : "Karagdagan"} · Petsa: ${day})`],
+  [/^Batch (.+) was not found\.$/, "Hindi nahanap ang Batch $1."],
+  [/^Batch (.+) is (culled|archived) and can no longer receive feed\.$/, (_, id, why) => `Ang Batch ${id} ay ${why === "culled" ? "na-cull na" : "naka-archive na"} at hindi na puwedeng bigyan ng pakain.`],
   [/^Health issue detected in Batch (.+): (.+)\. Reported (.+) at (.+)\.$/, "Natukoy ang isyu sa kalusugan sa Batch $1: $2. Iniulat noong $3 nang $4."],
   [/^Recorded transactions currently show a net loss of PHP (.+)\.$/, "Ipinapakita ng mga naitalang transaksyon ang netong lugi na PHP $1."],
   [/^(.+) answered 'Yes' to a biosecurity risk question during check-in on (.+)\. Review before allowing farm access\.$/, "Sumagot ng 'Oo' si $1 sa tanong tungkol sa biosecurity risk sa check-in noong $2. Suriin muna bago payagan ang pagpasok sa farm."],
@@ -60,6 +63,13 @@ export const PATTERNS = [
   [/^Batch (.+) is eligible for culling: (.+)\.$/, "Ang Batch $1 ay puwede nang i-cull: $2."],
   [/^(\d+) new Farmer account\(s\) waiting for Owner approval\.$/, "$1 bagong account ng Magsasaka ang naghihintay ng pag-apruba ng May-ari."],
   [/^(.+) stock is (empty|low): (.+) kg \((.+) sacks at (.+) kg\/sack\) remaining\. Alert threshold is (.+) (.+)\.$/, (m, feed, state, kg, sacks, per, th, unit) => `Ang stock ng ${feed} ay ${state === "empty" ? "ubos na" : "mababa"}: ${kg} kg (${sacks} sako sa ${per} kg/sako) ang natitira. Ang limitasyon ng alerto ay ${th} ${unit}.`],
+  [/^Batch (.+) will complete its (\d+)-day quarantine period tomorrow\. It will be eligible for release on (.+)\. Please prepare for the quarantine release review\.$/, "Matatapos bukas ng Batch $1 ang $2-araw na quarantine. Puwede na itong ilabas sa $3. Pakihanda ang pagsusuri para sa paglabas sa quarantine."],
+  [/^Batch (.+) has completed its (\d+)-day quarantine period and is now eligible for release \(expected release date (.+)\)\. The Owner must manually process the quarantine release\.$/, "Natapos na ng Batch $1 ang $2-araw na quarantine at puwede na itong ilabas (inaasahang paglabas $3). Kailangang manu-manong iproseso ng Owner ang paglabas sa quarantine."],
+  [/^Batch (.+) is overdue for quarantine release by (\d+) days? \(expected release date (.+)\)\. Its (\d+)-day quarantine period has been completed\. Please remind the Owner to review and manually process its release\.$/, "Lampas na nang $2 araw ang paglabas sa quarantine ng Batch $1 (inaasahang paglabas $3). Tapos na ang $4-araw na quarantine nito. Paalalahanan ang Owner na suriin at manu-manong iproseso ang paglabas nito."],
+  [/^This batch can only be released on or after (.+), when its (\d+)-day quarantine is complete \((\d+) days? left\)\.$/, "Mailalabas lang ang batch na ito sa o pagkatapos ng $1, kapag tapos na ang $2-araw na quarantine ($3 araw pa)."],
+  [/^Release is available on (.+) \((\d+) days? left\)\.$/, "Puwedeng ilabas sa $1 ($2 araw pa)."],
+  [/^Eligible on (\d{4}-\d{2}-\d{2})$/, "Puwede sa $1"],
+  [/^Number of Deceased Chickens cannot exceed the current flock quantity \((\d+)\)\.$/, "Hindi puwedeng lumampas ang Bilang ng Namatay na Manok sa kasalukuyang bilang ng flock ($1)."],
   [/^The (\d+)-day quarantine period of Batch (.+) has ended\. The batch was automatically released on (.+?)\.(.*)$/, "Natapos na ang $1-araw na quarantine ng Batch $2. Awtomatikong inilabas ang batch noong $3.$4"],
   [/^Egg production has not yet been recorded today for Batch (.+)\.$/, "Hindi pa naitatala ang produksyon ng itlog ngayon para sa Batch $1."],
   [/^Reminder: egg production for Batch (.+) has not yet been recorded today\.$/, "Paalala: hindi pa naitatala ngayon ang produksyon ng itlog para sa Batch $1."],
@@ -89,8 +99,15 @@ export const PATTERNS = [
   [/^Number of Birds Administered cannot exceed the available birds in this batch \((\d+)\)\.$/, "Ang Bilang ng Manok na Binigyan ay hindi puwedeng lumampas sa magagamit na manok sa batch na ito ($1)."],
   [/^Quantity consumed exceeds available feed stock\. Only (.+) of (.+) is available\.$/, "Ang dami na nakonsumo ay lampas sa magagamit na stock ng pakain. $1 lang ng $2 ang magagamit."],
   [/^Low stock alert settings for (.+) saved\.$/, "Na-save ang mga setting ng alerto sa mababang stock para sa $1."],
-  [/^You already checked in today at (.+)\. No new record was created\..*$/, "Nag-check in ka na ngayon nang $1. Walang bagong record na ginawa."],
-  [/^You already checked out today at (.+)\. No new record was created\.$/, "Nag-check out ka na ngayon nang $1. Walang bagong record na ginawa."],
+  [/^You already checked in today at (.+)\. No new record was created\..*$/, "Naitala na ang iyong Time In ngayon nang $1. Walang bagong record na ginawa."],
+  [/^You already checked out today at (.+)\. No new record was created\.$/, "Naitala na ang iyong Time Out ngayon nang $1. Walang bagong record na ginawa."],
+  // Attendance QR scan (Time In / Time Out)
+  [/^Your Time In today was already recorded at (.+)\. No new record was created\. Scan again after (\d+) minutes to record your Time Out\.$/, "Naitala na ang iyong Time In ngayon nang $1. Walang bagong record na ginawa. Mag-scan muli pagkalipas ng $2 minuto para maitala ang iyong Time Out."],
+  [/^Your Time Out today was already recorded at (.+)\. No new record was created\.$/, "Naitala na ang iyong Time Out ngayon nang $1. Walang bagong record na ginawa."],
+  [/^Time In recorded at (.+)\.$/, "Naitala ang Time In nang $1."],
+  [/^Time Out recorded at (.+)\.$/, "Naitala ang Time Out nang $1."],
+  [/^(.+) \((.+)\) recorded Time In at (.+)\.$/, "Naitala ang Time In ni $1 ($2) nang $3."],
+  [/^(.+) recorded Time (In|Out) at (.+)\.$/, "Naitala ang Time $2 ni $1 nang $3."],
 ];
 
 export const translateByPattern = (text) => {

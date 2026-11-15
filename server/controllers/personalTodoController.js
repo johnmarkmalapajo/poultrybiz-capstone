@@ -149,6 +149,9 @@ if (personnel) {
         category: "task",
         type: "alert",
         roles: ["Owner"],
+        // View opens this personal task in the Owner's To Do list.
+        referenceId: todo._id,
+        referenceModel: "PersonalTodo",
       });
     }
 
@@ -245,6 +248,8 @@ exports.updatePersonalTodo = async (req, res) => {
         category: "task",
         type: "alert",
         roles: ["Owner"],
+        referenceId: todo._id,
+        referenceModel: "PersonalTodo",
       });
     }
 

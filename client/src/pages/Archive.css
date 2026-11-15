@@ -116,127 +116,6 @@
   color: var(--gold);
 }
 
-.arc-filter-wrap {
-  position: relative;
-}
-
-.arc-filter-count {
-  background: var(--gold);
-  color: #fff;
-  font-size: var(--text-xs, 9px);
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 20px;
-  margin-left: 4px;
-}
-
-.arc-filter-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--surface, #fff);
-  border: 1.5px solid var(--border, #e4e0d8);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  z-index: 100;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.arc-filter-dropdown-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-display, "Poppins", sans-serif);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary, #1e1c18);
-}
-
-.arc-filter-clear {
-  background: none;
-  border: none;
-  color: var(--gold);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-
-.arc-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.arc-filter-label {
-  font-family: var(--font-display, "Poppins", sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted, #a39e94);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.arc-filter-select {
-  width: 100%;
-  height: 40px;
-  padding: 0 14px;
-  border: 1.5px solid var(--border, #e4e0d8);
-  border-radius: 8px;
-  background: #fafafa;
-  font-family: var(--font-body, "Lato", sans-serif);
-  font-size: 13px;
-  color: var(--text-primary, #1e1c18);
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a39e94' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 36px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.arc-filter-select:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 4px var(--gold-glow, rgba(228,175,31,0.14));
-}
-
-.arc-active-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.arc-active-filter-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--gold-light, #fdf3e3);
-  border: 1.5px solid var(--gold);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-family: var(--font-body, "Lato", sans-serif);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gold-dark, #c8930c);
-}
-
-.arc-active-filter-tag button {
-  background: none;
-  border: none;
-  color: var(--gold-dark, #c8930c);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-}
-
 .arc-stats-grid {
   display: flex !important;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -481,7 +360,6 @@
   .arc-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
 }
 
 @media (max-width: 768px) {
@@ -519,7 +397,6 @@
     padding: 10px 12px;
     font-size: 12px;
   }
-
 }
 
 @media (max-width: 480px) {
@@ -547,27 +424,6 @@
     width: 28px;
     height: 28px;
   }
-
-}
-
-@media (max-width: 768px) {
-  .arc-btn-group .arc-filter-wrap {
-    flex: 1;
-  }
-
-  .arc-btn-group .arc-filter-wrap > .arc-toolbar-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .arc-filter-dropdown {
-    left: 0;
-    right: auto;
-    min-width: 0;
-    width: calc(100vw - 32px);
-    max-width: 360px;
-  }
-
 }
 
 @media (max-width:768px) {
@@ -579,7 +435,6 @@
     flex:1 1 42% !important;
     min-width:130px !important;
   }
-
 }
 
 @media (max-width:360px) {
@@ -587,7 +442,6 @@
     flex:1 1 100% !important;
     min-width:0 !important;
   }
-
 }
 
 @media (max-width:768px) {
@@ -613,6 +467,12 @@
     width:100% !important;
   }
 
+  /* The Filter button (shared Filter, fp-filter-* in Flockprofile.css) is
+     the only control here, so it spans the row like the search box. */
+  .arc-btn-group>:only-child {
+    grid-column:1 / -1;
+  }
+
   .arc-btn-group>* {
     width:100% !important;
     min-width:0 !important;
@@ -623,24 +483,12 @@
     justify-content:center !important;
     box-sizing:border-box;
   }
-
-  .arc-filter-wrap {
-    width:100% !important;
-  }
-
-  .arc-filter-dropdown {
-    left:0 !important;
-    right:auto !important;
-    max-width:calc(100vw - 40px) !important;
-  }
-
 }
 
 @media (max-width:768px) {
   .arc-search-box {
     width:100% !important;
   }
-
 }
 
 .arc-badge {
@@ -832,7 +680,6 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
-
 }
 
 .arc-sortable-th {

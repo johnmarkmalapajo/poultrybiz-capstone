@@ -201,6 +201,7 @@ exports.login = async (req, res) => {
   role: user.role,
   status: user.status,
   avatar: user.avatar || "",
+  textSize: user.textSize || "default",
 },
     });
 

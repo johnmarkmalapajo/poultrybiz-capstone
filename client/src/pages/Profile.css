@@ -144,3 +144,25 @@ color:var(--text-primary)
 /* ===== App-wide main padding standard (top:16px, left/right:12px) =====
    Standalone /profile route only — embedded mode above is zeroed instead. */
 
+
+/* ── Text Size (My Profile, Owner + Farmer) ── */
+.pf-textsize-note{margin:-8px 0 16px;font-size:12.5px;line-height:1.5;color:var(--text-second,#6b6457)}
+.pf-textsize-current{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.pf-textsize-label{font-family:var(--font-display,"Poppins",sans-serif);font-size:14px;color:var(--text-second,#6b6457);text-align:center;min-width:0}
+.pf-textsize-label strong{color:#47321C}
+.pf-textsize-step{width:38px;height:38px;border-radius:50%;border:1.5px solid #DEA77F;background:#FFFDF6;color:#47321C;display:inline-flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;transition:.15s}
+.pf-textsize-step:hover:not(:disabled){background:#DEA77F;color:#fff}
+.pf-textsize-step:disabled{opacity:.4;cursor:not-allowed}
+.pf-textsize-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pf-textsize-option{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;padding:14px 8px 12px;border:1.5px solid var(--border,#e4e0d8);border-radius:12px;background:var(--surface,#fff);color:var(--text-primary,#1e1c18);cursor:pointer;transition:.15s}
+.pf-textsize-option:hover{border-color:#DEA77F}
+.pf-textsize-option.active{border-color:#BB8D6B;background:#FFFDF6;box-shadow:0 0 0 3px rgba(222,167,127,.25)}
+.pf-textsize-option:focus-visible,.pf-textsize-step:focus-visible{outline:2px solid #BB8D6B;outline-offset:2px}
+.pf-textsize-sample{font-family:var(--font-display,"Poppins",sans-serif);font-weight:700;line-height:1.1;color:#47321C}
+.pf-textsize-name{font-family:var(--font-display,"Poppins",sans-serif);font-size:12.5px;font-weight:600;text-align:center;overflow-wrap:anywhere}
+.pf-textsize-option.active .pf-textsize-name{color:#47321C}
+.pf-textsize-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+.pf-textsize-status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--green,#2e9e6b);min-height:1em}
+.pf-textsize-status.error{color:var(--red,#d94f4f)}
+.pf-textsize-reset{margin-left:auto}
+@media(max-width:520px){.pf-textsize-options{grid-template-columns:repeat(2,minmax(0,1fr))}}

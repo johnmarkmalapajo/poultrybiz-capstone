@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiFilter, FiRotateCcw, FiTrash2, FiArchive, FiCalendar, FiLayers } from "react-icons/fi";
+import { FiSearch, FiRotateCcw, FiTrash2, FiArchive, FiCalendar, FiLayers } from "react-icons/fi";
 import "./Archive.css";
 import PageLayout from "../components/PageLayout";
 import { listArchivedRecords, deleteArchiveEntry } from "../api/archive";
@@ -8,16 +8,26 @@ import { RESTORE_FN_BY_MODULE_KEY, DELETE_FN_BY_MODULE_KEY } from "../archiveRow
 import { deleteUserPermanently } from "../api/users";
 import { checkDependencies, DEPENDENCY_TYPE_BY_MODULE_KEY } from "../api/dependencies";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
-import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import {
+  usePagination, useFilterPanel, DATE_FILTER_DEFAULTS,
+  localDayKey, matchesDatePeriod, dateFilterOptions, datePeriodLabel,
+} from "../hooks/usePagination";
+import TablePagination, {
+  TableSection, TableScroll, FilterPanel, FilterSection, FilterSelect, DateFilterFields, ActiveFilterChips,
+} from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
+// Module names exactly as the server records them on archive entries
+// (createArchiveEntry in each controller; "Users" from userController).
 const MODULES = [
-  "All", "Users","Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption", "Equipment", "Manure Records",
-  "Sales Records", "Expense Records", "Diagnosis", "Treatment", "Vaccination",
-  "Mortality Records", "Isolation", "Quarantine", "Waste Management",
-  "Personnel & Manpower", "Visitors",
+  "Users", "Flock Profile", "Egg Records", "Feed Inventory", "Feed Consumption", "Equipment & Tools",
+  "Manure Record", "Waste Record", "Sales Record", "Expense Records", "Health Records",
+  "Mortality Record", "Quarantine & Isolation", "Personnel & Manpower", "Visitors",
+  "To Do", "Personal Todo",
 ];
+// Filter defaults: Date Archived (date period) and Module.
+const FILTER_DEFAULTS = { ...DATE_FILTER_DEFAULTS, module: "All" };
+
 const MODULE_COLORS = {
   "Users": "blue", "Flock Profile": "gold", "Egg Records": "orange",
   "Feed Inventory": "green", "Feed Consumption": "green", "Equipment": "green",
@@ -60,13 +70,12 @@ export default function Archive({ embedded = false, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("All");
-  const [showFilter, setShowFilter] = useState(false);
+  const filter = useFilterPanel(FILTER_DEFAULTS);
+  const fApplied = filter.applied;
   const [confirmRec, setConfirmRec] = useState(null);
   const [confirmMode, setConfirmMode] = useState("restore");
   const [toast, setToast] = useState("");
   const toastRef = useRef(null);
-  const filterRef = useRef(null);
 
   const refresh = () => {
     setLoading(true);
@@ -90,24 +99,28 @@ export default function Archive({ embedded = false, onBack }) {
     };
   }, []);
   useEffect(() => () => clearTimeout(toastRef.current), []);
-  useEffect(() => {
-    const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+
+  const dateOptions = dateFilterOptions(records.map((r) => localDayKey(r.archivedAt)), filter.draft.year);
+  // Every module the server archives, plus any other name found on the
+  // archived records (e.g. entries saved under an older module name).
+  const moduleOptions = useMemo(
+    () => [...new Set([...MODULES, ...records.map((r) => r.module).filter(Boolean)])],
+    [records],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return records.filter((r) => {
-      const matchesModule = moduleFilter === "All" || r.module === moduleFilter;
+      const matchesModule = fApplied.module === "All" || r.module === fApplied.module;
+      const matchesDate = matchesDatePeriod(localDayKey(r.archivedAt), fApplied);
       const matchesSearch =
         !q ||
         r.recordName?.toLowerCase().includes(q) ||
         r.module?.toLowerCase().includes(q) ||
         r.archivedBy?.toLowerCase().includes(q);
-      return matchesModule && matchesSearch;
+      return matchesModule && matchesDate && matchesSearch;
     });
-  }, [records, search, moduleFilter]);
+  }, [records, search, fApplied]);
 
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const sortAccessor = (row, col) => {
@@ -119,7 +132,7 @@ export default function Archive({ embedded = false, onBack }) {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [search, moduleFilter]);
+  useEffect(() => { pager.setPage(1); }, [search, fApplied]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
 
@@ -133,8 +146,10 @@ export default function Archive({ embedded = false, onBack }) {
     return { total: records.length, thisMonth, modules };
   }, [records]);
 
-  const activeFilterCount = moduleFilter !== "All" ? 1 : 0;
-  const clearFilters = () => setModuleFilter("All");
+  const activeChips = [
+    fApplied.period !== "all" && { key: "date", label: "Date Archived", value: datePeriodLabel(fApplied) },
+    fApplied.module !== "All" && { key: "module", label: "Module", value: fApplied.module },
+  ].filter(Boolean);
 
   const askRestore = (r) => { setConfirmMode("restore"); setConfirmRec(r); };
 
@@ -219,38 +234,17 @@ export default function Archive({ embedded = false, onBack }) {
             </div>
 
             <div className="arc-btn-group">
-              <div className="arc-filter-wrap" ref={filterRef}>
-                <button className="arc-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="arc-filter-count">{activeFilterCount}</span>}
-                </button>
-
-                {showFilter && (
-                  <div className="arc-filter-dropdown">
-                    <div className="arc-filter-dropdown-header">
-                      <span>{tr("Filter Archive")}</span>
-                      <button className="arc-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
-                    </div>
-                    <div className="arc-filter-group">
-                      <label className="arc-filter-label">{tr("Module")}</label>
-                      <select className="arc-filter-select" value={moduleFilter}
-                        onChange={(e) => setModuleFilter(e.target.value)}>
-                        {MODULES.map((m) => <option key={m} value={m}>{m === "All" ? tr("All Modules") : tr(m)}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FilterPanel panel={filter} title="Filter Archive">
+                <DateFilterFields panel={filter} label="Date Archived" years={dateOptions.years} months={dateOptions.months} />
+                <FilterSection label="Filters">
+                  <FilterSelect panel={filter} field="module" label="Module" allLabel="All Modules" options={moduleOptions} />
+                </FilterSection>
+              </FilterPanel>
             </div>
           </div>
         </div>
 
-        {activeFilterCount > 0 && (
-          <div className="arc-active-filters">
-            <span className="arc-active-filter-tag">{tr("Module:")}{" "}{moduleFilter}
-              <button onClick={() => setModuleFilter("All")}>✕</button>
-            </span>
-          </div>
-        )}
+        <ActiveFilterChips panel={filter} chips={activeChips} />
 
         {error && <div className="pb-error-banner">{error}</div>}
 
@@ -290,9 +284,9 @@ export default function Archive({ embedded = false, onBack }) {
                     <div className="arc-empty-content">
                       <FiArchive />
                       <h3>{tr("No archived records found")}</h3>
-                      <p>{search || moduleFilter !== "All"
+                      <p>{tr(search || filter.activeCount > 0
                         ? "No records match your search or filter."
-                        : "Archived records from any module will appear here."}</p>
+                        : "Archived records from any module will appear here.")}</p>
                     </div>
                   </td>
                 </tr>

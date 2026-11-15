@@ -149,6 +149,16 @@ const expenseRecordSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Feed Purchase only (optional): delivery receipt / photo of the
+    // delivered feed. Uploaded through the same receipt upload
+    // (POST /expense-records/upload-receipt) and stored as its
+    // /uploads/receipts/... path. Empty for every other category and for
+    // records saved before this field existed.
+    proofOfDelivery: {
+      type: String,
+      default: "",
+    },
+
     remarks: {
       type: String,
       default: "",

@@ -13,7 +13,7 @@ import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listEquipment } from "../api/equipmentTools";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -162,6 +162,13 @@ export default function Equipment() {
   const pager = usePagination(sorted.length);
   useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<id>: show that row
+  // (clearing the search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sorted, allRows: records, pager, ready: !loading,
+    getId: (r) => r._id || r.id,
+    reveal: () => { setSearch(""); clearFilters(); },
+  });
 
   const totalItems = filtered.length;
   const totalQuantity = filtered.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
@@ -464,8 +471,8 @@ export default function Equipment() {
                 </tr>
               ) : (
                 pageRows.map((r) => (
-                  <tr key={r._id || r.id}>
-                    <td className="eq-item-no">{r.itemNo}</td>
+                  <tr key={r._id || r.id} {...focus.rowProps(r._id || r.id)}>
+                    <td><span className="eq-item-no">{r.itemNo}</span></td>
                     <td>{r.name}</td>
                     <td className="eq-desc">{r.description}</td>
                     <td>{r.serialNo}</td>

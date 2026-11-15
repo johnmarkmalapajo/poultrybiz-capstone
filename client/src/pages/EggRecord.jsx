@@ -21,7 +21,7 @@ import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listEggRecords } from "../api/eggRecord";
 import { listFlocks } from "../api/flockProfile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -198,6 +198,12 @@ export default function EggRecord() {
   const pager = usePagination(sortedRecords.length);
   useEffect(() => { pager.setPage(1); }, [search, filters]);
   const pageRecords = sortedRecords.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<id>: show that row
+  // (clearing the search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sortedRecords, allRows: eggRecords, pager, ready: !loading,
+    reveal: () => { setSearch(""); clearFilters(); },
+  });
 
   const exportMeta = (() => {
     const breeds = uniq(tableRecords.map((r) => r.flock?.breed).filter(Boolean));
@@ -717,7 +723,7 @@ export default function EggRecord() {
                 </tr>
               ) : (
                 pageRecords.map((record) => (
-                  <tr key={record._id}>
+                  <tr key={record._id} {...focus.rowProps(record._id)}>
                     <td>{record.collectionDate  ? new Date(record.collectionDate).toLocaleDateString("en-CA")
                       : "-"}
                     </td>

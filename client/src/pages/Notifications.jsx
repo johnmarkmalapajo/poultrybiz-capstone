@@ -94,9 +94,20 @@ export default function Notifications() {
   const remove = async (id) => { await deleteNotification(id); setItems(getCachedNotifs(role)); };
   const openNotif = (n) => {
     markRead(n.id);
+    // The server resolves every notification's destination (`link`): the
+    // module page plus the exact record's id (?record=, ?task=, Task History
+    // ?submission=, Feed Inventory ?feed=). That page then shows, scrolls to
+    // and highlights the record -- see useRecordFocus. One mechanism for all
+    // categories (generalized from the original Quarantine behavior).
+    if (n.link) {
+      navigate(n.link);
+      return;
+    }
+    // No specific record (e.g. a summary alert such as Net Loss or Pending
+    // Farmer Approval), or a page this role cannot open: fall back to the
+    // category's module page, as before.
     if (n.category === "task" || n.category === "todo") {
-      const todoPath = role === "Farmer" ? "/todo" : "/owner/todo";
-      navigate(n.referenceId ? `${todoPath}?task=${n.referenceId}` : todoPath);
+      navigate(role === "Farmer" ? "/todo" : "/owner/todo");
       return;
     }
     const r = CATEGORIES[n.category]?.redirect;

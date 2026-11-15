@@ -2,11 +2,61 @@ import { FiPlus, FiTrash2 } from "react-icons/fi";
 import "./SaleItemsEditor.css";
 import { useLanguage } from "../i18n/LanguageContext";
 
-const EGG_SIZES = ["Peewee", "Small", "Medium", "Large", "Extra Large", "Jumbo"];
+// The egg sizes sold (same list as the server's SalesRecord egg sizes);
+// also the rows of the Egg Pricing settings.
+export const EGG_SIZES = ["Peewee", "Small", "Medium", "Large", "Extra Large", "Jumbo"];
 const UNITS = ["Pieces", "Trays"];
 const EGGS_PER_TRAY = 30;
 
 export const emptyItem = () => ({ eggSize: "", unit: "Pieces", quantitySold: "", unitPrice: "" });
+
+// ── Money, decimal-safe ──────────────────────────────────────────────────
+// Unit prices may have up to 2 decimals (₱5.50, ₱6.25, ₱7.75, ₱10.99).
+// Subtotals and totals are computed in whole centavos (integers), the same
+// way the server does (salesRecordController.js), so e.g. 3 × ₱10.99 is
+// exactly ₱32.97 with no floating-point drift. Prices are never rounded to
+// whole pesos and never parsed with parseInt.
+export const PRICE_2DP = /^\d+(\.\d{1,2})?$/;
+
+// Centavos for `eggs` eggs at a unit price text, rounded half up to the
+// centavo (exact integer math; only an old record can have > 2 decimals).
+export function subtotalCentavos(eggs, priceText) {
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(String(priceText ?? "").trim());
+  if (!m) return 0;
+  const frac = m[2] || "";
+  if (frac.length > 6) return Math.round(eggs * Number(m[0]) * 100);
+  const scaled = Number(m[1]) * 10 ** frac.length + Number(frac || 0);
+  if (frac.length <= 2) return eggs * scaled * 10 ** (2 - frac.length);
+  const den = 10 ** (frac.length - 2);
+  return Math.floor((2 * eggs * scaled + den) / (2 * den));
+}
+
+// "₱1,234.50" — always two decimals.
+export const formatPeso = (amount) =>
+  `₱${(Number(amount) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// A saved price as Unit Price text: "6.5" → "6.50", 7 → "7.00". A value
+// with more than 2 decimals (older record) is kept exactly as saved.
+export function priceText(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  const text = String(value).trim();
+  if (PRICE_2DP.test(text)) return n.toFixed(2);
+  return Number(n.toFixed(2)) === n ? n.toFixed(2) : String(n);
+}
+
+// Egg Pricing: the configured selling price per egg for a size, as the
+// Unit Price text ("6.50"), or "" when no price is set for that size.
+export const configuredPriceText = (prices, eggSize) => {
+  const value = prices?.[eggSize];
+  return typeof value === "number" && Number.isFinite(value) ? priceText(value) : "";
+};
+
+// An item still on its saved (historical) egg size keeps its own price;
+// any other item must use a size that has a configured price.
+const needsConfiguredPrice = (item, prices) =>
+  Boolean(prices && item.eggSize && item.eggSize !== item.savedSize && configuredPriceText(prices, item.eggSize) === "");
 
 // Strip every keystroke down to digits only, live, as the user types —
 // this is what actually stops "-", "e", "+", letters, "$", "₱", "%",
@@ -17,14 +67,15 @@ export function sanitizeWholeNumber(raw) {
   return String(raw ?? "").replace(/[^\d]/g, "");
 }
 
-// Digits plus at most ONE decimal point — used for Unit Price. Typing
-// a second "." is simply dropped rather than accepted, and there is
-// no way to type "-", letters, or any currency/percent symbol at all.
+// Digits plus at most ONE decimal point and at most 2 decimal places —
+// used for Unit Price and Egg Pricing. A second "." or a third decimal
+// digit is simply dropped rather than accepted, and there is no way to
+// type "-", letters, or any currency/percent symbol at all.
 export function sanitizeDecimal(raw) {
   let v = String(raw ?? "").replace(/[^\d.]/g, "");
   const firstDot = v.indexOf(".");
   if (firstDot !== -1) {
-    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "").slice(0, 2);
   }
   return v;
 }
@@ -34,12 +85,15 @@ export function sanitizeDecimal(raw) {
 // edge cases, and gives Add/EditSalesRecord a single place to check
 // before calling the API). The backend re-validates independently
 // regardless — see computeItems() in salesRecordController.js.
-export function validateItems(items) {
+export function validateItems(items, prices = null) {
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const label = `Egg Set ${i + 1}`;
 
     if (!it.eggSize) return `${label}: please select an egg size.`;
+    if (needsConfiguredPrice(it, prices)) {
+      return `${label}: no selling price is set for ${it.eggSize} eggs. Set it in Egg Pricing first.`;
+    }
     if (!it.unit) return `${label}: please select a unit.`;
 
     const qtyRaw = String(it.quantitySold ?? "").trim();
@@ -54,6 +108,11 @@ export function validateItems(items) {
     if (!/^\d+(\.\d+)?$/.test(priceRaw)) {
       return `${label}: Unit Price — please enter a valid number.`;
     }
+    // An unchanged historical price is kept as saved; any other price has
+    // at most 2 decimal places.
+    if (!PRICE_2DP.test(priceRaw) && priceRaw !== String(it.savedUnitPrice ?? "")) {
+      return `${label}: Unit Price — use up to 2 decimal places (e.g. 6.25).`;
+    }
   }
   return null;
 }
@@ -62,20 +121,42 @@ export function eggsEquivalentOf(item) {
   const qty = parseFloat(item.quantitySold) || 0;
   return item.unit === "Trays" ? qty * EGGS_PER_TRAY : qty;
 }
+export function subtotalCentavosOf(item) {
+  return subtotalCentavos(eggsEquivalentOf(item), item.unitPrice);
+}
 export function subtotalOf(item) {
-  const price = parseFloat(item.unitPrice) || 0;
-  return Math.round(eggsEquivalentOf(item) * price * 100) / 100;
+  return subtotalCentavosOf(item) / 100;
 }
 
+// `prices` — Egg Pricing { [eggSize]: price per egg | null }. When given,
+// choosing an Egg Size fills that set's Unit Price with the configured
+// price automatically (no extra click); the price can still be adjusted.
+// Items loaded from a saved sale carry `savedSize` (their original size):
+// their historical Unit Price is kept until their size is changed.
+//
 // `stockByType` — { [eggSize]: availableEggs }. For Edit, pass the
 // RECORD'S OWN original items so this component can show the
 // reversal-aware "effective available" (available + what this same
 // item already accounts for) instead of flagging a false shortage on
 // a sale that hasn't actually changed.
-export default function SaleItemsEditor({ items, onChange, stockByType, originalItemsBySize }) {
+export default function SaleItemsEditor({ items, onChange, stockByType, originalItemsBySize, prices = null }) {
   const { t: tr } = useLanguage();
   const updateItem = (index, field, value) => {
     const next = items.map((it, i) => (i === index ? { ...it, [field]: value } : it));
+    onChange(next);
+  };
+  // Egg Size change: the Unit Price follows the configured price of the
+  // newly chosen size. Going back to a saved sale's original size restores
+  // its historical price.
+  const changeEggSize = (index, eggSize) => {
+    const next = items.map((it, i) => {
+      if (i !== index) return it;
+      if (it.savedSize && eggSize === it.savedSize) {
+        return { ...it, eggSize, unitPrice: it.savedUnitPrice ?? it.unitPrice, priceFromSettings: false };
+      }
+      if (!prices) return { ...it, eggSize };
+      return { ...it, eggSize, unitPrice: configuredPriceText(prices, eggSize), priceFromSettings: true };
+    });
     onChange(next);
   };
   const addItem = () => onChange([...items, emptyItem()]);
@@ -99,7 +180,7 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
   };
 
   const totalEggs = items.reduce((s, it) => s + eggsEquivalentOf(it), 0);
-  const grandTotal = items.reduce((s, it) => s + subtotalOf(it), 0);
+  const grandTotal = items.reduce((s, it) => s + subtotalCentavosOf(it), 0) / 100;
 
   return (
     <div className="sie-wrap">
@@ -121,7 +202,7 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
             <div className="sie-set-grid">
               <div className="sie-form-group">
                 <label>{tr("Egg Size")}{" "}<span className="sie-req">*</span></label>
-                <select value={item.eggSize} onChange={(e) => updateItem(i, "eggSize", e.target.value)} required>
+                <select value={item.eggSize} onChange={(e) => changeEggSize(i, e.target.value)} required>
                   <option value="">{tr("Select size")}</option>
                   {EGG_SIZES.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
                 </select>
@@ -152,11 +233,18 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
                   <input
                     type="text" inputMode="decimal"
                     value={item.unitPrice}
-                    onChange={(e) => updateItem(i, "unitPrice", sanitizeDecimal(e.target.value))}
+                    onChange={(e) => onChange(items.map((it, j) => (j === i ? { ...it, unitPrice: sanitizeDecimal(e.target.value), priceFromSettings: false } : it)))}
                     placeholder="0.00"
                     required
                   />
                 </div>
+                {needsConfiguredPrice(item, prices) ? (
+                  <small className="sie-price-missing" role="alert">
+                    {tr("No selling price is set for")}{" "}{tr(item.eggSize)}.{" "}{tr("Set it in Egg Pricing on the Sales Record page.")}
+                  </small>
+                ) : item.priceFromSettings && item.unitPrice !== "" ? (
+                  <small className="sie-price-note">{tr("From Egg Pricing")}</small>
+                ) : null}
               </div>
 
               <div className="sie-form-group">
@@ -166,7 +254,7 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
 
               <div className="sie-form-group">
                 <label>{tr("Subtotal")}</label>
-                <input type="text" value={`₱${subtotalOf(item).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`} disabled className="sie-readonly" />
+                <input type="text" value={formatPeso(subtotalOf(item))} disabled className="sie-readonly" />
               </div>
             </div>
 
@@ -195,7 +283,7 @@ export default function SaleItemsEditor({ items, onChange, stockByType, original
         </div>
         <div>
           <span>{tr("Grand Total")}</span>
-          <strong>₱{grandTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</strong>
+          <strong>{formatPeso(grandTotal)}</strong>
         </div>
       </div>
     </div>

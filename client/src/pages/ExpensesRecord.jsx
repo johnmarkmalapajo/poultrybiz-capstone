@@ -4,12 +4,14 @@ import {
   FiPlus, FiSearch, FiFilter, FiDownload,
   FiEdit2, FiMaximize, FiEye,
   FiFileText, FiDollarSign, FiTag, FiList,
+  FiX, FiImage, FiExternalLink, FiTruck,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import { useUser } from "../hooks/useUser";
 import ExportMenu from "../components/ExportMenu";
 import "./ExpensesRecord.css";
-import { listExpenseRecords } from "../api/expenseRecord";
+import "../components/ProofOfCompletionModal.css";
+import { listExpenseRecords, getExpenseRecord } from "../api/expenseRecord";
 import { API_BASE } from "../api/client";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
@@ -27,9 +29,6 @@ const formatPeso = (n) =>
 
 const isUploadedReceipt = (receipt) =>
   typeof receipt === "string" && receipt.startsWith("/uploads/");
-
-const isImageReceipt = (receipt) =>
-  isUploadedReceipt(receipt) && /\.(jpe?g|png|gif|webp)$/i.test(receipt);
 
 const isPdfReceipt = (receipt) =>
   isUploadedReceipt(receipt) && /\.pdf$/i.test(receipt);
@@ -49,6 +48,29 @@ const getReceiptLabel = (category) =>
 
 const formatExpenseDate = (value) =>
   value ? new Date(value).toISOString().split("T")[0] : "—";
+
+// View modal helpers ---------------------------------------------------
+const formatPHDateTime = (value) =>
+  value
+    ? new Date(value).toLocaleString("en-PH", {
+        timeZone: "Asia/Manila", year: "numeric", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : "";
+
+const formatNumber = (n) =>
+  Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 });
+
+// One label/value row of the View modal; empty values are not shown.
+function DetailItem({ label, children, wide = false }) {
+  if (children === null || children === undefined || children === "") return null;
+  return (
+    <div className={`er-view-item${wide ? " wide" : ""}`}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
 
 const feedUnitLabel = (unit) =>
   /^(kg|kilogram)/i.test(String(unit || "")) ? "kg" : "sacks";
@@ -76,6 +98,67 @@ export default function ExpensesRecord() {
   const [error, setError]     = useState("");
   const [farmInfo, setFarmInfo] = useState({ farmName: "", farmLocation: "", farmContact: "", farmEmail: "", farmLogo: "" });
   const [viewRecord, setViewRecord] = useState(null);
+  // The file being previewed inside the View modal:
+  // { key: "receipt" | "pod" | "set-<i>", label, path }.
+  const [viewPreview, setViewPreview] = useState(null);
+
+  // View: open the modal at once with the table row, then load the full
+  // saved record by its id so every saved field is shown.
+  const openView = async (row) => {
+    setViewPreview(null);
+    setViewRecord({ ...row, _loading: true });
+    try {
+      const json = await getExpenseRecord(row._id || row.id);
+      const full = json?.record || json?.data || null;
+      setViewRecord((current) =>
+        current && String(current._id || current.id) === String(row._id || row.id)
+          ? { ...(full || row), _loading: false }
+          : current
+      );
+    } catch {
+      setViewRecord((current) => (current ? { ...current, _loading: false } : current));
+    }
+  };
+  const closeView = () => { setViewRecord(null); setViewPreview(null); };
+  useEffect(() => {
+    if (!viewRecord) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") { setViewRecord(null); setViewPreview(null); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewRecord]);
+
+  // A file button inside the View modal. Images preview inside the modal;
+  // PDFs open in a new tab. A value that is not an uploaded file (older
+  // records saved only a file name) shows "Not provided".
+  const renderFile = (key, label, buttonText, path) => {
+    if (!isUploadedReceipt(path)) {
+      return (
+        <span className="er-view-none">
+          {tr("Not provided")}
+          {path ? <small> ({tr("only the file name was saved")})</small> : null}
+        </span>
+      );
+    }
+    if (isPdfReceipt(path)) {
+      return (
+        <a className="er-view-file-btn" href={`${API_BASE}${path}`} target="_blank" rel="noopener noreferrer" data-file={key}>
+          <FiExternalLink /> {buttonText} {tr("(PDF)")}
+        </a>
+      );
+    }
+    const open = viewPreview?.key === key;
+    return (
+      <button
+        type="button"
+        className={`er-view-file-btn${open ? " active" : ""}`}
+        aria-expanded={open}
+        data-file={key}
+        onClick={() => setViewPreview(open ? null : { key, label, path })}
+      >
+        <FiImage /> {open ? tr("Hide") : buttonText}
+      </button>
+    );
+  };
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -532,7 +615,7 @@ export default function ExpensesRecord() {
                           <button
                             className="er-action-btn view"
                             title={tr("View")}
-                            onClick={() => setViewRecord(r)}
+                            onClick={() => openView(r)}
                           >
                             <FiEye />
                           </button>
@@ -567,50 +650,138 @@ export default function ExpensesRecord() {
           />
         </TableSection>
 
-      {viewRecord && (
-        <div className="pb-confirm-overlay" onClick={() => setViewRecord(null)}>
-          <div className="pb-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "left" }}>
-            <h3 className="pb-confirm-title">{tr("Expense Record")}</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", margin: "12px 0" }}>
-              <div><small>{tr("Expense Date")}</small><p style={{ margin: 0 }}>{viewRecord.date ? new Date(viewRecord.date).toISOString().split("T")[0] : "—"}</p></div>
-              <div><small>{tr("Category")}</small><p style={{ margin: 0 }}>{viewRecord.category || "—"}</p></div>
-              <div><small>{tr("Amount")}</small><p style={{ margin: 0 }}>{formatPeso(viewRecord.amount)}</p></div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <small>{getReceiptLabel(viewRecord.category)}</small>
-                {isImageReceipt(viewRecord.receipt) ? (
-                  <div style={{ marginTop: 6 }}>
-                    <img
-                      src={`${API_BASE}${viewRecord.receipt}`}
-                      alt={getReceiptLabel(viewRecord.category)}
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: 320,
-                        borderRadius: 8,
-                        border: "1px solid #e2e2e2",
-                        display: "block",
-                      }}
-                    />
+      {viewRecord && (() => {
+        const v = viewRecord;
+        const isFeed = v.category === "Feed Purchase";
+        const isEquip = v.category === "Equipment";
+        const feedSets = isFeed && Array.isArray(v.feedSets) ? v.feedSets : [];
+        const feedTotal = feedSets.reduce((sum, fs) => sum + Number(fs.amount || 0), 0);
+        const feedKg = Number(v.totalQuantityKg) || feedSets.reduce((sum, fs) => sum + Number(fs.equivalentKg || 0), 0);
+        const updated = v.updatedAt && v.createdAt && new Date(v.updatedAt) - new Date(v.createdAt) > 60000;
+        return (
+          <div className="poc-overlay" onClick={closeView}>
+            <div
+              className="poc-modal er-view-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="er-view-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="poc-head">
+                <h3 id="er-view-title">{tr("Expense Details")}</h3>
+                <button className="poc-close" onClick={closeView} aria-label={tr("Close")}><FiX /></button>
+              </div>
+
+              <div className="poc-body">
+                <div className="er-view-summary">
+                  <span className="er-view-category">{tr(v.category || "—")}</span>
+                  <strong className="er-view-amount">{formatPeso(isFeed && feedSets.length ? feedTotal || v.amount : v.amount)}</strong>
+                  <span className="er-view-date">{formatExpenseDate(v.date)}</span>
+                  {v._loading && <span className="er-view-loading">{tr("Loading…")}</span>}
+                </div>
+
+                <section className="er-view-section">
+                  <h4>{tr("Expense Information")}</h4>
+                  <dl className="er-view-grid">
+                    <DetailItem label={tr(isFeed ? "Date Purchased" : "Expense Date")}>{formatExpenseDate(v.date)}</DetailItem>
+                    <DetailItem label={tr("Category")}>{tr(v.category || "—")}</DetailItem>
+                    <DetailItem label={tr(isFeed ? "Grand Total" : "Amount")}>{formatPeso(isFeed && feedSets.length ? feedTotal || v.amount : v.amount)}</DetailItem>
+                    {isFeed && <DetailItem label={tr("Supplier")}>{v.supplier || ""}</DetailItem>}
+                    {isFeed && feedSets.length > 0 && (
+                      <DetailItem label={tr("Total Quantity")}>{`${formatNumber(feedKg)} ${tr("kg")}`}</DetailItem>
+                    )}
+                    {isEquip && <DetailItem label={tr("Equipment Name")}>{v.equipmentName || ""}</DetailItem>}
+                    {isEquip && <DetailItem label={tr("Serial ID")}>{v.serialNo || ""}</DetailItem>}
+                    {isEquip && Number(v.quantity) > 0 && (
+                      <DetailItem label={tr("Quantity")}>{`${formatNumber(v.quantity)} ${v.unit ? tr(v.unit) : ""}`.trim()}</DetailItem>
+                    )}
+                    {!isFeed && <DetailItem label={tr("Description")} wide>{v.description || ""}</DetailItem>}
+                    <DetailItem label={tr("Recorded")}>{formatPHDateTime(v.createdAt)}</DetailItem>
+                    {updated && <DetailItem label={tr("Last Updated")}>{formatPHDateTime(v.updatedAt)}</DetailItem>}
+                  </dl>
+                </section>
+
+                {isFeed && feedSets.length > 0 && (
+                  <section className="er-view-section">
+                    <h4>{tr("Feed Sets")}</h4>
+                    <div className="er-view-table-scroll">
+                      <table className="er-view-table">
+                        <thead>
+                          <tr>
+                            <th>{tr("Feed Type")}</th>
+                            <th>{tr("Quantity")}</th>
+                            <th>{tr("Equivalent")}</th>
+                            <th>{tr("Unit Price")}</th>
+                            <th>{tr("Subtotal")}</th>
+                            {feedSets.length > 1 && <th>{tr("Receipt")}</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {feedSets.map((fs, i) => (
+                            <tr key={fs._id || i}>
+                              <td>{tr(fs.feedType || "—")}</td>
+                              <td>{`${formatNumber(fs.quantity)} ${tr(fs.unit || "Sacks")}`}</td>
+                              <td>{`${formatNumber(fs.equivalentKg)} ${tr("kg")}`}</td>
+                              <td>{Number(fs.quantity) > 0 ? formatPeso(Number(fs.amount || 0) / Number(fs.quantity)) : "—"}</td>
+                              <td>{formatPeso(fs.amount)}</td>
+                              {feedSets.length > 1 && (
+                                <td>
+                                  {i === 0 && !fs.receipt
+                                    ? <span className="er-view-none">{tr("See Receipt below")}</span>
+                                    : renderFile(`set-${i}`, `${tr("Receipt")} — ${tr(fs.feedType || "Feed")}`, tr("View Receipt"), fs.receipt)}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                <section className="er-view-section">
+                  <h4>{tr("Attachments")}</h4>
+                  <div className="er-view-files">
+                    <div className="er-view-file">
+                      <span className="er-view-file-label"><FiFileText /> {tr(getReceiptLabel(v.category))}</span>
+                      {renderFile("receipt", tr(getReceiptLabel(v.category)), tr("View Receipt"), v.receipt)}
+                    </div>
+                    {/* Feed Purchase only -- kept apart from the Receipt. */}
+                    {isFeed && (
+                      <div className="er-view-file">
+                        <span className="er-view-file-label"><FiTruck /> {tr("Proof of Delivery")}</span>
+                        {renderFile("pod", tr("Proof of Delivery"), tr("View Proof of Delivery"), v.proofOfDelivery)}
+                      </div>
+                    )}
                   </div>
-                ) : isPdfReceipt(viewRecord.receipt) ? (
-                  <p style={{ margin: 0 }}>
-                    <a
-                      href={`${API_BASE}${viewRecord.receipt}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >{tr("Open")}{" "}{getReceiptLabel(viewRecord.category)}{" "}{tr("(PDF)")}</a>
-                  </p>
-                ) : (
-                  <p style={{ margin: 0 }}>{viewRecord.receipt ? getReceiptLabel(viewRecord.category) : "—"}</p>
+                  {viewPreview && (
+                    <figure className="er-view-preview" data-preview={viewPreview.key}>
+                      <figcaption>{viewPreview.label}</figcaption>
+                      <a href={`${API_BASE}${viewPreview.path}`} target="_blank" rel="noopener noreferrer" title={tr("Open full size")}>
+                        <img src={`${API_BASE}${viewPreview.path}`} alt={viewPreview.label} />
+                      </a>
+                      <a className="er-view-fullsize" href={`${API_BASE}${viewPreview.path}`} target="_blank" rel="noopener noreferrer">
+                        {tr("Open full size")}
+                      </a>
+                    </figure>
+                  )}
+                </section>
+
+                {(v.remarks || "").trim() && (
+                  <section className="er-view-section">
+                    <h4>{tr("Remarks")}</h4>
+                    <p className="er-view-remarks">{v.remarks}</p>
+                  </section>
                 )}
               </div>
-              <div style={{ gridColumn: "1 / -1" }}><small>{tr("Remarks")}</small><p style={{ margin: 0 }}>{viewRecord.remarks || "—"}</p></div>
-            </div>
-            <div className="pb-confirm-actions">
-              <button className="pb-confirm-cancel" onClick={() => setViewRecord(null)}>{tr("Close")}</button>
+
+              <div className="poc-foot">
+                <button type="button" className="poc-btn-cancel" onClick={closeView}>{tr("Close")}</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </PageLayout>
   );

@@ -420,6 +420,34 @@
   outline: none;
   box-shadow: 0 0 0 3px rgba(228, 175, 31, 0.25);
 }
+/* Owner's Status action before the 14-day release date (or while an
+   Isolation is ongoing): visible but not clickable. */
+.qi-status-trigger-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+.qi-status-trigger-btn:disabled:hover {
+  border-color: transparent;
+}
+
+/* Validation message beside the Number of Deceased Chickens input. */
+.qi-field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0392b;
+}
+
+/* Row opened from a notification: shared .pb-row-highlight (index.css). */
+
+.qi-required { color: #c0392b; }
+.qi-release-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: #6b6457;
+  text-align: center;
+}
 
 .pb-confirm-modal.qi-progress-modal {
   width: 860px;

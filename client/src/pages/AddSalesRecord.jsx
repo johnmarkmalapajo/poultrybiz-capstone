@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { FiInfo, FiShoppingCart, FiFileText, FiSave, FiX, FiUserPlus } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddSalesRecord.css";
-import { createSalesRecord, getEggStockSummary } from "../api/salesRecord";
+import { createSalesRecord, getEggStockSummary, getEggPrices } from "../api/salesRecord";
 import { listCustomers } from "../api/customers";
-import SaleItemsEditor, { emptyItem, validateItems } from "../components/SaleItemsEditor";
+import SaleItemsEditor, { emptyItem, validateItems, configuredPriceText } from "../components/SaleItemsEditor";
 import { useLanguage } from "../i18n/LanguageContext";
 
 const NEW_CUSTOMER_VALUE = "__new__";
@@ -23,6 +23,9 @@ export default function AddSalesRecord() {
   const [items, setItems] = useState([emptyItem()]);
   const [remarks, setRemarks] = useState("");
   const [stockByType, setStockByType] = useState({});
+  // Egg Pricing: { [eggSize]: price per egg | null }; null until loaded.
+  const [eggPrices, setEggPrices] = useState(null);
+  const [pricesError, setPricesError] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -45,6 +48,25 @@ export default function AddSalesRecord() {
       })
       .catch(() => setStockByType({}));
   }, []);
+
+  // The Owner's saved Egg Pricing fills each set's Unit Price as soon as an
+  // Egg Size is chosen.
+  useEffect(() => {
+    getEggPrices()
+      .then((d) => {
+        const prices = d?.prices || {};
+        setEggPrices(prices);
+        // A size picked before the prices arrived gets its price now.
+        setItems((current) => current.map((it) =>
+          it.eggSize && it.unitPrice === ""
+            ? { ...it, unitPrice: configuredPriceText(prices, it.eggSize), priceFromSettings: true }
+            : it
+        ));
+      })
+      .catch(() => setPricesError(tr("Couldn't load Egg Pricing. Enter the unit price manually or reload the page.")));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const noPricesSet = eggPrices && Object.values(eggPrices).every((v) => v == null);
 
   const isNewCustomer = customerId === NEW_CUSTOMER_VALUE;
 
@@ -81,7 +103,7 @@ export default function AddSalesRecord() {
       setError(tr("Please enter the new customer's name."));
       return;
     }
-    const itemsError = validateItems(items);
+    const itemsError = validateItems(items, eggPrices);
     if (itemsError) {
       setError(itemsError);
       return;
@@ -97,7 +119,8 @@ export default function AddSalesRecord() {
         eggSize: it.eggSize,
         unit: it.unit,
         quantitySold: parseFloat(it.quantitySold) || 0,
-        unitPrice: parseFloat(it.unitPrice) || 0,
+        // Sent as typed (e.g. "6.25"): never parsed to an integer or re-rounded.
+        unitPrice: String(it.unitPrice ?? "").trim(),
       })),
       remarks,
       ...(isNewCustomer ? { newCustomer } : { customerId }),
@@ -199,7 +222,14 @@ export default function AddSalesRecord() {
             <div className="asr-line" />
           </div>
 
-          <SaleItemsEditor items={items} onChange={setItems} stockByType={stockByType} />
+          {noPricesSet && (
+            <div className="asr-error-banner" role="alert">
+              {tr("No egg prices are set yet. Set them with the Egg Pricing button on the Sales Record page.")}
+            </div>
+          )}
+          {pricesError && <div className="asr-error-banner" role="alert">{pricesError}</div>}
+
+          <SaleItemsEditor items={items} onChange={setItems} stockByType={stockByType} prices={eggPrices} />
 
           <div className="asr-section-header">
             <FiFileText />

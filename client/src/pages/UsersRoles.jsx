@@ -2,14 +2,19 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiSearch, FiUsers, FiCheck, FiX, FiSlash, FiRotateCcw, FiArchive, FiMoreVertical,
-  FiUserCheck, FiUserX, FiClock, FiFilter,
+  FiUserCheck, FiUserX, FiClock,
 } from "react-icons/fi";
 import { API_BASE } from "../api/client";
 import "./UsersRoles.css";
 import PageLayout from "../components/PageLayout";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
-import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import {
+  usePagination, useRecordFocus, useFilterPanel, DATE_FILTER_DEFAULTS,
+  localDayKey, matchesDatePeriod, dateFilterOptions, datePeriodLabel,
+} from "../hooks/usePagination";
+import TablePagination, {
+  TableSection, TableScroll, FilterPanel, FilterSection, FilterSelect, DateFilterFields, ActiveFilterChips,
+} from "../components/TablePagination";
 import {
   listUsers, approveUser, rejectUser,
   activateUser, deactivateUser, archiveUser,
@@ -25,6 +30,9 @@ const AVATAR_COLORS = ["#E4AF1F", "#3a7bd5", "#2e9e6b", "#8257c4", "#e0892f", "#
 const initials = (n) => (n || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const avatarColor = (n) => AVATAR_COLORS[(n || "").length % AVATAR_COLORS.length];
 const fmtDate = (s) => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
+
+// Filter defaults: Date Registered (date period) and Role.
+const FILTER_DEFAULTS = { ...DATE_FILTER_DEFAULTS, role: "All" };
 
 const TABS = [
   { key: "all", label: "All Users" },
@@ -50,9 +58,8 @@ export default function UsersRoles({ embedded = false, onBack }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
-  const [fRole, setFRole] = useState("All");
-  const [fDate, setFDate] = useState("");
-  const [showFilter, setShowFilter] = useState(false);
+  const filter = useFilterPanel(FILTER_DEFAULTS);
+  const fApplied = filter.applied;
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmStatusChange, setConfirmStatusChange] = useState(null);
   // Approve/Reject confirmation: { user, action: "approve" | "reject" }
@@ -61,7 +68,6 @@ export default function UsersRoles({ embedded = false, onBack }) {
   const [decisionError, setDecisionError] = useState("");
   const [openMenu, setOpenMenu] = useState(null);  const [toast, setToast] = useState("");
   const toastRef = useRef(null);
-  const filterRef = useRef(null);
   const menuRef = useRef(null);
 
 
@@ -92,10 +98,6 @@ const refresh = async () => {
   useEffect(() => () => clearTimeout(toastRef.current), []);
   useEffect(() => {
   const onClick = (e) => {
-    if (filterRef.current && !filterRef.current.contains(e.target)) {
-      setShowFilter(false);
-    }
-
     if (!e.target.closest(".ur-menu-wrap")) {
       setOpenMenu(null);
     }
@@ -115,18 +117,20 @@ const refresh = async () => {
     Inactive: users.filter((u) => u.status === "Inactive").length,
   }), [users]);
 
-  const roles = useMemo(() => [...new Set(users.map((u) => u.role))], [users]);
+  const roles = useMemo(() => [...new Set(users.map((u) => u.role).filter(Boolean))], [users]);
+  const dateOptions = dateFilterOptions(users.map((u) => localDayKey(u.createdAt)), filter.draft.year);
 
+  // createdAt is a full timestamp: compare its calendar day (local time).
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
       const inTab = tab === "all" || u.status === tab;
-      const inSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-      const inRole = fRole === "All" || u.role === fRole;
-      const inDate = !fDate || u.createdAt === fDate;
+      const inSearch = !q || (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q);
+      const inRole = fApplied.role === "All" || u.role === fApplied.role;
+      const inDate = matchesDatePeriod(localDayKey(u.createdAt), fApplied);
       return inTab && inSearch && inRole && inDate;
     });
-  }, [users, tab, search, fRole, fDate]);
+  }, [users, tab, search, fApplied]);
 
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const sortAccessor = (row, col) => {
@@ -139,15 +143,19 @@ const refresh = async () => {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [tab, search, fRole, fDate]);
+  useEffect(() => { pager.setPage(1); }, [tab, search, fApplied]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<user id>: show that
+  // account (All tab, no search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sorted, allRows: users, pager, ready: !loading,
+    reveal: () => { setTab("all"); setSearch(""); filter.clear(); },
+  });
 
-  const activeFilters = [
-    fRole !== "All" && { key: "Role", value: fRole, clear: () => setFRole("All") },
-    fDate && { key: "Date", value: fDate, clear: () => setFDate("") },
+  const activeChips = [
+    fApplied.period !== "all" && { key: "date", label: "Date Registered", value: datePeriodLabel(fApplied) },
+    fApplied.role !== "All" && { key: "role", label: "Role", value: fApplied.role },
   ].filter(Boolean);
-  const activeFilterCount = activeFilters.length;
-  const clearFilters = () => { setFRole("All"); setFDate(""); };
 
   const runAction = async (fn, successMsg) => {
     try {
@@ -244,45 +252,17 @@ const refresh = async () => {
           </div>
 
           <div className="ur-btn-group">
-            <div className="ur-filter-wrap" ref={filterRef}>
-              <button className="ur-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="ur-filter-count">{activeFilterCount}</span>}
-              </button>
-
-              {showFilter && (
-                <div className="ur-filter-dropdown">
-                  <div className="ur-filter-dropdown-header">
-                    <span>{tr("Filter Users")}</span>
-                    <button className="ur-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
-                  </div>
-                  <div className="ur-filter-group">
-                    <label className="ur-filter-label">{tr("Role")}</label>
-                    <select className="ur-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                      <option value="All">{tr("All Roles")}</option>
-                      {roles.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
-                    </select>
-                  </div>
-                  <div className="ur-filter-group">
-                    <label className="ur-filter-label">{tr("Date Registered")}</label>
-                    <input className="ur-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
-                  </div>
-                </div>
-              )}
-            </div>
+            <FilterPanel panel={filter} title="Filter Users">
+              <DateFilterFields panel={filter} label="Date Registered" years={dateOptions.years} months={dateOptions.months} />
+              <FilterSection label="Filters">
+                <FilterSelect panel={filter} field="role" label="Role" allLabel="All Roles" options={roles} />
+              </FilterSection>
+            </FilterPanel>
           </div>
         </div>
       </div>
 
-      {activeFilterCount > 0 && (
-        <div className="ur-active-filters">
-          {activeFilters.map((f) => (
-            <span key={f.key} className="ur-active-filter-tag">
-              {f.key}: {f.value}
-              <button onClick={f.clear}>✕</button>
-            </span>
-          ))}
-        </div>
-      )}
+      <ActiveFilterChips panel={filter} chips={activeChips} />
 
       {error && <div className="pb-error-banner">{error}</div>}
 
@@ -353,7 +333,7 @@ const refresh = async () => {
 
               const canManageStatus = currentRole === "Owner";
               return (
-                <tr key={u._id}>
+                <tr key={u._id} {...focus.rowProps(u._id)}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
                       <div className="ur-avatar" style={{ background: avatarColor(u.name) }}>

@@ -11,6 +11,15 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 20px;
+  /* Sidebar branding (logo, Egginear Agri-Poultry Solutions, POULTRYBIZ,
+     location) is not part of My Profile > Text Size. Every font-size is
+     multiplied by --pb-text-scale (vite.config.js); setting it back to 1
+     here keeps the branding at its original sizes, spacing and alignment
+     for every size, while the menu and the rest of the app still scale.
+     The base size is the browser default the wordmark (1.5em) was
+     designed on. */
+  --pb-text-scale: 1;
+  font-size: 16px;
 }
 
 .brand-text {
@@ -298,6 +307,9 @@
     padding: 0;
     margin-bottom: 8px;
     align-self: flex-end;
+    /* The close (×) icon sits right above the branding: it keeps its size
+       too, so Text Size never moves the logo down. */
+    --pb-text-scale: 1;
   }
 
   /* Show the dark overlay */

@@ -54,6 +54,18 @@ const equipmentSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Custodian / Assigned To = a Personnel and Manpower record.
+    // custodianPersonnel is the reliable link (Personnel _id); custodian
+    // keeps the person's name as it was when assigned, so the list, search,
+    // sort and exports keep working and the name is never lost -- even if
+    // that Personnel record is later deactivated or archived. Records saved
+    // before the link existed have only the name.
+    custodianPersonnel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Personnel",
+      default: null,
+    },
+
     custodian: {
       type: String,
       default: "",
@@ -104,6 +116,17 @@ const equipmentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Serial ID is required for every new Equipment record and can never be
+// cleared afterwards. Both places that write it -- Equipment & Tools
+// (equipmentController) and the Equipment category of Expense Records
+// (expenseRecordController) -- use these, so the rule and its message live
+// in one place. Not a schema-level `required`, so older records saved
+// without a Serial ID keep loading, archiving and restoring as before.
+equipmentSchema.statics.SERIAL_ID_REQUIRED_MESSAGE = "Serial ID is required.";
+
+// The trimmed Serial ID, or "" when it is missing / only spaces.
+equipmentSchema.statics.cleanSerialNo = (value) => (value == null ? "" : String(value).trim());
 
 // Auto-generate Item Number: EQ-001, EQ-002, EQ-003...
 // Based on the highest existing numeric suffix rather than a document count,

@@ -11,7 +11,7 @@ import {
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./AddExpense.css";
-import { createExpenseRecord, uploadReceipt } from "../api/expenseRecord";
+import { createExpenseRecord, uploadReceipt, receiptFileError } from "../api/expenseRecord";
 import {
   useFeedStock,
   feedQuantityToKg,
@@ -81,6 +81,8 @@ export default function AddExpense() {
         : "",
     amount: "",
     receipt: null,
+    // Feed Purchase only, optional (saved like the Receipt).
+    proofOfDelivery: null,
     supplier: "",
     remarks: "",
     // Equipment-category fields
@@ -96,6 +98,7 @@ export default function AddExpense() {
   ]);
 
   const [preview, setPreview] = useState("");
+  const [podPreview, setPodPreview] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -191,10 +194,22 @@ export default function AddExpense() {
     );
   };
 
+  // A chosen file that can't be uploaded (wrong type or over 5MB) is not
+  // kept, and the reason shows right away instead of failing on Save.
+  const rejectFile = (e, file) => {
+    const problem = receiptFileError(file);
+    if (!problem) return false;
+    e.target.value = "";
+    setError(tr(problem));
+    return true;
+  };
+
   const handleFile = (e) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
+    if (rejectFile(e, file)) return;
+    setError("");
 
     setForm((current) => ({
       ...current,
@@ -208,10 +223,29 @@ export default function AddExpense() {
     }
   };
 
+  // Proof of Delivery (Feed Purchase only, optional). Same file types and
+  // size limit as the Receipt; uploaded on Save through the same upload.
+  const handlePodFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (rejectFile(e, file)) return;
+    e.target.value = "";
+    setError("");
+    setForm((current) => ({ ...current, proofOfDelivery: file }));
+    setPodPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : "");
+  };
+
+  const removePodFile = () => {
+    setForm((current) => ({ ...current, proofOfDelivery: null }));
+    setPodPreview("");
+  };
+
   const handleFeedReceipt = (index, e) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
+    if (rejectFile(e, file)) return;
+    setError("");
 
     handleFeedSetChange(
       index,
@@ -236,6 +270,9 @@ export default function AddExpense() {
       null
     );
   };
+
+  // The Serial ID message is also shown right under its field.
+  const serialError = error === tr("Serial ID is required.");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -302,6 +339,10 @@ export default function AddExpense() {
           );
         }
 
+        if (!form.serialNo.trim()) {
+          throw new Error("Serial ID is required.");
+        }
+
         if (!form.description.trim()) {
           throw new Error(
             "Please enter the description/specification."
@@ -356,6 +397,22 @@ export default function AddExpense() {
         uploadedReceiptPath = uploadResult.receipt;
       }
 
+      // Feed Purchase: the optional Proof of Delivery, and each additional
+      // feed set's own receipt, are uploaded the same way, so the record
+      // keeps the saved file's path (not just its file name).
+      let uploadedProofOfDelivery = "";
+      const feedSetReceiptPaths = [];
+      if (isFeedPurchase) {
+        if (form.proofOfDelivery) {
+          uploadedProofOfDelivery = (await uploadReceipt(form.proofOfDelivery)).receipt;
+        }
+        for (const feedSet of feedSets) {
+          feedSetReceiptPaths.push(
+            feedSet.receipt ? (await uploadReceipt(feedSet.receipt)).receipt : null
+          );
+        }
+      }
+
       const payload = isFeedPurchase
         ? {
             date: form.date,
@@ -363,9 +420,10 @@ export default function AddExpense() {
             supplier: form.supplier.trim(),
             remarks: form.remarks.trim(),
             receipt: uploadedReceiptPath,
+            proofOfDelivery: uploadedProofOfDelivery,
 
             feedSets: feedSets.map(
-              (feedSet) => {
+              (feedSet, feedSetIndex) => {
                 const quantity = Number(
                   feedSet.quantity
                 );
@@ -390,9 +448,7 @@ export default function AddExpense() {
                     Number(feedSet.unitPrice),
                   equivalentKg,
                   receipt:
-                    feedSet.receipt
-                      ? feedSet.receipt.name
-                      : null,
+                    feedSetReceiptPaths[feedSetIndex] || null,
                 };
               }
             ),
@@ -439,6 +495,7 @@ export default function AddExpense() {
             : "",
         amount: "",
         receipt: null,
+        proofOfDelivery: null,
         supplier: "",
         remarks: "",
         equipmentName: "",
@@ -450,6 +507,7 @@ export default function AddExpense() {
 
       setFeedSets([createFeedSet()]);
       setPreview("");
+      setPodPreview("");
 
       try {
         window.dispatchEvent(
@@ -471,6 +529,7 @@ export default function AddExpense() {
         tr(err?.message ||
           "Cannot connect to server. Please try again.")
       );
+      if (err?.message === "Serial ID is required.") document.querySelector('[name="serialNo"]')?.focus();
     } finally {
       setSaving(false);
       window.__pbSaving = false;
@@ -578,7 +637,7 @@ export default function AddExpense() {
 
               <div className="ae-form-group">
                 <label>{tr("Serial/ID No.")}{" "}
-                  <span className="ae-optional">{tr("(optional)")}</span>
+                  <span className="req">*</span>
                 </label>
 
                 <input
@@ -587,7 +646,10 @@ export default function AddExpense() {
                   value={form.serialNo}
                   onChange={handleChange}
                   placeholder={tr("Enter serial or ID number")}
+                  aria-required="true"
+                  aria-invalid={serialError || undefined}
                 />
+                {serialError && <span className="pb-field-error">{error}</span>}
               </div>
 
               <div className="ae-form-group ae-full-width">
@@ -862,6 +924,9 @@ export default function AddExpense() {
                 </div>
               </div>
 
+              {/* Receipt and Proof of Delivery side by side (one column on
+                  smaller screens). */}
+              <div className="ae-full-width ae-file-pair">
               <div className="ae-form-group">
                 <label>{tr("Receipt")}{" "}
                   <span className="ae-optional">{tr("(optional)")}</span>
@@ -900,6 +965,51 @@ export default function AddExpense() {
                 )}
 
                 <small>{tr("Upload a receipt image or PDF (max 5MB). JPG, PNG, or PDF.")}</small>
+              </div>
+
+              {/* Beside the Receipt -- Feed Purchase only, never required. */}
+              <div className="ae-form-group">
+                <label>{tr("Proof of Delivery")}{" "}
+                  <span className="ae-optional">{tr("(optional)")}</span>
+                </label>
+
+                <div className="ae-file-wrap">
+                  <label className="ae-file-btn">
+                    <FiUpload />{tr("Choose file")}<input
+                      type="file"
+                      name="proofOfDelivery"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handlePodFile}
+                      hidden
+                    />
+                  </label>
+
+                  <span className="ae-file-name">
+                    {form.proofOfDelivery
+                      ? form.proofOfDelivery.name
+                      : "No file chosen"}
+                  </span>
+                </div>
+
+                {form.proofOfDelivery && (
+                  <div className="ae-file-preview">
+                    {podPreview && (
+                      <img
+                        src={podPreview}
+                        alt="Proof of Delivery preview"
+                      />
+                    )}
+
+                    <button
+                      type="button"
+                      className="ae-file-remove"
+                      onClick={removePodFile}
+                    >{tr("Remove")}</button>
+                  </div>
+                )}
+
+                <small>{tr("Photo of the delivered feed or the delivery receipt (max 5MB). JPG, PNG, or PDF.")}</small>
+              </div>
               </div>
 
               <div className="ae-feed-sets">

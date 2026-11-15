@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
@@ -24,10 +25,159 @@ import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
-import { feedQuantityToKg } from "../hooks/useFeedStock";
+import { feedQuantityToKg, entryBatchIds, batchShareKg } from "../hooks/useFeedStock";
 import { useLanguage } from "../i18n/LanguageContext";
 
 const FEED_TYPE_OPTIONS = ["Grower Feed", "Layer Feed"];
+
+/**
+ * Batch ID cell. One batch: shown as is. Several batches (one entry fed
+ * them all): the first Batch ID plus "+N more", so the column keeps its
+ * width and the row its height. The full list of Batch IDs (IDs only -- no
+ * quantities) opens in a tooltip:
+ *   - mouse: on hover; the pointer can move from "+N more" into the tooltip
+ *     (closing waits a moment, and is cancelled when the pointer arrives),
+ *     and the list scrolls with the wheel / trackpad;
+ *   - touch: tap "+N more" to open / close, swipe inside the list to scroll;
+ *   - keyboard: Tab to it to open, Esc to close.
+ * The tooltip is rendered on <body> with fixed positioning, so the table's
+ * scroll container, cards and overflow settings can never clip it. It follows
+ * the cell when the page / table scrolls; scrolling the list itself never
+ * closes it.
+ */
+const TIP_CLOSE_DELAY_MS = 180;
+
+function BatchIdsCell({ record }) {
+  const { t: tr } = useLanguage();
+  const ids = entryBatchIds(record);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const anchorRef = useRef(null);
+  const tipRef = useRef(null);
+  const pointerRef = useRef("mouse");
+  const pressingRef = useRef(false); // focus came from a click / tap, not the keyboard
+  const closeTimer = useRef(null);
+
+  const cancelClose = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  const closeSoon = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), TIP_CLOSE_DELAY_MS);
+  };
+  useEffect(() => cancelClose, []);
+
+  // Place the tooltip under the Batch ID (above it if there is no room
+  // below), kept inside the window; re-placed when the page or table moves.
+  useEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const a = anchorRef.current?.getBoundingClientRect();
+      const tip = tipRef.current;
+      if (!a || !tip) return;
+      // The cell scrolled out of view: nothing to point at any more.
+      if (a.bottom < 0 || a.top > window.innerHeight || a.right < 0 || a.left > window.innerWidth) {
+        setOpen(false);
+        return;
+      }
+      const w = tip.offsetWidth;
+      const h = tip.offsetHeight;
+      const gap = 6;
+      const top = a.bottom + gap + h > window.innerHeight && a.top - gap - h > 0 ? a.top - gap - h : a.bottom + gap;
+      const left = Math.min(Math.max(8, a.left), window.innerWidth - w - 8);
+      setPos({ top, left });
+    };
+    place();
+
+    // Scrolling INSIDE the tooltip's list must not move or close it; any
+    // other scroll (page, table) just moves it along with the cell.
+    const onScroll = (e) => {
+      if (tipRef.current && e.target instanceof Node && tipRef.current.contains(e.target)) return;
+      place();
+    };
+    const outside = (e) => {
+      if (!anchorRef.current?.contains(e.target) && !tipRef.current?.contains(e.target)) setOpen(false);
+    };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", place);
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", place);
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  if (ids.length <= 1) return <>{ids[0] || record.batchId || "—"}</>;
+
+  const show = () => {
+    cancelClose();
+    if (open) return;
+    setPos(null);
+    setOpen(true);
+  };
+  // Focus moving between "+N more" and the tooltip keeps it open.
+  const onBlurAny = (e) => {
+    const next = e.relatedTarget;
+    if (next && (anchorRef.current?.contains(next) || tipRef.current?.contains(next))) return;
+    closeSoon();
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={anchorRef}
+        className="fc-batch-more"
+        aria-expanded={open}
+        aria-label={`${tr("Batch IDs")}: ${ids.join(", ")}`}
+        onPointerDown={(e) => { pointerRef.current = e.pointerType; pressingRef.current = true; }}
+        onPointerEnter={(e) => { if (e.pointerType === "mouse") show(); }}
+        onPointerLeave={(e) => { if (e.pointerType === "mouse") closeSoon(); }}
+        onFocus={() => { if (!pressingRef.current) show(); }}
+        onBlur={onBlurAny}
+        onClick={() => {
+          pressingRef.current = false;
+          // Mouse: hovering already shows it. Touch / pen: a tap toggles it.
+          if (pointerRef.current === "mouse") show();
+          else if (open) setOpen(false);
+          else show();
+        }}
+      >
+        <span className="fc-batch-first">{ids[0]}</span>
+        <span className="fc-batch-badge">+{ids.length - 1} {tr("more")}</span>
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={tipRef}
+            role="tooltip"
+            tabIndex={-1}
+            className="fc-batch-tooltip"
+            style={pos ? { top: pos.top, left: pos.left } : { top: -9999, left: -9999 }}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") cancelClose(); }}
+            onPointerLeave={(e) => { if (e.pointerType === "mouse") closeSoon(); }}
+            onBlur={onBlurAny}
+          >
+            <div className="fc-batch-tooltip-title">
+              {ids.length} {tr("batches")}
+            </div>
+            <ul className="fc-batch-tooltip-list">
+              {ids.map((id) => (
+                <li key={id}>{id}</li>
+              ))}
+            </ul>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
 
 export default function FeedConsumption() {
   const { t: tr } = useLanguage();
@@ -239,9 +389,10 @@ export default function FeedConsumption() {
     ...new Set(values.filter(Boolean)),
   ];
 
+  // Every batch on any entry (a multi-batch entry lists all of its batches).
   const batchOptions = uniq(
-    records.map((record) => record.batchId)
-  );
+    records.flatMap(entryBatchIds)
+  ).sort();
 
   const yearOptions = uniq(
     records.map((r) => { const d = new Date(r.date || ""); return isNaN(d) ? null : String(d.getFullYear()); })
@@ -254,14 +405,14 @@ export default function FeedConsumption() {
   ).sort((a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b));
 
   const filtered = records.filter((record) => {
-    const matchSearch = record.batchId
-      ?.toLowerCase()
-      .includes(search.toLowerCase());
+    const matchSearch = entryBatchIds(record).some((id) =>
+      id.toLowerCase().includes(search.toLowerCase())
+    );
 
     const matchBatch =
       !filterApplied ||
       filters.batchId === "All" ||
-      record.batchId === filters.batchId;
+      entryBatchIds(record).includes(filters.batchId);
 
     const matchType =
       !filterApplied ||
@@ -316,19 +467,24 @@ export default function FeedConsumption() {
 
   const totalRecords = filtered.length;
 
+  // Filtered to one batch: count only that batch's share of multi-batch
+  // entries. Otherwise each entry's total, once.
+  const batchFilterOn = filterApplied && filters.batchId !== "All";
   const totalConsumed = filtered.reduce(
     (sum, record) =>
       sum +
-      feedQuantityToKg(
-        record.quantityConsumed,
-        record.quantityUnit || "kg",
-        record.sackWeightKg
-      ),
+      (batchFilterOn
+        ? batchShareKg(record, filters.batchId)
+        : feedQuantityToKg(
+            record.quantityConsumed,
+            record.quantityUnit || "kg",
+            record.sackWeightKg
+          )),
     0
   );
 
   const batchesFed = uniq(
-    filtered.map((record) => record.batchId)
+    filtered.flatMap(entryBatchIds)
   ).length;
 
   const feedTypesUsed = uniq(
@@ -358,11 +514,11 @@ export default function FeedConsumption() {
       : null;
 
   const breedsInView = uniq(
-    filtered.map(
-      (record) =>
+    filtered.flatMap(entryBatchIds).map(
+      (id) =>
         flocks.find(
           (flock) =>
-            flock.batchId === record.batchId
+            flock.batchId === id
         )?.breed
     )
   );
@@ -907,7 +1063,9 @@ export default function FeedConsumption() {
                       : ""}
                   </td>
 
-                  <td>{record.batchId}</td>
+                  <td>
+                    <BatchIdsCell record={record} />
+                  </td>
 
                   <td>{record.feedType}</td>
 

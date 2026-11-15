@@ -58,7 +58,7 @@ import VisitorCheckIn from "./pages/VisitorCheckIn";
 import FarmerTodo from "./pages/FarmerTodo";
 import AdminTodo from "./pages/AdminTodo";
 import Notifications from "./pages/Notifications";
-import Settings from "./pages/Settings";
+import Settings, { FAQ } from "./pages/Settings";
 import BatchSummary from "./pages/BatchSummary";
 import Archive from "./pages/Archive";
 import AuditLogs from "./pages/AuditLogs";
@@ -134,6 +134,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/owner/todo" element={<ProtectedRoute allow={["Owner"]}><AdminTodo /></ProtectedRoute>} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/faq" element={<FAQ />} />
         <Route path="/batch-summary/:batchId" element={<ProtectedRoute allow={["Owner"]}><BatchSummary /></ProtectedRoute>} />
         <Route path="/pending-approval" element={<PendingApproval />} />
 

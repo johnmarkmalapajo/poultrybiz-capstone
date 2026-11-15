@@ -8,6 +8,7 @@ import "./AddEquipment.css";
 import { createEquipment } from "../api/equipmentTools";
 import { listPersonnel } from "../api/personnelManpower";
 import { useLanguage } from "../i18n/LanguageContext";
+import { LocationStorageSelect } from "./EditEquipment";
 
 const CONDITIONS = ["In Use", "Idle", "For Repair", "For Disposal"];
 const UNITS = ["pcs", "units", "sets", "pairs", "kg", "liters"];
@@ -102,6 +103,9 @@ export default function AddEquipment() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
+  // The Serial ID message is also shown right under its field.
+  const serialError = error === tr("Serial ID is required.");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving) return;
@@ -109,6 +113,10 @@ export default function AddEquipment() {
     window.__pbSaving = true;
     setSaving(true); setError("");
     try {
+      if (!form.serialNo.trim()) {
+        throw new Error("Serial ID is required.");
+      }
+
       if (
         !form.quantity ||
         Number.isNaN(Number(form.quantity)) ||
@@ -124,11 +132,12 @@ export default function AddEquipment() {
         throw new Error("Please enter a valid acquisition cost.");
       }
 
-      await createEquipment(form);
+      await createEquipment({ ...form, serialNo: form.serialNo.trim() });
       try { window.dispatchEvent(new Event("pb_data_changed")); } catch { }
       navigate("/inventory/equipment");
     } catch (err) {
       setError(tr(err?.message || "Couldn't save this record. Please try again."));
+      if (err?.message === "Serial ID is required.") document.querySelector('[name="serialNo"]')?.focus();
       setSaving(false);
     } finally {
       window.__pbSaving = false;
@@ -164,8 +173,9 @@ export default function AddEquipment() {
             </div>
 
             <div className="aeq-form-group">
-              <label>{tr("Serial/ID No.")}</label>
-              <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} placeholder={tr("Enter serial or ID number")} />
+              <label>{tr("Serial/ID No.")}{" "}<span className="aeq-req">*</span></label>
+              <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} placeholder={tr("Enter serial or ID number")} aria-required="true" aria-invalid={serialError || undefined} />
+              {serialError && <span className="pb-field-error">{error}</span>}
             </div>
 
             <div className="aeq-form-group aeq-full-width">
@@ -212,7 +222,7 @@ export default function AddEquipment() {
           <div className="aeq-form-grid">
             <div className="aeq-form-group">
               <label>{tr("Location/Storage")}{" "}<span className="aeq-req">*</span></label>
-              <input type="text" name="location" value={form.location} onChange={handleChange} placeholder={tr("Enter location or storage area")} required />
+              <LocationStorageSelect value={form.location} onChange={(location) => setForm((f) => ({ ...f, location }))} />
             </div>
 
             <div className="aeq-form-group">

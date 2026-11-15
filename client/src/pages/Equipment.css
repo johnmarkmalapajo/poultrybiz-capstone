@@ -775,12 +775,20 @@
 
 }
 
+/* Equipment ID (Item No., e.g. EQ-001): the same gold record-ID badge as the
+   Batch ID in Flock Profile, Health, Mortality and Quarantine
+   (.fp-batch-badge / .hr-batch-badge ...). */
 .eq-item-no {
-  font-family: var(--font-display, "Poppins", sans-serif);
-  font-weight: 700;
+  display: inline-block;
   padding: 3px 10px;
-  margin-top: 7px;
-  border-radius: 6px;
+  background: var(--gold-light);
+  color: var(--gold-dark);
+  border-radius: 20px;
+  font-family: var(--font-display, "Poppins", sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .eq-table td:has(.eq-item-no) {

@@ -15,7 +15,7 @@ import { useArchiveConfirm } from "../hooks/useArchiveConfirm";
 import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listHealthRecords } from "../api/healthRecord";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -170,6 +170,18 @@ export default function HealthRecord() {
   useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters, activeTab]);
   const pageDiagnosis = sortedDiagnosis.slice(pager.startIndex, pager.endIndex);
   const pageVaccination = sortedVaccination.slice(pager.startIndex, pager.endIndex);
+  // A notification's View (e.g. a Diagnosis / Medication / Vaccination
+  // schedule reminder) opens this page with ?record=<id>: switch to that
+  // record's tab, clear the search / filters if they hide it, then show and
+  // highlight its row.
+  const focus = useRecordFocus({
+    rows: activeSorted, allRows: allRecords, pager, ready: !loading,
+    reveal: (rec) => {
+      setActiveTab(isVaxRec(rec) ? "vaccination" : "diagnosis");
+      setSearch("");
+      clearFilters();
+    },
+  });
 
   const activeSource = isDiagnosis ? diagnosisRecords : vaccinationRecords;
   const uniq = (vals) => [...new Set(vals.filter(Boolean))];
@@ -528,7 +540,7 @@ export default function HealthRecord() {
                   </tr>
                 ) : (
                   pageDiagnosis.map((r) => (
-                    <tr key={r._id}>
+                    <tr key={r._id} {...focus.rowProps(r._id)}>
                       <td><span className="hr-diagnosis-badge">{r.diagnosisCode || "—"}</span></td>
                       <td><span className="hr-isolation-badge">{r.isolationId?.isolationId || "—"}</span></td>
                       <td>{new Date(r.date).toLocaleDateString("en-CA")}</td>
@@ -613,7 +625,7 @@ export default function HealthRecord() {
                   </tr>
                 ) : (
                   pageVaccination.map((r) => (
-                    <tr key={r._id}>
+                    <tr key={r._id} {...focus.rowProps(r._id)}>
                       <td><span className="hr-medication-badge">{r.medicationCode || "—"}</span></td>
                       <td>{new Date(r.date).toLocaleDateString("en-CA")}</td>
                       <td><span className="hr-batch-badge">{r.batchId}</span></td>

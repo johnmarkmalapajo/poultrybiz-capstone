@@ -60,9 +60,27 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Public URL of the profile picture, e.g.
+    // "/api/v1/profile/avatar/<userId>?v=<timestamp>". The image itself is
+    // stored in `avatarImage` below (in MongoDB), NOT on the server's disk:
+    // Render's disk is wiped on every redeploy / restart, which is what made
+    // uploaded pictures disappear. Older records may still hold a legacy
+    // "/uploads/profile/..." path (see migrateLegacyImages).
     avatar: {
       type: String,
       default: "",
+    },
+
+    // The profile picture's bytes. select:false -- never loaded with the
+    // user unless explicitly asked for (only the image endpoint does).
+    avatarImage: {
+      type: {
+        data: { type: Buffer, default: null },
+        contentType: { type: String, default: "" },
+        size: { type: Number, default: 0 },
+        updatedAt: { type: Date, default: null },
+      },
+      select: false,
     },
 
     lastLogin: {
@@ -78,6 +96,14 @@ const userSchema = new mongoose.Schema(
     timezone: {
       type: String,
       default: "(GMT+08:00) Asia/Manila",
+    },
+
+    // My Profile > Text Size. Saved on the account so it follows the user
+    // to every device and browser; each account has its own.
+    textSize: {
+      type: String,
+      enum: ["small", "default", "large", "xlarge"],
+      default: "default",
     },
 
     farmName: {
@@ -104,9 +130,40 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Sales Record > Egg Pricing (farm-level, on the Owner's record like the
+    // other farm settings): the selling price PER EGG for each egg size,
+    // used to fill the Unit Price of new sales. null = no price set yet
+    // (that size can't be sold until one is set). Each sale keeps its own
+    // unit price, so changing these never changes past sales.
+    eggPrices: {
+      peewee: { type: Number, default: null, min: 0 },
+      small: { type: Number, default: null, min: 0 },
+      medium: { type: Number, default: null, min: 0 },
+      large: { type: Number, default: null, min: 0 },
+      extraLarge: { type: Number, default: null, min: 0 },
+      jumbo: { type: Number, default: null, min: 0 },
+    },
+    eggPricesUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Farm logo (kept on the Owner's record, where all farm identity fields
+    // live -- getFarmInfo serves it to every user). URL like
+    // "/api/v1/profile/farm-logo?v=<timestamp>"; bytes in farmLogoImage.
     farmLogo: {
       type: String,
       default: "",
+    },
+
+    farmLogoImage: {
+      type: {
+        data: { type: Buffer, default: null },
+        contentType: { type: String, default: "" },
+        size: { type: Number, default: 0 },
+        updatedAt: { type: Date, default: null },
+      },
+      select: false,
     },
 
     emailNotif: {

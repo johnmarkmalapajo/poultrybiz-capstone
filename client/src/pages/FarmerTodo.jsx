@@ -1,12 +1,12 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiRotateCcw, FiTrash2, FiArchive, FiList, FiClock, FiCheckCircle, FiAlertTriangle, FiEye, FiImage, FiX } from "react-icons/fi";
 import { getTaskCategoryRoute } from "../taskCategoryRoutes";
 import { canAccessCategory } from "../moduleRegistry";
 import "./ToDo.css";
 import PageLayout from "../components/PageLayout";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { API_BASE } from "../api/client";
 import {
@@ -22,9 +22,13 @@ import {
   getCurrentUser,
   subscribe as subscribeTodos,
   getLastError,
+  getCachedTasksDay,
+  phDateNow,
+  msUntilNextPhMidnight,
 } from "../todoStore";
 import { getAccessibleCategories } from "../moduleRegistry";
 import { useLanguage } from "../i18n/LanguageContext";
+import { TASK_STATUS_OPTIONS } from "./AdminTodo";
 import ProofOfCompletionModal from "../components/ProofOfCompletionModal";
 
 const FARMER_CATEGORIES = getAccessibleCategories({
@@ -80,8 +84,7 @@ export default function FarmerTodo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [sourceTab, setSourceTab] = useState("primary");  const [searchParams] = useSearchParams();
-  const [highlightId, setHighlightId] = useState(searchParams.get("task"));
+  const [sourceTab, setSourceTab] = useState("primary");
   const [proofTarget, setProofTarget] = useState(null); // { task, occurrence }
   const [photoViewer, setPhotoViewer] = useState(null); // { url, taskName, occurrenceDate }
   const [expandedRemarks, setExpandedRemarks] = useState(() => new Set());
@@ -124,23 +127,50 @@ export default function FarmerTodo() {
     return subscribeTodos(refresh);
   }, [me.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Primary tasks reset every Philippine calendar day. The backend decides
+  // which occurrence belongs to "today"; this only makes sure the page asks
+  // it again, even if the page stays open:
+  //   - a timer that fires right after 12:00 AM Asia/Manila,
+  //   - a once-a-minute date check (covers sleeping laptops / throttled
+  //     background tabs, where the timer can fire late),
+  //   - a reload whenever the Farmer comes back to the tab or window, so a
+  //     task the Owner deactivated or reactivated meanwhile shows correctly.
   useEffect(() => {
-    if (!highlightId || tasks.length === 0) return;
-    const target = tasks.find((t) => t._id === highlightId);
-    if (target) {
-      const targetTab = (target.source === "primary" || target.source === "secondary") ? target.source : "all";
-      if (targetTab !== sourceTab) {
-        setSourceTab(targetTab);
-        return;      }
-    }
-    const row = document.getElementById(`todo-row-${highlightId}`);
-    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
-    const t = setTimeout(() => setHighlightId(null), 3000);
-    return () => clearTimeout(t);
-  }, [highlightId, tasks, sourceTab]);
+    let midnightTimer = null;
+    let lastReturnReload = 0;
+    const reloadIfNewDay = () => {
+      const day = getCachedTasksDay();
+      if (day && day !== phDateNow()) refreshMyTasksToday();
+    };
+    const reloadOnReturn = () => {
+      if (document.visibilityState !== "visible") return;
+      // Focus and visibilitychange usually fire together; one request is enough.
+      if (Date.now() - lastReturnReload < 5000) return;
+      lastReturnReload = Date.now();
+      refreshMyTasksToday();
+    };
+    const scheduleMidnight = () => {
+      midnightTimer = setTimeout(() => {
+        refreshMyTasksToday();
+        scheduleMidnight();
+      }, msUntilNextPhMidnight() + 1000);
+    };
+    scheduleMidnight();
+    const minuteCheck = setInterval(reloadIfNewDay, 60 * 1000);
+    document.addEventListener("visibilitychange", reloadOnReturn);
+    window.addEventListener("focus", reloadOnReturn);
+    return () => {
+      clearTimeout(midnightTimer);
+      clearInterval(minuteCheck);
+      document.removeEventListener("visibilitychange", reloadOnReturn);
+      window.removeEventListener("focus", reloadOnReturn);
+    };
+  }, []);
+
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
+  const [showArchived, setShowArchived] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -159,7 +189,7 @@ export default function FarmerTodo() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const viewingArchived = status === "Archived";
+  const viewingArchived = showArchived;
   // My Tasks (the Personal tab) is its own table shape -- no Completion
   // Details (Personal tasks have no Photo Proof/Remarks concept at all),
   // and it adds Description/Date Created/Estimated Duration instead. The
@@ -171,7 +201,8 @@ export default function FarmerTodo() {
   const filtered = useMemo(() => tasks.filter((t) => {
     if (sourceTab !== "all" && t.source !== sourceTab) return false;
     if (viewingArchived) { if (!t.archived) return false; }
-    else { if (t.archived) return false; if (status !== "All" && t.displayStatus !== status) return false; }
+    else if (t.archived) return false;
+    if (status !== "All" && t.displayStatus !== status) return false;
     if (search) {
       const q = search.toLowerCase();
       const matches =
@@ -203,9 +234,23 @@ export default function FarmerTodo() {
   useEffect(() => { pager.setPage(1); }, [sourceTab, status, search, viewingArchived]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
+  // A notification's View (?task=<id>: an assigned task, a Daily Task
+  // Reminder, a personal task...) opens that task's tab -- and its search /
+  // status filter if they hide it -- moves to its page, scrolls to it and
+  // highlights it. Shared behavior (useRecordFocus).
+  const focus = useRecordFocus({
+    rows: sorted, allRows: tasks, pager, ready: tasks.length > 0, param: "task",
+    reveal: (t) => {
+      setSourceTab(["primary", "secondary", "personal"].includes(t.source) ? t.source : "all");
+      setSearch("");
+      setStatus("All");
+      setShowArchived(Boolean(t.archived));
+    },
+  });
+
   const active = tasks.filter((t) => !t.archived && (sourceTab === "all" || t.source === sourceTab));
   const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
-  const activeFilters = (status !== "All" ? 1 : 0);
+  const activeFilters = (status !== "All" ? 1 : 0) + (showArchived ? 1 : 0);
 
   const handleViewTaskCategory = (t) => {
     const category = t.type || t.module;
@@ -313,7 +358,7 @@ const runArchiveConfirm = async () => {
     await deletePersonalTodoById(confirm.task._id, me.userId);
     setConfirm(null);
   };
-  const clearFilters = () => { setStatus("All"); };
+  const clearFilters = () => { setStatus("All"); setShowArchived(false); };
 
   return (
     <PageLayout
@@ -334,9 +379,14 @@ const runArchiveConfirm = async () => {
                   <div className="todo-filter-group">
                     <label className="todo-filter-label">{tr("Status")}</label>
                     <select className="todo-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                      <option value="All">{tr("All")}</option><option value="Pending">{tr("Pending")}</option><option value="Completed">{tr("Completed")}</option><option value="Overdue">{tr("Overdue")}</option><option value="Archived">{tr("Archived")}</option>
+                      {TASK_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
                     </select>
                   </div>
+                  {/* Archived tasks are a separate view, not a task status. */}
+                  <label className="todo-filter-check">
+                    <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                    <span>{tr("Show archived tasks")}</span>
+                  </label>
                 </div>
               )}
             </div>
@@ -418,14 +468,14 @@ const runArchiveConfirm = async () => {
                 // dialog, same doToggle, same completion workflow.
                 if (isPersonalTab) {
                   return (
-                    <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
+                    <tr key={t._id} {...focus.rowProps(t._id, done && !viewingArchived ? "is-done" : "")}>
                       <td><span className="todo-task-title">{t.title}</span></td>
                       <td>{tr(t.type)}</td>
                       <td className="todo-completion-remarks-text" style={{ maxWidth: 240 }} title={t.description || undefined}>{t.description || "—"}</td>
                       <td>{t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : (t.dateCreated ? new Date(t.dateCreated).toISOString().split("T")[0] : "—")}</td>
                       <td>{t.dueDate ? new Date(t.dueDate).toISOString().split("T")[0] : "—"}</td>
                       <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
-                      <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
+                      <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{tr(t.displayStatus)}</span></td>
                       <td>
                         <div className="todo-row-actions">
                           {viewingArchived ? (
@@ -451,7 +501,7 @@ const runArchiveConfirm = async () => {
                 }
 
                 return (
-                  <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
+                  <tr key={t._id} {...focus.rowProps(t._id, done && !viewingArchived ? "is-done" : "")}>
                     <td>{viewingArchived ? <span className="todo-archived-tag">{tr("Archived")}</span> : done && (t.source === "primary" || t.source === "secondary") ? <span className="todo-check todo-check-readonly checked" title={tr("Completed — Proof of Completion already submitted for this occurrence")}><FiCheck /></span> : <span className={`todo-check ${done ? "checked" : ""}`} onClick={() => toggle(t)} title={done ? tr("Mark as pending") : tr("Mark as done")}>{done && <FiCheck />}</span>}</td>
                     <td><span className="todo-task-title">{t.title}</span></td>
                     <td>{tr(t.type)}</td>
@@ -534,7 +584,11 @@ const runArchiveConfirm = async () => {
                         );
                       })()}
                     </td>
-                    <td><span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span></td>
+                    <td>
+                      {/* Primary tasks are daily: the status is today's
+                          occurrence (Pending or Completed, never Overdue). */}
+                      <span className={`status ${t.displayStatus.toLowerCase()}`}>{tr(t.displayStatus)}</span>
+                    </td>
                     <td>
                       <div className="todo-row-actions">
                         {(t.source === "primary" || t.source === "secondary") ? (

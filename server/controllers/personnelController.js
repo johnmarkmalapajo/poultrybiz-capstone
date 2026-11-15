@@ -1,11 +1,14 @@
 const mongoose = require("mongoose");
 const Personnel = require("../models/Personnel");
+const { resolveHealthOption } = require("./healthOptionController");
 const User = require("../models/User");
 const Archive = require("../models/Archive");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { assertNoDependencies } = require("./dependencyController");
 const PersonnelTask = require("../models/PersonnelTask");
+const TaskOccurrence = require("../models/TaskOccurrence");
+const { phToday } = require("../utils/dateGuard");
 const Attendance = require("../models/Attendance");
 
 exports.createPersonnel = async (req, res) => {
@@ -117,9 +120,30 @@ exports.updatePersonnel = async (req, res) => {
       });
     }
 
-    const updates = { ...req.body };
+    // Only the employment fields of the Edit Personnel form. The linked
+    // account (user) -- and with it the account's role and permissions --
+    // can never be changed from here.
+    const EDITABLE = ["position", "shiftHours", "status", "dateHired", "assignedWork", "remarks"];
+    const updates = {};
+    for (const key of EDITABLE) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
     if (targetRole === "Owner") {
       delete updates.position;
+    }
+
+    // Position = the employee's job title (one of the saved Personnel
+    // Positions), never an account role. A position typed in elsewhere is
+    // added to the saved list, in the list's spelling.
+    if (updates.position !== undefined) {
+      const position = String(updates.position ?? "").trim().replace(/\s+/g, " ");
+      if (!position) {
+        return res.status(400).json({ message: "Position is required." });
+      }
+      if (position.toLowerCase() === "owner") {
+        return res.status(400).json({ message: "\"Owner\" is reserved for the farm owner and can't be assigned." });
+      }
+      updates.position = await resolveHealthOption("personnelPosition", position);
     }
 
     const record = await Personnel.findByIdAndUpdate(
@@ -342,6 +366,26 @@ exports.getAllAssignedTasks = async (req, res) => {
         ? tasks
         : tasks.filter((task) => task.personnel?.user?.role !== "Owner");
 
+    // Completion of an assigned task is recorded on its occurrence (Proof of
+    // Completion), not on the task: a Primary task is done for the day when
+    // today's occurrence is Completed; a one-off Secondary task when its
+    // single occurrence is (same rule as getPersonnelTasks). Read-only
+    // lookup -- no occurrence is created here. Used by the To Do status.
+    const today = phToday();
+    const occurrences = visibleTasks.length
+      ? await TaskOccurrence.find({ task: { $in: visibleTasks.map((t) => t._id) } })
+          .select("task occurrenceDate status")
+          .sort({ occurrenceDate: 1 })
+          .lean()
+      : [];
+    const occurrenceStatusFor = (task) => {
+      const own = occurrences.filter((o) => String(o.task) === String(task._id));
+      const occ = task.category === "Primary"
+        ? own.find((o) => o.occurrenceDate === today)
+        : own[0];
+      return occ?.status || null;
+    };
+
     const result = visibleTasks.map((task) => ({
       _id: task._id,
 
@@ -354,9 +398,21 @@ exports.getAllAssignedTasks = async (req, res) => {
       description: task.description,
       type: task.module || "Records",
 
+      // The Owner To Do page splits rows into Primary/Secondary tabs and
+      // shows the Activate/Deactivate toggle from these two fields; without
+      // them every task looked like an Active Secondary task there, and a
+      // deactivated task could never be reactivated from that page.
+      category: task.category || "Secondary",
+      active: task.active !== false,
+      estimatedDuration: (task.estimatedDuration && task.estimatedDuration.value != null)
+        ? { value: task.estimatedDuration.value, unit: task.estimatedDuration.unit || "minutes" }
+        : null,
+      dateCreated: task.createdAt,
+
       assignedDate: task.assignedDate,
       dueDate: task.dueDate,
       status: task.status,
+      occurrenceStatus: occurrenceStatusFor(task),
       remarks: task.remarks,
       createdAt: task.createdAt,
 

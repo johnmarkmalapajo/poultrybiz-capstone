@@ -9,6 +9,7 @@ import inventoryIcon from "../assets/inventory.svg"
 import salesTransactionsIcon from "../assets/sales-transactions.svg"
 import todoIcon from "../assets/todo.svg"
 import settingsIcon from "../assets/settings.svg"
+import faqIcon from "../assets/faq.svg"
 import logoutIcon from "../assets/logout.svg"
 import userMenuIcon from "../assets/user.svg"
 import userIcon from "../assets/donlogo.png"
@@ -129,6 +130,14 @@ function Sidebar() {
           </li>
 
           <li className="divider"></li>
+
+          {/* FAQ: after To Do, before Settings (Owner and Farmer). */}
+          <li className={isActive("/faq") ? "active" : "secondary"}>
+            <Link to="/faq" className="nav-link" onClick={closeMobile}>
+              <img src={faqIcon} alt="FAQ" className="menu-icon" />
+              {t("FAQ")}
+            </Link>
+          </li>
 
           <li className={isActive("/settings") ? "active" : "secondary"}>
             <Link to="/settings" className="nav-link" onClick={closeMobile}>

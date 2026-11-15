@@ -1,4 +1,5 @@
-// Integration test: Quarantine Duration + Release (with / without deaths).
+// Integration test: Quarantine Duration, 14-day release eligibility, Owner-only
+// release (with / without deaths) and release reminders.
 //
 // Runs the REAL controllers and Mongoose models against a REAL MongoDB. The
 // release uses a transaction, so the database must be a replica set
@@ -29,8 +30,8 @@ const Notification = require(path.join(S, "models/Notification"));
 const dateGuard = require(path.join(S, "utils/dateGuard"));
 const qCtl = require(path.join(S, "controllers/quarantineIsolationController"));
 const mCtl = require(path.join(S, "controllers/mortalityRecordController"));
-const { runQuarantineAutoRelease } = require(path.join(S, "utils/quarantineRelease"));
-const { recordEditor } = require(path.join(S, "middleware/authMiddleware"));
+const { runQuarantineReleaseReminders } = require(path.join(S, "utils/quarantineRelease"));
+const { ownerOnly } = require(path.join(S, "middleware/authMiddleware"));
 
 const { phToday } = dateGuard;
 const addDays = (day, n) => {
@@ -39,7 +40,9 @@ const addDays = (day, n) => {
   return d.toISOString().slice(0, 10);
 };
 
-const user = { id: new mongoose.Types.ObjectId(), name: "Tester", role: "Farmer" };
+// Releases go through the ownerOnly route guard, so the controller is called
+// as the Owner here; the guard itself is tested in section 8.
+const user = { id: new mongoose.Types.ObjectId(), name: "Owner Tester", role: "Owner" };
 const call = async (fn, { params = {}, body = {}, u = user } = {}) => {
   const res = { statusCode: 200, body: null };
   res.status = (c) => { res.statusCode = c; return res; };
@@ -50,8 +53,9 @@ const call = async (fn, { params = {}, body = {}, u = user } = {}) => {
 const release = (id, body) => call(qCtl.releaseQuarantineRecord, { params: { id: String(id) }, body });
 
 let seq = 0;
-// A Quarantined flock + its Ongoing Quarantine record.
-const makeBatch = async ({ qty = 100, daysAgo = 3, headCount = qty, status = "Ongoing", releasedDate = "", flockStatus = "Quarantined" } = {}) => {
+// A Quarantined flock + its Ongoing Quarantine record. Defaults to a batch
+// that has just completed its 14-day quarantine (eligible for release today).
+const makeBatch = async ({ qty = 100, daysAgo = 14, headCount = qty, status = "Ongoing", releasedDate = "", flockStatus = "Quarantined" } = {}) => {
   seq += 1;
   const batchId = `T-${String(seq).padStart(3, "0")}`;
   const flock = await Flock.create({
@@ -175,6 +179,10 @@ const test = async (name, fn) => {
     assert.strictEqual(s.rec.releaseMethod, "Manual");
     assert.strictEqual(s.rec.releaseDeaths, 0);
     assert.strictEqual(s.rec.headCount, 100);
+    assert.ok(s.rec.releaseFinalizedAt instanceof Date, "actual release date and time saved");
+    assert.strictEqual(s.rec.quarantineStartDate, addDays(phToday(), -14), "original start date preserved");
+    assert.strictEqual(s.rec.expectedReleaseDate, phToday(), "expected release date preserved");
+    assert.strictEqual(s.rec.releasedBy, "Owner Tester");
     assert.strictEqual(s.mortality.length, 0);
     assert.strictEqual(s.flock.currentQuantity, 100);
     assert.strictEqual(s.flock.totalMortality, 0);
@@ -409,36 +417,15 @@ const test = async (name, fn) => {
   // ------------------------------------------------------------------
   // 7. EXISTING BEHAVIOUR PRESERVED
   // ------------------------------------------------------------------
-  await test("Auto-release still works: an Ongoing record past 14 days is released automatically", async () => {
-    const { rec, batchId } = await makeBatch({ qty: 20, daysAgo: 15 });
-    await runQuarantineAutoRelease("test");
-    const s = await state(batchId, rec._id);
-    assert.strictEqual(s.rec.status, "Released");
-    assert.strictEqual(s.rec.releaseMethod, "Automatic");
-    assert.strictEqual(s.flock.status, "Active");
-    assert.strictEqual(s.mortality.length, 0);
-    const n = await Notification.countDocuments({ sourceId: `quarantine_released_${rec._id}` });
-    assert.strictEqual(n, 1);
-  });
-
-  await test("Auto-release leaves a manually released record alone (no 2nd notification, no change)", async () => {
-    const { rec, batchId } = await makeBatch({ qty: 20, daysAgo: 15 });
-    assert.strictEqual((await release(rec._id, { hadDeaths: true, deceasedCount: 2 })).statusCode, 200);
-    const before = await state(batchId, rec._id);
-    await runQuarantineAutoRelease("test");
-    await runQuarantineAutoRelease("test");
-    const after = await state(batchId, rec._id);
-    assert.strictEqual(after.rec.releaseMethod, "Manual");
-    assert.strictEqual(after.rec.releasedDate, before.rec.releasedDate);
-    assert.strictEqual(after.flock.currentQuantity, 18);
-    assert.strictEqual(after.mortality.length, 1);
-    assert.strictEqual(await Notification.countDocuments({ sourceId: `quarantine_released_${rec._id}` }), 1);
-  });
-
-  await test("Auto-release still skips (does not release) a record that is still blocked/not due", async () => {
-    const { rec, batchId } = await makeBatch({ qty: 20, daysAgo: 3 });
-    await runQuarantineAutoRelease("test");
-    assert.strictEqual((await state(batchId, rec._id)).rec.status, "Ongoing");
+  await test("No automatic release: a record 20 days into quarantine stays Ongoing after the scheduled job runs", async () => {
+    const { rec, batchId } = await makeBatch({ qty: 20, daysAgo: 20 });
+    await runQuarantineReleaseReminders("test");
+    await runQuarantineReleaseReminders("test");
+    const s2 = await state(batchId, rec._id);
+    assert.strictEqual(s2.rec.status, "Ongoing");
+    assert.strictEqual(s2.rec.releasedDate, "");
+    assert.strictEqual(s2.flock.status, "Quarantined");
+    assert.strictEqual(s2.mortality.length, 0);
   });
 
   await test("Released records stay visible in the list API and keep their data", async () => {
@@ -484,19 +471,160 @@ const test = async (name, fn) => {
   // ------------------------------------------------------------------
   // 8. PERMISSIONS
   // ------------------------------------------------------------------
-  await test("Route guard: Owner and Farmer may release; any other role gets 403 before the controller runs", async () => {
+  await test("Route guard: only the Owner may release; a Farmer (or any other role) gets 403 before the controller runs", async () => {
     const run = (role) => {
       let out = "next";
       const res = { status: (c) => ({ json: () => { out = c; } }) };
-      recordEditor({ user: { role } }, res, () => {});
+      ownerOnly({ user: { role } }, res, () => {});
       return out;
     };
     assert.strictEqual(run("Owner"), "next");
-    assert.strictEqual(run("Farmer"), "next");
+    assert.strictEqual(run("Farmer"), 403);
     assert.strictEqual(run("Visitor"), 403);
     assert.strictEqual(run(""), 403);
     const routes = require("fs").readFileSync(path.join(S, "routes/quarantineIsolationRoutes.js"), "utf8");
-    assert.ok(/patch\("\/:id\/release",\s*protect,\s*recordEditor,\s*releaseQuarantineRecord\)/.test(routes));
+    assert.ok(/patch\("\/:id\/release",\s*protect,\s*ownerOnly,\s*releaseQuarantineRecord\)/.test(routes));
+  });
+
+  // ------------------------------------------------------------------
+  // 9. 14-DAY ELIGIBILITY (backend, Asia/Manila dates)
+  // ------------------------------------------------------------------
+  await test("Eligibility: day 13 of quarantine -> 400, nothing changes (even with deaths)", async () => {
+    const { rec, batchId } = await makeBatch({ qty: 100, daysAgo: 13 });
+    const res = await release(rec._id, { hadDeaths: true, deceasedCount: 5 });
+    assert.strictEqual(res.statusCode, 400, JSON.stringify(res.body));
+    assert.ok(/on or after/.test(res.body.message), res.body.message);
+    const s2 = await state(batchId, rec._id);
+    assert.strictEqual(s2.rec.status, "Ongoing");
+    assert.strictEqual(s2.mortality.length, 0);
+    assert.strictEqual(s2.flock.currentQuantity, 100);
+  });
+
+  await test("Eligibility: on the 14th day (expected release date) the Owner can release", async () => {
+    const { rec, batchId } = await makeBatch({ qty: 100, daysAgo: 14 });
+    assert.strictEqual((await release(rec._id, { hadDeaths: false })).statusCode, 200);
+    assert.strictEqual((await state(batchId, rec._id)).rec.status, "Released");
+  });
+
+  await test("Eligibility: an overdue batch (day 20) can still be released", async () => {
+    const { rec, batchId } = await makeBatch({ qty: 100, daysAgo: 20 });
+    assert.strictEqual((await release(rec._id, { hadDeaths: true, deceasedCount: 2 })).statusCode, 200);
+    assert.strictEqual((await state(batchId, rec._id)).flock.currentQuantity, 98);
+  });
+
+  await test("Eligibility: the 14-day boundary follows Philippine midnight, not UTC", async () => {
+    const realNow = Date.now;
+    try {
+      // Start 2026-11-01 -> expected release 2026-11-15 (Manila).
+      Date.now = () => Date.parse("2026-11-14T23:59:59+08:00");
+      assert.strictEqual(dateGuard.isQuarantineComplete("2026-11-01"), false);
+      assert.strictEqual(dateGuard.quarantineReleaseState({ startDate: "2026-11-01", status: "Ongoing" }), "Quarantined");
+      Date.now = () => Date.parse("2026-11-15T00:00:00+08:00"); // = 2026-11-14T16:00Z
+      assert.strictEqual(dateGuard.isQuarantineComplete("2026-11-01"), true);
+      assert.strictEqual(dateGuard.quarantineReleaseState({ startDate: "2026-11-01", status: "Ongoing" }), "Eligible for Release");
+      Date.now = () => Date.parse("2026-11-16T00:00:00+08:00");
+      assert.strictEqual(dateGuard.quarantineReleaseState({ startDate: "2026-11-01", status: "Ongoing" }), "Overdue");
+      assert.strictEqual(dateGuard.quarantineReleaseState({ startDate: "2026-11-01", status: "Released" }), "Released");
+    } finally { Date.now = realNow; }
+  });
+
+  await test("List API: expected release date, state and eligibility for every stage", async () => {
+    const q = await makeBatch({ daysAgo: 5 });
+    const e = await makeBatch({ daysAgo: 14 });
+    const o = await makeBatch({ daysAgo: 17 });
+    const r = await makeBatch({ daysAgo: 15 });
+    await release(r.rec._id, { hadDeaths: false });
+    const res = await call(qCtl.getAllQuarantineRecords);
+    const by = (id) => res.body.records.find((x) => String(x._id) === String(id));
+    assert.strictEqual(by(q.rec._id).expectedReleaseDate, addDays(phToday(), 9));
+    assert.strictEqual(by(q.rec._id).releaseState, "Quarantined");
+    assert.strictEqual(by(q.rec._id).releaseEligible, false);
+    assert.ok(/Release is available on/.test(by(q.rec._id).releaseBlockedReason));
+    assert.strictEqual(by(e.rec._id).releaseState, "Eligible for Release");
+    assert.strictEqual(by(e.rec._id).releaseEligible, true);
+    assert.strictEqual(by(e.rec._id).releaseBlockedReason, "");
+    assert.strictEqual(by(o.rec._id).releaseState, "Overdue");
+    assert.strictEqual(by(o.rec._id).releaseEligible, true);
+    assert.strictEqual(by(r.rec._id).releaseState, "Released");
+    assert.strictEqual(by(r.rec._id).expectedReleaseDate, addDays(phToday(), -1), "released row keeps its expected release date");
+    assert.strictEqual(by(e.rec._id).currentFlockQuantity, 100);
+  });
+
+  // ------------------------------------------------------------------
+  // 10. RELEASE REMINDERS (Owner + Farmer, once per event)
+  // ------------------------------------------------------------------
+  const remindersFor = (id) => Notification.find({ referenceId: id, category: "quarantine" }).lean();
+
+  await test("Reminder: one day before the expected release date -> 'tomorrow' notice to Owner and Farmer, once", async () => {
+    const { rec, batchId } = await makeBatch({ daysAgo: 13 });
+    await runQuarantineReleaseReminders("test");
+    await runQuarantineReleaseReminders("test");
+    const n = await remindersFor(rec._id);
+    assert.strictEqual(n.length, 1, JSON.stringify(n.map((x) => x.sourceId)));
+    assert.strictEqual(n[0].sourceId, `quarantine_upcoming_${rec._id}`);
+    assert.deepStrictEqual(n[0].roles.sort(), ["Farmer", "Owner"]);
+    assert.strictEqual(n[0].referenceModel, "QuarantineIsolation");
+    assert.ok(n[0].description.includes(`Batch ${batchId} is scheduled for quarantine release tomorrow (${addDays(phToday(), 1)})`), n[0].description);
+    assert.strictEqual((await state(batchId, rec._id)).rec.status, "Ongoing", "a reminder never releases");
+  });
+
+  await test("Reminder: on the 14th day -> 'eligible, awaiting Owner action' notice, once; still Quarantined", async () => {
+    const { rec, batchId } = await makeBatch({ daysAgo: 14 });
+    await runQuarantineReleaseReminders("test");
+    await runQuarantineReleaseReminders("test");
+    const n = await remindersFor(rec._id);
+    assert.strictEqual(n.length, 1);
+    assert.strictEqual(n[0].sourceId, `quarantine_eligible_${rec._id}`);
+    assert.deepStrictEqual(n[0].roles.sort(), ["Farmer", "Owner"]);
+    assert.ok(n[0].description.includes(`Batch ${batchId} has completed its 14-day quarantine period and is now eligible for release`), n[0].description);
+    assert.ok(n[0].description.includes("Awaiting Owner action"));
+    assert.ok(n[0].description.includes(phToday()), "includes the expected release date");
+    assert.strictEqual((await state(batchId, rec._id)).rec.status, "Ongoing");
+  });
+
+  await test("Reminder: overdue -> one notice per Philippine day to Owner and Farmer, record stays Ongoing", async () => {
+    const { rec, batchId } = await makeBatch({ daysAgo: 16 });
+    await runQuarantineReleaseReminders("test");
+    await runQuarantineReleaseReminders("test");
+    let n = await remindersFor(rec._id);
+    assert.strictEqual(n.length, 1);
+    assert.strictEqual(n[0].sourceId, `quarantine_overdue_${rec._id}_${phToday()}`);
+    assert.ok(n[0].description.includes(`Batch ${batchId} is overdue by 2 days (expected release date ${addDays(phToday(), -2)})`), n[0].description);
+    assert.deepStrictEqual(n[0].roles.sort(), ["Farmer", "Owner"]);
+    // Next Philippine day: one more overdue reminder (not one per run).
+    const realNow = Date.now;
+    const tomorrow = Date.now() + 24 * 60 * 60 * 1000;
+    try {
+      Date.now = () => tomorrow;
+      await runQuarantineReleaseReminders("test");
+      await runQuarantineReleaseReminders("test");
+    } finally { Date.now = realNow; }
+    n = await remindersFor(rec._id);
+    assert.strictEqual(n.length, 2, JSON.stringify(n.map((x) => x.sourceId)));
+    assert.ok(n.some((x) => x.description.includes("overdue by 3 days")));
+    assert.strictEqual((await state(batchId, rec._id)).rec.status, "Ongoing");
+  });
+
+  await test("Reminder: nothing before the day-before, nothing for released or archived records", async () => {
+    const early = await makeBatch({ daysAgo: 5 });
+    const released = await makeBatch({ daysAgo: 16 });
+    await release(released.rec._id, { hadDeaths: false });
+    const archived = await makeBatch({ daysAgo: 16 });
+    await QuarantineIsolation.updateOne({ _id: archived.rec._id }, { $set: { archived: true } });
+    await runQuarantineReleaseReminders("test");
+    assert.strictEqual((await remindersFor(early.rec._id)).length, 0);
+    assert.strictEqual((await Notification.countDocuments({ referenceId: released.rec._id, sourceId: /^quarantine_(upcoming|eligible|overdue)_/ })), 0);
+    assert.strictEqual((await remindersFor(archived.rec._id)).length, 0);
+  });
+
+  await test("Manual Mortality Records stay fully editable", async () => {
+    const { batchId } = await makeBatch({ qty: 50, flockStatus: "Active", status: "Released", releasedDate: phToday() });
+    const manual = await MortalityRecord.create({ mortalityId: "M-MAN-1", date: phToday(), batchId, numberOfMortality: 2, causeOfDeath: "Heat stress", currentBirds: 48 });
+    const upd = await call(mCtl.updateMortalityRecord, { params: { id: String(manual._id) }, body: { numberOfMortality: 3, causeOfDeath: "Heat stress", date: phToday(), batchId, remarks: "corrected" } });
+    assert.ok(upd.statusCode < 400, JSON.stringify(upd.body));
+    const after = await MortalityRecord.findById(manual._id).lean();
+    assert.strictEqual(after.numberOfMortality, 3, "a manual record's quantity is editable");
+    assert.strictEqual(after.remarks, "corrected");
   });
 
   await mongoose.connection.dropDatabase();

@@ -1,14 +1,19 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiSearch, FiFilter, FiFileText, FiX, FiClock, FiCalendar,
+  FiSearch, FiFileText, FiX, FiClock, FiCalendar,
 } from "react-icons/fi";
 import "./AuditLogs.css";
 import PageLayout from "../components/PageLayout";
 import { listAuditLogs } from "../api/auditLog";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
-import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import {
+  usePagination, useFilterPanel, DATE_FILTER_DEFAULTS,
+  localDayKey, matchesDatePeriod, dateFilterOptions, datePeriodLabel,
+} from "../hooks/usePagination";
+import TablePagination, {
+  TableSection, TableScroll, FilterPanel, FilterSection, FilterSelect, DateFilterFields, ActiveFilterChips,
+} from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
 function normalize(e) {
@@ -45,8 +50,11 @@ const fmtDT = (iso) => {
   const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   return `${date} • ${time}`;
 };
-const dayKey = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toISOString().slice(0, 10); };
 const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+
+// Filter defaults: Date (date period), User, Role, Module, Action.
+const FILTER_DEFAULTS = { ...DATE_FILTER_DEFAULTS, user: "All", role: "All", module: "All", action: "All" };
+const ROLE_OPTIONS = ["Owner", "Farmer"];
 
 export default function AuditLogs({ embedded = false, onBack }) {
   const { t: tr } = useLanguage();
@@ -55,14 +63,9 @@ export default function AuditLogs({ embedded = false, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [fUser, setFUser] = useState("All");
-  const [fModule, setFModule] = useState("All");
-  const [fAction, setFAction] = useState("All");
-  const [fRole, setFRole] = useState("All");
-  const [fDate, setFDate] = useState("");
-  const [showFilter, setShowFilter] = useState(false);
+  const filter = useFilterPanel(FILTER_DEFAULTS);
+  const fApplied = filter.applied;
   const [selected, setSelected] = useState(null);
-  const filterRef = useRef(null);
 
   useEffect(() => {
     const fetchLogs = () => {
@@ -85,28 +88,25 @@ export default function AuditLogs({ embedded = false, onBack }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const onClick = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
   const users = useMemo(() => uniq(logs.map((l) => l.user)), [logs]);
   const modules = useMemo(() => uniq(logs.map((l) => l.module)), [logs]);
   const actions = useMemo(() => uniq(logs.map((l) => l.action)), [logs]);
+  const dateOptions = dateFilterOptions(logs.map((l) => localDayKey(l.at)), filter.draft.year);
 
+  // Dates are compared by the local calendar day of each log's timestamp.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const f = fApplied;
     return logs.filter((l) => {
       const mS = !q || l.description.toLowerCase().includes(q) || l.user.toLowerCase().includes(q) || l.module.toLowerCase().includes(q) || l.action.toLowerCase().includes(q);
       return mS
-        && (fUser === "All" || l.user === fUser)
-        && (fModule === "All" || l.module === fModule)
-        && (fAction === "All" || l.action === fAction)
-        && (fRole === "All" || l.role === fRole)
-        && (!fDate || dayKey(l.at) === fDate);
+        && (f.user === "All" || l.user === f.user)
+        && (f.module === "All" || l.module === f.module)
+        && (f.action === "All" || l.action === f.action)
+        && (f.role === "All" || l.role === f.role)
+        && matchesDatePeriod(localDayKey(l.at), f);
     });
-  }, [logs, search, fUser, fModule, fAction, fRole, fDate]);
+  }, [logs, search, fApplied]);
 
   const { sortColumn, sortDirection, cycleSort, sortData } = useTableSort();
   const sortAccessor = (row, col) => {
@@ -119,7 +119,7 @@ export default function AuditLogs({ embedded = false, onBack }) {
   };
   const sorted = sortData(filtered, sortAccessor);
   const pager = usePagination(sorted.length);
-  useEffect(() => { pager.setPage(1); }, [search, fUser, fModule, fAction, fRole, fDate]);
+  useEffect(() => { pager.setPage(1); }, [search, fApplied]); // eslint-disable-line react-hooks/exhaustive-deps
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
 
 
@@ -131,15 +131,13 @@ export default function AuditLogs({ embedded = false, onBack }) {
     return { total: logs.length, today, thisWeek };
   }, [logs]);
 
-  const activeFilters = [
-    fUser !== "All" && { key: "User", value: fUser, clear: () => setFUser("All") },
-    fRole !== "All" && { key: "Role", value: fRole, clear: () => setFRole("All") },
-    fModule !== "All" && { key: "Module", value: fModule, clear: () => setFModule("All") },
-    fAction !== "All" && { key: "Action", value: fAction, clear: () => setFAction("All") },
-    fDate && { key: "Date", value: fDate, clear: () => setFDate("") },
+  const activeChips = [
+    fApplied.period !== "all" && { key: "date", label: "Date", value: datePeriodLabel(fApplied) },
+    fApplied.user !== "All" && { key: "user", label: "User", value: fApplied.user },
+    fApplied.role !== "All" && { key: "role", label: "Role", value: fApplied.role },
+    fApplied.module !== "All" && { key: "module", label: "Module", value: fApplied.module },
+    fApplied.action !== "All" && { key: "action", label: "Action", value: fApplied.action },
   ].filter(Boolean);
-  const activeFilterCount = activeFilters.length;
-  const clearFilters = () => { setFUser("All"); setFRole("All"); setFModule("All"); setFAction("All"); setFDate(""); };
 
   const content = (
     <>
@@ -151,65 +149,20 @@ export default function AuditLogs({ embedded = false, onBack }) {
             </div>
 
             <div className="al-btn-group">
-              <div className="al-filter-wrap" ref={filterRef}>
-                <button className="al-toolbar-btn" onClick={() => setShowFilter((s) => !s)}>
-                  <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="al-filter-count">{activeFilterCount}</span>}
-                </button>
-
-                {showFilter && (
-                  <div className="al-filter-dropdown">
-                    <div className="al-filter-dropdown-header">
-                      <span>{tr("Filter Logs")}</span>
-                      <button className="al-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
-                    </div>
-                    <div className="al-filter-group">
-                      <label className="al-filter-label">{tr("User")}</label>
-                      <select className="al-filter-select" value={fUser} onChange={(e) => setFUser(e.target.value)}>
-                        <option value="All">{tr("All Users")}</option>
-                        {users.map((u) => <option key={u} value={u}>{tr(u)}</option>)}
-                      </select>
-                    </div>
-                    <div className="al-filter-group">
-                      <label className="al-filter-label">{tr("Role")}</label>
-                      <select className="al-filter-select" value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                        <option value="All">{tr("All Roles")}</option><option value="Owner">{tr("Owner")}</option><option value="Farmer">{tr("Farmer")}</option>
-                      </select>
-                    </div>
-                    <div className="al-filter-group">
-                      <label className="al-filter-label">{tr("Module")}</label>
-                      <select className="al-filter-select" value={fModule} onChange={(e) => setFModule(e.target.value)}>
-                        <option value="All">{tr("All Modules")}</option>
-                        {modules.map((m) => <option key={m} value={m}>{tr(m)}</option>)}
-                      </select>
-                    </div>
-                    <div className="al-filter-group">
-                      <label className="al-filter-label">{tr("Action")}</label>
-                      <select className="al-filter-select" value={fAction} onChange={(e) => setFAction(e.target.value)}>
-                        <option value="All">{tr("All Actions")}</option>
-                        {actions.map((a) => <option key={a} value={a}>{tr(a)}</option>)}
-                      </select>
-                    </div>
-                    <div className="al-filter-group">
-                      <label className="al-filter-label">{tr("Date")}</label>
-                      <input className="al-filter-select" type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} />
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FilterPanel panel={filter} title="Filter Logs">
+                <DateFilterFields panel={filter} years={dateOptions.years} months={dateOptions.months} />
+                <FilterSection label="Filters">
+                  <FilterSelect panel={filter} field="user" label="User" allLabel="All Users" options={users} />
+                  <FilterSelect panel={filter} field="role" label="Role" allLabel="All Roles" options={ROLE_OPTIONS} />
+                  <FilterSelect panel={filter} field="module" label="Module" allLabel="All Modules" options={modules} />
+                  <FilterSelect panel={filter} field="action" label="Action" allLabel="All Actions" options={actions} />
+                </FilterSection>
+              </FilterPanel>
             </div>
           </div>
         </div>
 
-        {activeFilterCount > 0 && (
-          <div className="al-active-filters">
-            {activeFilters.map((f) => (
-              <span key={f.key} className="al-active-filter-tag">
-                {f.key}: {f.value}
-                <button onClick={f.clear}>✕</button>
-              </span>
-            ))}
-          </div>
-        )}
+        <ActiveFilterChips panel={filter} chips={activeChips} />
 
         {error && <div className="pb-error-banner">{error}</div>}
 

@@ -1,3 +1,5 @@
+const fs = require("fs");
+const { contentMatchesType, TYPE_MESSAGE: RECEIPT_TYPE_MESSAGE } = require("../middleware/receiptUpload");
 const ExpenseRecord = require("../models/ExpenseRecord");
 const { isFutureDate, FUTURE_DATE_MESSAGE } = require("../utils/dateGuard");
 const FeedInventory = require("../models/FeedInventory");
@@ -180,12 +182,43 @@ const reconcileFeedInventoryFromExpense = async (record) => {
   await refreshLowStockAlerts(record);
 };
 
+// Proof of Delivery (Feed Purchase only, optional). Only a file uploaded
+// through the receipt upload is accepted -- never a browser-only (blob:)
+// or outside link -- and any other category never keeps one.
+const UPLOADED_FILE = /^\/uploads\/receipts\/[\w.-]+$/;
+const cleanProofOfDelivery = (body, category) => {
+  if (!Object.prototype.hasOwnProperty.call(body, "proofOfDelivery")) {
+    if (category && category !== "Feed Purchase") body.proofOfDelivery = "";
+    return null;
+  }
+  const value = body.proofOfDelivery == null ? "" : String(body.proofOfDelivery).trim();
+  if (category && category !== "Feed Purchase") {
+    body.proofOfDelivery = "";
+    return null;
+  }
+  if (value && !UPLOADED_FILE.test(value)) {
+    return "Proof of Delivery must be an uploaded image or PDF file.";
+  }
+  body.proofOfDelivery = value;
+  return null;
+};
+
 exports.uploadReceipt = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "No file uploaded.",
+        message: "No file uploaded. Choose a JPG, PNG or PDF file.",
+      });
+    }
+
+    // The file's real content must match its type (a renamed file is
+    // rejected and removed).
+    if (!contentMatchesType(req.file.path, req.file.mimetype)) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({
+        success: false,
+        message: `${RECEIPT_TYPE_MESSAGE} This file is not a valid JPG, PNG or PDF.`,
       });
     }
 
@@ -214,6 +247,22 @@ exports.createExpenseRecord = async (req, res) => {
     }
 
     const { equipmentId, ...body } = req.body;
+
+    // An Equipment expense creates the linked Equipment record, which must
+    // have a Serial ID.
+    if (body.category === "Equipment") {
+      const serialNo = Equipment.cleanSerialNo(body.serialNo);
+      if (!serialNo) {
+        return res.status(400).json({ success: false, message: Equipment.SERIAL_ID_REQUIRED_MESSAGE });
+      }
+      body.serialNo = serialNo;
+    }
+
+    const podError = cleanProofOfDelivery(body, body.category);
+    if (podError) {
+      return res.status(400).json({ success: false, message: podError });
+    }
+
     const payload = await prepareFeedPurchase(body);
     const record = await ExpenseRecord.create(payload);
 
@@ -339,6 +388,29 @@ exports.updateExpenseRecord = async (req, res) => {
     }
 
     const { equipmentId, ...body } = req.body;
+
+    // Serial ID of an Equipment expense (synced to its Equipment record) can
+    // never be cleared, including when a record is changed to Equipment.
+    if (body.category === "Equipment" || Object.prototype.hasOwnProperty.call(body, "serialNo")) {
+      const category = body.category
+        ?? (await ExpenseRecord.findById(req.params.id).select("category").lean())?.category;
+      if (category === "Equipment") {
+        const serialNo = Equipment.cleanSerialNo(body.serialNo);
+        if (!serialNo) {
+          return res.status(400).json({ success: false, message: Equipment.SERIAL_ID_REQUIRED_MESSAGE });
+        }
+        body.serialNo = serialNo;
+      }
+    }
+
+    // Changing the category away from Feed Purchase also drops its
+    // Proof of Delivery; without a category the saved one is used.
+    const podCategory = body.category
+      ?? (await ExpenseRecord.findById(req.params.id).select("category").lean())?.category;
+    const podError = cleanProofOfDelivery(body, podCategory);
+    if (podError) {
+      return res.status(400).json({ success: false, message: podError });
+    }
 
     const existingRecord = Array.isArray(body.feedSets)
       ? await ExpenseRecord.findById(req.params.id).lean()

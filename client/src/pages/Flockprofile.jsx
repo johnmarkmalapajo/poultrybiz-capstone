@@ -13,7 +13,7 @@ import { listFlocks, archiveFlock, updateFlockStatus } from "../api/flockProfile
 import { listBreeds } from "../api/breed";
 import "./Flockprofile.css";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -219,6 +219,12 @@ export default function FlockProfile() {
   const pager = usePagination(sorted.length);
   useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters, flocks.length]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<id>: show that row
+  // (clearing the search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sorted, allRows: flocks, pager, ready: !loading,
+    reveal: () => { setSearch(""); clearFilters(); },
+  });
 
   const statCardSpanLabel = (() => {
     if (!filterApplied || filters.period === "all") return "All Records";
@@ -623,7 +629,7 @@ export default function FlockProfile() {
                 pageRows.map((flock) => {
                   const { cb, mr } = computeFlock(flock);
                   return (
-                    <tr key={flock._id || flock.batchId}>
+                    <tr key={flock._id || flock.batchId} {...focus.rowProps(flock._id)}>
                       <td><span className="fp-batch-badge">{flock.batchId}</span></td>
                       <td>{flock.breed}</td>
                       <td>{flock.supplier}</td>

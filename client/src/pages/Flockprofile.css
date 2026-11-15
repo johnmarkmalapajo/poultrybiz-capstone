@@ -300,6 +300,15 @@
   box-shadow: 0 0 0 4px var(--gold-glow, rgba(228,175,31,0.14));
 }
 
+/* Date / week inputs in the shared Filter (components/TablePagination.jsx)
+   keep the field look but not the select's dropdown arrow, which would sit
+   on top of the browser's own calendar button. */
+.fp-filter-select.fp-filter-input {
+  background-image: none;
+  padding-right: 14px;
+  cursor: text;
+}
+
 .fp-filter-date-range {
   display: flex;
   align-items: center;
@@ -880,6 +889,13 @@
 
   .fp-filter-date-range span {
     text-align: center;
+  }
+
+  /* Stacked start/end dates of the shared Filter keep their full field
+     height (flex: 1 would collapse them in a column). */
+  .fp-filter-date-range input.fp-filter-input {
+    flex: none;
+    width: 100%;
   }
 
 }

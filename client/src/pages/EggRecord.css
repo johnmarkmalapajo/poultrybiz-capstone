@@ -588,6 +588,7 @@
 
 .egg-empty-content p {
   margin: 0;
+  white-space: normal; /* the table cells don't wrap; this message must */
   max-width: 340px;
   font-size: 13px;
   line-height: 1.6;

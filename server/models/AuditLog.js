@@ -36,8 +36,12 @@ const auditLogSchema = new mongoose.Schema(
         "Logout",
         "Changed Password",
         "Uploaded Avatar",
+        // Attendance QR scans. "Check In" / "Check Out" are kept so
+        // older log entries stay valid; new entries use Time In / Time Out.
         "Check In",
         "Check Out",
+        "Time In",
+        "Time Out",
       ],
     },
 

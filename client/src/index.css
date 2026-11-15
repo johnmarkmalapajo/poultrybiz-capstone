@@ -18,6 +18,13 @@ body {
   overflow-x: hidden;
 }
 
+/* Base size for rem units; scaled by My Profile > Text Size (every
+   font-size is multiplied by --pb-text-scale at build time, see
+   vite.config.js). */
+html {
+  font-size: 16px;
+}
+
 body {
   font-family: "Lato", "Segoe UI", sans-serif;
   background: #f7f6f3;
@@ -65,7 +72,85 @@ button {
 .pb-warning-banner { background: #fff8e1; color: #856404; border: 1.5px solid #ffe08a; }
 .pb-success-banner { background: #eaf7f1; color: #1f7a52; border: 1.5px solid #b8e6cf; }
 
+/* Validation message shown right under the field it is about (e.g. a
+   required Serial ID), in the same red as .pb-error-banner. */
+.pb-field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0392b;
+  font-family: "Lato", sans-serif;
+}
+
 .pb-loading-text {
   color: #aaa;
   font-family: "Lato", sans-serif;
+}
+/* ── Record opened from a notification (useRecordFocus in
+   hooks/usePagination.js) ─────────────────────────────────────────────
+   One temporary highlight for every module, in the PoultryBiz palette: a
+   soft peach (#DEA77F) tint across the row with a light-brown (#BB8D6B)
+   marker on its first cell. It is only a class on the row for a few seconds
+   -- the record's own data and status styling never change. !important
+   because each module colors its rows (zebra, hover) with its own, more
+   specific selectors. */
+tr.pb-row-highlight > td {
+  background-color: rgba(222, 167, 127, 0.24) !important;
+  transition: background-color 0.4s ease;
+}
+tr.pb-row-highlight > td:first-child {
+  box-shadow: inset 4px 0 0 #BB8D6B;
+}
+.pb-card-highlight {
+  outline: 2px solid #BB8D6B !important;
+  outline-offset: 2px;
+  background-color: #FFFDF6 !important;
+  box-shadow: 0 0 0 6px rgba(222, 167, 127, 0.28) !important;
+  transition: box-shadow 0.4s ease, outline-color 0.4s ease;
+}
+
+
+/* ── Statistic cards: text always fits its card ─────────────────────────
+   Every module has its own stat card class (.fc-stat-card, .eq-stat-card,
+   .qi-stat-card, ... and the Dashboard's .dash-card), all built the same
+   way: [icon] [text column: value / label / sub-label]. They overflowed for
+   the same reasons, so they are fixed together here instead of 19 times:
+     1. the text column is a flex item with the default min-width:auto, so
+        it could never become narrower than its longest word / number and
+        pushed out past the card's edge;
+     2. long labels ("Total Feed Consumed Across All Selected Batches") and
+        values ("₱12,345,678.90", "1,234,567.89 kg") had no way to wrap,
+        and some modules cut values off with nowrap + ellipsis instead.
+   Now the text column takes the space left beside the icon and can shrink,
+   and every line wraps -- at spaces first (e.g. "1,234,567.89 / kg"),
+   inside a long word or number only as a last resort -- so nothing is
+   clipped or pushed outside. Font sizes stay each module's own (22px values,
+   18px on small screens), so cards look the same as before and short values
+   are never shrunk; the icon keeps its size. Colors, weights and values are
+   unchanged. */
+:is([class$="-stat-card"], [class*="-stat-card "], .dash-card) {
+  min-width: 0;
+  box-sizing: border-box;
+}
+:is([class$="-stat-card"], [class*="-stat-card "]) > div:not([class*="-stat-icon"]),
+.dash-card > .dash-card-info {
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 100%;
+}
+:is([class$="-stat-card"], [class*="-stat-card "]) > div:not([class*="-stat-icon"]) :is(h1, h2, h3, h4, h5, p, span, small),
+.dash-card > .dash-card-info > * {
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+/* The Dashboard label was cut to two lines; let it wrap fully. */
+.dash-card > .dash-card-info > .dash-card-label {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
 }

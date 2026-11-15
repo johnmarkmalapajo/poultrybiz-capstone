@@ -18,6 +18,22 @@ const archiveRoutes = require("./routes/archiveRoutes");
 dotenv.config();
 connectDB();
 
+// Once the database is reachable, run the one-time data upgrades: move any
+// profile pictures / farm logo still saved the old way (as files in
+// uploads/, which Render wipes on every redeploy) into the database, and
+// link typed-in Equipment custodian names to Personnel records. Both run
+// once per server start and only touch records that still need it.
+require("mongoose").connection.once("connected", () => {
+  require("./controllers/profileController")
+    .migrateLegacyImages()
+    .catch((err) => console.error("Profile image migration failed:", err.message));
+  // Link Equipment custodians saved as a typed name to their Personnel
+  // record (names that match no single record are kept as they are).
+  require("./controllers/equipmentController")
+    .linkLegacyCustodians()
+    .catch((err) => console.error("Equipment custodian linking failed:", err.message));
+});
+
 const app = express();
 
 const configuredOrigins = [process.env.CLIENT_URL, process.env.FRONTEND_URL]

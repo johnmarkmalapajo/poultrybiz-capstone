@@ -701,7 +701,15 @@ function Dashboard() {
   const hasPieData = pieData.some((d) => d.value > 0);
 
   return (
-    <PageLayout breadcrumbItems={[{ label: "DASHBOARD" }]} className="dash-page">
+    // Role badge beside the title: the signed-in account's own role, read
+    // from the user record that AuthGate re-verifies with the server on
+    // every load (so it is never stale after logout / login). The system has
+    // exactly two roles, Owner and Farmer -- shown as they are.
+    <PageLayout
+      breadcrumbItems={[{ label: "DASHBOARD" }]}
+      titleBadge={role ? tr(role) : null}
+      className="dash-page"
+    >
       <div className="dash-header">
         <div>
           <h2 className="title">
@@ -853,7 +861,7 @@ function Dashboard() {
           <div className="todo-card">
             <h3 className="todo-title">{tr("To Do")}</h3>
             <div className="todo-header-row">
-              <span /><span>{tr("Date")}</span><span>{tr("Task")}</span>
+              <span /><span>{tr("Due Date")}</span><span>{tr("Task")}</span>
             </div>
             {tasksLoading ? (
               <SkeletonRows count={3} />
@@ -871,8 +879,10 @@ function Dashboard() {
                   >
                     {done && <FiCheck />}
                   </span>
-                  <span className="todo-date">
-                    {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : ""}
+                  {/* Due Date, in the same YYYY-MM-DD format as the To Do
+                      tables. Primary tasks recur daily and never have one. */}
+                  <span className="todo-date" data-label={tr("Due Date")}>
+                    {t.kind !== "primary" && t.dueDate ? String(t.dueDate).split("T")[0] : "—"}
                   </span>
                   <span className={`todo-task ${done ? "done" : ""}`}>
                     {t.title}

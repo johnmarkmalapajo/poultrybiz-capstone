@@ -11,6 +11,7 @@ import { listHealthRecords } from "../api/healthRecord";
 import { listQuarantineRecords } from "../api/quarantineIsolation";
 import { listFeedConsumption } from "../api/feedConsumption";
 import { listFeedInventory } from "../api/feedInventory";
+import { entryBatchIds, batchShareKg, roundTwo } from "../hooks/useFeedStock";
 import {
   FiFeather, FiTrendingUp, FiActivity, FiHeart,
   FiGrid, FiBox, FiShield,
@@ -68,7 +69,8 @@ async function fetchSummary(batchId) {
   const mort   = mortRes.filter((m) => m.batchId === batchId);
   const health = healthRes.filter((h) => h.batchId === batchId);
   const iso    = isoRes.filter((i) => i.batchId === batchId && i.recordType === "Isolation");
-  const feed   = feedUsedRes.filter((f) => f.batchId === batchId);
+  // Single-batch entries and multi-batch entries that include this batch.
+  const feed   = feedUsedRes.filter((f) => entryBatchIds(f).includes(batchId));
   const vacc   = health.filter((h) => h.recordType === "Vaccination" || h.vaccineOrDrug);
 
   const purchased = Number(batch.quantityPurchased) || 0;
@@ -98,7 +100,11 @@ async function fetchSummary(batchId) {
   }
 
   const feedType = batch.feedType || feed[0]?.feedType || "—";
-  const feedToday = feed.filter((f) => f.date === today()).reduce((s, f) => s + (Number(f.quantityConsumed) || 0), 0);
+  // Only this batch's share of each entry, in kg (a multi-batch entry's total
+  // is shared among its batches).
+  const feedToday = roundTwo(
+    feed.filter((f) => String(f.date || "").slice(0, 10) === today()).reduce((s, f) => s + batchShareKg(f, batchId), 0)
+  );
   const remainingFeed = feedInvRes.length
     ? feedInvRes.filter((fi) => fi.feedType === feedType).reduce((s, fi) => s + (Number(fi.quantityIn) || 0) - (Number(fi.quantityOut) || 0), 0)
     : null;

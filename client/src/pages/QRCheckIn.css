@@ -266,6 +266,42 @@
   color: var(--pb-brown);
 }
 .qc-success-meta svg { color: var(--pb-tan); }
+/* Time In / Time Out of today's record. */
+.qc-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+.qc-times > div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--pb-cream);
+  border: 1px solid var(--pb-border);
+  text-align: center;
+}
+.qc-times > div.qc-times-new {
+  border-color: var(--pb-tan);
+  box-shadow: 0 0 0 3px rgba(222, 167, 127, 0.3);
+}
+.qc-times dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pb-muted);
+}
+.qc-times dt svg { color: var(--pb-tan); }
+.qc-times dd {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--pb-brown, #47321C);
+}
+
 .qc-success-note {
   margin: 16px 0 0;
   font-size: 13.5px;

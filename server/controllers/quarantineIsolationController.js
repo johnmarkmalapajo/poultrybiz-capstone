@@ -9,8 +9,14 @@ const { createArchiveEntry } = require("./archiveController");
 const { resolveHealthOption } = require("./healthOptionController");
 const { createNotification } = require("./notificationController");
 const Archive = require("../models/Archive");
-const { QUARANTINE_DAYS, phToday, quarantineDurationDays } = require("../utils/dateGuard");
-const { describeAutoRelease, hasOngoingIsolation } = require("../utils/quarantineRelease");
+const {
+  QUARANTINE_DAYS,
+  phToday,
+  quarantineDurationDays,
+  quarantineReleaseDate,
+  daysBetween,
+} = require("../utils/dateGuard");
+const { describeRelease, hasOngoingIsolation, REMINDER_ROLES } = require("../utils/quarantineRelease");
 
 const computeVitaminsGiven = async (batchId) => {
   const records = await HealthRecord.find({
@@ -34,20 +40,27 @@ const withVitaminsGiven = async (record) => {
   if (obj.recordType === "Quarantine") {
     obj.vitaminsGiven = await computeVitaminsGiven(obj.batchId);
   }
-  const flockForDate = await Flock.findOne({ batchId: obj.batchId }).select("dateAcquired");
+  const flockForDate = await Flock.findOne({ batchId: obj.batchId }).select("dateAcquired currentQuantity");
   obj.dateAcquired = flockForDate?.dateAcquired ? toDateOnly(flockForDate.dateAcquired) : "";
+  // Upper limit for "Number of Deceased Chickens" in the release dialog.
+  obj.currentFlockQuantity = flockForDate ? flockForDate.currentQuantity || 0 : 0;
   if (obj.recordType === "Quarantine") {
-    // Release is automatic (utils/quarantineRelease.js); these fields are
-    // read-only details for the table.
-    const { autoReleaseDate, releaseBlockedReason } = await describeAutoRelease(obj, obj.dateAcquired);
+    // Read-only release details for the table: the expected release date
+    // (start + 14 days, Philippine dates), the state shown to everyone
+    // (Quarantined / Eligible for Release / Overdue / Released), whether
+    // the Owner may release it now, and why not when they can't.
+    const { expectedReleaseDate, releaseState, releaseEligible, releaseBlockedReason } =
+      await describeRelease(obj, obj.quarantineStartDate || obj.dateAcquired);
     obj.quarantineDays = QUARANTINE_DAYS;
-    obj.releaseEligibleDate = autoReleaseDate;
-    obj.autoReleaseDate = autoReleaseDate;
+    obj.expectedReleaseDate = expectedReleaseDate;
+    obj.releaseEligibleDate = expectedReleaseDate;
+    obj.releaseState = releaseState;
+    obj.releaseEligible = releaseEligible;
     obj.releaseBlockedReason = releaseBlockedReason;
-    // Whole days under quarantine, counted from the batch's real start date
-    // (Flock Profile Date Acquired) to Philippine today while Ongoing, or to
-    // the actual release date once Released. Computed on every request, so it
-    // is never stored and never goes stale.
+    // Days under quarantine, counting the batch's real start date (Flock
+    // Profile Date Acquired) as Day 1, up to Philippine today while Ongoing,
+    // or to the actual release date once Released. Computed on every request,
+    // so it is never stored and never goes stale.
     obj.quarantineDurationDays = quarantineDurationDays({
       startDate: obj.dateAcquired,
       status: obj.status,
@@ -151,7 +164,7 @@ exports.createQuarantineRecord = async (req, res) => {
       if (ongoingQuarantineForBatch) {
         return res.status(400).json({
           success: false,
-          message: `This batch is still under Ongoing Quarantine and is not yet eligible for Isolation. It is released automatically after completing its ${QUARANTINE_DAYS}-day quarantine.`,
+          message: `This batch is still under Ongoing Quarantine and is not yet eligible for Isolation. The Owner can release it from Day ${QUARANTINE_DAYS} of its quarantine.`,
         });
       }
 
@@ -213,6 +226,9 @@ exports.createQuarantineRecord = async (req, res) => {
           category: "health",
           type: "alert",
           roles: ["Owner", "Farmer"],
+          // View opens this Isolation record (Quarantine & Isolation page).
+          referenceId: record._id,
+          referenceModel: "QuarantineIsolation",
         });
       }
 
@@ -398,7 +414,7 @@ exports.updateQuarantineRecord = async (req, res) => {
 
     return res.status(400).json({
       success: false,
-      message: `Quarantine records cannot be edited directly. They are released automatically after completing the ${QUARANTINE_DAYS}-day quarantine period.`,
+      message: `Quarantine records cannot be edited directly. The Owner releases a batch from its Status action once the ${QUARANTINE_DAYS}-day quarantine period is complete.`,
     });
   } catch (err) {
     console.error(err);
@@ -410,22 +426,25 @@ exports.updateQuarantineRecord = async (req, res) => {
   }
 };
 
-// Releases an Ongoing Quarantine record from the release dialog.
+// Owner-only release of an Ongoing Quarantine record, from the Quarantine
+// Mortality Confirmation dialog (the route is guarded by ownerOnly).
 //
 //   body: { hadDeaths: boolean, deceasedCount?: whole number > 0 }
+//
+// The batch may only be released on or after its expected release date
+// (Flock Profile Date Acquired + 14 days, Philippine dates). Reaching that
+// date never releases anything by itself.
 //
 // Everything happens in ONE transaction, so it either fully applies or not at
 // all:
 //   1. Atomic compare-and-set Ongoing -> Released. Only one request can win,
-//      so a double-click / retry gets a 409 and changes nothing.
+//      so a double-click / retry gets a 409 and changes nothing (this is the
+//      release's idempotency guard).
 //   2. When birds died: one Mortality Record (unique per quarantine record, so
 //      the database itself refuses a second one) and the matching deduction
 //      from the Flock Profile -- the same figures Isolation progress updates.
 //   3. The Flock Profile goes back to Active only when it is "Quarantined"
-//      (a Culled batch is never reactivated), exactly like the automatic
-//      release.
-// The automatic 14-day release (utils/quarantineRelease.js) is untouched; it
-// still skips any record that is no longer Ongoing.
+//      (a Culled batch is never reactivated).
 const RELEASE_CAUSE_OF_DEATH = "Died during quarantine";
 const MAX_RELEASE_ATTEMPTS = 3;
 
@@ -477,16 +496,30 @@ const runRelease = async (req) => {
       const flock = await Flock.findOne({ batchId: record.batchId }).session(session);
       if (!flock) throw releaseError(400, "The linked Flock Profile was not found.");
 
+      // 14-day eligibility, enforced here and not only by the disabled
+      // Status button.
+      const quarantineStartDate = toDateOnly(flock.dateAcquired);
+      const expectedReleaseDate = quarantineReleaseDate(quarantineStartDate);
+      if (!expectedReleaseDate) {
+        throw releaseError(400, "The quarantine start date is unknown. Set the Date Acquired in Flock Profile first.");
+      }
       const releasedDate = phToday();
+      if (releasedDate < expectedReleaseDate) {
+        const daysLeft = daysBetween(releasedDate, expectedReleaseDate);
+        throw releaseError(
+          400,
+          `This batch can only be released on or after ${expectedReleaseDate}, when its ${QUARANTINE_DAYS}-day quarantine is complete (${daysLeft} day${daysLeft === 1 ? "" : "s"} left).`
+        );
+      }
+
       const birdsBefore = flock.currentQuantity || 0;
       let mortalityObjectId = null;
 
       if (deaths > 0) {
-        const allowed = Math.min(record.headCount || 0, birdsBefore);
-        if (deaths > allowed) {
+        if (deaths > birdsBefore) {
           throw releaseError(
             400,
-            `Number of Deceased Birds (${deaths}) cannot exceed the birds in this quarantine (${allowed}).`
+            `Number of Deceased Chickens (${deaths}) cannot exceed the current flock quantity of Batch ${record.batchId} (${birdsBefore}).`
           );
         }
         mortalityObjectId = new mongoose.Types.ObjectId();
@@ -504,8 +537,12 @@ const runRelease = async (req) => {
             releaseFinalizedAt: new Date(),
             releaseDeaths: deaths,
             releaseMortalityRecordId: mortalityObjectId,
+            quarantineStartDate,
+            expectedReleaseDate,
+            releasedBy: req.user?.name || "",
+            // Survivors still under this quarantine record (never below 0).
+            ...(deaths > 0 ? { headCount: Math.max(0, (record.headCount || 0) - deaths) } : {}),
           },
-          ...(deaths > 0 ? { $inc: { headCount: -deaths } } : {}),
         },
         { returnDocument: "after", session }
       );
@@ -533,7 +570,7 @@ const runRelease = async (req) => {
               numberOfMortality: deaths,
               causeOfDeath: RELEASE_CAUSE_OF_DEATH,
               suspectedDisease: "",
-              remarks: `Recorded when the quarantine of Batch ${record.batchId} was released.`,
+              remarks: `Automatically generated from Quarantine Release of Batch ${record.batchId} on ${releasedDate}.`,
               currentBirds: flock.currentQuantity,
               mortalityRate: flock.mortalityRate,
             },
@@ -613,6 +650,9 @@ exports.releaseQuarantineRecord = async (req, res) => {
           category: "mortality",
           type: "alert",
           roles: ["Owner", "Farmer"],
+          // View opens the mortality record created by the release.
+          referenceId: mortalityRecord._id,
+          referenceModel: "MortalityRecord",
         });
       }
     }
@@ -634,7 +674,7 @@ exports.releaseQuarantineRecord = async (req, res) => {
       }`,
       category: "quarantine",
       type: "alert",
-      roles: ["Owner"],
+      roles: REMINDER_ROLES,
       referenceId: record._id,
       referenceModel: "QuarantineIsolation",
       sourceId: `quarantine_released_${record._id}`,

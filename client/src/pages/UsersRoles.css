@@ -116,127 +116,6 @@
   color: var(--gold);
 }
 
-.ur-filter-wrap {
-  position: relative;
-}
-
-.ur-filter-count {
-  background: var(--gold);
-  color: #fff;
-  font-size: var(--text-xs, 9px);
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 20px;
-  margin-left: 4px;
-}
-
-.ur-filter-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--surface, #fff);
-  border: 1.5px solid var(--border, #e4e0d8);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  z-index: 100;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.ur-filter-dropdown-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-display, "Poppins", sans-serif);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary, #1e1c18);
-}
-
-.ur-filter-clear {
-  background: none;
-  border: none;
-  color: var(--gold);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-
-.ur-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ur-filter-label {
-  font-family: var(--font-display, "Poppins", sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted, #a39e94);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.ur-filter-select {
-  width: 100%;
-  height: 40px;
-  padding: 0 14px;
-  border: 1.5px solid var(--border, #e4e0d8);
-  border-radius: 8px;
-  background: #fafafa;
-  font-family: var(--font-body, "Lato", sans-serif);
-  font-size: 13px;
-  color: var(--text-primary, #1e1c18);
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a39e94' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 36px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.ur-filter-select:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 4px var(--gold-glow, rgba(228,175,31,0.14));
-}
-
-.ur-active-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ur-active-filter-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--gold-light, #fdf3e3);
-  border: 1.5px solid var(--gold);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-family: var(--font-body, "Lato", sans-serif);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gold-dark, #c8930c);
-}
-
-.ur-active-filter-tag button {
-  background: none;
-  border: none;
-  color: var(--gold-dark, #c8930c);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-}
-
 .ur-stats-grid {
   display: flex !important;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -443,7 +322,6 @@
   .ur-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
 }
 
 @media (max-width: 768px) {
@@ -481,7 +359,6 @@
     padding: 10px 12px;
     font-size: 12px;
   }
-
 }
 
 @media (max-width: 480px) {
@@ -509,27 +386,6 @@
     width: 28px;
     height: 28px;
   }
-
-}
-
-@media (max-width: 768px) {
-  .ur-btn-group .ur-filter-wrap {
-    flex: 1;
-  }
-
-  .ur-btn-group .ur-filter-wrap > .ur-toolbar-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .ur-filter-dropdown {
-    left: 0;
-    right: auto;
-    min-width: 0;
-    width: calc(100vw - 32px);
-    max-width: 360px;
-  }
-
 }
 
 @media (max-width:768px) {
@@ -541,7 +397,6 @@
     flex:1 1 42% !important;
     min-width:130px !important;
   }
-
 }
 
 @media (max-width:360px) {
@@ -549,7 +404,6 @@
     flex:1 1 100% !important;
     min-width:0 !important;
   }
-
 }
 
 @media (max-width:768px) {
@@ -575,6 +429,12 @@
     width:100% !important;
   }
 
+  /* The Filter button (shared Filter, fp-filter-* in Flockprofile.css) is
+     the only control here, so it spans the row like the search box. */
+  .ur-btn-group>:only-child {
+    grid-column:1 / -1;
+  }
+
   .ur-btn-group>* {
     width:100% !important;
     min-width:0 !important;
@@ -585,24 +445,12 @@
     justify-content:center !important;
     box-sizing:border-box;
   }
-
-  .ur-filter-wrap {
-    width:100% !important;
-  }
-
-  .ur-filter-dropdown {
-    left:0 !important;
-    right:auto !important;
-    max-width:calc(100vw - 40px) !important;
-  }
-
 }
 
 @media (max-width:768px) {
   .ur-search-box {
     width:100% !important;
   }
-
 }
 
 .ur-tabs {
@@ -699,7 +547,6 @@
     font-size: 9.5px;
     padding: 1px 5px;
   }
-
 }
 
 @media (max-width: 480px) {
@@ -718,7 +565,58 @@
     font-size: 8.5px;
     padding: 1px 4px;
   }
+}
 
+/* Mobile tabs = the Quarantine and Isolation tabs (.qi-tabs/.qi-tab):
+   one row of natural-width tabs (not four squeezed columns), the same size,
+   spacing and gold underline for the active tab, and swipe sideways when
+   they don't all fit. Desktop and tablet keep the layout above. */
+@media (max-width: 768px) {
+  .ur-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ur-tabs .ur-tab,
+  .ur-tabs .ur-tab:active,
+  .ur-tabs .ur-tab:focus,
+  .ur-tabs .ur-tab:focus-visible,
+  .ur-tabs .ur-tab.active,
+  .ur-tabs .ur-tab.active:active,
+  .ur-tabs .ur-tab.active:focus {
+    flex: 0 0 auto;
+    width: auto;
+    justify-content: flex-start;
+    gap: 7px;
+    padding: 10px 18px !important;
+    min-height: 40px;
+    font-size: 14px;
+    overflow: visible;
+    text-overflow: clip;
+    /* The base rule's `border: none !important` also removed the active
+       underline; bring it back the Quarantine way. */
+    border-bottom-width: 3px !important;
+    border-bottom-style: solid !important;
+    border-bottom-color: transparent !important;
+  }
+
+  .ur-tabs .ur-tab.active,
+  .ur-tabs .ur-tab.active:active,
+  .ur-tabs .ur-tab.active:focus {
+    border-bottom-color: #E4AF1F !important;
+  }
+
+  .ur-tab .count {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
 }
 
 .ur-avatar {
@@ -1031,7 +929,6 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
-
 }
 
 .ur-sortable-th {

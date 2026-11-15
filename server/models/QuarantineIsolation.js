@@ -59,19 +59,39 @@ const QuarantineIsolationSchema = new mongoose.Schema(
       default: "",
     },
 
-    // "Automatic" when the 14-day release job released this record.
-    // Older, manually released records keep "".
+    // "Manual" when the Owner released it from the Status action. Records
+    // released by the former automatic 14-day job keep "Automatic"; older
+    // records keep "". Quarantine is no longer released automatically.
     releaseMethod: {
       type: String,
       enum: ["", "Manual", "Automatic"],
       default: "",
     },
 
-    // Set once the automatic release has also updated the Flock Profile
-    // and notified the Owner. While null, the job finishes those steps.
+    // When the release was committed (the actual release date AND time).
     releaseFinalizedAt: {
       type: Date,
       default: null,
+    },
+
+    // Snapshot taken at release so the record keeps the quarantine period it
+    // was released against, even if the Flock Profile's Date Acquired is
+    // edited later: the quarantine start date and the expected release date
+    // (start + 14 days), both Philippine calendar dates (YYYY-MM-DD).
+    quarantineStartDate: {
+      type: String,
+      default: "",
+    },
+
+    expectedReleaseDate: {
+      type: String,
+      default: "",
+    },
+
+    // Who released it (Owner's name), for the record's history.
+    releasedBy: {
+      type: String,
+      default: "",
     },
 
     // Set when a user releases a Quarantine record through the release

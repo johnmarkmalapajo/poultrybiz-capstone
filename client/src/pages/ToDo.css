@@ -132,8 +132,28 @@
   .todo-stats { grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); }
   .todo-stat-card { padding: var(--space-sm) var(--space-md); }
   .todo-stat-card h3 { font-size: var(--text-md); }
-  .todo-tabs { width: 100%; }
-  .todo-tab { flex: 1; justify-content: center; padding: 10px 8px; }
+  /* Mobile tabs = the Quarantine and Isolation tabs (.qi-tabs/.qi-tab):
+     one row, natural-width tabs, same size and spacing, and swipe sideways
+     when they don't all fit. */
+  .todo-tabs {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .todo-tab {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 7px;
+    padding: 10px 18px;
+    min-height: 40px;
+    font-size: 14px;
+  }
   .todo-table-wrapper { border-radius: 12px; }
   .todo-table th, .todo-table td { padding: var(--space-sm) var(--space-md); font-size: var(--text-sm); }
 }
@@ -147,7 +167,6 @@
 
 @media (max-width: 360px) {
   .todo-stat-card { padding: var(--space-sm); gap: var(--space-sm); }
-  .todo-tab { padding: 9px 4px; font-size: var(--text-sm); gap: 4px; }
 }
 
 /* ===== ROW ACTIONS + DELETE ===== */
@@ -237,11 +256,7 @@
 
 /* ── Deep-link highlight — briefly flashes the task a notification
    click scrolled to, so it's obvious which row it pointed at ── */
-.todo-row-highlight { animation: todoRowFlash 2s ease-out 1; }
-@keyframes todoRowFlash {
-  0%   { background: #fdf3d1; }
-  100% { background: transparent; }
-}
+/* Row opened from a notification: shared .pb-row-highlight (index.css). */
 
 /* Sortable table headers — Global Table Standardization */
 .todo-sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
@@ -340,3 +355,9 @@
   font-weight: 700; color: var(--gold-dark); text-decoration: underline;
 }
 .todo-completion-toggle:hover { color: var(--gold); }
+/* Status filter: "Show archived tasks" is a separate view toggle, not one of
+   the task statuses (All / Pending / Completed / Overdue). */
+.todo-filter-check { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 13px; color: var(--text-second); cursor: pointer; }
+.todo-filter-check input { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; margin: 0; }
+/* "Deactivated" note beside a recurring task's status badge. */
+.todo-status-note { margin-left: 6px; }

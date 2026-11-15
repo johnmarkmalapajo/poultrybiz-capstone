@@ -13,6 +13,7 @@ import {
   uploadAvatar,
 } from "../api/profile";
 import { updateStoredUser } from "../hooks/useUser";
+import { TextSizeSection } from "./AdminProfile";
 
 const EMPTY_PROFILE = {
   fullName: "",
@@ -201,6 +202,7 @@ export default function FarmerProfile({ embedded = false, onBack }) {
           </div>
 
           {}
+          <div className="pf-right">
           <div className="pf-card pf-section">
             <div className="pf-section-head">
               <div className="pf-section-ico"><FiUser /></div>
@@ -242,6 +244,9 @@ export default function FarmerProfile({ embedded = false, onBack }) {
                 <input className="pf-input readonly" value={saved.lastLogin} readOnly tabIndex={-1} />
               </div>
             </div>
+          </div>
+
+          <TextSizeSection />
           </div>
         </div>
 

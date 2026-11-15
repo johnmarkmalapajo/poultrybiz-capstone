@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   FiEdit2, FiUser, FiPhone, FiClock, FiCalendar, FiMapPin,
-  FiFilter, FiChevronDown, FiPlus, FiToggleLeft, FiToggleRight,
+  FiFilter, FiPlus, FiToggleLeft, FiToggleRight,
 } from "react-icons/fi";
 import {
   MdOutlineFactCheck, MdOutlineAssignmentTurnedIn, MdOutlineCancel, MdOutlineAccessTime,
@@ -11,6 +11,7 @@ import { getFarmInfo } from "../api/profile";
 import PageLayout from "../components/PageLayout";
 import "./ViewPersonnel.css";
 import "./ToDo.css";
+import "./Flockprofile.css";
 import "../components/ProofOfCompletionModal.css";
 import { getPersonnel, getPersonnelAttendance, getPersonnelTasks, getPersonnelTaskHistory } from "../api/personnelManpower";
 import { listPersonalTodos } from "../api/todo";
@@ -19,9 +20,10 @@ import { getAccessibleCategories } from "../moduleRegistry";
 import { useUser } from "../hooks/useUser";
 import { useLanguage } from "../i18n/LanguageContext";
 import { API_BASE } from "../api/client";
-import { FiImage, FiX } from "react-icons/fi";
-import { usePagination } from "../hooks/usePagination";
+import { FiImage, FiX, FiEye, FiFileText } from "react-icons/fi";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
+import { withDisplayStatus } from "./AdminTodo";
 
 // Estimated Duration is a distinct concept from Due Date: how long a task
 // is expected to take, not a deadline. Applies to every category.
@@ -46,9 +48,67 @@ function phTodayDisplay() {
   }
 }
 
-// Task History's "Completion Details" column shows remarks inline up to
-// this many characters before collapsing behind a "View More" toggle.
-const REMARKS_PREVIEW_LENGTH = 80;
+// ── Attendance / Tasks / Task History filters ───────────────────────────
+// One Filter button above the tables, using the Flock Profile filter panel
+// (fp-filter-* in Flockprofile.css): sections, selects, Clear All / Apply.
+
+// Philippine calendar day (YYYY-MM-DD) of a stored date.
+const PH_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" });
+function phDayOf(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d) ? "" : PH_DAY.format(d);
+}
+
+// Monday (YYYY-MM-DD) of the week a PH day falls in -- the same Monday-start
+// (ISO) week the Flock Profile week filter uses.
+function weekStartOf(day) {
+  const d = new Date(`${day}T00:00:00Z`);
+  const offset = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - offset);
+  return d.toISOString().slice(0, 10);
+}
+
+const DATE_PERIODS = [
+  { value: "all", label: "All Records" },
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year", label: "This Year" },
+  { value: "custom", label: "Custom Range" },
+];
+
+// Is a PH day inside the selected period (calendar periods, PH time)?
+function inPeriod(day, f, today) {
+  if (f.period === "all") return true;
+  if (!day) return false;
+  if (f.period === "today") return day === today;
+  if (f.period === "week") return weekStartOf(day) === weekStartOf(today) && day <= today;
+  if (f.period === "month") return day.slice(0, 7) === today.slice(0, 7);
+  if (f.period === "year") return day.slice(0, 4) === today.slice(0, 4);
+  if (f.period === "custom") return (!f.dateFrom || day >= f.dateFrom) && (!f.dateTo || day <= f.dateTo);
+  return true;
+}
+
+function periodLabelOf(f) {
+  if (f.period === "custom") {
+    return f.dateFrom || f.dateTo ? `${f.dateFrom || "…"} – ${f.dateTo || "…"}` : "All Records";
+  }
+  return DATE_PERIODS.find((p) => p.value === f.period)?.label || "All Records";
+}
+
+const DEFAULT_ATTENDANCE_FILTER = { period: "month", dateFrom: "", dateTo: "", status: "all" };
+const ATTENDANCE_STATUSES = ["Present", "Absent", "Late"];
+const TASK_FILTER_STATUSES = ["Pending", "Completed", "Overdue"];
+
+// A task's status for the Tasks filter, using the To Do rule
+// (withDisplayStatus). An assigned task is completed through its
+// occurrence's Proof of Completion (today's for a Primary task, the single
+// one for a Secondary task); a personal task through its own status.
+function taskDisplayStatus(t) {
+  const completed = t.status === "Completed" || t.occurrenceStatus === "Completed";
+  return withDisplayStatus({ status: completed ? "Completed" : t.status, dueDate: t.dueDate }).displayStatus;
+}
 
 // Task History's "Date Completed" and "Submission Time" columns are both
 // derived from the occurrence's `submittedAt` -- the real completion
@@ -144,13 +204,19 @@ export default function ViewPersonnel() {
   const navigate = useNavigate();
   const { isOwner, canSeeFinancials, canViewPersonnel, user: currentUser } = useUser();
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("attendance");
+  // A task-completion notification opens this page with
+  // ?tab=history&submission=<occurrence id>: start on Task History and
+  // highlight that submission once it has loaded.
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => (searchParams.get("tab") === "history" ? "history" : "attendance"));
 
-  const [timeRange, setTimeRange] = useState("month");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [showTime, setShowTime] = useState(false);
+  // Applied filters, one set per tab. The open Filter panel edits `draft`;
+  // nothing changes until Apply (same as Flock Profile).
+  const [attendanceFilter, setAttendanceFilter] = useState(DEFAULT_ATTENDANCE_FILTER);
+  const [taskStatusFilter, setTaskStatusFilter] = useState("all");
+  const [draft, setDraft] = useState({});
+  const [filterError, setFilterError] = useState("");
   const [showFilter, setShowFilter] = useState(false);
-  const timeRef = useRef(null);
   const filterRef = useRef(null);
 
   const [record, setRecord] = useState(null);
@@ -177,22 +243,19 @@ export default function ViewPersonnel() {
   const [historyCategory, setHistoryCategory] = useState("All");
   const [historyFrom, setHistoryFrom] = useState("");
   const [historyTo, setHistoryTo] = useState("");
-  const [photoViewer, setPhotoViewer] = useState(null); // { url, taskName, occurrenceDate }
-  // Which Task History rows have their remarks expanded past the preview
-  // length -- keyed by occurrence _id, so each row's expand state is
-  // independent of every other row's.
-  const [expandedRemarks, setExpandedRemarks] = useState(() => new Set());
-  const toggleRemarksExpanded = (occurrenceId) => {
-    setExpandedRemarks((prev) => {
-      const next = new Set(prev);
-      if (next.has(occurrenceId)) next.delete(occurrenceId);
-      else next.add(occurrenceId);
-      return next;
-    });
-  };
+  // Task History "View Details": the one submission (occurrence record)
+  // whose Photo Proof and Remarks are shown together in a single modal.
+  // The whole record is kept, so the photo and remarks always come from the
+  // same submission.
+  const [detailsViewer, setDetailsViewer] = useState(null);
+  useEffect(() => {
+    if (!detailsViewer) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setDetailsViewer(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detailsViewer]);
   const historyActiveFilterCount =
-    (historyCategory !== "All" ? 1 : 0) + (historyFrom ? 1 : 0) + (historyTo ? 1 : 0);
-  const clearHistoryFilters = () => { setHistoryCategory("All"); setHistoryFrom(""); setHistoryTo(""); };
+    (historyCategory !== "All" ? 1 : 0) + (historyFrom || historyTo ? 1 : 0);
 
   const targetRole = getAccountRole(record);
   const isTargetOwner = /^owner$/i.test(targetRole);
@@ -201,13 +264,14 @@ export default function ViewPersonnel() {
   const canAddTask = isOwner;
   const showTaskActionsColumn = true;
 
-  useEffect(() => { setFilterStatus("all"); }, [activeTab]);
+  // Each tab keeps its own filters; switching tabs just closes the panel.
+  useEffect(() => { setShowFilter(false); setFilterError(""); }, [activeTab]);
+
 
   useEffect(() => { if (!canManageTasks) setActiveTab("attendance"); }, [record, canManageTasks]);
 
   useEffect(() => {
     const handle = (e) => {
-      if (timeRef.current && !timeRef.current.contains(e.target)) setShowTime(false);
       if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false);
     };
     document.addEventListener("mousedown", handle);
@@ -290,30 +354,107 @@ export default function ViewPersonnel() {
   );
 
   const statusBadge = (status) => (
-    <span className={`badge ${String(status).toLowerCase().replace(/\s+/g, "-")}`}>{status}</span>
+    <span className={`badge ${String(status).toLowerCase().replace(/\s+/g, "-")}`}>{tr(status)}</span>
+  );
+  // Pending / Completed / Overdue -- the same status the Tasks filter uses.
+  // For a Primary (daily) task it is today's occurrence.
+  const taskStatusBadge = (t) => (
+    <span
+      className={`badge ${String(t.displayStatus).toLowerCase()}`}
+      title={t.category === "Primary" ? tr("Today's occurrence — see Task History for past days") : undefined}
+    >
+      {tr(t.displayStatus)}
+    </span>
   );
 
-  const RANGE_DAYS = { week: 7, month: 31, year: 366 };
-  const RANGE_LABEL = { week: "This Week", month: "This Month", year: "This Year" };
-  const inRange = (dateStr) => {
-    if (!dateStr) return true;
-    const d = new Date(dateStr);
-    if (isNaN(d)) return true;
-    const days = (Date.now() - d.getTime()) / 86400000;
-    return days <= (RANGE_DAYS[timeRange] ?? 366);
+  const todayPH = phTodayDisplay();
+  const periodLabel = periodLabelOf(attendanceFilter);
+
+  // ── Filter panel (one button, Flock Profile design) ──
+  const openFilterPanel = () => {
+    if (!showFilter) {
+      setDraft(
+        activeTab === "attendance" ? { ...attendanceFilter }
+          : activeTab === "tasks" ? { status: taskStatusFilter }
+            : { category: historyCategory, dateFrom: historyFrom, dateTo: historyTo }
+      );
+      setFilterError("");
+    }
+    setShowFilter((open) => !open);
   };
+  const setDraftField = (key, value) => { setDraft((d) => ({ ...d, [key]: value })); setFilterError(""); };
+  const validRange = (from, to) => {
+    if (from && from > todayPH) return tr("Start date cannot be a future date.");
+    if (to && to > todayPH) return tr("End date cannot be a future date.");
+    if (from && to && from > to) return tr("Start date cannot be later than end date.");
+    return "";
+  };
+  const applyFilters = () => {
+    if (activeTab === "attendance") {
+      const msg = draft.period === "custom" ? validRange(draft.dateFrom, draft.dateTo) : "";
+      if (msg) { setFilterError(msg); return; }
+      setAttendanceFilter({
+        ...draft,
+        dateFrom: draft.period === "custom" ? draft.dateFrom : "",
+        dateTo: draft.period === "custom" ? draft.dateTo : "",
+      });
+    } else if (activeTab === "tasks") {
+      setTaskStatusFilter(draft.status || "all");
+    } else {
+      const msg = validRange(draft.dateFrom, draft.dateTo);
+      if (msg) { setFilterError(msg); return; }
+      setHistoryCategory(draft.category || "All");
+      setHistoryFrom(draft.dateFrom || "");
+      setHistoryTo(draft.dateTo || "");
+    }
+    setShowFilter(false);
+  };
+  // Clear All resets this tab's filters to their defaults right away.
+  const clearFilters = () => {
+    setFilterError("");
+    if (activeTab === "attendance") {
+      const all = { period: "all", dateFrom: "", dateTo: "", status: "all" };
+      setAttendanceFilter(all); setDraft(all);
+    } else if (activeTab === "tasks") {
+      setTaskStatusFilter("all"); setDraft({ status: "all" });
+    } else {
+      setHistoryCategory("All"); setHistoryFrom(""); setHistoryTo("");
+      setDraft({ category: "All", dateFrom: "", dateTo: "" });
+    }
+  };
+  // Number shown on the Filter button: how many filters this tab applies.
+  const activeFilterCount = activeTab === "attendance"
+    ? (attendanceFilter.period !== "all" ? 1 : 0) + (attendanceFilter.status !== "all" ? 1 : 0)
+    : activeTab === "tasks" ? (taskStatusFilter !== "all" ? 1 : 0)
+      : historyActiveFilterCount;
 
-  const ATTENDANCE_STATUSES = ["Present", "Absent", "Late"];
-  const TASK_STATUSES = ["Pending", "Completed"];
-  const filterOptions = activeTab === "attendance" ? ATTENDANCE_STATUSES : TASK_STATUSES;
+  const attendanceInPeriod = attendance.filter((a) => inPeriod(phDayOf(a.date), attendanceFilter, todayPH));
+  const attendanceView = attendanceInPeriod
+    .filter((a) => attendanceFilter.status === "all" || a.status === attendanceFilter.status);
+  const attendancePager = usePagination(attendanceView.length);
+  useEffect(() => { attendancePager.setPage(1); }, [attendanceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const attendancePage = attendanceView.slice(attendancePager.startIndex, attendancePager.endIndex);
+  const historyPager = usePagination(history.length);
+  useEffect(() => { historyPager.setPage(1); }, [historyCategory, historyFrom, historyTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const historyPage = history.slice(historyPager.startIndex, historyPager.endIndex);
 
-  const attendanceView = attendance
-    .filter((a) => inRange(a.date))
-    .filter((a) => filterStatus === "all" || a.status === filterStatus);
+  // Notifications open this page on a record (shared useRecordFocus):
+  //  - ?tab=history&submission=<occurrence id>: a Task Completed
+  //    notification -> that exact submission in Task History;
+  //  - ?tab=attendance&record=<attendance id>: an Attendance Check-In
+  //    notification -> that check-in (range / status filter widened if they
+  //    hide it).
+  const historyFocus = useRecordFocus({
+    rows: history, pager: historyPager, ready: activeTab === "history" && !historyLoading && history.length > 0, param: "submission",
+  });
+  const attendanceFocus = useRecordFocus({
+    rows: attendanceView, allRows: attendance, pager: attendancePager, ready: activeTab === "attendance" && attendance.length > 0,
+    reveal: () => { setAttendanceFilter({ period: "all", dateFrom: "", dateTo: "", status: "all" }); },
+  });
 
   const tasksView = tasks
-    .filter((t) => inRange(t.date))
-    .filter((t) => filterStatus === "all" || t.status === filterStatus)
+    .map((t) => ({ ...t, displayStatus: taskDisplayStatus(t) }))
+    .filter((t) => taskStatusFilter === "all" || t.displayStatus === taskStatusFilter)
     .map((t) => ({
       ...t,
       assignedDate: t.assignedDate || "—",
@@ -332,18 +473,22 @@ export default function ViewPersonnel() {
   const primaryPager = usePagination(primaryTasksView.length);
   const secondaryPager = usePagination(secondaryTasksView.length);
   const personalPager = usePagination(personalTasksView.length);
-  useEffect(() => { primaryPager.setPage(1); }, [filterStatus, timeRange, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { secondaryPager.setPage(1); }, [filterStatus, timeRange, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { personalPager.setPage(1); }, [filterStatus, timeRange, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { primaryPager.setPage(1); }, [taskStatusFilter, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { secondaryPager.setPage(1); }, [taskStatusFilter, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { personalPager.setPage(1); }, [taskStatusFilter, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const primaryTasksPage = primaryTasksView.slice(primaryPager.startIndex, primaryPager.endIndex);
   const secondaryTasksPage = secondaryTasksView.slice(secondaryPager.startIndex, secondaryPager.endIndex);
   const personalTasksPage = personalTasksView.slice(personalPager.startIndex, personalPager.endIndex);
 
-  const rangedAttendance = attendance.filter((a) => inRange(a.date));
-  const present = rangedAttendance.filter((a) => a.status === "Present").length;
-  const absent = rangedAttendance.filter((a) => a.status === "Absent").length;
-  const late = rangedAttendance.filter((a) => a.status === "Late").length;
-  const tasksCompleted = tasks .filter((t) => inRange(t.assignedDate || t.createdAt || t.dueDate)) .filter((t) => t.status === "Completed") .length;
+  // Stat cards follow the Attendance date filter (the period shown under
+  // each number); the attendance Status filter only narrows the table.
+  const present = attendanceInPeriod.filter((a) => a.status === "Present").length;
+  const absent = attendanceInPeriod.filter((a) => a.status === "Absent").length;
+  const late = attendanceInPeriod.filter((a) => a.status === "Late").length;
+  const tasksCompleted = tasks
+    .filter((t) => inPeriod(phDayOf(t.assignedDate || t.createdAt || t.dueDate), attendanceFilter, todayPH))
+    .filter((t) => t.status === "Completed")
+    .length;
 
   const name = getName(record);
   const canEditRecord = isOwner;
@@ -477,19 +622,19 @@ export default function ViewPersonnel() {
         <div className="vp-stats-grid">
           <div className="vp-stat-card">
             <div className="vp-stat-icon green"><MdOutlineFactCheck /></div>
-            <div><h2>{present}</h2><h4>{tr("Days Present")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{present}</h2><h4>{tr("Days Present")}</h4><p>{tr(periodLabel)}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon red"><MdOutlineCancel /></div>
-            <div><h2>{absent}</h2><h4>{tr("Days Absent")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{absent}</h2><h4>{tr("Days Absent")}</h4><p>{tr(periodLabel)}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon orange"><MdOutlineAccessTime /></div>
-            <div><h2>{late}</h2><h4>{tr("Days Late")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{late}</h2><h4>{tr("Days Late")}</h4><p>{tr(periodLabel)}</p></div>
           </div>
           <div className="vp-stat-card">
             <div className="vp-stat-icon blue"><MdOutlineAssignmentTurnedIn /></div>
-            <div><h2>{tasksCompleted}</h2><h4>{tr("Tasks Completed")}</h4><p>{RANGE_LABEL[timeRange]}</p></div>
+            <div><h2>{tasksCompleted}</h2><h4>{tr("Tasks Completed")}</h4><p>{tr(periodLabel)}</p></div>
           </div>
         </div>
 
@@ -504,81 +649,132 @@ export default function ViewPersonnel() {
             )}
           </div>
           <div className="vp-table-actions">
-            {activeTab !== "history" && (
-              <div className="vp-dd-wrap" ref={timeRef}>
-                <button className="vp-dd-btn" onClick={() => { setShowTime((s) => !s); setShowFilter(false); }}>
-                  <FiCalendar /> {RANGE_LABEL[timeRange]} <FiChevronDown />
-                </button>
-                {showTime && (
-                  <div className="vp-dd-menu">
-                    {["week", "month", "year"].map((r) => (
-                      <button
-                        key={r}
-                        className={`vp-dd-item ${timeRange === r ? "active" : ""}`}
-                        onClick={() => { setTimeRange(r); setShowTime(false); }}
-                      >
-                        {RANGE_LABEL[r]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Single Filter button, above the table, reused for every tab
-                -- Attendance/Tasks filter by status as before; Task History
-                repurposes this same button+panel for Category/From/To
-                instead of a second button or filter controls inside the
-                table area. */}
-            <div className="vp-dd-wrap" ref={filterRef}>
-              <button className="vp-dd-btn" onClick={() => { setShowFilter((s) => !s); setShowTime(false); }}>
-                <FiFilter />{" "}
-                {activeTab === "history" ? tr("Filter") : (filterStatus === "all" ? tr("Filter") : filterStatus)}
-                {activeTab === "history" && historyActiveFilterCount > 0 && (
-                  <span className="todo-filter-count">{historyActiveFilterCount}</span>
-                )}
-                <FiChevronDown />
+            {/* One Filter button for every tab, in the Flock Profile filter
+                design (fp-filter-*): Attendance = date period + status,
+                Tasks = status, Task History = category + date range. */}
+            <div className="fp-filter-wrap vp-filter-wrap" ref={filterRef}>
+              <button
+                type="button"
+                className="fp-toolbar-btn"
+                onClick={openFilterPanel}
+                aria-expanded={showFilter}
+                aria-haspopup="dialog"
+              >
+                <FiFilter />{" "}{tr("Filter")}
+                {activeFilterCount > 0 && <span className="fp-filter-count">{activeFilterCount}</span>}
               </button>
-              {showFilter && activeTab === "history" ? (
-                <div className="vp-dd-menu vp-dd-menu-wide">
-                  <div className="todo-filter-head">
-                    <span>{tr("Filter")}</span>
-                    <button className="todo-filter-clear" onClick={clearHistoryFilters}>{tr("Clear")}</button>
+
+              {showFilter && (
+                <div className="fp-filter-dropdown" role="dialog" aria-label={tr("Filter")}>
+                  <div className="fp-filter-dropdown-header">
+                    <span>
+                      {activeTab === "attendance" ? tr("Filter Attendance")
+                        : activeTab === "tasks" ? tr("Filter Tasks") : tr("Filter Task History")}
+                    </span>
                   </div>
-                  <div className="todo-filter-group">
-                    <label className="todo-filter-label">{tr("Category")}</label>
-                    <select className="todo-select" value={historyCategory} onChange={(e) => setHistoryCategory(e.target.value)}>
-                      <option value="All">{tr("All")}</option>
-                      <option value="Primary">{tr("Primary")}</option>
-                      <option value="Secondary">{tr("Secondary")}</option>
-                    </select>
-                  </div>
-                  <div className="todo-filter-group">
-                    <label className="todo-filter-label">{tr("From")}</label>
-                    <input type="date" value={historyFrom} onChange={(e) => setHistoryFrom(e.target.value)} />
-                  </div>
-                  <div className="todo-filter-group">
-                    <label className="todo-filter-label">{tr("To")}</label>
-                    <input type="date" value={historyTo} onChange={(e) => setHistoryTo(e.target.value)} />
+
+                  {activeTab === "attendance" && (
+                    <>
+                      <div className="fp-filter-section-label">{tr("Date Filter")}</div>
+                      <div className="fp-filter-group">
+                        <label className="fp-filter-label" htmlFor="vp-att-period">{tr("Date Period")}</label>
+                        <select
+                          id="vp-att-period"
+                          className="fp-filter-select"
+                          value={draft.period || "all"}
+                          onChange={(e) => setDraftField("period", e.target.value)}
+                        >
+                          {DATE_PERIODS.map((o) => <option key={o.value} value={o.value}>{tr(o.label)}</option>)}
+                        </select>
+                      </div>
+                      {draft.period === "custom" && (
+                        <div className="fp-filter-group">
+                          <label className="fp-filter-label">{tr("Start Date / End Date")}</label>
+                          <div className="fp-filter-date-range">
+                            <input type="date" className="fp-filter-select" value={draft.dateFrom || ""}
+                              max={draft.dateTo || todayPH}
+                              onChange={(e) => setDraftField("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                            <span>{tr("to")}</span>
+                            <input type="date" className="fp-filter-select" value={draft.dateTo || ""}
+                              min={draft.dateFrom || undefined} max={todayPH}
+                              onChange={(e) => setDraftField("dateTo", e.target.value)} aria-label={tr("To date")} />
+                          </div>
+                        </div>
+                      )}
+                      <div className="fp-filter-section-label">{tr("Filters")}</div>
+                      <div className="fp-filter-group">
+                        <label className="fp-filter-label" htmlFor="vp-att-status">{tr("Attendance")}</label>
+                        <select
+                          id="vp-att-status"
+                          className="fp-filter-select"
+                          value={draft.status || "all"}
+                          onChange={(e) => setDraftField("status", e.target.value)}
+                        >
+                          <option value="all">{tr("All")}</option>
+                          {ATTENDANCE_STATUSES.map((st) => <option key={st} value={st}>{tr(st)}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {activeTab === "tasks" && (
+                    <>
+                      <div className="fp-filter-section-label">{tr("Filters")}</div>
+                      <div className="fp-filter-group">
+                        <label className="fp-filter-label" htmlFor="vp-task-status">{tr("Status")}</label>
+                        <select
+                          id="vp-task-status"
+                          className="fp-filter-select"
+                          value={draft.status || "all"}
+                          onChange={(e) => setDraftField("status", e.target.value)}
+                        >
+                          <option value="all">{tr("All")}</option>
+                          {TASK_FILTER_STATUSES.map((st) => <option key={st} value={st}>{tr(st)}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {activeTab === "history" && (
+                    <>
+                      <div className="fp-filter-section-label">{tr("Date Filter")}</div>
+                      <div className="fp-filter-group">
+                        <label className="fp-filter-label">{tr("Start Date / End Date")}</label>
+                        <div className="fp-filter-date-range">
+                          <input type="date" className="fp-filter-select" value={draft.dateFrom || ""}
+                            max={draft.dateTo || todayPH}
+                            onChange={(e) => setDraftField("dateFrom", e.target.value)} aria-label={tr("From date")} />
+                          <span>{tr("to")}</span>
+                          <input type="date" className="fp-filter-select" value={draft.dateTo || ""}
+                            min={draft.dateFrom || undefined} max={todayPH}
+                            onChange={(e) => setDraftField("dateTo", e.target.value)} aria-label={tr("To date")} />
+                        </div>
+                      </div>
+                      <div className="fp-filter-section-label">{tr("Filters")}</div>
+                      <div className="fp-filter-group">
+                        <label className="fp-filter-label" htmlFor="vp-history-category">{tr("Task Category")}</label>
+                        <select
+                          id="vp-history-category"
+                          className="fp-filter-select"
+                          value={draft.category || "All"}
+                          onChange={(e) => setDraftField("category", e.target.value)}
+                        >
+                          <option value="All">{tr("All")}</option>
+                          <option value="Primary">{tr("Primary")}</option>
+                          <option value="Secondary">{tr("Secondary")}</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {filterError && <span className="pb-field-error" role="alert">{filterError}</span>}
+
+                  <div className="fp-filter-actions">
+                    <button type="button" className="fp-filter-clear" onClick={clearFilters}>{tr("Clear All")}</button>
+                    <button type="button" className="fp-filter-apply" onClick={applyFilters}>{tr("Apply")}</button>
                   </div>
                 </div>
-              ) : showFilter ? (
-                <div className="vp-dd-menu">
-                  <button
-                    className={`vp-dd-item ${filterStatus === "all" ? "active" : ""}`}
-                    onClick={() => { setFilterStatus("all"); setShowFilter(false); }}
-                  >{tr("All")}</button>
-                  {filterOptions.map((s) => (
-                    <button
-                      key={s}
-                      className={`vp-dd-item ${filterStatus === s ? "active" : ""}`}
-                      onClick={() => { setFilterStatus(s); setShowFilter(false); }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              )}
             </div>
 
             {activeTab === "tasks" && (isSelfRecord || (canAddTask && !isTargetOwner)) && (
@@ -593,72 +789,78 @@ export default function ViewPersonnel() {
         </div>
 
         {activeTab === "attendance" && (
-        <div className="vp-table-wrapper">
-            <table className="vp-table">
-              <thead>
-                <tr>
-                  <th>{tr("Timestamp")}</th>
-                  <th>{tr("Date")}</th>
-                  <th>{tr("Time In")}</th>
-                  <th>{tr("Time Out")}</th>
-                  <th>{tr("Attendance")}</th>
-                  <th>{tr("Remarks")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendanceView.length === 0 ? (
-                  <tr><td colSpan="6" className="vp-empty">{tr("No attendance records for this range.")}</td></tr>
-                ) : (
-                  attendanceView.map((a, i) => (
-<tr key={a._id || i}>
-  <td>
-    {a.timeIn
-      ? new Date(a.timeIn).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—"}
-  </td>
-
-  <td>
-  {a.date
-    ? new Date(a.date).toISOString().split("T")[0]
-    : "—"}
-</td>
-
-  <td>
-    {a.timeIn
-      ? new Date(a.timeIn).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-      : "—"}
-  </td>
-
-  <td>
-    {a.timeOut
-      ? new Date(a.timeOut).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-      : "—"}
-  </td>
-
-  <td>{statusBadge(a.status || "—")}</td>
-  <td>{a.remarks || "—"}</td>
-</tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-
-          <div className="vp-table-footer">
-            <span>{tr("Showing")}{" "}{attendanceView.length}{" "}{tr("entries")}</span>
-          </div>
-        </div>
+          <TableSection className="todo-table-wrapper vp-attendance-section">
+            <TableScroll>
+              <table className="vp-table">
+                <thead>
+                  <tr>
+                    <th>{tr("Timestamp")}</th>
+                    <th>{tr("Date")}</th>
+                    <th>{tr("Time In")}</th>
+                    <th>{tr("Time Out")}</th>
+                    <th>{tr("Attendance")}</th>
+                    <th>{tr("Remarks")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendanceView.length === 0 ? (
+                    <tr><td colSpan="6" className="vp-empty">{tr("No attendance records for the selected filters.")}</td></tr>
+                  ) : (
+                    attendancePage.map((a, i) => (
+                      <tr key={a._id || i} {...attendanceFocus.rowProps(a._id)}>
+                        <td>
+                          {a.timeIn
+                            ? new Date(a.timeIn).toLocaleString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                timeZone: "Asia/Manila",
+                              })
+                            : "—"}
+                        </td>
+                        {/* The attendance day in Philippine time (the day the
+                            date filter uses). */}
+                        <td>{phDayOf(a.date) || "—"}</td>
+                        <td>
+                          {a.timeIn
+                            ? new Date(a.timeIn).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                                timeZone: "Asia/Manila",
+                              })
+                            : "—"}
+                        </td>
+                        <td>
+                          {a.timeOut
+                            ? new Date(a.timeOut).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                                timeZone: "Asia/Manila",
+                              })
+                            : "—"}
+                        </td>
+                        <td>{statusBadge(a.status || "—")}</td>
+                        <td>{a.remarks || "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </TableScroll>
+            <TablePagination
+              currentPage={attendancePager.page}
+              totalPages={attendancePager.totalPages}
+              pageSize={attendancePager.rowsPerPage}
+              totalRecords={attendancePager.totalItems}
+              startIndex={attendancePager.startIndex}
+              endIndex={attendancePager.endIndex}
+              onPageChange={attendancePager.setPage}
+              onPageSizeChange={attendancePager.setRowsPerPage}
+              itemLabel={tr("records")}
+            />
+          </TableSection>
         )}
 
         {activeTab === "tasks" && (
@@ -696,7 +898,7 @@ export default function ViewPersonnel() {
                     </thead>
                     <tbody>
                       {primaryTasksView.length === 0 ? (
-                        <tr><td colSpan={showTaskActionsColumn ? "6" : "5"} className="vp-empty">{tr("No Primary Tasks for this range.")}</td></tr>
+                        <tr><td colSpan={showTaskActionsColumn ? "6" : "5"} className="vp-empty">{tr("No Primary Tasks for the selected filter.")}</td></tr>
                       ) : (
                         primaryTasksPage.map((t, i) => (
                           <tr key={t._id || i}>
@@ -705,9 +907,10 @@ export default function ViewPersonnel() {
                             <td>{(t.dateCreated || t.createdAt) ? String(t.dateCreated || t.createdAt).split("T")[0] : "—"}</td>
                             <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
                             <td>
-                              <span className={`status ${t.active !== false ? "pending" : "archived"}`} title={tr("Daily completion status is tracked per occurrence — see Task History")}>
-                                {t.active !== false ? tr("Active") : tr("Deactivated")}
-                              </span>
+                              <div className="vp-status-stack">
+                                {taskStatusBadge(t)}
+                                {t.active === false && <span className="badge deactivated">{tr("Deactivated")}</span>}
+                              </div>
                             </td>
                             {showTaskActionsColumn && (
                               <td>
@@ -771,7 +974,7 @@ export default function ViewPersonnel() {
                     </thead>
                     <tbody>
                       {secondaryTasksView.length === 0 ? (
-                        <tr><td colSpan={showTaskActionsColumn ? "7" : "6"} className="vp-empty">{tr("No Secondary Tasks for this range.")}</td></tr>
+                        <tr><td colSpan={showTaskActionsColumn ? "7" : "6"} className="vp-empty">{tr("No Secondary Tasks for the selected filter.")}</td></tr>
                       ) : (
                         secondaryTasksPage.map((t, i) => (
                           <tr key={t._id || i}>
@@ -781,9 +984,10 @@ export default function ViewPersonnel() {
                             <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
                             <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
                             <td>
-                              <span className={`status ${t.active !== false ? "pending" : "archived"}`} title={tr("Daily completion status is tracked per occurrence — see Task History")}>
-                                {t.active !== false ? tr("Active") : tr("Deactivated")}
-                              </span>
+                              <div className="vp-status-stack">
+                                {taskStatusBadge(t)}
+                                {t.active === false && <span className="badge deactivated">{tr("Deactivated")}</span>}
+                              </div>
                             </td>
                             {showTaskActionsColumn && (
                               <td>
@@ -846,7 +1050,7 @@ export default function ViewPersonnel() {
                   </thead>
                   <tbody>
                     {personalTasksView.length === 0 ? (
-                      <tr><td colSpan={isSelfRecord ? "7" : "6"} className="vp-empty">{tr("No personal tasks for this range.")}</td></tr>
+                      <tr><td colSpan={isSelfRecord ? "7" : "6"} className="vp-empty">{tr("No personal tasks for the selected filter.")}</td></tr>
                     ) : (
                       personalTasksPage.map((t, i) => (
                         <tr key={t._id || i}>
@@ -855,7 +1059,7 @@ export default function ViewPersonnel() {
                           <td>{(t.dateCreated || t.createdAt) ? String(t.dateCreated || t.createdAt).split("T")[0] : "—"}</td>
                           <td>{t.dueDate ? String(t.dueDate).split("T")[0] : "—"}</td>
                           <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
-                          <td>{statusBadge(t.status || "—")}</td>
+                          <td>{taskStatusBadge(t)}</td>
                           {isSelfRecord && (
                             <td>
                               {t.status !== "Completed" && (
@@ -888,115 +1092,136 @@ export default function ViewPersonnel() {
         )}
 
         {activeTab === "history" && (
-          <div className="vp-table-wrapper">
-            {/* Filters live in the Filter button above the table (see
-                vp-table-actions) -- not inside this table area. */}
-            {historyError && <p style={{ color: "#d94f4f", fontSize: 13, margin: "0 0 10px" }}>{historyError}</p>}
-
-            <table className="vp-table">
-              <thead>
-                <tr>
-                  <th>{tr("Date Completed")}</th>
-                  <th>{tr("Farmer Name")}</th>
-                  <th>{tr("Task Category")}</th>
-                  <th>{tr("Task Name")}</th>
-                  <th>{tr("Completion Details")}</th>
-                  <th>{tr("Submission Time")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyLoading ? (
-                  <tr><td colSpan="6" className="vp-empty">{tr("Loading task history…")}</td></tr>
-                ) : history.length === 0 ? (
-                  <tr><td colSpan="6" className="vp-empty">{tr("No task history for the selected filters.")}</td></tr>
-                ) : (
-                  history.map((h) => {
-                    // Photo proof and remarks always come from the SAME
-                    // occurrence record `h` -- both were written together
-                    // in the one atomic completion update on the backend
-                    // (see submitTaskOccurrence), so there is no risk of
-                    // pairing a photo with another submission's remarks.
-                    const isExpanded = expandedRemarks.has(h._id);
-                    const remarks = h.remarks || "";
-                    const isLong = remarks.length > REMARKS_PREVIEW_LENGTH;
-                    const remarksPreview = isLong && !isExpanded
-                      ? `${remarks.slice(0, REMARKS_PREVIEW_LENGTH)}…`
-                      : remarks;
-                    return (
-                      <tr key={h._id}>
-                        <td>{formatPHDateCompleted(h.submittedAt)}</td>
-                        <td>{h.farmerName || getName(record)}</td>
-                        <td>{tr(h.category)}</td>
-                        <td title={h.taskDescription || undefined}>{h.taskName}</td>
-                        <td className="vp-completion-cell">
-                          <div className="vp-completion-photo">
-                            {h.photoProofUrl ? (
-                              <button
-                                type="button"
-                                className="vp-completion-thumb-btn"
-                                onClick={() => setPhotoViewer({
-                                  url: `${API_BASE}${h.photoProofUrl}`,
-                                  taskName: h.taskName,
-                                  occurrenceDate: formatPHDateCompleted(h.submittedAt),
-                                })}
-                                title={tr("View Photo")}
-                              >
-                                <img
-                                  src={`${API_BASE}${h.photoProofUrl}`}
-                                  alt={tr("Photo proof thumbnail")}
-                                  className="vp-completion-thumb"
-                                  loading="lazy"
-                                />
-                                <span className="vp-completion-thumb-label"><FiImage /> {tr("View Photo")}</span>
-                              </button>
-                            ) : (
-                              <span className="vp-completion-no-photo">{tr("No photo")}</span>
-                            )}
-                          </div>
-                          <div className="vp-completion-remarks">
-                            {remarks ? (
-                              <>
-                                <p className="vp-completion-remarks-text" title={isLong ? remarks : undefined}>
-                                  {remarksPreview}
-                                </p>
-                                {isLong && (
-                                  <button
-                                    type="button"
-                                    className="vp-completion-toggle"
-                                    onClick={() => toggleRemarksExpanded(h._id)}
-                                  >
-                                    {isExpanded ? tr("View Less") : tr("View More")}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <span className="vp-completion-no-remarks">{tr("No remarks")}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>{formatPHSubmissionTime(h.submittedAt)}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-
-            <div className="vp-table-footer">
-              <span>{tr("Showing")}{" "}{history.length}{" "}{tr("entries")}</span>
-            </div>
-          </div>
+          // Same card / scroll / pagination components as the Tasks tables.
+          // Filters live in the Filter button above (Flock Profile design).
+          <TableSection className="todo-table-wrapper vp-history-section">
+            {historyError && <p className="vp-history-error" role="alert">{historyError}</p>}
+            <TableScroll>
+              <table className="vp-table vp-history-table">
+                <thead>
+                  <tr>
+                    <th>{tr("Date Completed")}</th>
+                    <th>{tr("Farmer Name")}</th>
+                    <th>{tr("Task Category")}</th>
+                    <th>{tr("Task Name")}</th>
+                    <th>{tr("Completion Details")}</th>
+                    <th>{tr("Submission Time")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyLoading ? (
+                    <tr><td colSpan="6" className="vp-empty">{tr("Loading task history…")}</td></tr>
+                  ) : history.length === 0 ? (
+                    <tr><td colSpan="6" className="vp-empty">{tr("No task history for the selected filters.")}</td></tr>
+                  ) : (
+                    historyPage.map((h) => {
+                      return (
+                        <tr key={h._id} {...historyFocus.rowProps(h._id)}>
+                          <td className="vp-nowrap">{formatPHDateCompleted(h.submittedAt)}</td>
+                          <td>{h.farmerName || getName(record)}</td>
+                          <td>
+                            <span className={`badge vp-category ${String(h.category).toLowerCase()}`}>{tr(h.category)}</span>
+                          </td>
+                          <td className="vp-history-task" title={h.taskDescription || undefined}>{h.taskName}</td>
+                          <td className="vp-completion-cell">
+                            {/* The only control here: the submission's Photo Proof
+                                and Remarks are shown together in one modal. */}
+                            <button
+                              type="button"
+                              className="vp-details-btn"
+                              onClick={() => setDetailsViewer(h)}
+                              aria-haspopup="dialog"
+                              aria-label={`${tr("View Details")}: ${h.taskName}`}
+                            >
+                              <FiEye /> {tr("View Details")}
+                            </button>
+                          </td>
+                          <td className="vp-nowrap">{formatPHSubmissionTime(h.submittedAt)}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </TableScroll>
+            <TablePagination
+              currentPage={historyPager.page}
+              totalPages={historyPager.totalPages}
+              pageSize={historyPager.rowsPerPage}
+              totalRecords={historyPager.totalItems}
+              startIndex={historyPager.startIndex}
+              endIndex={historyPager.endIndex}
+              onPageChange={historyPager.setPage}
+              onPageSizeChange={historyPager.setRowsPerPage}
+              itemLabel={tr("submissions")}
+            />
+          </TableSection>
         )}
 
-        {photoViewer && (
-          <div className="poc-overlay" onClick={() => setPhotoViewer(null)}>
-            <div className="poc-modal" onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 100%)" }}>
+        {detailsViewer && (
+          <div className="poc-overlay" onClick={() => setDetailsViewer(null)}>
+            <div
+              className="poc-modal vp-details-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="vp-details-title"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="poc-head">
-                <h3>{photoViewer.taskName} — {photoViewer.occurrenceDate}</h3>
-                <button className="poc-close" onClick={() => setPhotoViewer(null)} aria-label={tr("Close")}><FiX /></button>
+                <h3 id="vp-details-title">{tr("Completion Details")}</h3>
+                <button className="poc-close" onClick={() => setDetailsViewer(null)} aria-label={tr("Close")}><FiX /></button>
               </div>
               <div className="poc-body">
-                <img src={photoViewer.url} alt={tr("Photo proof")} className="poc-preview-img" style={{ maxHeight: "60vh" }} />
+                <div className="vp-details-summary">
+                  <p className="poc-task-title">{detailsViewer.taskName}</p>
+                  <span className={`badge vp-category ${String(detailsViewer.category).toLowerCase()}`}>{tr(detailsViewer.category)}</span>
+                  <span className="vp-details-when">
+                    {detailsViewer.farmerName || getName(record)} · {formatPHDateCompleted(detailsViewer.submittedAt)} · {formatPHSubmissionTime(detailsViewer.submittedAt)}
+                  </span>
+                </div>
+
+                <section className="vp-details-section" aria-labelledby="vp-details-photo">
+                  <h4 id="vp-details-photo"><FiImage /> {tr("Photo Proof")}</h4>
+                  {detailsViewer.photoProofUrl ? (
+                    <>
+                      <a
+                        href={`${API_BASE}${detailsViewer.photoProofUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vp-details-photo-link"
+                        title={tr("Open full size")}
+                      >
+                        <img
+                          src={`${API_BASE}${detailsViewer.photoProofUrl}`}
+                          alt={`${tr("Photo proof")}: ${detailsViewer.taskName}`}
+                          className="poc-preview-img vp-details-photo"
+                        />
+                      </a>
+                      <a
+                        href={`${API_BASE}${detailsViewer.photoProofUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vp-details-fullsize"
+                      >
+                        {tr("Open full size")}
+                      </a>
+                    </>
+                  ) : (
+                    <p className="vp-details-empty">{tr("No photo was submitted for this task.")}</p>
+                  )}
+                </section>
+
+                <section className="vp-details-section" aria-labelledby="vp-details-remarks">
+                  <h4 id="vp-details-remarks"><FiFileText /> {tr("Remarks")}</h4>
+                  {(detailsViewer.remarks || "").trim() ? (
+                    <p className="vp-details-remarks">{detailsViewer.remarks}</p>
+                  ) : (
+                    <p className="vp-details-empty">{tr("No remarks were submitted for this task.")}</p>
+                  )}
+                </section>
+              </div>
+              <div className="poc-foot">
+                <button type="button" className="poc-btn-cancel" onClick={() => setDetailsViewer(null)}>{tr("Close")}</button>
               </div>
             </div>
           </div>

@@ -14,6 +14,10 @@ export const getMyProfile = () => apiGet(PATH);
 export const updateMyProfile = (payload) =>
   apiPut(PATH, payload);
 
+// Text Size preference (My Profile). Saved on its own, on the account.
+export const updateTextSize = (textSize) =>
+  apiPut(`${PATH}/text-size`, { textSize });
+
 // ==============================
 // CHANGE PASSWORD
 // ==============================

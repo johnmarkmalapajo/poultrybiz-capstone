@@ -15,7 +15,7 @@ import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listVisitors } from "../api/visitorLog";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -160,6 +160,13 @@ export default function Visitors() {
   const pager = usePagination(sortedVisitors.length);
   useEffect(() => { pager.setPage(1); }, [search, filters, filterApplied]);
   const pageVisitors = sortedVisitors.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<id>: show that row
+  // (clearing the search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sortedVisitors, allRows: records.filter((r) => !isArchived(r)), pager, ready: !loading,
+    getId,
+    reveal: () => { setSearch(""); clearFilters(); },
+  });
 
   const totalVisitors = visitors.length;
   const visitsThisMonth = visitors.reduce((sum, r) => sum + (Number(r.visitCount) || 0), 0);
@@ -410,7 +417,7 @@ export default function Visitors() {
                 </tr>
               ) : (
                 pageVisitors.map((r) => (
-                  <tr key={getId(r)}>
+                  <tr key={getId(r)} {...focus.rowProps(getId(r))}>
                     <td className="vt-name">{getName(r)}</td>
                     <td>{getAddress(r)}</td>
                     <td>{getAffiliation(r)}</td>

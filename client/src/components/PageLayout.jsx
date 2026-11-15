@@ -30,8 +30,12 @@ import "./PageLayout.css";
  * `className` (optional): extra class on the outer `.pl-page` div, in case
  * a specific page still needs a narrow, page-specific hook for something
  * that isn't layout (kept to an absolute minimum).
+ *
+ * `titleBadge` (optional): a small tag shown right after the page title in
+ * the breadcrumb (e.g. the Dashboard's role badge). Pages that don't pass it
+ * are unchanged.
  */
-export default function PageLayout({ breadcrumbItems, background, color, className = "", children }) {
+export default function PageLayout({ breadcrumbItems, titleBadge, background, color, className = "", children }) {
   const style = {};
   if (background) style.background = background;
   if (color) style.color = color;
@@ -43,7 +47,7 @@ export default function PageLayout({ breadcrumbItems, background, color, classNa
     >
       <Sidebar />
       <div className="pl-main">
-        <Breadcrumb items={breadcrumbItems} />
+        <Breadcrumb items={breadcrumbItems} badge={titleBadge} />
         {children}
       </div>
     </div>

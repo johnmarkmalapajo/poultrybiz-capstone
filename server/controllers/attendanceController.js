@@ -149,21 +149,24 @@ exports.checkAttendance = async (req, res) => {
           user: req.user.name,
           role: req.user.role,
           module: "Attendance",
-          action: "Check In",
-          description: `${req.user.name} checked in.`,
+          action: "Time In",
+          description: `${req.user.name} recorded Time In at ${formatPhTime(now)}.`,
         });
 
         await createNotification({
-          title: "Attendance Check-In",
-          description: `${req.user.name} (${req.user.role}) checked in at ${formatPhTime(now)}.`,
+          title: "Attendance Time In",
+          description: `${req.user.name} (${req.user.role}) recorded Time In at ${formatPhTime(now)}.`,
           category: "personnel",
           type: "alert",
           roles: ["Owner"],
+          // View opens this Time In in the person's Attendance tab.
+          referenceId: attendance?._id || null,
+          referenceModel: attendance?._id ? "Attendance" : "",
         });
 
         return res.json({
           success: true,
-          message: "Checked in successfully.",
+          message: `Time In recorded at ${formatPhTime(now)}.`,
           action: "check-in",
           person,
           attendance,
@@ -177,7 +180,7 @@ exports.checkAttendance = async (req, res) => {
       if (sinceCheckIn < DUPLICATE_SCAN_MS) {
         return res.json({
           success: true,
-          message: `You already checked in today at ${formatPhTime(attendance.timeIn || attendance.createdAt)}. No new record was created. Scan again after ${DUPLICATE_SCAN_MINUTES} minutes to check out.`,
+          message: `Your Time In today was already recorded at ${formatPhTime(attendance.timeIn || attendance.createdAt)}. No new record was created. Scan again after ${DUPLICATE_SCAN_MINUTES} minutes to record your Time Out.`,
           action: "already-checked-in",
           person,
           attendance,
@@ -196,13 +199,13 @@ exports.checkAttendance = async (req, res) => {
           user: req.user.name,
           role: req.user.role,
           module: "Attendance",
-          action: "Check Out",
-          description: `${req.user.name} checked out.`,
+          action: "Time Out",
+          description: `${req.user.name} recorded Time Out at ${formatPhTime(now)}.`,
         });
 
         return res.json({
           success: true,
-          message: "Checked out successfully.",
+          message: `Time Out recorded at ${formatPhTime(now)}.`,
           action: "check-out",
           person,
           attendance: checkedOut,
@@ -215,7 +218,7 @@ exports.checkAttendance = async (req, res) => {
     if (attendance.timeOut && now - new Date(attendance.timeOut) < DUPLICATE_SCAN_MS) {
       return res.json({
         success: true,
-        message: `You already checked out today at ${formatPhTime(attendance.timeOut)}. No new record was created.`,
+        message: `Your Time Out today was already recorded at ${formatPhTime(attendance.timeOut)}. No new record was created.`,
         action: "already-checked-out",
         person,
         attendance,

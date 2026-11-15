@@ -114,6 +114,9 @@
 .badge.completed   { background: var(--icon-green-bg);  color: var(--icon-green); }
 .badge.in-progress { background: var(--icon-blue-bg);   color: var(--icon-blue); }
 .badge.pending     { background: var(--icon-orange-bg); color: var(--icon-orange); }
+.badge.overdue     { background: var(--icon-red-bg);    color: var(--icon-red); }
+.badge.deactivated { background: #f1efe9; color: var(--text-muted); }
+.vp-status-stack { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* Task priorities */
 
@@ -164,13 +167,16 @@
 .vp-tabs button:hover { color: var(--gold); }
 .vp-tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
 .vp-table-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.vp-table-actions button {
+/* Only the action buttons sitting directly in the bar (Assign / Add Task).
+   The Filter button and its panel use the Flock Profile filter styles
+   (fp-filter-* in Flockprofile.css) and must not inherit these. */
+.vp-table-actions > button {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; background: var(--surface); border: 1.5px solid var(--border);
   border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base);
   font-weight: 600; color: var(--text-second); cursor: pointer; transition: border-color 0.2s, color 0.2s;
 }
-.vp-table-actions button:hover { border-color: var(--gold); color: var(--gold); }
+.vp-table-actions > button:hover { border-color: var(--gold); color: var(--gold); }
 
 /* Add Attendance / Add Tasks — gold primary button */
 .vp-add-btn {
@@ -296,36 +302,14 @@
   box-shadow: inset 0 -2px 0 rgba(228, 175, 31, 0.25);
 }
 
-/* ===== Functional dropdowns (time range + filter) ===== */
-.vp-dd-wrap { position: relative; }
-.vp-dd-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: 10px; font-family: var(--font-display); font-size: var(--text-base);
-  font-weight: 600; color: var(--text-second); cursor: pointer; white-space: nowrap;
-  transition: border-color 0.2s, color 0.2s;
-}
-.vp-dd-btn:hover { border-color: var(--gold); color: var(--gold); }
-.vp-dd-menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
-  min-width: 170px; background: var(--surface);
-  border: 1.5px solid var(--border); border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 6px; display: flex; flex-direction: column;
-}
-.vp-dd-item {
-  text-align: left; padding: 9px 12px; border: none; background: transparent;
-  border-radius: 8px; font-family: var(--font-body); font-size: var(--text-base);
-  color: var(--text-primary); cursor: pointer; transition: background 0.15s, color 0.15s;
-}
-.vp-dd-item:hover { background: var(--gold-light); color: var(--gold-dark); }
-.vp-dd-item.active { background: var(--gold-light); color: var(--gold-dark); font-weight: 700; }
-/* Wider variant of the shared Filter dropdown, used by the Task History
-   tab to hold Category/From/To fields instead of a simple option list
-   (see client/src/pages/ToDo.css for the todo-filter-* classes reused
-   inside it). */
-.vp-dd-menu-wide { min-width: 260px; padding: 14px; gap: 12px; }
-.vp-dd-menu-wide .todo-select { width: 100%; }
-.vp-dd-menu-wide input[type="date"] { width: 100%; box-sizing: border-box; }
+/* ===== Filter (Flock Profile design: fp-filter-* in Flockprofile.css) ===== */
+.vp-filter-wrap { position: relative; }
+.vp-filter-wrap .pb-field-error { margin-top: -6px; }
+
+/* Attendance and Task History tables sit in the same card as the Tasks
+   tables (todo-table-wrapper + TableScroll + TablePagination). */
+.vp-attendance-section,
+.vp-history-section { margin-top: 0; }
 
 /* ── Tasks tab — three independent sections (Primary / Secondary /
    Personal), never merged into one table. Primary and Secondary are
@@ -343,38 +327,64 @@
 }
 .vp-row-actions-group { display: flex; align-items: center; gap: 6px; }
 
-/* ── Task History — combined "Completion Details" cell (photo + remarks
-   from the same completion record, never mixed with another). ── */
-.vp-completion-cell { min-width: 200px; max-width: 280px; vertical-align: top; }
-.vp-completion-photo { margin-bottom: 6px; }
-.vp-completion-thumb-btn {
-  display: flex; align-items: center; gap: 8px;
-  background: none; border: none; padding: 0; cursor: pointer;
-  font-family: var(--font-body); color: var(--gold-dark, #a06a1a);
+/* ── Task History ──
+   Photo proof and remarks of one submission shown together in the
+   "Completion Details" cell, in the PoultryBiz palette (#47321C, #BB8D6B,
+   #DEA77F, #FFFDF6). */
+.vp-history-error {
+  margin: 0; padding: 12px 16px; font-family: var(--font-body); font-size: 13px;
+  color: var(--icon-red, #d94f4f); background: var(--icon-red-bg, #fdf0f0);
+  border-bottom: 1px solid var(--border);
 }
-.vp-completion-thumb {
-  width: 36px; height: 36px; object-fit: cover; border-radius: 6px;
-  border: 1px solid var(--border); flex-shrink: 0;
+.vp-history-table td { vertical-align: top; }
+.vp-history-table .vp-nowrap { white-space: nowrap; }
+.vp-history-task { font-weight: 600; color: #47321C; min-width: 140px; }
+
+.badge.vp-category.primary   { background: #FFFDF6; color: #47321C; border: 1px solid #DEA77F; }
+.badge.vp-category.secondary { background: #f5ede6; color: #7a5534; border: 1px solid #BB8D6B; }
+
+.vp-history-table th,
+.vp-history-table td { padding: 12px 14px; }
+/* Completion Details: one "View Details" button per submission (Photo
+   Proof + Remarks open together in the details modal below). */
+.vp-completion-cell { white-space: nowrap; }
+.vp-details-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: 1.5px solid #DEA77F; border-radius: 10px;
+  background: #FFFDF6; color: #47321C; cursor: pointer;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 700;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.vp-completion-thumb-label {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--text-xs); font-weight: 700; text-decoration: underline;
-  white-space: nowrap;
+.vp-details-btn:hover { background: #DEA77F; border-color: #BB8D6B; color: #47321C; }
+.vp-details-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(222, 167, 127, 0.45); }
+
+/* Details modal (Proof of Completion modal styles: poc-*). */
+.poc-modal.vp-details-modal { width: min(560px, 100%); }
+.vp-details-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.vp-details-summary .poc-task-title { color: #47321C; overflow-wrap: anywhere; }
+.vp-details-when { flex-basis: 100%; font-size: 12.5px; color: var(--text-second, #6b6457); }
+.vp-details-section {
+  padding: 14px; border: 1px solid rgba(222, 167, 127, 0.55); border-radius: 12px; background: #FFFDF6;
 }
-.vp-completion-thumb-btn:hover .vp-completion-thumb-label { color: var(--gold); }
-.vp-completion-no-photo,
-.vp-completion-no-remarks { color: var(--text-muted); font-size: var(--text-xs); }
-.vp-completion-remarks-text {
-  margin: 0; font-size: var(--text-sm); color: var(--text-primary);
-  line-height: 1.5; word-break: break-word; white-space: pre-wrap;
+.vp-details-section h4 {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 10px;
+  font-family: var(--font-display); font-size: 11.5px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase; color: #BB8D6B;
 }
-.vp-completion-toggle {
-  background: none; border: none; padding: 2px 0 0; margin: 0;
-  cursor: pointer; font-family: var(--font-body); font-size: var(--text-xs);
-  font-weight: 700; color: var(--gold-dark, #a06a1a); text-decoration: underline;
+.vp-details-photo-link { display: block; border-radius: 12px; }
+.vp-details-photo-link:focus-visible { outline: 2px solid #BB8D6B; outline-offset: 2px; }
+.poc-preview-img.vp-details-photo { max-height: min(40vh, 340px); background: #fff; cursor: zoom-in; }
+.vp-details-fullsize {
+  display: inline-block; margin-top: 8px;
+  font-family: var(--font-display); font-size: 12px; font-weight: 700; color: #BB8D6B; text-decoration: none;
 }
-.vp-completion-toggle:hover { color: var(--gold); }
+.vp-details-fullsize:hover { color: #47321C; text-decoration: underline; }
+.vp-details-remarks {
+  margin: 0; font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: #47321C;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.vp-details-empty { margin: 0; font-size: 13px; font-style: italic; color: var(--text-muted); }
 
 @media (max-width: 480px) {
-  .vp-dd-menu-wide { min-width: 0; width: calc(100vw - 48px); }
+  .poc-preview-img.vp-details-photo { max-height: 40vh; }
 }

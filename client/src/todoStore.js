@@ -33,7 +33,7 @@ export const getCurrentUser = (fallback = null) => {
   return fallback;
 };
 
-let cache = { assignedAll: [], assigned: [], personal: [], personalOthers: [], primary: [], secondary: [] };
+let cache = { assignedAll: [], assigned: [], personal: [], personalOthers: [], primary: [], secondary: [], tasksDay: "" };
 let lastError = null;
 const listeners = new Set();
 const notify = () => listeners.forEach((cb) => cb());
@@ -47,6 +47,20 @@ export const getCachedPersonalTodos    = () => cache.personal;
 export const getCachedOthersPersonalTodos = () => cache.personalOthers;
 export const getCachedPrimaryTasks     = () => cache.primary;
 export const getCachedSecondaryTasks   = () => cache.secondary;
+// Philippine calendar day (YYYY-MM-DD) the backend used for the cached
+// Primary/Secondary occurrences ("" until the first successful load).
+export const getCachedTasksDay         = () => cache.tasksDay;
+
+// Today's date in Asia/Manila (YYYY-MM-DD). The Philippines has no daylight
+// saving time, so this is simply UTC+8.
+export const phDateNow = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Milliseconds until the next 12:00 AM Asia/Manila.
+export const msUntilNextPhMidnight = () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const phNow = Date.now() + 8 * 60 * 60 * 1000;
+  return DAY - (phNow % DAY);
+};
 
 // Farmer's own Primary + Secondary tasks for "today" (server generates any
 // missing daily/lifetime occurrence lazily -- no cron job involved).
@@ -55,6 +69,7 @@ export async function refreshMyTasksToday() {
     const result = await apiGetMyTasksToday();
     cache.primary = result.primary || [];
     cache.secondary = result.secondary || [];
+    cache.tasksDay = result.today || phDateNow();
     lastError = null;
   } catch (err) {
     lastError = err;
@@ -67,7 +82,15 @@ export async function refreshMyTasksToday() {
 // Primary/Secondary cache afterward so the To Do page and Dashboard (which
 // both read the same cache) update immediately on success.
 export async function submitTaskProofById(occurrenceId, payload) {
-  const result = await apiSubmitTaskProof(occurrenceId, payload);
+  let result;
+  try {
+    result = await apiSubmitTaskProof(occurrenceId, payload);
+  } catch (err) {
+    // The server may have rejected it because a new day started or the
+    // Owner deactivated the task -- reload so the list shows the real state.
+    await refreshMyTasksToday();
+    throw err;
+  }
   await refreshMyTasksToday();
   return result;
 }

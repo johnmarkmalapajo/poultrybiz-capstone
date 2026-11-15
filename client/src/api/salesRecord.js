@@ -9,3 +9,6 @@ export const createSalesRecord = (payload) => apiPost(PATH, payload);
 export const updateSalesRecord = (id, payload) => apiPut(`${PATH}/${id}`, payload);
 export const deleteSalesRecord = (id)      => apiDelete(`${PATH}/${id}`);
 export const restoreSalesRecord = (id) => apiPut(`${PATH}/${id}/restore`, {});
+// Egg Pricing (Owner only): selling price per egg for each egg size.
+export const getEggPrices = () => apiGet(`${PATH}/egg-prices`);
+export const updateEggPrices = (prices) => apiPut(`${PATH}/egg-prices`, { prices });

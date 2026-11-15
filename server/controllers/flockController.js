@@ -541,7 +541,7 @@ exports.updateFlockStatus = async (req, res) => {
     if (flock.status === "Quarantined") {
       return res.status(400).json({
         success: false,
-        message: "This batch is still under Quarantine. It becomes Active automatically once its 14-day quarantine period is completed.",
+        message: "This batch is still under Quarantine. It becomes Active once the Owner releases it after its 14-day quarantine period.",
       });
     }
 
@@ -614,6 +614,9 @@ exports.updateFlockStatus = async (req, res) => {
         category: "age",
         type: "alert",
         roles: ["Owner", "Farmer"],
+        // View opens this batch in Flock Profile (Owner).
+        referenceId: flock._id,
+        referenceModel: "Flock",
       });
     } else {
       flock.status = "Active";

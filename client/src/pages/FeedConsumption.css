@@ -776,3 +776,103 @@
 .fc-sortable-th:hover {
   color: var(--gold, #E4AF1F);
 }
+/* ── Batch ID cell for entries that fed several batches: first Batch ID +
+   "+N more"; the full list shows in a tooltip (BatchIdsCell). Fits the
+   column's normal single-line content, so row height / width don't change. ── */
+.fc-batch-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  text-align: left;
+}
+.fc-batch-more:focus-visible { outline: 2px solid #E4AF1F; outline-offset: 2px; border-radius: 4px; }
+.fc-batch-first { overflow: hidden; text-overflow: ellipsis; }
+.fc-batch-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #fdf3e3;
+  color: #8a6110;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.fc-batch-more:hover .fc-batch-badge,
+.fc-batch-more[aria-expanded="true"] .fc-batch-badge { background: #E4AF1F; color: #47321C; }
+
+/* Rendered on <body> (outside the table's scroll box), so no table, card or
+   overflow setting can clip it. Light PoultryBiz palette only (same tokens as
+   QRCheckIn.css; declared here because the tooltip lives on <body>, outside
+   any page wrapper): cream background, brown text, light-brown border,
+   peach highlight. The title stays put; the Batch ID list scrolls. */
+.fc-batch-tooltip {
+  --pb-brown: #47321C;
+  --pb-tan: #BB8D6B;
+  --pb-peach: #DEA77F;
+  --pb-cream: #FFFDF6;
+
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  max-width: min(260px, calc(100vw - 16px));
+  padding: 10px 6px 8px 8px;
+  box-sizing: border-box;
+  background: var(--pb-cream);
+  color: var(--pb-brown);
+  border: 1px solid rgba(187, 141, 107, 0.55); /* subtle --pb-tan */
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(71, 50, 28, 0.12); /* soft --pb-brown shadow */
+  font-family: "Lato", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+}
+.fc-batch-tooltip-title {
+  flex-shrink: 0;
+  margin: 0 6px 6px 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(187, 141, 107, 0.3);
+  font-family: "Poppins", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pb-tan);
+}
+.fc-batch-tooltip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  /* About 8 rows, then it scrolls (shorter on small screens). */
+  max-height: min(220px, 45vh);
+  overflow-y: auto;
+  overscroll-behavior: contain; /* wheel / swipe at the end doesn't scroll the page */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  /* Visible, light-brown scrollbar (Firefox + Chromium/Safari below). */
+  scrollbar-width: thin;
+  scrollbar-color: var(--pb-tan) rgba(222, 167, 127, 0.18);
+}
+.fc-batch-tooltip-list::-webkit-scrollbar { width: 8px; }
+.fc-batch-tooltip-list::-webkit-scrollbar-track { background: rgba(222, 167, 127, 0.18); border-radius: 8px; }
+.fc-batch-tooltip-list::-webkit-scrollbar-thumb { background: var(--pb-peach); border-radius: 8px; }
+.fc-batch-tooltip-list::-webkit-scrollbar-thumb:hover { background: var(--pb-tan); }
+.fc-batch-tooltip-list li {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  word-break: break-all;
+}
+.fc-batch-tooltip-list li:hover { background: rgba(222, 167, 127, 0.22); } /* subtle --pb-peach */

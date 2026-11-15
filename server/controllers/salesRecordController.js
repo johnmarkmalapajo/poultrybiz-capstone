@@ -4,6 +4,7 @@ const Customer = require("../models/Customer");
 const EggRecord = require("../models/EggRecord");
 const ExpenseRecord = require("../models/ExpenseRecord");
 const Archive = require("../models/Archive");
+const User = require("../models/User");
 const { createAuditLog } = require("./auditController");
 const { createArchiveEntry } = require("./archiveController");
 const { createNotification } = require("./notificationController");
@@ -17,6 +18,103 @@ const SIZE_FIELD_MAP = {
   "Jumbo": "jumbo",
 };
 const EGG_SIZES = Object.keys(SIZE_FIELD_MAP);
+
+// ── Egg Pricing ──────────────────────────────────────────────────────────
+// Selling price per egg for each size, kept on the Owner record (farm-level
+// settings). If there is more than one Owner account, the most recently
+// saved prices are the farm's prices.
+const MAX_EGG_PRICE = 100000;
+
+async function loadEggPricing() {
+  const owner = await User.findOne({ role: "Owner", eggPricesUpdatedAt: { $ne: null } })
+    .sort({ eggPricesUpdatedAt: -1 })
+    .select("name eggPrices eggPricesUpdatedAt")
+    .lean();
+  const prices = {};
+  for (const size of EGG_SIZES) {
+    const value = owner?.eggPrices?.[SIZE_FIELD_MAP[size]];
+    prices[size] = typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return { prices, updatedAt: owner?.eggPricesUpdatedAt || null, updatedBy: owner?.name || "" };
+}
+
+// GET /sales-records/egg-prices  (Owner only)
+exports.getEggPrices = async (req, res) => {
+  try {
+    return res.json({ success: true, sizes: EGG_SIZES, ...(await loadEggPricing()) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Unable to load egg prices." });
+  }
+};
+
+// PUT /sales-records/egg-prices  (Owner only)
+// Body: { prices: { "Small": 5, "Medium": "6.50", "Jumbo": null, ... } }
+// Every size must be sent; null / "" means "no price set".
+exports.updateEggPrices = async (req, res) => {
+  try {
+    const input = req.body?.prices;
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+      return res.status(400).json({ success: false, message: "Prices are required." });
+    }
+    const unknown = Object.keys(input).filter((k) => !EGG_SIZES.includes(k));
+    if (unknown.length) {
+      return res.status(400).json({ success: false, message: `Unknown egg size: ${unknown.join(", ")}.` });
+    }
+
+    const $set = {};
+    for (const size of EGG_SIZES) {
+      if (!Object.prototype.hasOwnProperty.call(input, size)) {
+        return res.status(400).json({ success: false, message: `Price for ${size} is missing.` });
+      }
+      const raw = input[size] === null || input[size] === undefined ? "" : String(input[size]).trim();
+      let value = null;
+      if (raw !== "") {
+        if (!/^\d+(\.\d{1,2})?$/.test(raw)) {
+          return res.status(400).json({ success: false, message: `${size}: enter a valid amount (e.g. 6.50).` });
+        }
+        value = Number(raw);
+        if (!Number.isFinite(value) || value < 0 || value > MAX_EGG_PRICE) {
+          return res.status(400).json({ success: false, message: `${size}: price must be between ₱0.00 and ₱${MAX_EGG_PRICE.toLocaleString()}.` });
+        }
+      }
+      $set[`eggPrices.${SIZE_FIELD_MAP[size]}`] = value;
+    }
+    $set.eggPricesUpdatedAt = new Date();
+
+    await User.updateOne({ _id: req.user.id || req.user._id }, { $set });
+
+    await createAuditLog({
+      user: req.user.name,
+      role: req.user.role,
+      module: "Sales Record",
+      action: "Edited",
+      description: `Updated egg prices: ${EGG_SIZES.map((s) => `${s} ${$set[`eggPrices.${SIZE_FIELD_MAP[s]}`] == null ? "not set" : `₱${$set[`eggPrices.${SIZE_FIELD_MAP[s]}`].toFixed(2)}`}`).join(", ")}.`,
+    });
+
+    return res.json({ success: true, sizes: EGG_SIZES, ...(await loadEggPricing()) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Unable to save egg prices." });
+  }
+};
+
+// A sale may only use egg sizes that have a selling price set. `allowed`
+// lists sizes that are always accepted (an edited sale's own original
+// sizes, so a past sale stays editable even if its price was later
+// cleared). Throws with status 400 otherwise.
+async function requirePricedSizes(items, allowed = []) {
+  const { prices } = await loadEggPricing();
+  const missing = [...new Set(items.map((i) => i.eggSize))]
+    .filter((size) => prices[size] == null && !allowed.includes(size));
+  if (missing.length) {
+    const err = new Error(
+      `No selling price is set for ${missing.join(", ")} eggs. Set it in Egg Pricing before recording this sale.`
+    );
+    err.status = 400;
+    throw err;
+  }
+}
 
 async function getProducedBySize() {
   const rows = await EggRecord.aggregate([
@@ -102,7 +200,32 @@ async function resolveCustomer(body) {
   throw Object.assign(new Error("Buyer/Customer is required — select an existing customer or add a new one."), { status: 400 });
 }
 
-function computeItems(rawItems) {
+// ── Money, decimal-safe ──────────────────────────────────────────────────
+// Prices and totals are computed in whole centavos (integers), so values
+// like ₱5.50, ₱6.25, ₱7.75 or ₱10.99 multiply and add without
+// floating-point drift (e.g. 3 × 10.99 is exactly ₱32.97). Amounts are
+// still stored as Numbers in pesos (a 2-decimal Number round-trips exactly).
+const PRICE_2DP = /^\d+(\.\d{1,2})?$/;
+
+// Subtotal in centavos of `eggs` eggs at the unit price text, rounded half
+// up to the centavo. Exact integer math for prices with up to 6 decimals
+// (only an old record could have more than 2).
+function subtotalCentavos(eggs, priceText) {
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(String(priceText));
+  const frac = m && m[2] ? m[2] : "";
+  if (!m || frac.length > 6) return Math.round(eggs * Number(priceText) * 100);
+  const scaled = Number(m[1]) * 10 ** frac.length + Number(frac || 0);
+  if (frac.length <= 2) return eggs * scaled * 10 ** (2 - frac.length);
+  const den = 10 ** (frac.length - 2);
+  return Math.floor((2 * eggs * scaled + den) / (2 * den));
+}
+
+const centavosToPesos = (c) => Number((c / 100).toFixed(2));
+
+// `legacyPrices` — unit prices already saved on the sale being edited. Such
+// a price is accepted as is even if an older version saved it with more
+// than 2 decimals; every new or changed price must have at most 2.
+function computeItems(rawItems, legacyPrices = []) {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     throw Object.assign(new Error("A sale must contain at least one egg-size item."), { status: 400 });
   }
@@ -145,11 +268,15 @@ function computeItems(rawItems) {
       throw Object.assign(new Error(`${label}: Unit Price — please enter a valid number.`), { status: 400 });
     }
     const unitPrice = Number(priceRaw);
+    if (!PRICE_2DP.test(priceRaw) && !legacyPrices.includes(unitPrice)) {
+      throw Object.assign(new Error(`${label}: Unit Price — use up to 2 decimal places (e.g. 6.25).`), { status: 400 });
+    }
 
     const eggsEquivalent = unit === "Trays" ? quantitySold * 30 : quantitySold;
-    const subtotal = Math.round(eggsEquivalent * unitPrice * 100) / 100;
+    const subtotalC = subtotalCentavos(eggsEquivalent, priceRaw);
+    const subtotal = centavosToPesos(subtotalC);
 
-    return { eggSize, quantitySold, unit, unitPrice, eggsEquivalent, subtotal };
+    return { eggSize, quantitySold, unit, unitPrice, eggsEquivalent, subtotal, subtotalC };
   });
 }
 
@@ -203,12 +330,15 @@ exports.createSalesRecord = async (req, res) => {
     }
     const customer = await resolveCustomer(req.body);
     const items = computeItems(req.body.items);
+    await requirePricedSizes(items);
+    const grandTotalC = items.reduce((s, i) => s + i.subtotalC, 0);
+    items.forEach((i) => { delete i.subtotalC; });
 
     const available = await getAvailableEggs();
     validateStock(items, available);
 
     const totalEggs = items.reduce((s, i) => s + i.eggsEquivalent, 0);
-    const grandTotal = Math.round(items.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+    const grandTotal = centavosToPesos(grandTotalC);
 
     const record = await SalesRecord.create({
       dateOfSale: req.body.dateOfSale,
@@ -310,13 +440,18 @@ exports.updateSalesRecord = async (req, res) => {
     const previous = existing.toObject();
 
     const customer = await resolveCustomer(req.body);
-    const items = computeItems(req.body.items);
+    const items = computeItems(req.body.items, (previous.items || []).map((i) => Number(i.unitPrice)));
+    // Sizes already on this sale stay allowed (its historical prices are
+    // kept); a newly chosen size needs a configured price.
+    await requirePricedSizes(items, (previous.items || []).map((i) => i.eggSize));
+    const grandTotalC = items.reduce((s, i) => s + i.subtotalC, 0);
+    items.forEach((i) => { delete i.subtotalC; });
 
     const available = await getAvailableEggs(existing._id);
     validateStock(items, available);
 
     const totalEggs = items.reduce((s, i) => s + i.eggsEquivalent, 0);
-    const grandTotal = Math.round(items.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+    const grandTotal = centavosToPesos(grandTotalC);
 
     existing.dateOfSale = req.body.dateOfSale;
     existing.customer = customer._id;

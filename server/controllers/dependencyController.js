@@ -101,7 +101,8 @@ const CHECKERS = {
 
     const [egg, feedConsumption, mortality, health, manure, quarantine] = await Promise.all([
       EggRecord.countDocuments({ flock: flockId }),
-      FeedConsumption.countDocuments({ batchId }),
+      // Single-batch entries (batchId) and multi-batch entries (batchIds).
+      FeedConsumption.countDocuments({ $or: [{ batchId }, { batchIds: batchId }] }),
       MortalityRecord.countDocuments({ batchId }),
       HealthRecord.countDocuments({ batchId }),
       ManureRecord.countDocuments({ batchId }),

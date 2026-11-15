@@ -19,20 +19,18 @@ import "./Breadcrumb.css";
  * - The LAST item is always treated as the current page: not clickable,
  *   bold/gold styling.
  * - The header row (.pb-header-row) holds three siblings: the hamburger, the
- *   breadcrumb and the Notification Bell. The row carries the spacing the
- *   breadcrumb used to have on its own. The breadcrumb scrolls horizontally
- *   inside its own box when it is too long, so the Bell and hamburger stay
- *   pinned and can never overlap it.
- *   - Tablet / laptop / desktop (601px and up): one row — [hamburger]
- *     breadcrumb ........ [Bell]. (The hamburger is hidden on desktop.)
- *   - Phones (600px and below): hamburger on the left and Bell on the right
- *     share the first row, and the breadcrumb gets the full width below.
+ *   breadcrumb and the Notification Bell, in ONE row on every screen size:
+ *   [hamburger] breadcrumb ........ [Bell] (the hamburger is hidden on
+ *   desktop). The row has exactly the breadcrumb's own height and spacing,
+ *   so the Bell never pushes the page header down. The breadcrumb scrolls
+ *   horizontally inside its own box when it is too long, so the Bell and
+ *   hamburger stay pinned and can never overlap it.
  * - The hamburger button is built in — it always calls openSidebar() and is
  *   only visible on tablet/mobile (desktop hides it via CSS). It stays in
  *   NORMAL document flow (scrolls with the page); only the sidebar itself
  *   is fixed/overlaying, so the hamburger never shifts when it opens.
  */
-export default function Breadcrumb({ items = [] }) {
+export default function Breadcrumb({ items = [], badge = null }) {
   const navigate = useNavigate();
   const { t } = useLanguage();
 
@@ -61,6 +59,9 @@ export default function Breadcrumb({ items = [] }) {
             </Fragment>
           );
         })}
+        {/* Optional small tag right after the current page's title (e.g.
+            the Dashboard's role badge). Same row, same vertical centering. */}
+        {badge && <span className="pb-title-badge">{badge}</span>}
       </div>
 
       <NotificationBell />

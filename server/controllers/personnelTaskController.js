@@ -1,3 +1,4 @@
+const fs = require("fs");
 const Personnel = require("../models/Personnel");
 const PersonnelTask = require("../models/PersonnelTask");
 const TaskOccurrence = require("../models/TaskOccurrence");
@@ -15,6 +16,22 @@ function canManageTaskFor(requesterRole, targetRole, isSelf, { allowSelfBypass =
 }
 
 const taskError = (status, message) => Object.assign(new Error(message), { status });
+
+// A task the Owner assigned through Personnel / Owner To Do (Primary or
+// Secondary). The only PersonnelTasks a non-Owner may ever change through
+// these endpoints are the mirror records of their own Personal To-Dos
+// (`linkedPersonalTodo` set), which personalTodoController keeps in sync.
+const isOwnerAssigned = (task) => !task.linkedPersonalTodo;
+
+const OWNER_ONLY_TASK_MESSAGE = "Only the Owner can manage tasks assigned by the Owner.";
+
+// Removes a Photo Proof that multer already saved to disk when the
+// submission it belongs to is rejected, so a failed or duplicate
+// submission never leaves an orphaned file behind.
+function discardUploadedProof(file) {
+  if (!file?.path) return;
+  fs.unlink(file.path, () => {});
+}
 
 // Estimated Duration: how long the task is expected to take. Optional and
 // applies to EVERY category, including Primary. Distinct from Due Date (a
@@ -111,6 +128,25 @@ exports.getPersonnelTasks = async (req, res) => {
   createdAt: -1,
 });
 
+    // Completion of an assigned task is recorded on its occurrence (Proof
+    // of Completion), not on the task: a Primary task is done for the day
+    // when today's occurrence is Completed; a one-off Secondary task when
+    // its single occurrence is. Read-only lookup -- no occurrence is
+    // created here. Used by View Personnel's Tasks filter.
+    const today = phToday();
+    const occurrences = tasks.length
+      ? await TaskOccurrence.find({ task: { $in: tasks.map((t) => t._id) } })
+          .select("task occurrenceDate status submittedAt")
+          .sort({ occurrenceDate: 1 })
+          .lean()
+      : [];
+    const occurrenceFor = (task) => {
+      const own = occurrences.filter((o) => String(o.task) === String(task._id));
+      return task.category === "Primary"
+        ? own.find((o) => o.occurrenceDate === today) || null
+        : own[0] || null;
+    };
+
     res.json({
   success: true,
   records: tasks.map((task) => ({
@@ -126,6 +162,8 @@ exports.getPersonnelTasks = async (req, res) => {
       ? { value: task.estimatedDuration.value, unit: task.estimatedDuration.unit || "minutes" }
       : null,
     status: task.status,
+    occurrenceStatus: occurrenceFor(task)?.status || null,
+    occurrenceCompletedAt: occurrenceFor(task)?.submittedAt || null,
     remarks: task.remarks,
     assignedBy: task.assignedBy?.name || "Unknown",
 
@@ -320,6 +358,16 @@ exports.updatePersonnelTask = async (req, res) => {
       });
     }
 
+    // Farmers must never activate/deactivate (or otherwise edit) a task the
+    // Owner assigned to them -- the self-bypass above only exists for their
+    // own Personal To-Do mirror records.
+    if (req.user.role !== "Owner" && isOwnerAssigned(existing)) {
+      return res.status(403).json({
+        success: false,
+        message: OWNER_ONLY_TASK_MESSAGE,
+      });
+    }
+
     const updateData = { ...req.body };
 
     // Date Created is backend-generated and must never be overwritten by an
@@ -363,8 +411,13 @@ exports.updatePersonnelTask = async (req, res) => {
       });
     }
 
+    let activeChange = null;
     if (updateData.active !== undefined) {
       updateData.active = updateData.active === true || updateData.active === "true";
+      const wasActive = existing.active !== false;
+      if (updateData.active !== wasActive) {
+        activeChange = updateData.active ? "Reactivated" : "Deactivated";
+      }
     }
 
     // Estimated Duration applies to every category, including Primary --
@@ -426,6 +479,8 @@ exports.updatePersonnelTask = async (req, res) => {
       action: "Edited",
       description: reassignedTo
         ? `Reassigned task "${task.work}" to ${reassignedTo.user?.name || "another person"}.`
+        : activeChange
+        ? `${activeChange} ${task.category || "Secondary"} task "${task.work}".`
         : updateData.status === "Completed"
         ? `Marked task "${task.work}" as Completed.`
         : `Updated task "${task.work}".`,
@@ -464,8 +519,12 @@ exports.updatePersonnelTask = async (req, res) => {
       const assigneeUserId = existing.personnel.user._id;
       if (String(assigneeUserId) !== String(req.user.id)) {
         await createNotification({
-          title: "Assigned Task Updated",
-          description: `${req.user.name} updated your assigned task: "${task.work}".`,
+          title: activeChange ? `Task ${activeChange}` : "Assigned Task Updated",
+          description: activeChange === "Deactivated"
+            ? `${req.user.name} deactivated your ${(task.category || "Secondary").toLowerCase()} task "${task.work}". It no longer appears in your To Do list.`
+            : activeChange === "Reactivated"
+            ? `${req.user.name} reactivated your ${(task.category || "Secondary").toLowerCase()} task "${task.work}". It is back in your To Do list.`
+            : `${req.user.name} updated your assigned task: "${task.work}".`,
           category: "task",
           type: "alert",
           userId: assigneeUserId,
@@ -514,6 +573,13 @@ exports.archivePersonnelTask = async (req, res) => {
       });
     }
 
+    if (req.user.role !== "Owner" && isOwnerAssigned(task)) {
+      return res.status(403).json({
+        success: false,
+        message: OWNER_ONLY_TASK_MESSAGE,
+      });
+    }
+
     task.archived = true;
     task.archivedAt = new Date();
     task.archivedBy = req.user.name;
@@ -556,12 +622,28 @@ exports.archivePersonnelTask = async (req, res) => {
 
 exports.restorePersonnelTask = async (req, res) => {
   try {
-    const task = await PersonnelTask.findById(req.params.taskId);
+    const task = await PersonnelTask.findById(req.params.taskId).populate({
+      path: "personnel",
+      populate: { path: "user" },
+    });
 
     if (!task) {
       return res.status(404).json({
         success: false,
         message: "Task not found.",
+      });
+    }
+
+    // Same rule as archive: restoring is the Owner's decision for any task
+    // the Owner assigned; a Farmer may only restore their own mirror record.
+    const isSelf = String(task.personnel?.user?._id) === String(req.user.id);
+    if (
+      !canManageTaskFor(req.user.role, task.personnel?.user?.role || "", isSelf) ||
+      (req.user.role !== "Owner" && isOwnerAssigned(task))
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: OWNER_ONLY_TASK_MESSAGE,
       });
     }
 
@@ -623,6 +705,16 @@ exports.deletePersonnelTask = async (req, res) => {
       });
     }
 
+    if (req.user.role !== "Owner" && isOwnerAssigned(task)) {
+      return res.status(403).json({
+        success: false,
+        message: OWNER_ONLY_TASK_MESSAGE,
+      });
+    }
+
+    // Only the task definition is removed. Its TaskOccurrence records stay,
+    // and each completed one keeps its own title/description snapshot, so
+    // Task History is never lost.
     await PersonnelTask.findByIdAndDelete(req.params.taskId);
 
     await Archive.findOneAndDelete({
@@ -659,8 +751,13 @@ exports.getMyTasksToday = async (req, res) => {
   try {
     const personnel = await Personnel.findOne({ user: req.user.id });
 
+    // The Philippine calendar day the backend used for every occurrence in
+    // this response. The To Do page compares it with the current PH date to
+    // know when a new day has started and it must reload.
+    const today = phToday();
+
     if (!personnel) {
-      return res.json({ success: true, primary: [], secondary: [] });
+      return res.json({ success: true, today, primary: [], secondary: [] });
     }
 
     const tasks = await PersonnelTask.find({
@@ -696,6 +793,7 @@ exports.getMyTasksToday = async (req, res) => {
 
     res.json({
       success: true,
+      today,
       primary: result.filter((t) => t.category === "Primary"),
       secondary: result.filter((t) => t.category === "Secondary"),
     });
@@ -748,13 +846,27 @@ exports.submitTaskOccurrence = async (req, res) => {
       throw taskError(400, "A Photo Proof of Completion is required.");
     }
 
-    const photoProofUrl = `/uploads/tasks/${req.file.filename}`;
-
     // Fetched before the completion write so the task's title/description
     // can be snapshotted onto the occurrence exactly as they read "at the
     // time of completion" -- Task History must keep showing this wording
     // even if the Owner later edits or removes the task definition itself.
     const task = await PersonnelTask.findById(occurrence.task);
+
+    // A deactivated, archived or deleted task no longer accepts new
+    // completions (the Farmer's page may still show it if it was opened
+    // before the Owner deactivated it).
+    if (!task || task.archived || task.active === false) {
+      throw taskError(409, "This task is no longer active. Refresh your To Do list.");
+    }
+
+    // A Primary occurrence belongs to exactly one Philippine calendar day.
+    // If the page was left open past midnight, yesterday's occurrence is
+    // closed -- the Farmer must submit for today's occurrence instead.
+    if (occurrence.category === "Primary" && occurrence.occurrenceDate !== phToday()) {
+      throw taskError(409, "A new day has started. Refresh your To Do list to submit today's task.");
+    }
+
+    const photoProofUrl = `/uploads/tasks/${req.file.filename}`;
 
     // Atomic, condition-guarded update: only succeeds if this occurrence
     // was still Pending at the moment of the write, so two near-simultaneous
@@ -787,14 +899,18 @@ exports.submitTaskOccurrence = async (req, res) => {
     });
 
     if (task?.assignedBy && String(task.assignedBy) !== String(req.user.id)) {
+      // Points at the exact submission (the completed occurrence), so the
+      // notification's View opens it in Personnel -> Task History. The
+      // sourceId makes it one notification per submission.
       await createNotification({
         title: `${occurrence.category} Task Completed`,
         description: `${req.user.name} submitted Proof of Completion for "${task?.work || "a task"}".`,
         category: "task",
         type: "alert",
         userId: task.assignedBy,
-        referenceId: task._id,
-        referenceModel: "PersonnelTask",
+        referenceId: updated._id,
+        referenceModel: "TaskOccurrence",
+        sourceId: `task_completed_${updated._id}`,
       });
     }
 
@@ -804,6 +920,7 @@ exports.submitTaskOccurrence = async (req, res) => {
       occurrence: updated,
     });
   } catch (error) {
+    discardUploadedProof(req.file);
     if (!error.status) console.error("Submit Task Occurrence Error:", error);
 
     return res.status(error.status || 500).json({

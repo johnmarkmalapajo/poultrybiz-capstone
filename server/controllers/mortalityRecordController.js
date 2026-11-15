@@ -296,6 +296,9 @@ const createMortalityRecord = async (req, res) => {
         category: "mortality",
         type: "alert",
         roles: ["Owner", "Farmer"],
+        // View opens this mortality record.
+        referenceId: mortalityRecord._id,
+        referenceModel: "MortalityRecord",
       });
     }
 

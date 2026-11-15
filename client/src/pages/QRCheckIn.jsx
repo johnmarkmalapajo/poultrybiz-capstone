@@ -10,10 +10,13 @@ import { useLanguage } from "../i18n/LanguageContext";
 const initials = (name) =>
   (name ? name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") : "?").toUpperCase();
 
+// Attendance times are always shown in Philippine time (Asia/Manila), the
+// same as the Attendance records, whatever the phone's own time zone is.
+const PH = "Asia/Manila";
 const fmtTime = (d) =>
-  new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: PH });
 const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: PH });
 
 // Display-only name while the request is running. The backend identifies the
 // person from the session token -- this value is never sent as identity.
@@ -26,11 +29,13 @@ const storedUserName = () => {
   }
 };
 
+// Keyed by the server's scan result code (internal identifiers only);
+// what the person sees is always Time In / Time Out.
 const RESULT_TITLES = {
-  "check-in": "You're Checked In!",
-  "check-out": "You're Checked Out!",
-  "already-checked-in": "Already Checked In",
-  "already-checked-out": "Already Checked Out",
+  "check-in": "Time In Recorded!",
+  "check-out": "Time Out Recorded!",
+  "already-checked-in": "Time In Already Recorded",
+  "already-checked-out": "Time Out Already Recorded",
   completed: "Attendance Already Completed Today",
 };
 
@@ -60,18 +65,17 @@ export default function QRCheckIn() {
   const showResult = useCallback((data) => {
     const att = data?.attendance || {};
     const action = data?.action || "check-in";
-    const when =
-      action === "check-out" || action === "already-checked-out"
-        ? att.timeOut || new Date()
-        : att.timeIn || new Date();
 
+    // The saved times of today's record: Time In, and Time Out once the
+    // second scan has recorded it.
     setResult({
       action,
       message: data?.message || "",
       name: data?.person?.name || storedUserName(),
       role: data?.person?.position || data?.person?.role || "",
-      time: fmtTime(when),
-      date: fmtDate(when),
+      timeIn: att.timeIn ? fmtTime(att.timeIn) : "",
+      timeOut: att.timeOut ? fmtTime(att.timeOut) : "",
+      date: fmtDate(att.timeIn || att.timeOut || new Date()),
     });
     setStatus("done");
 
@@ -90,8 +94,9 @@ export default function QRCheckIn() {
         message: err.message,
         name: err.body.person?.name || storedUserName(),
         role: err.body.person?.position || err.body.person?.role || "",
-        time: att.timeOut ? fmtTime(att.timeOut) : "",
-        date: fmtDate(att.timeOut || new Date()),
+        timeIn: att.timeIn ? fmtTime(att.timeIn) : "",
+        timeOut: att.timeOut ? fmtTime(att.timeOut) : "",
+        date: fmtDate(att.timeIn || att.timeOut || new Date()),
       });
       setStatus("done");
     } else if (err?.body?.code === "INVALID_QR") {
@@ -131,8 +136,8 @@ export default function QRCheckIn() {
     record();
   }, [qr, hasToken, navigate, record, returnPath]);
 
-  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: PH });
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric", timeZone: PH });
 
   const isRepeat = result && /^already|completed/.test(result.action);
 
@@ -145,7 +150,7 @@ export default function QRCheckIn() {
           </div>
           <div>
             <h1>{tr("PoultryBiz")}</h1>
-            <p>{tr("Attendance Check-In")}</p>
+            <p>{tr("Attendance — Time In / Time Out")}</p>
           </div>
         </div>
 
@@ -221,15 +226,25 @@ export default function QRCheckIn() {
             <div className="qc-success-icon">
               {isRepeat ? <FiInfo /> : <FiCheckCircle />}
             </div>
-            <h2>{RESULT_TITLES[result.action] || "Attendance Recorded"}</h2>
+            <h2>{tr(RESULT_TITLES[result.action] || "Attendance Recorded")}</h2>
             <div className="qc-success-name">{result.name}</div>
             {result.role && <div className="qc-success-role">{result.role}</div>}
-            {(result.time || result.date) && (
+            {result.date && (
               <div className="qc-success-meta">
-                {result.time && <span><FiClock /> {result.time}</span>}
-                {result.date && <span><FiCalendar /> {result.date}</span>}
+                <span><FiCalendar /> {result.date}</span>
               </div>
             )}
+            {/* The recorded times of today's attendance. */}
+            <dl className="qc-times">
+              <div className={result.action === "check-in" ? "qc-times-new" : ""}>
+                <dt><FiClock /> {tr("Time In")}</dt>
+                <dd>{result.timeIn || "—"}</dd>
+              </div>
+              <div className={result.action === "check-out" ? "qc-times-new" : ""}>
+                <dt><FiClock /> {tr("Time Out")}</dt>
+                <dd>{result.timeOut || tr("Not yet recorded")}</dd>
+              </div>
+            </dl>
             {isRepeat && result.message && <p className="qc-success-note">{result.message}</p>}
           </div>
         )}

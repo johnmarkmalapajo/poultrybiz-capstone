@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FiPlus, FiSearch, FiFilter, FiCheck, FiEdit2, FiArchive, FiRotateCcw, FiTrash2, FiList, FiClock, FiCheckCircle, FiAlertTriangle, FiEye, FiToggleLeft, FiToggleRight } from "react-icons/fi";
 import { getTaskCategoryRoute } from "../taskCategoryRoutes";
 import { getAccessibleCategories, canAccessCategory } from "../moduleRegistry";
@@ -8,7 +8,7 @@ import { getPersonnelTasks } from "../api/personnelManpower";
 import "./ToDo.css";
 import PageLayout from "../components/PageLayout";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useUser } from "../hooks/useUser";
 import {
@@ -44,7 +44,14 @@ function phTodayDisplay() {
   }
 }
 
-function withDisplayStatus(t) {
+// The To Do Status filter options (Owner and Farmer To Do pages). These are
+// the only task statuses shown anywhere in the To Do module.
+export const TASK_STATUS_OPTIONS = ["All", "Pending", "Completed", "Overdue"];
+
+// Shared task status rule (also used by View Personnel's Tasks filter):
+// Completed; otherwise Overdue once the Due Date has passed; otherwise
+// Pending. A task without a Due Date is never Overdue.
+export function withDisplayStatus(t) {
   if (t.status === "Completed") return { ...t, displayStatus: "Completed" };
   const due = t.dueDate ? new Date(t.dueDate) : null;
   const overdue = due && !isNaN(due) && due < new Date(new Date().toDateString());
@@ -60,8 +67,6 @@ export default function AdminTodo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [searchParams] = useSearchParams();
-  const [highlightId, setHighlightId] = useState(searchParams.get("task"));
 
   const loadAll = async () => {
     setLoading(true);
@@ -93,9 +98,22 @@ export default function AdminTodo() {
     // Replaces the old single "Assigned Task" source: every PersonnelTask
     // is now either a recurring Primary task or a one-off Secondary task
     // (see server/models/PersonnelTask.js's `category` field).
+    // Their completion lives on the occurrence (Proof of Completion):
+    // today's for a daily Primary task, the single one for a Secondary task
+    // (occurrenceStatus from the server). Primary tasks have no Due Date, so
+    // they are Pending or Completed for the day, never Overdue.
     const assigned = getCachedAllAssignedTasks()
       .filter((t) => !t.linkedPersonalTodo)
-      .map((t) => ({ ...t, source: t.category === "Primary" ? "primary" : "secondary" }));
+      .map((t) => {
+        const primary = t.category === "Primary";
+        const completed = t.status === "Completed" || t.occurrenceStatus === "Completed";
+        return {
+          ...t,
+          source: primary ? "primary" : "secondary",
+          status: completed ? "Completed" : "Pending",
+          dueDate: primary ? null : t.dueDate,
+        };
+      });
     const others = getCachedOthersPersonalTodos().map((t) => ({
       ...t,
       source: "personal",
@@ -119,6 +137,7 @@ export default function AdminTodo() {
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
+  const [showArchived, setShowArchived] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -162,22 +181,8 @@ export default function AdminTodo() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  useEffect(() => {
-    if (!highlightId || tasks.length === 0) return;
-    const target = tasks.find((t) => t._id === highlightId);
-    if (target) {
-      const targetTab = (target.source === "primary" || target.source === "secondary") ? target.source : "all";
-      if (targetTab !== sourceTab) {
-        setSourceTab(targetTab);
-        return;      }
-    }
-    const row = document.getElementById(`todo-row-${highlightId}`);
-    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
-    const t = setTimeout(() => setHighlightId(null), 3000);
-    return () => clearTimeout(t);
-  }, [highlightId, tasks, sourceTab]);
 
-const viewingArchived = status === "Archived";
+const viewingArchived = showArchived;
   // Primary tasks never have a Due Date -- while viewing the Primary
   // Tasks tab specifically, the column itself is omitted entirely rather
   // than showing a column full of placeholder dashes.
@@ -190,7 +195,8 @@ const viewingArchived = status === "Archived";
   const filtered = useMemo(() => tasks.filter((t) => {
     if (!inSourceTab(t)) return false;
     if (viewingArchived) { if (!t.archived) return false; }
-    else { if (t.archived) return false; if (status !== "All" && t.displayStatus !== status) return false; }
+    else if (t.archived) return false;
+    if (status !== "All" && t.displayStatus !== status) return false;
     if (search) {
       const q = search.toLowerCase();
       const matches =
@@ -225,10 +231,26 @@ const viewingArchived = status === "Archived";
   const pager = usePagination(sorted.length);
   useEffect(() => { pager.setPage(1); }, [sourceTab, status, search, viewingArchived]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+  // A notification's View (?task=<id>: a task the Owner assigned, a
+  // Farmer's personal task, a due / overdue reminder...) opens the tab that
+  // lists it -- and clears the search / status filter if they hide it --
+  // moves to its page, scrolls to it and highlights it (useRecordFocus).
+  const focus = useRecordFocus({
+    rows: sorted, allRows: tasks, pager, ready: tasks.length > 0, param: "task",
+    reveal: (t) => {
+      const tab = { primary: "primary", secondary: "secondary", "own-personal": "personal" }[t.source] || "all";
+      setSourceTab(tab);
+      setSearch("");
+      setStatus("All");
+      setShowArchived(Boolean(t.archived));
+    },
+  });
 
-  const active = tasks.filter((t) => !t.archived && inSourceTab(t));
+  // Deactivated Primary/Secondary tasks stay listed (so the Owner can
+  // reactivate them) but are not counted as active work.
+  const active = tasks.filter((t) => !t.archived && t.active !== false && inSourceTab(t));
   const c = { total: active.length, pending: active.filter((t) => t.displayStatus === "Pending").length, completed: active.filter((t) => t.displayStatus === "Completed").length, overdue: active.filter((t) => t.displayStatus === "Overdue").length };
-  const activeFilters = (status !== "All" ? 1 : 0);
+  const activeFilters = (status !== "All" ? 1 : 0) + (showArchived ? 1 : 0);
 
   const categoryOptionsFor = (personal = isPersonal) => {
     const all = getAccessibleCategories({ isOwner, canSeeFinancials, canViewPersonnel });
@@ -406,7 +428,7 @@ const toggleActiveFor = async (t) => {
     setConfirm(null);
     await loadAll();
   };
-  const clearFilters = () => { setStatus("All"); };
+  const clearFilters = () => { setStatus("All"); setShowArchived(false); };
 
   return (
     <PageLayout
@@ -427,9 +449,14 @@ const toggleActiveFor = async (t) => {
                   <div className="todo-filter-group">
                     <label className="todo-filter-label">{tr("Status")}</label>
                     <select className="todo-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                      <option value="All">{tr("All")}</option><option value="Pending">{tr("Pending")}</option><option value="Completed">{tr("Completed")}</option><option value="Overdue">{tr("Overdue")}</option><option value="Archived">{tr("Archived")}</option>
+                      {TASK_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{tr(s)}</option>)}
                     </select>
                   </div>
+                  {/* Archived tasks are a separate view, not a task status. */}
+                  <label className="todo-filter-check">
+                    <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                    <span>{tr("Show archived tasks")}</span>
+                  </label>
                 </div>
               )}
             </div>
@@ -496,7 +523,7 @@ const toggleActiveFor = async (t) => {
                 const canManageAssigned = isFarmerAssigned && isOwner;
                 const isActive = t.active !== false;
                 return (
-                  <tr key={t._id} id={`todo-row-${t._id}`} className={`${done && !viewingArchived ? "is-done" : ""} ${highlightId === t._id ? "todo-row-highlight" : ""}`}>
+                  <tr key={t._id} {...focus.rowProps(t._id, done && !viewingArchived ? "is-done" : "")}>
                     <td>
                       {viewingArchived ? (
                         <span className="todo-archived-tag">{tr("Archived")}</span>
@@ -525,12 +552,14 @@ const toggleActiveFor = async (t) => {
                     )}
                     <td>{formatEstimatedDuration(t.estimatedDuration)}</td>
                     <td>
-                      {isFarmerAssigned ? (
-                        <span className={`status ${isActive ? "pending" : "archived"}`} title={tr("Daily completion status is tracked per occurrence — see Personnel › Task History")}>
-                          {isActive ? tr("Active") : tr("Deactivated")}
-                        </span>
-                      ) : (
-                        <span className={`status ${t.displayStatus.toLowerCase()}`}>{t.displayStatus}</span>
+                      <span
+                        className={`status ${t.displayStatus.toLowerCase()}`}
+                        title={t.source === "primary" ? tr("Today's occurrence — see Personnel › Task History for each day") : undefined}
+                      >
+                        {tr(t.displayStatus)}
+                      </span>
+                      {isFarmerAssigned && !isActive && (
+                        <span className="status archived todo-status-note">{tr("Deactivated")}</span>
                       )}
                     </td>
                     <td>
@@ -755,7 +784,7 @@ const toggleActiveFor = async (t) => {
         <div className="todo-confirm-overlay" onClick={() => setConfirm(null)}>
           <div className="todo-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="todo-confirm-title">{confirm.type === "archive" ? "Archive Task" : confirm.type === "complete" ? "Mark this task as completed?" : "Delete Task"}</h3>
-            <p className="todo-confirm-message">{confirm.type === "archive" ? `Move "${confirm.task.title}" to the archive? You can restore it anytime from the Archived filter.` : confirm.type === "complete" ? "The task status will be changed to Completed." : `Are you sure you want to delete "${confirm.task.title}"? This action cannot be undone.`}</p>
+            <p className="todo-confirm-message">{confirm.type === "archive" ? `Move "${confirm.task.title}" to the archive? You can restore it anytime with Filter › Show archived tasks.` : confirm.type === "complete" ? "The task status will be changed to Completed." : `Are you sure you want to delete "${confirm.task.title}"? This action cannot be undone.`}</p>
             <div className="todo-confirm-actions">
               <button className="todo-confirm-cancel" onClick={() => setConfirm(null)}>{tr("Cancel")}</button>
               <button className={confirm.type === "archive" ? "todo-confirm-archive" : confirm.type === "complete" ? "todo-btn-save" : "todo-confirm-delete"} onClick={runConfirm}>{confirm.type === "archive" ? "Archive" : confirm.type === "complete" ? "Mark as Completed" : "Delete"}</button>

@@ -247,6 +247,10 @@
   box-sizing: border-box;
 }
 
+/* The To Do card adapts to its OWN width (it is ~150-200px wide in the
+   laptop right column but full width on tablets / phones). */
+.todo-card { container-type: inline-size; container-name: dash-todo; min-width: 0; }
+
 .todo-title,
 .alert-title {
   font-family: var(--font-display);
@@ -258,7 +262,10 @@
 
 .todo-header-row {
   display: grid;
-  grid-template-columns: 22px 80px 1fr;
+  /* minmax(0, 1fr): a grid 1fr track refuses to shrink below its content's
+     min size, so a long task name (or its Primary/Secondary tag) could poke
+     out of the card; minmax(0, ...) lets the cell shrink and the text wrap. */
+  grid-template-columns: 22px 80px minmax(0, 1fr);
   gap: 8px;
   font-family: var(--font-display);
   font-size: var(--text-xs);
@@ -273,7 +280,10 @@
 
 .todo-row {
   display: grid;
-  grid-template-columns: 22px 80px 1fr;
+  /* minmax(0, 1fr): a grid 1fr track refuses to shrink below its content's
+     min size, so a long task name (or its Primary/Secondary tag) could poke
+     out of the card; minmax(0, ...) lets the cell shrink and the text wrap. */
+  grid-template-columns: 22px 80px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 8px 6px;
@@ -307,7 +317,29 @@
 .todo-check svg { font-size: 12px; }
 
 .todo-date { color: var(--text-second); font-size: var(--text-sm); }
-.todo-task { font-family: var(--font-display); font-weight: 700; color: var(--text-primary); }
+.todo-task { font-family: var(--font-display); font-weight: 700; color: var(--text-primary); min-width: 0; overflow-wrap: break-word; }
+/* The Primary / Secondary tag never splits mid-word ("Second-ary"); in the
+   narrow right column it moves to its own line under the task name. */
+.todo-task .poc-category-tag { display: inline-block; white-space: nowrap; }
+
+/* Narrow To Do card (laptop widths, ~1025-1400px): three columns left the
+   task name only 0-76px, so names were crushed and the Primary/Secondary
+   tag stuck out of the card. There, each task uses the whole width: name
+   (and tag) on the first line, "Due Date: 2026-11-20" (or "—") under it.
+   The separate Due Date header is hidden since every row labels its date.
+   Wider cards keep the original three-column table. */
+@container dash-todo (max-width: 215px) {
+  .todo-header-row,
+  .todo-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  .todo-header-row > :nth-child(2) { display: none; }
+  .todo-row > .todo-check { grid-row: 1 / span 2; align-self: start; margin-top: 2px; }
+  .todo-row > .todo-task { grid-column: 2; grid-row: 1; }
+  .todo-row > .todo-date { grid-column: 2; grid-row: 2; font-size: var(--text-xs); }
+  .todo-row > .todo-date::before { content: attr(data-label) ": "; color: var(--text-muted); }
+}
 .todo-task.done { text-decoration: line-through; color: var(--text-muted); font-weight: 700; }
 
 /* ── Alerts ── */
@@ -470,9 +502,15 @@
 
 .cal-head {
   display: flex;
+  /* The title and the month navigation are both nowrap; in a narrow right
+     column (laptop widths give the calendar ~200px) they can't fit side by
+     side, so the row is allowed to wrap -- the navigation then drops to its
+     own line, right-aligned, instead of sticking out of the card. On wider
+     screens nothing changes: one line, title left, navigation right. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 2px 6px;
   margin-bottom: 8px;
 }
 
@@ -486,6 +524,7 @@
 }
 
 .cal-nav {
+  margin-left: auto; /* right-aligned on its own wrapped line too */
   display: flex;
   align-items: center;
   gap: 4px;
@@ -817,6 +856,35 @@
   .right-col > .cal-card {
     grid-row: span 2;
   }
+
+  /* Tablets: the two charts go SIDE BY SIDE instead of stacking as two
+     full-width cards. Stacked, each card was ~700-760px wide while the
+     donut + legend only need ~450px, leaving ~120px of dead margin on each
+     side and a very tall page. Side by side the same content fills two
+     equal, aligned cards. Inside the half-width line card the day table
+     moves under the chart (as it already does on phones), so the chart
+     keeps the full card width. */
+  .charts-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .charts-col > .chart-card { min-width: 0; }
+  /* In the half-width card the donut sits above its legend (side by side
+     they would squeeze each other), which also fills the card to about the
+     line card's height -- no large empty band. */
+  .charts-col > .chart-card > .pie-wrap { flex-direction: column; align-items: center; gap: 10px; }
+  .pie-chart-box { width: clamp(150px, 45%, 190px); }
+  .charts-col > .chart-card > .pie-wrap .pie-legend { flex: none; width: 100%; max-width: 280px; }
+  .charts-col > .chart-card > .line-wrap { flex-direction: column; }
+  .line-chart-box { flex: none; width: 100%; height: 200px; }
+  .charts-col > .chart-card > .line-wrap .trend-table {
+    flex: none;
+    width: 100%;
+    align-self: auto;
+    max-height: 150px;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 480px) {
@@ -825,5 +893,7 @@
   .pie-chart-box { width: 140px; }
   .charts-col > .chart-card > .pie-wrap .pie-legend { flex: 1 1 auto; }
   .line-chart-box { flex: none; height: 200px; }
-  .charts-col > .chart-card > .line-wrap .trend-table { flex: none; }
+  /* Full-width day table: each row spreads date left / count right, instead
+     of a shrunken 60px-wide strip beside empty space. */
+  .charts-col > .chart-card > .line-wrap .trend-table { flex: none; width: 100%; max-height: 150px; overflow-y: auto; }
 }

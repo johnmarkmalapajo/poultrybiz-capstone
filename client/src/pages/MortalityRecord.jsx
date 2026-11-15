@@ -15,7 +15,7 @@ import ArchiveConfirmModal from "../components/ArchiveConfirmModal";
 import { listMortalityRecords } from "../api/mortalityRecord";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
-import { usePagination } from "../hooks/usePagination";
+import { usePagination, useRecordFocus } from "../hooks/usePagination";
 import TablePagination, { TableSection, TableScroll } from "../components/TablePagination";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -213,6 +213,12 @@ export default function MortalityRecord() {
   const pager = usePagination(sorted.length);
   useEffect(() => { pager.setPage(1); }, [search, filterApplied, filters]);
   const pageRows = sorted.slice(pager.startIndex, pager.endIndex);
+  // A notification's View opens this page with ?record=<id>: show that row
+  // (clearing the search / filters if they hide it), then highlight it.
+  const focus = useRecordFocus({
+    rows: sorted, allRows: records, pager, ready: !loading,
+    reveal: () => { setSearch(""); clearFilters(); },
+  });
 
   const batchesInView = uniq(filtered.map((r) => r.batchId));
 
@@ -499,7 +505,7 @@ export default function MortalityRecord() {
                 </tr>
               ) : (
                 pageRows.map((r) => (
-                  <tr key={r._id}>
+                  <tr key={r._id} {...focus.rowProps(r._id)}>
                     <td>{r.mortalityId || "—"}</td>
                     <td>{r.date  ? new Date(r.date).toISOString().split("T")[0]: "—"}</td>
                     <td><span className="mr-batch-badge">{r.batchId}</span></td>

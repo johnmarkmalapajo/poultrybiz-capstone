@@ -20,7 +20,7 @@ import { useEffect, useReducer, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { getMyProfile } from "../api/profile";
 import { getToken, loginUrl } from "../api/session";
-import { updateStoredUser } from "../hooks/useUser";
+import { updateStoredUser, syncTextSize } from "../hooks/useUser";
 import "./AuthGate.css";
 
 const PUBLIC_PATHS = [
@@ -57,6 +57,10 @@ export default function AuthGate({ children }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  // Text Size follows the signed-in account; after logout (token gone) the
+  // public pages go back to Default.
+  useEffect(() => { syncTextSize(); }, [location.pathname, token]);
+
   const needsCheck = !isPublic && !!token && verified.token !== token;
 
   useEffect(() => {
@@ -72,6 +76,12 @@ export default function AuthGate({ children }) {
           role: record.role,
           name: record.fullName,
           status: record.status,
+          // Keep the Sidebar picture in sync with the saved one, so a picture
+          // uploaded on another device shows here too.
+          avatar: record.avatar || "",
+          // The account's Text Size, so a size chosen on another device
+          // applies here too (updateStoredUser re-applies it).
+          textSize: record.textSize || "default",
         });
         verified.token = token;
         setStatus("idle");

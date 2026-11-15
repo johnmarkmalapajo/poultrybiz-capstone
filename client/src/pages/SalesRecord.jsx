@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import {
   FiPlus, FiSearch, FiFilter, FiDownload,
   FiEdit2, FiDollarSign,
-  FiTrendingUp, FiMaximize,
+  FiTrendingUp, FiMaximize, FiTag, FiX, FiSave,
 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import ExportMenu from "../components/ExportMenu";
 import { useUser } from "../hooks/useUser";
 import "./SalesRecord.css";
-import { listSalesRecords } from "../api/salesRecord";
+import { listSalesRecords, getEggPrices, updateEggPrices } from "../api/salesRecord";
+import { EGG_SIZES, sanitizeDecimal, configuredPriceText, priceText, PRICE_2DP } from "../components/SaleItemsEditor";
+import "../components/ProofOfCompletionModal.css";
 import { getFarmInfo } from "../api/profile";
 import { useTableSort, sortIndicator } from "../hooks/useTableSort";
 import { usePagination } from "../hooks/usePagination";
@@ -25,7 +27,82 @@ const summarizeSizes = (items) => {
 export default function SalesRecord() {
   const { t: tr } = useLanguage();
   const navigate = useNavigate();
-  const { canEdit } = useUser();
+  const { canEdit, isOwner } = useUser();
+
+  // ── Egg Pricing (Owner only) ──
+  // Selling price per egg for each egg size; new sales fill their Unit
+  // Price from these. Saved on the server (farm settings), so they are the
+  // same on every device and after logging in again.
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [pricingDraft, setPricingDraft] = useState({});
+  const [pricingMeta, setPricingMeta] = useState({ updatedAt: null, updatedBy: "" });
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingError, setPricingError] = useState("");
+  const [pricingSaved, setPricingSaved] = useState(false);
+
+  const openPricing = async () => {
+    setPricingOpen(true);
+    setPricingError("");
+    setPricingSaved(false);
+    setPricingLoading(true);
+    try {
+      const d = await getEggPrices();
+      const draftValues = {};
+      EGG_SIZES.forEach((size) => { draftValues[size] = configuredPriceText(d?.prices, size); });
+      setPricingDraft(draftValues);
+      setPricingMeta({ updatedAt: d?.updatedAt || null, updatedBy: d?.updatedBy || "" });
+    } catch (err) {
+      setPricingError(tr(err?.message || "Unable to load egg prices."));
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+  const closePricing = () => { if (!pricingSaving) setPricingOpen(false); };
+
+  // A price is a non-negative amount with up to 2 decimals, or blank
+  // (no price set: that size can't be sold until one is set).
+  const pricingRowError = (value) => {
+    const v = String(value ?? "").trim();
+    if (v === "") return "";
+    if (!PRICE_2DP.test(v)) return tr("Enter a valid amount, e.g. 6.50.");
+    if (Number(v) > 100000) return tr("Price is too high.");
+    return "";
+  };
+  const pricingHasErrors = EGG_SIZES.some((size) => pricingRowError(pricingDraft[size]));
+  const pricingAllBlank = EGG_SIZES.every((size) => String(pricingDraft[size] ?? "").trim() === "");
+
+  const savePricing = async () => {
+    if (pricingSaving || pricingHasErrors) return;
+    if (pricingAllBlank) { setPricingError(tr("Set a price for at least one egg size.")); return; }
+    setPricingSaving(true);
+    setPricingError("");
+    try {
+      const prices = {};
+      EGG_SIZES.forEach((size) => {
+        const v = String(pricingDraft[size] ?? "").trim();
+        // Sent as the exact text ("6.25"); the server validates 2 decimals.
+        prices[size] = v === "" ? null : v;
+      });
+      const d = await updateEggPrices(prices);
+      const saved = {};
+      EGG_SIZES.forEach((size) => { saved[size] = configuredPriceText(d?.prices, size); });
+      setPricingDraft(saved);
+      setPricingMeta({ updatedAt: d?.updatedAt || null, updatedBy: d?.updatedBy || "" });
+      setPricingSaved(true);
+    } catch (err) {
+      setPricingError(tr(err?.message || "Unable to save egg prices."));
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!pricingOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") closePricing(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const [records, setRecords] = useState([]);
   const [search, setSearch]   = useState("");
@@ -279,6 +356,11 @@ export default function SalesRecord() {
             </div>
 
             <div className="sr-btn-group">
+              {isOwner && (
+                <button type="button" className="sr-toolbar-btn sr-pricing-btn" onClick={openPricing} aria-haspopup="dialog">
+                  <FiTag />{" "}{tr("Egg Pricing")}
+                </button>
+              )}
               <div className="sr-filter-wrap" ref={filterRef}>
                 <button className="sr-toolbar-btn" onClick={openFilterPanel}>
                   <FiFilter />{" "}{tr("Filter")}{activeFilterCount > 0 && <span className="sr-filter-count">{activeFilterCount}</span>}
@@ -511,6 +593,85 @@ export default function SalesRecord() {
             onPageSizeChange={pager.setRowsPerPage}
           />
         </TableSection>
+      {pricingOpen && isOwner && (
+        <div className="poc-overlay" onClick={closePricing}>
+          <div
+            className="poc-modal sr-pricing-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sr-pricing-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="poc-head">
+              <h3 id="sr-pricing-title"><FiTag /> {tr("Egg Pricing")}</h3>
+              <button className="poc-close" onClick={closePricing} aria-label={tr("Close")} disabled={pricingSaving}><FiX /></button>
+            </div>
+
+            <div className="poc-body">
+              <p className="sr-pricing-intro">
+                {tr("Set the selling price per egg for each size. New sales fill in the Unit Price automatically when an egg size is chosen. Past sales keep their own prices.")}
+              </p>
+
+              {pricingLoading ? (
+                <p className="sr-pricing-status">{tr("Loading…")}</p>
+              ) : (
+                <div className="sr-pricing-list">
+                  {EGG_SIZES.map((size) => {
+                    const rowError = pricingRowError(pricingDraft[size]);
+                    const id = `sr-price-${size.replace(/\s+/g, "-").toLowerCase()}`;
+                    return (
+                      <div className={`sr-pricing-row${rowError ? " invalid" : ""}`} key={size}>
+                        <label htmlFor={id}>{tr(size)}</label>
+                        <div className="sr-pricing-input">
+                          <span className="sr-pricing-prefix">₱</span>
+                          <input
+                            id={id}
+                            type="text"
+                            inputMode="decimal"
+                            value={pricingDraft[size] ?? ""}
+                            placeholder={tr("Not set")}
+                            onChange={(e) => { setPricingDraft((d) => ({ ...d, [size]: sanitizeDecimal(e.target.value) })); setPricingSaved(false); setPricingError(""); }}
+                            onBlur={() => setPricingDraft((d) => {
+                              const v = String(d[size] ?? "").trim();
+                              return PRICE_2DP.test(v) ? { ...d, [size]: priceText(v) } : d;
+                            })}
+                            aria-invalid={rowError ? true : undefined}
+                            aria-describedby={rowError ? `${id}-error` : undefined}
+                          />
+                          <span className="sr-pricing-unit">{tr("per egg")}</span>
+                        </div>
+                        {rowError && <span className="sr-pricing-error" id={`${id}-error`}>{rowError}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="sr-pricing-hint">{tr("Leave a size blank if you don't sell it — it can't be added to a sale until a price is set.")}</p>
+              {pricingMeta.updatedAt && (
+                <p className="sr-pricing-meta">
+                  {tr("Last updated")}{" "}{new Date(pricingMeta.updatedAt).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" })}
+                  {pricingMeta.updatedBy ? ` · ${pricingMeta.updatedBy}` : ""}
+                </p>
+              )}
+              {pricingError && <p className="sr-pricing-error banner" role="alert">{pricingError}</p>}
+              {pricingSaved && <p className="sr-pricing-saved" role="status">{tr("Egg prices saved.")}</p>}
+            </div>
+
+            <div className="poc-foot">
+              <button type="button" className="poc-btn-cancel" onClick={closePricing} disabled={pricingSaving}>{tr("Close")}</button>
+              <button
+                type="button"
+                className="poc-btn-save sr-pricing-save"
+                onClick={savePricing}
+                disabled={pricingLoading || pricingSaving || pricingHasErrors}
+              >
+                <FiSave /> {pricingSaving ? tr("Saving...") : tr("Save Prices")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 }

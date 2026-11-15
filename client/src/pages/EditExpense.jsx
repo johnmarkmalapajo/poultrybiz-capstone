@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiSave, FiX, FiFileText, FiUpload, FiInfo, FiTrash2 } from "react-icons/fi";
 import PageLayout from "../components/PageLayout";
 import "./EditExpense.css";
-import { getExpenseRecord, updateExpenseRecord, uploadReceipt } from "../api/expenseRecord";
+import { getExpenseRecord, updateExpenseRecord, uploadReceipt, receiptFileError } from "../api/expenseRecord";
+import { API_BASE } from "../api/client";
 import {
   useFeedStock,
   feedQuantityToKg,
@@ -71,6 +72,11 @@ export default function EditExpense() {
   const isFeedPurchase = form.category === "Feed Purchase";
   const [preview, setPreview] = useState("");
   const [existingReceipt, setExistingReceipt] = useState("");
+  // Proof of Delivery (Feed Purchase only, optional): the saved file is
+  // kept unless a new one is chosen to replace it.
+  const [existingPod, setExistingPod] = useState("");
+  const [podFile, setPodFile] = useState(null);
+  const [podPreview, setPodPreview] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +108,7 @@ export default function EditExpense() {
           }));
 
           if (rec.receipt) setExistingReceipt(rec.receipt);
+          setExistingPod(rec.proofOfDelivery || "");
 
           if (Array.isArray(rec.feedSets) && rec.feedSets.length > 0) {
             setFeedSets(
@@ -110,7 +117,13 @@ export default function EditExpense() {
                 feedType: fs.feedType || "",
                 unit: fs.unit || "Sacks",
                 quantity: fs.quantity ?? "",
-                unitPrice: fs.unitPrice ?? "",
+                // The price per unit isn't stored on the feed set; it is the
+                // saved subtotal divided by the quantity.
+                unitPrice: fs.unitPrice ?? (Number(fs.quantity) > 0
+                  ? Math.round((Number(fs.amount || 0) / Number(fs.quantity)) * 100) / 100
+                  : ""),
+                // Each feed set's own receipt is kept as saved.
+                receipt: fs.receipt || "",
               }))
             );
 
@@ -182,9 +195,21 @@ export default function EditExpense() {
     0
   );
 
+  // A chosen file that can't be uploaded (wrong type or over 5MB) is not
+  // kept, and the reason shows right away; the saved receipt stays as is.
+  const rejectFile = (e, file) => {
+    const problem = receiptFileError(file);
+    if (!problem) return false;
+    e.target.value = "";
+    setError(tr(problem));
+    return true;
+  };
+
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (rejectFile(e, file)) return;
+    setError("");
     setForm((f) => ({ ...f, receipt: file }));
     setPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : "");
   };
@@ -193,6 +218,25 @@ export default function EditExpense() {
     setForm((f) => ({ ...f, receipt: null }));
     setPreview("");
   };
+
+  const handlePodFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (rejectFile(e, file)) return;
+    e.target.value = "";
+    setError("");
+    setPodFile(file);
+    setPodPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : "");
+  };
+
+  // Drops only the newly chosen file; the saved one stays.
+  const removePodFile = () => {
+    setPodFile(null);
+    setPodPreview("");
+  };
+
+  // The Serial ID message is also shown right under its field.
+  const serialError = error === tr("Serial ID is required.");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -230,6 +274,10 @@ export default function EditExpense() {
         }
       }
 
+      if (isEquipment && !form.serialNo.trim()) {
+        throw new Error("Serial ID is required.");
+      }
+
       if (
         isEquipment &&
         (!form.quantity ||
@@ -246,6 +294,13 @@ export default function EditExpense() {
         uploadedReceiptPath = uploadResult.receipt;
       }
 
+      // Proof of Delivery: a new file replaces the saved one; otherwise the
+      // saved one is kept as it is.
+      let proofOfDelivery = existingPod || "";
+      if (isFeedPurchase && podFile) {
+        proofOfDelivery = (await uploadReceipt(podFile)).receipt;
+      }
+
       const payload = isFeedPurchase
         ? {
             date: form.date,
@@ -253,6 +308,7 @@ export default function EditExpense() {
             supplier: form.supplier.trim(),
             remarks: form.remarks,
             receipt: uploadedReceiptPath,
+            proofOfDelivery,
             amount: feedPurchaseTotal,
             feedSets: feedSets.map((fs) => ({
               ...(fs._id ? { _id: fs._id } : {}),
@@ -261,6 +317,7 @@ export default function EditExpense() {
               quantity: Number(fs.quantity),
               unitPrice: Number(fs.unitPrice),
               amount: feedSetSubtotal(fs),
+              receipt: fs.receipt || "",
             })),
           }
         : {
@@ -286,6 +343,7 @@ export default function EditExpense() {
       setTimeout(() => navigate("/sales-transactions/expenses"), 1000);
     } catch (err) {
       setError(tr(err?.message || "Cannot connect to server. Please try again."));
+      if (err?.message === "Serial ID is required.") document.querySelector('[name="serialNo"]')?.focus();
     } finally {
       setSaving(false);
     }
@@ -384,8 +442,9 @@ export default function EditExpense() {
                 </div>
 
                 <div className="ee-form-group">
-                  <label>{tr("Serial/ID No.")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
-                  <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} />
+                  <label>{tr("Serial/ID No.")}{" "}<span className="req">*</span></label>
+                  <input type="text" name="serialNo" value={form.serialNo} onChange={handleChange} aria-required="true" aria-invalid={serialError || undefined} />
+                  {serialError && <span className="pb-field-error">{error}</span>}
                 </div>
 
                 <div className="ee-form-group ee-full-width">
@@ -544,6 +603,42 @@ export default function EditExpense() {
                         )}
 
                         <small>{tr("Upload a new receipt to replace the current one. JPG, PNG, or PDF (max 5MB).")}</small>
+                      </div>
+                    )}
+
+                    {/* Beside the Receipt -- Feed Purchase only, never required. */}
+                    {index === 0 && (
+                      <div className="ee-form-group">
+                        <label>{tr("Proof of Delivery")}{" "}<span className="ee-optional">{tr("(optional)")}</span></label>
+                        <div className="ee-file-wrap">
+                          <label className="ee-file-btn">
+                            <FiUpload />{" "}{tr("Choose file")}<input type="file" name="proofOfDelivery" accept=".jpg,.jpeg,.png,.pdf" onChange={handlePodFile} hidden />
+                          </label>
+                          <span className="ee-file-name">
+                            {podFile ? podFile.name : existingPod ? existingPod.split("/").pop() : "No file chosen"}
+                          </span>
+                        </div>
+
+                        {podFile ? (
+                          <div className="ee-file-preview">
+                            {podPreview && <img src={podPreview} alt="Proof of Delivery preview" />}
+                            <button type="button" className="ee-file-remove" onClick={removePodFile}>{tr("Remove")}</button>
+                          </div>
+                        ) : existingPod ? (
+                          <div className="ee-file-preview">
+                            {/\.(jpe?g|png|gif|webp)$/i.test(existingPod) ? (
+                              <img src={`${API_BASE}${existingPod}`} alt="Current Proof of Delivery" />
+                            ) : (
+                              <a href={`${API_BASE}${existingPod}`} target="_blank" rel="noopener noreferrer">{tr("View current Proof of Delivery")}</a>
+                            )}
+                          </div>
+                        ) : null}
+
+                        <small>
+                          {existingPod && !podFile
+                            ? tr("Current file is kept. Choose a new file to replace it. JPG, PNG, or PDF (max 5MB).")
+                            : tr("Photo of the delivered feed or the delivery receipt (max 5MB). JPG, PNG, or PDF.")}
+                        </small>
                       </div>
                     )}
                   </div>

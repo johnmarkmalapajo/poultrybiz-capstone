@@ -41,9 +41,22 @@ const daysBetween = (startDay, endDay) => {
   return Math.round((Date.parse(`${e}T00:00:00Z`) - Date.parse(`${s}T00:00:00Z`)) / 86400000);
 };
 
-// How long a Quarantine record has been (or was) under quarantine, in whole
-// days: start date -> Philippine today while Ongoing, start date -> actual
-// release date once Released. Returns null when it cannot be determined.
+// Quarantine day counting (one convention everywhere: table, release
+// eligibility, reminders): the Quarantine Start Date (Flock Profile Date
+// Acquired) is DAY 1, and each Philippine (Asia/Manila) calendar day after it
+// adds one. With a 14-day quarantine starting November 1:
+//   Nov 1 = Day 1 ... Nov 13 = Day 13 (upcoming-release reminder)
+//   Nov 14 = Day 14 = expected release date (Owner may release from now on)
+//   Nov 15+ = Day 15+ (overdue while not yet released)
+const quarantineDayNumber = (startDate, onDay = phToday()) => {
+  const days = daysBetween(startDate, onDay);
+  return days === null ? null : days + 1;
+};
+
+// How long a Quarantine record has been (or was) under quarantine, in days,
+// counting the start date as Day 1: start date -> Philippine today while
+// Ongoing, start date -> actual release date once Released. Returns null when
+// it cannot be determined.
 const quarantineDurationDays = ({ startDate, status, releasedDate, releasedAt }) => {
   const start = toDay(startDate);
   if (!start) return null;
@@ -58,13 +71,14 @@ const quarantineDurationDays = ({ startDate, status, releasedDate, releasedAt })
   }
   if (!end) return null;
 
-  const days = daysBetween(start, end);
-  return days === null ? null : Math.max(0, days);
+  const day = quarantineDayNumber(start, end);
+  return day === null ? null : Math.max(1, day);
 };
 
+// Day 14: the start date (Day 1) + 13 days.
 const quarantineReleaseDate = (startDate) => {
   const start = toDay(startDate);
-  return start ? addDays(start, QUARANTINE_DAYS) : "";
+  return start ? addDays(start, QUARANTINE_DAYS - 1) : "";
 };
 
 const isQuarantineComplete = (startDate) => {
@@ -72,14 +86,43 @@ const isQuarantineComplete = (startDate) => {
   return !!releaseDate && phToday() >= releaseDate;
 };
 
+// Release states shown to Owner and Farmer (all on Philippine dates):
+//   "Quarantined"          Ongoing, before the expected release date
+//   "Eligible for Release" Ongoing, ON the expected release date
+//   "Overdue"              Ongoing, after the expected release date (the
+//                          Owner has not released it yet)
+//   "Released"             released by the Owner
+// Reaching the release date never releases a batch by itself.
+const QUARANTINE_STATES = {
+  QUARANTINED: "Quarantined",
+  ELIGIBLE: "Eligible for Release",
+  OVERDUE: "Overdue",
+  RELEASED: "Released",
+};
+
+const quarantineReleaseState = ({ startDate, status }) => {
+  if (status === "Released") return QUARANTINE_STATES.RELEASED;
+  const releaseDate = quarantineReleaseDate(startDate);
+  if (!releaseDate) return QUARANTINE_STATES.QUARANTINED;
+  const today = phToday();
+  if (today < releaseDate) return QUARANTINE_STATES.QUARANTINED;
+  if (today === releaseDate) return QUARANTINE_STATES.ELIGIBLE;
+  return QUARANTINE_STATES.OVERDUE;
+};
+
 module.exports = {
   phToday,
   phDayOf,
   daysBetween,
   quarantineDurationDays,
+  quarantineDayNumber,
   isFutureDate,
   FUTURE_DATE_MESSAGE,
   QUARANTINE_DAYS,
   quarantineReleaseDate,
   isQuarantineComplete,
+  QUARANTINE_STATES,
+  quarantineReleaseState,
+  addDays,
+  toDay,
 };
