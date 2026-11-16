@@ -143,7 +143,7 @@ function Sidebar() {
               Developer and About the System. */}
           <li className={helpActive ? "active" : "secondary"}>
             <Link to="/help-support" className="nav-link" onClick={closeMobile}>
-              <img src={faqIcon} alt="Help & Support" className="menu-icon" />
+              <img src={faqIcon} alt={t("Help & Support")} className="menu-icon" />
               {t("Help & Support")}
             </Link>
           </li>

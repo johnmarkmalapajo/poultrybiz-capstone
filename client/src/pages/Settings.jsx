@@ -151,6 +151,10 @@ export default function Settings() {
 // account roles each one is shown to: every official answer is general
 // system information that applies to both Owners and Farmers (none of them
 // is an Owner-only instruction), so all ten are shown to both roles.
+// The questions, answers and introduction are the English keys of the
+// Filipino entries in i18n/tl.phase3.js, so t() shows them in the selected
+// language.
+const FAQ_INTRO = "This section provides answers to common questions that users may encounter while accessing and using the PoultryBiz system. It aims to help both Owners and Farmers understand the system's basic functions and resolve common concerns.";
 const FAQ_ROLES_ALL = ["Owner", "Farmer"];
 const FAQ_ITEMS = [
   {
@@ -232,10 +236,12 @@ export function FAQ() {
     return c;
   }, [visible]);
 
+  // Search matches the question and answer in the language shown, and the
+  // English original as well.
   const query = search.trim().toLowerCase();
+  const matches = (f) => [f.q, f.a, t(f.q), t(f.a)].some((text) => text.toLowerCase().includes(query));
   const shown = visible.filter((f) =>
-    (category === "all" || f.category === category) &&
-    (!query || f.q.toLowerCase().includes(query) || f.a.toLowerCase().includes(query))
+    (category === "all" || f.category === category) && (!query || matches(f))
   );
 
   // The open answer closes as soon as its question is no longer listed
@@ -252,9 +258,9 @@ export function FAQ() {
         <section className="faq-intro">
           <div className="faq-intro-icon" aria-hidden="true"><FiHelpCircle /></div>
           <div>
-            <h1 className="faq-title">Frequently Asked Questions (FAQ)</h1>
+            <h1 className="faq-title">{t("Frequently Asked Questions (FAQ)")}</h1>
             <p className="faq-lead">
-              This section provides answers to common questions that users may encounter while accessing and using the PoultryBiz system. It aims to help both Owners and Farmers understand the system's basic functions and resolve common concerns.
+              {t(FAQ_INTRO)}
             </p>
           </div>
         </section>
@@ -295,7 +301,7 @@ export function FAQ() {
             <div className="faq-questions-head">
               <h2 className="faq-panel-title">{t(activeLabel)}</h2>
               <span className="faq-result-count">
-                {shown.length} {shown.length === 1 ? t("question") : t("questions")}
+                {t(shown.length === 1 ? "{n} question" : "{n} questions", { n: shown.length })}
               </span>
             </div>
 
@@ -322,7 +328,7 @@ export function FAQ() {
                         onClick={() => toggle(f.no)}
                       >
                         <span className="faq-no">{f.no}.</span>
-                        <span className="faq-q-text">{f.q}</span>
+                        <span className="faq-q-text">{t(f.q)}</span>
                         <span className="faq-chevron" aria-hidden="true">
                           {isOpen ? <FiChevronUp /> : <FiChevronDown />}
                         </span>
@@ -335,7 +341,7 @@ export function FAQ() {
                         aria-hidden={!isOpen}
                       >
                         <div className="faq-answer-inner">
-                          <p>{f.a}</p>
+                          <p>{t(f.a)}</p>
                         </div>
                       </div>
                     </li>
@@ -512,7 +518,7 @@ const ACKNOWLEDGMENTS = [];
 function DeveloperCard({ dev, index }) {
   const { t } = useLanguage();
   const [photoFailed, setPhotoFailed] = useState(false);
-  const label = `${t("Developer")} ${index + 1}`;
+  const label = t("Developer {n}", { n: index + 1 });
   const hasDetails = Boolean(dev.name || dev.role || dev.email || dev.phone);
 
   return (
@@ -521,7 +527,7 @@ function DeveloperCard({ dev, index }) {
         {dev.photo && !photoFailed ? (
           <img src={dev.photo} alt={dev.name || label} onError={() => setPhotoFailed(true)} />
         ) : (
-          <div className="ad-photo-empty" role="img" aria-label={`${label}: ${t("photo to be added")}`}>
+          <div className="ad-photo-empty" role="img" aria-label={t("{label}: photo to be added", { label })}>
             <FiUser />
           </div>
         )}
@@ -529,14 +535,14 @@ function DeveloperCard({ dev, index }) {
       <div className="ad-body">
         {dev.name && <span className="ad-slot">{label}</span>}
         <h2 className="ad-name">{dev.name || label}</h2>
-        {dev.role && <p className="ad-role">{dev.role}</p>}
+        {dev.role && <p className="ad-role">{t(dev.role)}</p>}
         {(dev.email || dev.phone) && (
           <ul className="ad-contact">
             {dev.email && (
-              <li><FiMail aria-hidden="true" /><a href={`mailto:${dev.email}`}>{dev.email}</a></li>
+              <li><FiMail aria-label={t("Email")} /><a href={`mailto:${dev.email}`}>{dev.email}</a></li>
             )}
             {dev.phone && (
-              <li><FiPhone aria-hidden="true" /><a href={`tel:${dev.phone.replace(/[^\d+]/g, "")}`}>{dev.phone}</a></li>
+              <li><FiPhone aria-label={t("Phone")} /><a href={`tel:${dev.phone.replace(/[^\d+]/g, "")}`}>{dev.phone}</a></li>
             )}
           </ul>
         )}
@@ -568,7 +574,7 @@ export function AboutDeveloper() {
           {ACKNOWLEDGMENTS.length ? (
             <ul className="ad-ack-list">
               {ACKNOWLEDGMENTS.map((a, i) => (
-                <li key={i}><strong>{a.name}</strong>{a.note ? ` — ${a.note}` : ""}</li>
+                <li key={i}><strong>{a.name}</strong>{a.note ? ` — ${t(a.note)}` : ""}</li>
               ))}
             </ul>
           ) : (
@@ -603,7 +609,7 @@ const SYSTEM_INFO = [
   { label: "Frontend", value: "React, Vite, React Router, Recharts" },
   { label: "Backend", value: "Node.js, Express" },
   { label: "Database", value: "MongoDB (Mongoose)" },
-  { label: "Other", value: "JWT authentication, Multer file uploads, node-cron scheduled jobs, Nodemailer email" },
+  { label: "Other", value: "JWT authentication, Multer file uploads, node-cron scheduled jobs, Nodemailer email", translate: true },
 ];
 
 export function AboutSystem() {
@@ -613,7 +619,7 @@ export function AboutSystem() {
       <div className="hs-page">
         <section className="as-intro">
           <div className="as-logo">
-            <img src={systemLogo} alt="PoultryBiz logo" />
+            <img src={systemLogo} alt={t("PoultryBiz logo")} />
           </div>
           <div className="as-intro-text">
             <h1 className="hs-title">PoultryBiz</h1>
@@ -621,7 +627,7 @@ export function AboutSystem() {
             <p className="hs-lead">
               {t("PoultryBiz is a poultry farm management and recordkeeping system. It helps the farm Owner and Farmers record, manage, and monitor daily poultry farm operations and records, including flocks, egg production, poultry health, inventory, sales and expenses, personnel, and tasks, in one web-based system that works on computers and mobile devices.")}
             </p>
-            <span className="as-version-badge">{t("Version")} {SYSTEM_VERSION}</span>
+            <span className="as-version-badge">{t("Version {version}", { version: SYSTEM_VERSION })}</span>
           </div>
         </section>
 
@@ -643,7 +649,7 @@ export function AboutSystem() {
             {SYSTEM_INFO.map((row) => (
               <div key={row.label} className="as-info-row">
                 <dt>{t(row.label)}</dt>
-                <dd>{row.value}</dd>
+                <dd>{row.translate ? t(row.value) : row.value}</dd>
               </div>
             ))}
           </dl>
