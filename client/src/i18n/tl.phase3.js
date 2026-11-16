@@ -889,4 +889,11 @@ export const TL_PHASE3 = {
   "Archived records from any module will appear here.": "Dito lalabas ang mga na-archive na record mula sa anumang module.",
   "Show archived tasks": "Ipakita ang mga naka-archive na gawain",
   "Today's occurrence — see Personnel › Task History for each day": "Gawain ngayong araw — tingnan ang Personnel › Task History para sa bawat araw",
+  "Only JPG, PNG or PDF files are allowed.": "JPG, PNG o PDF na file lang ang tinatanggap.",
+  "The file is too large. The maximum size is 5MB.": "Masyadong malaki ang file. Hanggang 5MB lang ang puwede.",
+  "The file is empty. Choose another file.": "Walang laman ang file. Pumili ng ibang file.",
+  "Couldn't upload the file. Check your connection and try again.": "Hindi ma-upload ang file. Tingnan ang iyong koneksyon at subukang muli.",
+  "The server did not return the uploaded file. Please try again.": "Hindi ibinalik ng server ang na-upload na file. Pakisubukang muli.",
+  "No photo proof provided": "Walang isinumiteng photo proof",
+  "The photo proof could not be loaded. The image file is no longer available on the server.": "Hindi ma-load ang photo proof. Wala na sa server ang file ng larawan.",
 };

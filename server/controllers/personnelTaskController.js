@@ -8,6 +8,8 @@ const Archive = require("../models/Archive");
 const { createArchiveEntry } = require("./archiveController");
 const { canUseCategory } = require("../utils/moduleRegistry");
 const { phToday } = require("../utils/dateGuard");
+const path = require("path");
+const { detectImageType, sendStoredImage } = require("./profileController");
 
 function canManageTaskFor(requesterRole, targetRole, isSelf, { allowSelfBypass = true } = {}) {
   if (isSelf && allowSelfBypass) return true;
@@ -868,6 +870,18 @@ exports.submitTaskOccurrence = async (req, res) => {
 
     const photoProofUrl = `/uploads/tasks/${req.file.filename}`;
 
+    // A copy of the photo's bytes is also saved on the occurrence, so the
+    // proof can still be shown after the server's disk is wiped (Render
+    // clears uploads/ on every redeploy / restart). Submission rules are
+    // unchanged: the copy is only kept when the file is a real JPG / PNG /
+    // WEBP / GIF image (checked by its content).
+    let photoBytes = null;
+    try { photoBytes = fs.readFileSync(req.file.path); } catch { photoBytes = null; }
+    const photoType = detectImageType(photoBytes);
+    const photoProofImage = photoType
+      ? { data: photoBytes, contentType: photoType, size: photoBytes.length }
+      : undefined;
+
     // Atomic, condition-guarded update: only succeeds if this occurrence
     // was still Pending at the moment of the write, so two near-simultaneous
     // submissions for the same occurrence can never both "succeed".
@@ -877,6 +891,7 @@ exports.submitTaskOccurrence = async (req, res) => {
         $set: {
           status: "Completed",
           photoProofUrl,
+          ...(photoProofImage ? { photoProofImage } : {}),
           remarks,
           submittedAt: new Date(),
           submittedBy: req.user.id,
@@ -1033,4 +1048,57 @@ exports.getTaskOccurrenceHistory = async (req, res) => {
       message: "Unable to fetch task history.",
     });
   }
+};
+
+// ── Photo Proof images ─────────────────────────────────────────────────────
+// GET /uploads/tasks/:file -- reached only when the file is no longer on
+// the server's disk (express.static serves it first while it exists). The
+// image is sent from the copy saved on its occurrence, under the same URL
+// the record has always used (photoProofUrl). Public like the rest of
+// /uploads and the profile pictures, because <img> tags cannot send the
+// login token; only the image is returned.
+exports.serveTaskProofImage = async (req, res) => {
+  try {
+    const file = String(req.params.file || "");
+    if (!/^taskproof-[\w.-]+$/.test(file)) {
+      return res.status(404).json({ success: false, message: "Image not found." });
+    }
+    const occurrence = await TaskOccurrence.findOne({ photoProofUrl: `/uploads/tasks/${file}` })
+      .select("+photoProofImage")
+      .lean();
+    return sendStoredImage(res, occurrence?.photoProofImage);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Unable to load image." });
+  }
+};
+
+// Once per server start: copies every Photo Proof whose file is still on
+// disk but has no database copy yet into its occurrence, so it survives the
+// next redeploy. Files already wiped cannot be recovered; their records are
+// left as they are (the details view shows that the photo is unavailable).
+// No file and no other field is changed.
+exports.migrateTaskProofImages = async () => {
+  const pending = await TaskOccurrence.find({
+    photoProofUrl: /^\/uploads\/tasks\//,
+    $or: [{ photoProofImage: { $exists: false } }, { "photoProofImage.size": { $in: [0, null] } }],
+  }).select("photoProofUrl");
+  let imported = 0;
+  let missing = 0;
+  for (const occ of pending) {
+    const file = path.join(__dirname, "..", occ.photoProofUrl.replace(/^\/+/, ""));
+    let buffer = null;
+    try { buffer = fs.readFileSync(file); } catch { buffer = null; }
+    const contentType = detectImageType(buffer);
+    if (!contentType) { missing += 1; continue; }
+    await TaskOccurrence.updateOne(
+      { _id: occ._id },
+      { $set: { photoProofImage: { data: buffer, contentType, size: buffer.length } } }
+    );
+    imported += 1;
+  }
+  if (imported || missing) {
+    console.log(`Task photo proofs: ${imported} saved to the database, ${missing} file(s) already missing from disk.`);
+  }
+  return { imported, missing };
 };

@@ -54,6 +54,20 @@ const taskOccurrenceSchema = new mongoose.Schema(
       default: "",
     },
 
+    // The Photo Proof's bytes, kept in the database. The file under
+    // uploads/tasks (photoProofUrl) is wiped by Render on every redeploy /
+    // restart, while the URL stays the same: when the file is gone, GET
+    // /uploads/tasks/<name> is served from this copy (serveTaskProofImage).
+    // Never returned by normal queries.
+    photoProofImage: {
+      type: {
+        data: { type: Buffer, default: null },
+        contentType: { type: String, default: "" },
+        size: { type: Number, default: 0 },
+      },
+      select: false,
+    },
+
     remarks: {
       type: String,
       default: "",

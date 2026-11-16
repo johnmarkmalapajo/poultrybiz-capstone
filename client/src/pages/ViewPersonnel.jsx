@@ -248,6 +248,9 @@ export default function ViewPersonnel() {
   // The whole record is kept, so the photo and remarks always come from the
   // same submission.
   const [detailsViewer, setDetailsViewer] = useState(null);
+  // Photo Proof URL that failed to load in the details modal (shows a
+  // message instead of a broken image).
+  const [failedPhotoUrl, setFailedPhotoUrl] = useState("");
   useEffect(() => {
     if (!detailsViewer) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setDetailsViewer(null); };
@@ -1182,7 +1185,13 @@ export default function ViewPersonnel() {
 
                 <section className="vp-details-section" aria-labelledby="vp-details-photo">
                   <h4 id="vp-details-photo"><FiImage /> {tr("Photo Proof")}</h4>
-                  {detailsViewer.photoProofUrl ? (
+                  {!detailsViewer.photoProofUrl ? (
+                    <p className="vp-details-empty">{tr("No photo proof provided")}</p>
+                  ) : failedPhotoUrl === detailsViewer.photoProofUrl ? (
+                    <p className="vp-details-empty vp-details-photo-error" role="status">
+                      {tr("The photo proof could not be loaded. The image file is no longer available on the server.")}
+                    </p>
+                  ) : (
                     <>
                       <a
                         href={`${API_BASE}${detailsViewer.photoProofUrl}`}
@@ -1195,6 +1204,7 @@ export default function ViewPersonnel() {
                           src={`${API_BASE}${detailsViewer.photoProofUrl}`}
                           alt={`${tr("Photo proof")}: ${detailsViewer.taskName}`}
                           className="poc-preview-img vp-details-photo"
+                          onError={() => setFailedPhotoUrl(detailsViewer.photoProofUrl)}
                         />
                       </a>
                       <a
@@ -1206,8 +1216,6 @@ export default function ViewPersonnel() {
                         {tr("Open full size")}
                       </a>
                     </>
-                  ) : (
-                    <p className="vp-details-empty">{tr("No photo was submitted for this task.")}</p>
                   )}
                 </section>
 

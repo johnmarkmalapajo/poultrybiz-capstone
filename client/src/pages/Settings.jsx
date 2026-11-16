@@ -1,10 +1,13 @@
 import { useLanguage } from "../i18n/LanguageContext";
 import { useState, useMemo, useId } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, Link, useNavigate } from "react-router-dom";
 import {
   FiSearch, FiChevronDown, FiChevronUp, FiList, FiUserCheck, FiCheckSquare,
-  FiHeart, FiLifeBuoy, FiHelpCircle,
+  FiHeart, FiLifeBuoy, FiHelpCircle, FiArrowRight, FiUser, FiMail, FiPhone,
+  FiCode, FiInfo, FiAward, FiGrid, FiHeadphones,
 } from "react-icons/fi";
+import systemLogo from "../assets/sidelogo.jpg";
+import { version as SYSTEM_VERSION } from "../../package.json";
 import PageLayout from "../components/PageLayout";
 import "./Settings.css";
 import "./Flockprofile.css";
@@ -244,7 +247,7 @@ export function FAQ() {
   const activeLabel = FAQ_CATEGORIES.find((c) => c.id === category)?.label || "All Questions";
 
   return (
-    <PageLayout breadcrumbItems={[{ label: "FAQ" }]}>
+    <PageLayout breadcrumbItems={[{ label: "Help & Support", path: "/help-support" }, { label: "FAQ" }]}>
       <div className="faq-page">
         <section className="faq-intro">
           <div className="faq-intro-icon" aria-hidden="true"><FiHelpCircle /></div>
@@ -349,6 +352,301 @@ export function FAQ() {
             <h2 className="faq-help-title">{t("Still need help?")}</h2>
             <p>{t("Can't find what you're looking for? Contact the system administrator for assistance.")}</p>
           </div>
+        </section>
+      </div>
+    </PageLayout>
+  );
+}
+
+
+// ── Help & Support (/help-support) ──────────────────────────────────────
+// Landing page of the Help & Support group (sidebar). Its FAQ card opens the
+// existing FAQ page above (/faq); the other two open About the Developer and
+// About the System below. Styles: hs-* in Settings.css.
+
+// Small illustrations in the PoultryBiz palette (brown #47321C, tan #BB8D6B,
+// sand #DEA77F, cream #FFFDF6, gold #E4AF1F). Decorative only.
+function HenIllustration() {
+  return (
+    <svg viewBox="0 0 220 140" className="hs-hero-art" aria-hidden="true" focusable="false">
+      <ellipse cx="112" cy="122" rx="92" ry="12" fill="#DEA77F" opacity="0.35" />
+      <path d="M40 120 Q112 92 184 120 Z" fill="#BB8D6B" opacity="0.55" />
+      <ellipse cx="78" cy="110" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
+      <ellipse cx="146" cy="110" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
+      <path d="M70 92 C64 62 86 44 112 46 C122 30 146 30 150 46 C162 44 170 54 164 62 C176 70 172 92 154 100 C134 112 92 112 70 92 Z" fill="#FFFDF6" stroke="#47321C" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M140 34 q4 -10 10 -2 q6 -9 10 1 q8 -4 6 6" fill="#c8402c" stroke="#47321C" strokeWidth="2.5" strokeLinejoin="round" />
+      <circle cx="148" cy="50" r="3.4" fill="#47321C" />
+      <path d="M160 52 l12 4 l-12 5 z" fill="#E4AF1F" stroke="#47321C" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M88 74 q22 -14 44 4 q-20 16 -44 -4 z" fill="#DEA77F" stroke="#47321C" strokeWidth="3" strokeLinejoin="round" />
+      <ellipse cx="112" cy="114" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function FaqIllustration() {
+  return (
+    <svg viewBox="0 0 160 110" className="hs-card-art" aria-hidden="true" focusable="false">
+      <rect x="14" y="12" width="88" height="56" rx="14" fill="#FFFDF6" stroke="#47321C" strokeWidth="3.5" />
+      <path d="M34 66 l-6 18 l20 -16" fill="#FFFDF6" stroke="#47321C" strokeWidth="3.5" strokeLinejoin="round" />
+      <text x="58" y="52" textAnchor="middle" fontFamily="Poppins, sans-serif" fontWeight="800" fontSize="34" fill="#E4AF1F">?</text>
+      <rect x="70" y="44" width="76" height="50" rx="14" fill="#47321C" />
+      <path d="M126 92 l8 14 l-22 -14" fill="#47321C" />
+      <rect x="84" y="58" width="48" height="6" rx="3" fill="#E4AF1F" />
+      <rect x="84" y="72" width="34" height="6" rx="3" fill="#DEA77F" />
+    </svg>
+  );
+}
+
+function DeveloperIllustration() {
+  return (
+    <svg viewBox="0 0 160 110" className="hs-card-art" aria-hidden="true" focusable="false">
+      <rect x="30" y="18" width="100" height="62" rx="8" fill="#FFFDF6" stroke="#47321C" strokeWidth="3.5" />
+      <rect x="38" y="26" width="84" height="46" rx="4" fill="#47321C" />
+      <path d="M62 40 l-10 9 l10 9 M98 40 l10 9 l-10 9" fill="none" stroke="#E4AF1F" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M86 36 l-12 26" stroke="#DEA77F" strokeWidth="4" strokeLinecap="round" />
+      <path d="M18 84 h124 l-10 10 h-104 z" fill="#BB8D6B" stroke="#47321C" strokeWidth="3" strokeLinejoin="round" />
+      <circle cx="16" cy="40" r="8" fill="#DEA77F" stroke="#47321C" strokeWidth="2.5" />
+      <path d="M4 66 q12 -20 24 0" fill="#E4AF1F" stroke="#47321C" strokeWidth="2.5" />
+      <circle cx="144" cy="40" r="8" fill="#DEA77F" stroke="#47321C" strokeWidth="2.5" />
+      <path d="M132 66 q12 -20 24 0" fill="#E4AF1F" stroke="#47321C" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
+function SystemIllustration() {
+  return (
+    <div className="hs-card-art hs-system-art" aria-hidden="true">
+      <div className="hs-window">
+        <div className="hs-window-bar"><span /><span /><span /></div>
+        <div className="hs-window-body">
+          <img src={systemLogo} alt="" />
+          <div className="hs-window-bars"><i /><i /><i /><i /></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const HELP_CARDS = [
+  {
+    to: "/faq",
+    title: "Frequently Asked Questions (FAQ)",
+    description: "Find answers to common questions and learn how to use the system effectively.",
+    button: "View FAQ",
+    Art: FaqIllustration,
+  },
+  {
+    to: "/help-support/about-developer",
+    title: "About the Developer",
+    description: "Meet the development team, our roles, and contact information.",
+    button: "View Developers",
+    Art: DeveloperIllustration,
+  },
+  {
+    to: "/help-support/about-system",
+    title: "About the System",
+    description: "Learn about PoultryBiz, its purpose, key features, and system information.",
+    button: "View System Info",
+    Art: SystemIllustration,
+  },
+];
+
+export function HelpSupport() {
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  return (
+    <PageLayout breadcrumbItems={[{ label: "Help & Support" }]}>
+      <div className="hs-page">
+        <section className="hs-hero">
+          <div className="hs-hero-icon" aria-hidden="true"><FiHeadphones /></div>
+          <div className="hs-hero-text">
+            <h1 className="hs-title">{t("Help & Support")}</h1>
+            <p className="hs-lead">{t("Find answers, learn about the system, and know more about the developers.")}</p>
+          </div>
+          <HenIllustration />
+        </section>
+
+        <div className="hs-cards">
+          {HELP_CARDS.map(({ to, title, description, button, Art }) => (
+            // The whole card opens its page; the button is the same link
+            // for keyboard and screen-reader users.
+            <article
+              key={to}
+              className="hs-card"
+              onClick={(e) => { if (!e.target.closest("a")) navigate(to); }}
+            >
+              <div className="hs-card-art-wrap"><Art /></div>
+              <h2 className="hs-card-title">{t(title)}</h2>
+              <p className="hs-card-text">{t(description)}</p>
+              <Link to={to} className="hs-card-btn">
+                {t(button)} <FiArrowRight aria-hidden="true" />
+              </Link>
+            </article>
+          ))}
+        </div>
+      </div>
+    </PageLayout>
+  );
+}
+
+// ── About the Developer (/help-support/about-developer) ─────────────────
+// THE FOUR DEVELOPER PROFILES -- edit only this list.
+//   photo: put the picture in client/public/developers/ and write its path,
+//          e.g. "/developers/developer-1.jpg" (square photos look best; the
+//          card crops to a square from the top, so faces are not cut off).
+//   name, role (project role or contribution), email, phone: plain text.
+// Empty values show a neutral picture and "Details to be added", so the
+// page works before the details are ready. Nothing here is made up.
+const DEVELOPERS = [
+  { photo: "", name: "", role: "", email: "", phone: "" },
+  { photo: "", name: "", role: "", email: "", phone: "" },
+  { photo: "", name: "", role: "", email: "", phone: "" },
+  { photo: "", name: "", role: "", email: "", phone: "" },
+];
+
+// ACKNOWLEDGMENTS -- people or organizations who contributed to the project.
+// Add one entry per acknowledgment: { name: "...", note: "..." }.
+const ACKNOWLEDGMENTS = [];
+
+function DeveloperCard({ dev, index }) {
+  const { t } = useLanguage();
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const label = `${t("Developer")} ${index + 1}`;
+  const hasDetails = Boolean(dev.name || dev.role || dev.email || dev.phone);
+
+  return (
+    <article className="ad-card">
+      <div className="ad-photo">
+        {dev.photo && !photoFailed ? (
+          <img src={dev.photo} alt={dev.name || label} onError={() => setPhotoFailed(true)} />
+        ) : (
+          <div className="ad-photo-empty" role="img" aria-label={`${label}: ${t("photo to be added")}`}>
+            <FiUser />
+          </div>
+        )}
+      </div>
+      <div className="ad-body">
+        {dev.name && <span className="ad-slot">{label}</span>}
+        <h2 className="ad-name">{dev.name || label}</h2>
+        {dev.role && <p className="ad-role">{dev.role}</p>}
+        {(dev.email || dev.phone) && (
+          <ul className="ad-contact">
+            {dev.email && (
+              <li><FiMail aria-hidden="true" /><a href={`mailto:${dev.email}`}>{dev.email}</a></li>
+            )}
+            {dev.phone && (
+              <li><FiPhone aria-hidden="true" /><a href={`tel:${dev.phone.replace(/[^\d+]/g, "")}`}>{dev.phone}</a></li>
+            )}
+          </ul>
+        )}
+        {!hasDetails && <p className="ad-pending">{t("Details to be added")}</p>}
+      </div>
+    </article>
+  );
+}
+
+export function AboutDeveloper() {
+  const { t } = useLanguage();
+  return (
+    <PageLayout breadcrumbItems={[{ label: "Help & Support", path: "/help-support" }, { label: "About the Developer" }]}>
+      <div className="hs-page">
+        <section className="hs-hero hs-hero-compact">
+          <div className="hs-hero-icon" aria-hidden="true"><FiCode /></div>
+          <div className="hs-hero-text">
+            <h1 className="hs-title">{t("About the Developer")}</h1>
+            <p className="hs-lead">{t("Meet the development team, our roles, and contact information.")}</p>
+          </div>
+        </section>
+
+        <div className="ad-grid">
+          {DEVELOPERS.slice(0, 4).map((dev, i) => <DeveloperCard key={i} dev={dev} index={i} />)}
+        </div>
+
+        <section className="hs-panel">
+          <h2 className="hs-panel-title"><FiAward aria-hidden="true" /> {t("Acknowledgments")}</h2>
+          {ACKNOWLEDGMENTS.length ? (
+            <ul className="ad-ack-list">
+              {ACKNOWLEDGMENTS.map((a, i) => (
+                <li key={i}><strong>{a.name}</strong>{a.note ? ` — ${a.note}` : ""}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ad-pending">{t("Acknowledgments will be added here.")}</p>
+          )}
+        </section>
+      </div>
+    </PageLayout>
+  );
+}
+
+// ── About the System (/help-support/about-system) ───────────────────────
+// System version: client/package.json "version" (kept the same as
+// server/package.json). Update it there when a new version is released.
+const SYSTEM_FEATURES = [
+  { title: "Dashboard", text: "Overview of the farm's flocks, egg production, and other key figures with charts." },
+  { title: "Records", text: "Flock Profile, Egg Records, Health Records (diagnosis, treatment, vaccination, and veterinary visits), Mortality Records, Quarantine and Isolation, and Manure and Waste Records." },
+  { title: "Inventory", text: "Feed Inventory, Feed Consumption, and Equipment and Tools." },
+  { title: "Sales and Transactions", text: "Sales Records with egg pricing, and Expense Records with receipts." },
+  { title: "Personnel and Visitors", text: "Personnel and Manpower with QR code attendance and task assignment, and Visitor records." },
+  { title: "To Do", text: "Primary (daily), Secondary, and personal tasks with photo proof of completion." },
+  { title: "Notifications", text: "In-system notifications with email copies." },
+  { title: "Reports", text: "Excel and PDF export of records." },
+  { title: "Administration", text: "Users and Roles with Owner approval of new accounts, Audit Logs, Archive and restore, and role-based access for Owners and Farmers." },
+  { title: "Language", text: "English and Filipino." },
+];
+
+const SYSTEM_INFO = [
+  { label: "System Name", value: "PoultryBiz" },
+  { label: "Project Name", value: "Egginear Agri-Poultry Solutions" },
+  { label: "System Version", value: SYSTEM_VERSION },
+  { label: "Frontend", value: "React, Vite, React Router, Recharts" },
+  { label: "Backend", value: "Node.js, Express" },
+  { label: "Database", value: "MongoDB (Mongoose)" },
+  { label: "Other", value: "JWT authentication, Multer file uploads, node-cron scheduled jobs, Nodemailer email" },
+];
+
+export function AboutSystem() {
+  const { t } = useLanguage();
+  return (
+    <PageLayout breadcrumbItems={[{ label: "Help & Support", path: "/help-support" }, { label: "About the System" }]}>
+      <div className="hs-page">
+        <section className="as-intro">
+          <div className="as-logo">
+            <img src={systemLogo} alt="PoultryBiz logo" />
+          </div>
+          <div className="as-intro-text">
+            <h1 className="hs-title">PoultryBiz</h1>
+            <p className="as-tagline">Egginear Agri-Poultry Solutions</p>
+            <p className="hs-lead">
+              {t("PoultryBiz is a poultry farm management and recordkeeping system. It helps the farm Owner and Farmers record, manage, and monitor daily poultry farm operations and records, including flocks, egg production, poultry health, inventory, sales and expenses, personnel, and tasks, in one web-based system that works on computers and mobile devices.")}
+            </p>
+            <span className="as-version-badge">{t("Version")} {SYSTEM_VERSION}</span>
+          </div>
+        </section>
+
+        <section className="hs-panel">
+          <h2 className="hs-panel-title"><FiGrid aria-hidden="true" /> {t("Key Features")}</h2>
+          <ul className="as-features">
+            {SYSTEM_FEATURES.map((f) => (
+              <li key={f.title}>
+                <span className="as-feature-title">{t(f.title)}</span>
+                <span className="as-feature-text">{t(f.text)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="hs-panel">
+          <h2 className="hs-panel-title"><FiInfo aria-hidden="true" /> {t("System Information")}</h2>
+          <dl className="as-info">
+            {SYSTEM_INFO.map((row) => (
+              <div key={row.label} className="as-info-row">
+                <dt>{t(row.label)}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
       </div>
     </PageLayout>

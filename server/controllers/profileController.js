@@ -112,6 +112,11 @@ exports.getFarmLogoImage = async (req, res) => {
 // exists is imported; one whose file is already gone (wiped by a redeploy)
 // can never load again, so it is cleared and the default avatar / logo
 // shows until a new one is uploaded. Nothing else on the user is touched.
+// Shared with the Task Photo Proof (personnelTaskController.js), which is
+// stored and served the same way.
+exports.detectImageType = detectImageType;
+exports.sendStoredImage = sendStoredImage;
+
 exports.migrateLegacyImages = async () => {
   const users = await User.find({
     $or: [{ avatar: /^\/uploads\// }, { farmLogo: /^\/uploads\// }],

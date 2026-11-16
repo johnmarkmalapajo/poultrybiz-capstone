@@ -32,6 +32,10 @@ require("mongoose").connection.once("connected", () => {
   require("./controllers/equipmentController")
     .linkLegacyCustodians()
     .catch((err) => console.error("Equipment custodian linking failed:", err.message));
+  // Save Task Photo Proofs still on disk into the database.
+  require("./controllers/personnelTaskController")
+    .migrateTaskProofImages()
+    .catch((err) => console.error("Task photo proof migration failed:", err.message));
 });
 
 const app = express();
@@ -102,6 +106,9 @@ if (!fs.existsSync(profileDir)) {
 
 // Serve uploaded images
 app.use("/uploads", express.static(uploadDir));
+// Task Photo Proofs whose file is no longer on disk (Render wipes uploads/ on
+// every redeploy / restart) are served from their database copy, same URL.
+app.get("/uploads/tasks/:file", require("./controllers/personnelTaskController").serveTaskProofImage);
 
 const VERSION = process.env.API_VERSION || "v1";
 const BASE = `/api/${VERSION}`;
