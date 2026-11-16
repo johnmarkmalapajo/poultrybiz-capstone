@@ -4,11 +4,9 @@ import { useSearchParams, useLocation, Link, useNavigate } from "react-router-do
 import {
   FiSearch, FiChevronDown, FiChevronUp, FiList, FiUserCheck, FiCheckSquare,
   FiHeart, FiLifeBuoy, FiHelpCircle, FiArrowRight, FiUser, FiMail, FiPhone,
-  FiInfo, FiGrid, FiHeadphones,
+  FiInfo, FiGrid, FiHeadphones, FiUsers,
 } from "react-icons/fi";
 import systemLogo from "../assets/sidelogo.jpg";
-// The official PoultryBiz logo (transparent PNG, also used on the login page).
-import brandLogo from "../assets/logo.png";
 import { version as SYSTEM_VERSION } from "../../package.json";
 import PageLayout from "../components/PageLayout";
 import "./Settings.css";
@@ -638,9 +636,7 @@ export function AboutDeveloper() {
     <PageLayout breadcrumbItems={[{ label: "Help & Support", path: "/help-support" }, { label: "About the Developer" }]}>
       <div className="hs-page">
         <section className="hs-hero hs-hero-compact ad-hero">
-          <div className="ad-hero-logo">
-            <img src={brandLogo} alt={t("PoultryBiz logo")} />
-          </div>
+          <div className="hs-hero-icon" aria-hidden="true"><FiUsers /></div>
           <div className="hs-hero-text">
             <h1 className="hs-title">{t("About the Developer")}</h1>
             <p className="hs-lead">
