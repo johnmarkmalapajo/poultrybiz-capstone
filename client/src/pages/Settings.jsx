@@ -4,7 +4,7 @@ import { useSearchParams, useLocation, Link, useNavigate } from "react-router-do
 import {
   FiSearch, FiChevronDown, FiChevronUp, FiList, FiUserCheck, FiCheckSquare,
   FiHeart, FiLifeBuoy, FiHelpCircle, FiArrowRight, FiUser, FiMail, FiPhone,
-  FiCode, FiInfo, FiAward, FiGrid, FiHeadphones,
+  FiInfo, FiGrid, FiHeadphones, FiUsers,
 } from "react-icons/fi";
 import systemLogo from "../assets/sidelogo.jpg";
 import { version as SYSTEM_VERSION } from "../../package.json";
@@ -501,9 +501,9 @@ export function HelpSupport() {
 // with these exact names: developer1.jpg, developer2.jpg, developer3.jpg,
 // developer4.jpg (.jpeg, .png or .webp also work). They are picked up
 // automatically at build time; a missing photo shows the developer's
-// initials instead, so the page never breaks. Portrait photos (4:5, e.g.
-// 800 x 1000 px) with the face in the upper half look best: every photo is
-// cropped the same way (object-fit: cover), never stretched.
+// initials instead, so the page never breaks. Every photo is shown in the
+// same round frame (object-fit: cover, never stretched); square or 4:5
+// head-and-shoulders photos with the face near the centre look best.
 const DEVELOPER_PHOTOS = import.meta.glob("../assets/developers/*.{jpg,jpeg,png,webp}", {
   eager: true,
   import: "default",
@@ -522,8 +522,10 @@ function developerPhoto(file) {
 // THE FOUR DEVELOPER PROFILES -- edit only this list to change the details.
 //   photo: file name inside client/src/assets/developers/
 //   name, role (shown translated when a Filipino entry exists), email, phone.
-// Each card's background design follows its position (1 to 4), so the
-// details and photos can be replaced without touching the card design.
+//   photoPosition (optional): which part of the photo stays in the round
+//   frame, as a CSS object-position, e.g. "center 20%". Default "center 25%".
+// All four cards share one design, so the details and photos can be
+// replaced without touching it.
 const DEVELOPERS = [
   {
     photo: "developer1.jpg",
@@ -555,10 +557,6 @@ const DEVELOPERS = [
   },
 ];
 
-// ACKNOWLEDGMENTS -- people or organizations who contributed to the project.
-// Add one entry per acknowledgment: { name: "...", note: "..." }.
-const ACKNOWLEDGMENTS = [];
-
 // 09xx xxx xxxx, the usual way to read a PH mobile number.
 function formatPhone(phone) {
   const d = phone.replace(/\D/g, "");
@@ -580,16 +578,20 @@ function DeveloperCard({ dev, index }) {
   const initials = initialsOf(dev.name);
 
   return (
-    <article className={`ad-card ad-theme-${(index % 4) + 1}`}>
+    <article className="ad-card">
       <div className="ad-photo">
-        {/* Decorations sit behind and around the portrait, never over it. */}
-        <span className="ad-deco ad-deco-a" aria-hidden="true" />
-        <span className="ad-deco ad-deco-b" aria-hidden="true" />
-        <span className="ad-deco ad-deco-c" aria-hidden="true" />
+        {/* Shared backdrop: the decorations sit behind the round frame. */}
+        <span className="ad-deco ad-deco-ring" aria-hidden="true" />
         <span className="ad-deco ad-deco-dots" aria-hidden="true" />
         <div className="ad-portrait">
           {photo && !photoFailed ? (
-            <img src={photo} alt={dev.name || label} loading="lazy" onError={() => setPhotoFailed(true)} />
+            <img
+              src={photo}
+              alt={dev.name || label}
+              loading="lazy"
+              style={{ objectPosition: dev.photoPosition || "center 25%" }}
+              onError={() => setPhotoFailed(true)}
+            />
           ) : (
             <div className="ad-photo-empty" role="img" aria-label={t("{label}: photo to be added", { label: dev.name || label })}>
               {initials ? <span className="ad-initials">{initials}</span> : <FiUser />}
@@ -599,6 +601,7 @@ function DeveloperCard({ dev, index }) {
       </div>
       <div className="ad-body">
         <h2 className="ad-name">{dev.name || label}</h2>
+        <span className="ad-accent" aria-hidden="true" />
         {dev.role && <p className="ad-role">{t(dev.role)}</p>}
         {(dev.email || dev.phone) && (
           <ul className="ad-contact">
@@ -632,30 +635,20 @@ export function AboutDeveloper() {
   return (
     <PageLayout breadcrumbItems={[{ label: "Help & Support", path: "/help-support" }, { label: "About the Developer" }]}>
       <div className="hs-page">
-        <section className="hs-hero hs-hero-compact">
-          <div className="hs-hero-icon" aria-hidden="true"><FiCode /></div>
+        <section className="hs-hero hs-hero-compact ad-hero">
+          <div className="hs-hero-icon" aria-hidden="true"><FiUsers /></div>
           <div className="hs-hero-text">
             <h1 className="hs-title">{t("About the Developer")}</h1>
-            <p className="hs-lead">{t("Meet the development team, our roles, and contact information.")}</p>
+            <p className="hs-lead">
+              {t("Meet the team behind PoultryBiz. We are the developers responsible for designing and developing a digital solution for efficient poultry farm management.")}
+            </p>
           </div>
         </section>
 
+        {/* The page ends with the four profiles. */}
         <div className="ad-grid">
           {DEVELOPERS.slice(0, 4).map((dev, i) => <DeveloperCard key={i} dev={dev} index={i} />)}
         </div>
-
-        <section className="hs-panel">
-          <h2 className="hs-panel-title"><FiAward aria-hidden="true" /> {t("Acknowledgments")}</h2>
-          {ACKNOWLEDGMENTS.length ? (
-            <ul className="ad-ack-list">
-              {ACKNOWLEDGMENTS.map((a, i) => (
-                <li key={i}><strong>{a.name}</strong>{a.note ? ` — ${t(a.note)}` : ""}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ad-pending">{t("Acknowledgments will be added here.")}</p>
-          )}
-        </section>
       </div>
     </PageLayout>
   );

@@ -420,111 +420,111 @@
 }
 .hs-panel-title svg { color: #c8930c; }
 
-/* About the Developer: four profile cards. */
-/* About the Developer: four profile cards. Each card has its own photo
-   background (ad-theme-1 to 4) in the PoultryBiz palette -- brown #47321C,
-   tan #BB8D6B, sand #DEA77F, cream #FFFDF6 -- with one shared layout:
-   the decorations stay behind the portrait (z-index 0/1, portrait 2). */
-.ad-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-.ad-card {
-  display: flex; flex-direction: column; min-width: 0; overflow: hidden;
-  background: #fff; border-radius: 20px; border: 1px solid rgba(187, 141, 107, 0.28);
-  box-shadow: 0 6px 22px rgba(71, 50, 28, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* About the Developer: four profile cards with ONE shared design -- the
+   same light-yellow-to-cream backdrop, round white-bordered frame with a
+   golden ring, and restrained golden accents (#E4AF1F) in every card.
+   Brown (#47321C) for names and labels, Poppins headings, Lato body text,
+   16px radius and the same soft shadow as the other Help & Support cards. */
+.ad-hero::before {
+  content: ""; position: absolute; right: -60px; top: -70px; width: 220px; height: 220px;
+  border-radius: 50%; background: rgba(228, 175, 31, 0.12); pointer-events: none;
 }
-.ad-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(71, 50, 28, 0.14); }
+.ad-hero::after {
+  content: ""; position: absolute; right: 120px; bottom: 16px; width: 70px; height: 34px;
+  background-image: radial-gradient(rgba(228, 175, 31, 0.55) 1.6px, transparent 1.8px);
+  background-size: 10px 10px; pointer-events: none;
+}
 
-/* Photo area: same size in every card; the portrait is a 4:5 arch. */
-.ad-photo {
-  position: relative; aspect-ratio: 1 / 1; overflow: hidden; isolation: isolate;
-  display: flex; align-items: center; justify-content: center;
+.ad-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+/* Each card spans five rows of the grid (photo, name, accent, role,
+   contact) and shares them with its row-mates via subgrid, so names,
+   roles and contact rows line up even when one wraps to more lines. */
+.ad-card {
+  display: grid; grid-template-rows: subgrid; grid-row: span 5; row-gap: 0;
+  min-width: 0; overflow: hidden;
+  background: #fff; border-radius: 16px; border: 1.5px solid #f1e7d9;
+  border-top: 4px solid #E4AF1F;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
-.ad-photo::after {
-  content: ""; position: absolute; inset: 10px; z-index: 1; pointer-events: none;
-  border: 1px solid rgba(255, 253, 246, 0.7); border-radius: 14px;
+.ad-card:hover {
+  transform: translateY(-3px); border-color: #DEA77F; border-top-color: #E4AF1F;
+  box-shadow: 0 10px 24px rgba(71, 50, 28, 0.12);
+}
+
+/* Photo area: identical in every card. */
+.ad-photo {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  padding: 26px 0 22px;
+  background: linear-gradient(180deg, #FFF6DA 0%, #FFFDF6 100%);
+  border-bottom: 1px solid #f5ecd9;
+}
+/* Soft golden circle behind the frame, slightly offset. */
+.ad-photo::before {
+  content: ""; position: absolute; z-index: 0; width: min(66%, 216px); aspect-ratio: 1;
+  left: 50%; top: 50%; transform: translate(-38%, -44%);
+  border-radius: 50%; background: rgba(228, 175, 31, 0.16);
+}
+.ad-deco { position: absolute; z-index: 0; pointer-events: none; display: block; }
+.ad-deco-ring {
+  width: min(74%, 243px); aspect-ratio: 1; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 1.5px dashed rgba(187, 141, 107, 0.45);
+}
+.ad-deco-dots {
+  top: 14px; left: 14px; width: 52px; height: 32px;
+  background-image: radial-gradient(rgba(228, 175, 31, 0.6) 1.6px, transparent 1.8px);
+  background-size: 10px 10px;
 }
 .ad-portrait {
-  position: relative; z-index: 2; width: 60%; aspect-ratio: 4 / 5; overflow: hidden;
-  border-radius: 999px 999px 22px 22px; border: 5px solid #FFFDF6; background: #FFFDF6;
-  box-shadow: 0 12px 26px rgba(71, 50, 28, 0.25);
+  position: relative; z-index: 2; width: 58%; max-width: 190px; aspect-ratio: 1 / 1; overflow: hidden;
+  border-radius: 50%; border: 5px solid #fff; background: #fff;
+  box-shadow: 0 0 0 2px #E4AF1F, 0 10px 22px rgba(71, 50, 28, 0.16);
 }
 .ad-portrait img {
-  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
-  object-fit: cover; object-position: center 22%;
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover;
 }
 .ad-photo-empty {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, #FFFDF6 0%, #f6e6d6 100%); color: #BB8D6B; font-size: 52px;
+  background: #FFFDF6; color: #BB8D6B; font-size: 48px;
 }
-.ad-initials {
-  font-family: "Poppins", sans-serif; font-size: 40px; font-weight: 700; letter-spacing: 0.04em; color: #BB8D6B;
-}
+.ad-initials { font-family: "Poppins", sans-serif; font-size: 36px; font-weight: 700; letter-spacing: 0.04em; color: #BB8D6B; }
 
-/* Decorative pieces (positioned per theme below). */
-.ad-deco { position: absolute; z-index: 0; pointer-events: none; display: block; }
-.ad-deco-dots {
-  width: 64px; height: 44px; opacity: 0.55;
-  background-image: radial-gradient(currentColor 1.6px, transparent 1.8px);
-  background-size: 11px 11px;
-}
-
-/* 1 -- warm sunrise: cream to sand, big tan circle, thin brown ring. */
-.ad-theme-1 .ad-photo { background: linear-gradient(160deg, #FFFDF6 0%, #f4dcc5 55%, #DEA77F 100%); }
-.ad-theme-1 .ad-deco-a { width: 70%; aspect-ratio: 1; border-radius: 50%; left: -22%; bottom: -26%; background: #BB8D6B; opacity: 0.35; }
-.ad-theme-1 .ad-deco-b { width: 38%; aspect-ratio: 1; border-radius: 50%; right: -8%; top: -8%; border: 2px solid rgba(71, 50, 28, 0.25); }
-.ad-theme-1 .ad-deco-c { width: 26px; height: 26px; border-radius: 8px; right: 14%; bottom: 14%; background: #FFFDF6; transform: rotate(18deg); box-shadow: 0 4px 10px rgba(71, 50, 28, 0.15); }
-.ad-theme-1 .ad-deco-dots { top: 16px; left: 18px; color: #47321C; }
-
-/* 2 -- soft glow from the top, organic sand blob, low arc. */
-.ad-theme-2 .ad-photo { background: radial-gradient(120% 90% at 50% 0%, #FFFDF6 0%, #f1d6bd 55%, #BB8D6B 100%); }
-.ad-theme-2 .ad-deco-a { width: 62%; aspect-ratio: 1; right: -20%; top: -18%; border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%; background: #DEA77F; opacity: 0.55; }
-.ad-theme-2 .ad-deco-b { width: 130%; height: 42%; left: -15%; bottom: -24%; border-radius: 50%; background: #FFFDF6; opacity: 0.45; }
-.ad-theme-2 .ad-deco-c { width: 14px; height: 14px; border-radius: 50%; left: 15%; top: 22%; background: #47321C; opacity: 0.35; box-shadow: 18px 22px 0 -3px rgba(71, 50, 28, 0.6); }
-.ad-theme-2 .ad-deco-dots { bottom: 18px; right: 18px; color: #47321C; }
-
-/* 3 -- rich brown with cream accents (the darkest variation). */
-.ad-theme-3 .ad-photo { background: linear-gradient(200deg, #47321C 0%, #6b4a2c 48%, #BB8D6B 100%); }
-.ad-theme-3 .ad-photo::after { border-color: rgba(222, 167, 127, 0.55); }
-.ad-theme-3 .ad-deco-a { width: 84%; aspect-ratio: 1; left: 8%; top: 8%; border-radius: 50%; border: 2px dashed rgba(255, 253, 246, 0.35); }
-.ad-theme-3 .ad-deco-b { width: 46%; aspect-ratio: 1; right: -14%; bottom: -14%; border-radius: 50%; background: #DEA77F; opacity: 0.45; }
-.ad-theme-3 .ad-deco-c { width: 30px; height: 30px; left: 14%; bottom: 16%; border-radius: 50% 50% 50% 8px; background: #FFFDF6; opacity: 0.85; transform: rotate(-12deg); }
-.ad-theme-3 .ad-deco-dots { top: 18px; right: 18px; color: #FFFDF6; opacity: 0.45; }
-
-/* 4 -- diagonal sand band with layered rounded tiles. */
-.ad-theme-4 .ad-photo { background: linear-gradient(135deg, #FFFDF6 0%, #f3dcc8 100%); }
-.ad-theme-4 .ad-deco-a { width: 160%; height: 42%; left: -30%; top: 34%; background: linear-gradient(90deg, #DEA77F, #BB8D6B); opacity: 0.55; transform: rotate(-24deg); border-radius: 40px; }
-.ad-theme-4 .ad-deco-b { width: 34%; aspect-ratio: 1; left: 9%; top: 9%; border-radius: 18px; background: #FFFDF6; opacity: 0.8; transform: rotate(-10deg); box-shadow: 0 6px 16px rgba(71, 50, 28, 0.12); }
-.ad-theme-4 .ad-deco-c { width: 28%; aspect-ratio: 1; right: 8%; bottom: 8%; border-radius: 16px; border: 2px solid rgba(71, 50, 28, 0.28); transform: rotate(12deg); }
-.ad-theme-4 .ad-deco-dots { bottom: 18px; left: 18px; color: #47321C; }
-
-/* Text: name first, then role, then contact details. */
-.ad-body { flex: 1; padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 6px; text-align: center; }
+/* Text: name, golden accent, role, then contact details. */
+.ad-body { display: contents; }
 .ad-name {
-  margin: 0; font-family: "Poppins", sans-serif; font-size: 17px; font-weight: 700;
-  color: #47321C; line-height: 1.3; overflow-wrap: anywhere;
+  margin: 0; padding: 18px 18px 0; text-align: center; font-family: "Poppins", sans-serif;
+  font-size: 16.5px; font-weight: 700; color: #47321C; line-height: 1.35; overflow-wrap: anywhere;
 }
-.ad-role { margin: 0; font-size: 13px; font-weight: 600; color: #8b6243; line-height: 1.45; }
+.ad-accent { display: block; justify-self: center; width: 32px; height: 3px; margin: 10px 0 9px; border-radius: 3px; background: #E4AF1F; }
+.ad-role {
+  margin: 0; padding: 0 18px 16px; text-align: center; font-family: "Lato", sans-serif;
+  font-size: 13.5px; font-weight: 700; color: #8b6243; line-height: 1.45;
+}
 .ad-contact {
-  list-style: none; margin: 10px 0 0; padding: 12px 0 0; border-top: 1px dashed #ead8c4;
-  display: flex; flex-direction: column; gap: 8px; text-align: left;
+  list-style: none; margin: 0 18px 20px; padding: 14px 0 0; border-top: 1px solid #f3ebdf;
+  display: flex; flex-direction: column; gap: 9px; text-align: left;
 }
-.ad-contact li { display: flex; align-items: center; gap: 10px; font-size: 13px; min-width: 0; }
+@supports not (grid-template-rows: subgrid) {
+  .ad-card { display: flex; flex-direction: column; }
+  .ad-contact { margin-top: auto; }
+}
+.ad-contact li { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; }
 .ad-contact-icon {
   flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #FFFDF6; border: 1px solid #efdcc8; color: #47321C; font-size: 14px;
+  background: #FFF6DA; border: 1px solid #F3DE9E; color: #47321C; font-size: 14px;
 }
 .ad-contact a { color: #47321C; text-decoration: none; overflow-wrap: break-word; min-width: 0; line-height: 1.4; }
-.ad-contact a:hover { text-decoration: underline; color: #8b6243; }
+.ad-contact a:hover { color: #8b6243; text-decoration: underline; }
 .ad-sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.ad-pending { margin: 4px 0 0; font-size: 13px; color: #a39e94; font-style: italic; }
+.ad-pending { margin: 4px 18px 20px; text-align: center; font-size: 13px; color: #a39e94; font-style: italic; }
 @media (prefers-reduced-motion: reduce) {
   .ad-card, .ad-card:hover { transition: none; transform: none; }
 }
-.ad-ack-list { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.7; color: #4e463b; }
 
 /* About the System. */
 .as-intro {
@@ -589,6 +589,7 @@
   .as-info-row { grid-template-columns: 1fr; gap: 2px; }
 }
 @media (max-width: 560px) {
+  .ad-hero::after { display: none; }
   .ad-grid { grid-template-columns: minmax(0, 360px); justify-content: center; }
 }
 @media (max-width: 480px) {
