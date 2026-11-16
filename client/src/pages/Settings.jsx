@@ -436,23 +436,23 @@ function SystemIllustration() {
 const HELP_CARDS = [
   {
     to: "/faq",
-    title: "Frequently Asked Questions (FAQ)",
-    description: "Find answers to common questions and learn how to use the system effectively.",
-    button: "View FAQ",
+    title: "Frequently Asked Questions",
+    description: "Find answers to common questions about using PoultryBiz.",
+    button: "View FAQs",
     Art: FaqIllustration,
   },
   {
     to: "/help-support/about-developer",
     title: "About the Developer",
-    description: "Meet the development team, our roles, and contact information.",
-    button: "View Developers",
+    description: "Meet the developers behind PoultryBiz, their roles, and how to contact them.",
+    button: "Meet the Developers",
     Art: DeveloperIllustration,
   },
   {
     to: "/help-support/about-system",
     title: "About the System",
-    description: "Learn about PoultryBiz, its purpose, key features, and system information.",
-    button: "View System Info",
+    description: "Learn what PoultryBiz is, its purpose, its main features, and its version.",
+    button: "Learn About the System",
     Art: SystemIllustration,
   },
 ];
@@ -497,52 +497,127 @@ export function HelpSupport() {
 }
 
 // ── About the Developer (/help-support/about-developer) ─────────────────
-// THE FOUR DEVELOPER PROFILES -- edit only this list.
-//   photo: put the picture in client/public/developers/ and write its path,
-//          e.g. "/developers/developer-1.jpg" (square photos look best; the
-//          card crops to a square from the top, so faces are not cut off).
-//   name, role (project role or contribution), email, phone: plain text.
-// Empty values show a neutral picture and "Details to be added", so the
-// page works before the details are ready. Nothing here is made up.
+// DEVELOPER PHOTOS -- put the four pictures in client/src/assets/developers/
+// with these exact names: developer1.jpg, developer2.jpg, developer3.jpg,
+// developer4.jpg (.jpeg, .png or .webp also work). They are picked up
+// automatically at build time; a missing photo shows the developer's
+// initials instead, so the page never breaks. Portrait photos (4:5, e.g.
+// 800 x 1000 px) with the face in the upper half look best: every photo is
+// cropped the same way (object-fit: cover), never stretched.
+const DEVELOPER_PHOTOS = import.meta.glob("../assets/developers/*.{jpg,jpeg,png,webp}", {
+  eager: true,
+  import: "default",
+});
+
+function developerPhoto(file) {
+  if (!file) return "";
+  const base = file.replace(/\.[^.]+$/, "");
+  const key = Object.keys(DEVELOPER_PHOTOS).find((k) => {
+    const name = k.split("/").pop();
+    return name === file || name.replace(/\.[^.]+$/, "") === base;
+  });
+  return key ? DEVELOPER_PHOTOS[key] : "";
+}
+
+// THE FOUR DEVELOPER PROFILES -- edit only this list to change the details.
+//   photo: file name inside client/src/assets/developers/
+//   name, role (shown translated when a Filipino entry exists), email, phone.
+// Each card's background design follows its position (1 to 4), so the
+// details and photos can be replaced without touching the card design.
 const DEVELOPERS = [
-  { photo: "", name: "", role: "", email: "", phone: "" },
-  { photo: "", name: "", role: "", email: "", phone: "" },
-  { photo: "", name: "", role: "", email: "", phone: "" },
-  { photo: "", name: "", role: "", email: "", phone: "" },
+  {
+    photo: "developer1.jpg",
+    name: "John Mark Malapajo",
+    role: "Project Leader, Back-end Developer",
+    email: "johnmarkmalapajo@gmail.com",
+    phone: "09319468429",
+  },
+  {
+    photo: "developer2.jpg",
+    name: "Alleiyah Gonzaga",
+    role: "QA Tester, Front-end Developer",
+    email: "hayiellag95@gmail.com",
+    phone: "09154719817",
+  },
+  {
+    photo: "developer3.jpg",
+    name: "Janna Mae Linga",
+    role: "System Analyst, Researcher",
+    email: "lingajanmae@gmail.com",
+    phone: "09153156295",
+  },
+  {
+    photo: "developer4.jpg",
+    name: "Daisyrie Ann Nanza",
+    role: "Data Analyst, Researcher",
+    email: "daisyrieannnanza@gmail.com",
+    phone: "09154723313",
+  },
 ];
 
 // ACKNOWLEDGMENTS -- people or organizations who contributed to the project.
 // Add one entry per acknowledgment: { name: "...", note: "..." }.
 const ACKNOWLEDGMENTS = [];
 
+// 09xx xxx xxxx, the usual way to read a PH mobile number.
+function formatPhone(phone) {
+  const d = phone.replace(/\D/g, "");
+  return /^09\d{9}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : phone;
+}
+
+function initialsOf(name) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
 function DeveloperCard({ dev, index }) {
   const { t } = useLanguage();
   const [photoFailed, setPhotoFailed] = useState(false);
   const label = t("Developer {n}", { n: index + 1 });
+  const photo = developerPhoto(dev.photo);
   const hasDetails = Boolean(dev.name || dev.role || dev.email || dev.phone);
+  const initials = initialsOf(dev.name);
 
   return (
-    <article className="ad-card">
+    <article className={`ad-card ad-theme-${(index % 4) + 1}`}>
       <div className="ad-photo">
-        {dev.photo && !photoFailed ? (
-          <img src={dev.photo} alt={dev.name || label} onError={() => setPhotoFailed(true)} />
-        ) : (
-          <div className="ad-photo-empty" role="img" aria-label={t("{label}: photo to be added", { label })}>
-            <FiUser />
-          </div>
-        )}
+        {/* Decorations sit behind and around the portrait, never over it. */}
+        <span className="ad-deco ad-deco-a" aria-hidden="true" />
+        <span className="ad-deco ad-deco-b" aria-hidden="true" />
+        <span className="ad-deco ad-deco-c" aria-hidden="true" />
+        <span className="ad-deco ad-deco-dots" aria-hidden="true" />
+        <div className="ad-portrait">
+          {photo && !photoFailed ? (
+            <img src={photo} alt={dev.name || label} loading="lazy" onError={() => setPhotoFailed(true)} />
+          ) : (
+            <div className="ad-photo-empty" role="img" aria-label={t("{label}: photo to be added", { label: dev.name || label })}>
+              {initials ? <span className="ad-initials">{initials}</span> : <FiUser />}
+            </div>
+          )}
+        </div>
       </div>
       <div className="ad-body">
-        {dev.name && <span className="ad-slot">{label}</span>}
         <h2 className="ad-name">{dev.name || label}</h2>
         {dev.role && <p className="ad-role">{t(dev.role)}</p>}
         {(dev.email || dev.phone) && (
           <ul className="ad-contact">
             {dev.email && (
-              <li><FiMail aria-label={t("Email")} /><a href={`mailto:${dev.email}`}>{dev.email}</a></li>
+              <li>
+                <span className="ad-contact-icon"><FiMail aria-hidden="true" /></span>
+                <span className="ad-sr-only">{t("Email Address")}: </span>
+                <a href={`mailto:${dev.email}`}>
+                  {/* A long address wraps after the "@", not mid-word. */}
+                  {dev.email.split("@")[0]}<wbr />{dev.email.includes("@") ? `@${dev.email.split("@").slice(1).join("@")}` : ""}
+                </a>
+              </li>
             )}
             {dev.phone && (
-              <li><FiPhone aria-label={t("Phone")} /><a href={`tel:${dev.phone.replace(/[^\d+]/g, "")}`}>{dev.phone}</a></li>
+              <li>
+                <span className="ad-contact-icon"><FiPhone aria-hidden="true" /></span>
+                <span className="ad-sr-only">{t("Contact Number")}: </span>
+                <a href={`tel:${dev.phone.replace(/[^\d+]/g, "")}`}>{formatPhone(dev.phone)}</a>
+              </li>
             )}
           </ul>
         )}
