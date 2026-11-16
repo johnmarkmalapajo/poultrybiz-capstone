@@ -425,15 +425,26 @@
    golden ring, and restrained golden accents (#E4AF1F) in every card.
    Brown (#47321C) for names and labels, Poppins headings, Lato body text,
    16px radius and the same soft shadow as the other Help & Support cards. */
+.ad-hero { gap: 24px; }
 .ad-hero::before {
   content: ""; position: absolute; right: -60px; top: -70px; width: 220px; height: 220px;
-  border-radius: 50%; background: rgba(228, 175, 31, 0.12); pointer-events: none;
+  border-radius: 50%; background: rgba(228, 175, 31, 0.1); pointer-events: none;
 }
-.ad-hero::after {
-  content: ""; position: absolute; right: 120px; bottom: 16px; width: 70px; height: 34px;
-  background-image: radial-gradient(rgba(228, 175, 31, 0.55) 1.6px, transparent 1.8px);
-  background-size: 10px 10px; pointer-events: none;
+/* The PoultryBiz logo in a cream-to-soft-yellow tile with a golden ring.
+   object-fit: contain keeps the logo's own proportions and colours; the
+   PNG's own transparent margin works as the tile's inner spacing. */
+.ad-hero-logo {
+  position: relative; z-index: 1; flex: 0 0 148px; width: 148px; height: 148px;
+  display: flex; align-items: center; justify-content: center; padding: 6px;
+  border-radius: 22px; background: linear-gradient(160deg, #FFFDF6 0%, #FFF3D1 100%);
+  border: 1px solid #F3DE9E;
+  box-shadow: 0 0 0 4px rgba(228, 175, 31, 0.12), 0 6px 16px rgba(71, 50, 28, 0.08);
 }
+.ad-hero-logo::after {
+  content: ""; position: absolute; left: 50%; bottom: -1px; width: 40%; height: 3px;
+  transform: translateX(-50%); border-radius: 3px 3px 0 0; background: #E4AF1F;
+}
+.ad-hero-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 .ad-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 /* Each card spans five rows of the grid (photo, name, accent, role,
@@ -588,11 +599,14 @@
   .hs-cards > .hs-card:last-child:nth-child(odd) { width: auto; justify-self: stretch; }
   .as-info-row { grid-template-columns: 1fr; gap: 2px; }
 }
+@media (max-width: 768px) {
+  .ad-hero-logo { flex-basis: 120px; width: 120px; height: 120px; padding: 4px; border-radius: 18px; }
+}
 @media (max-width: 560px) {
-  .ad-hero::after { display: none; }
   .ad-grid { grid-template-columns: minmax(0, 360px); justify-content: center; }
 }
 @media (max-width: 480px) {
   .hs-hero { flex-direction: column; align-items: flex-start; }
+  .ad-hero { align-items: center; text-align: center; gap: 16px; }
   .hs-panel { padding: 16px; }
 }
