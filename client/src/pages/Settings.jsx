@@ -7,6 +7,8 @@ import {
   FiInfo, FiGrid, FiHeadphones, FiUsers,
 } from "react-icons/fi";
 import systemLogo from "../assets/sidelogo.jpg";
+// The official PoultryBiz logo (transparent PNG, also used on the login page).
+import brandLogo from "../assets/logo.png";
 import { version as SYSTEM_VERSION } from "../../package.json";
 import PageLayout from "../components/PageLayout";
 import "./Settings.css";
@@ -372,23 +374,6 @@ export function FAQ() {
 
 // Small illustrations in the PoultryBiz palette (brown #47321C, tan #BB8D6B,
 // sand #DEA77F, cream #FFFDF6, gold #E4AF1F). Decorative only.
-function HenIllustration() {
-  return (
-    <svg viewBox="0 0 220 140" className="hs-hero-art" aria-hidden="true" focusable="false">
-      <ellipse cx="112" cy="122" rx="92" ry="12" fill="#DEA77F" opacity="0.35" />
-      <path d="M40 120 Q112 92 184 120 Z" fill="#BB8D6B" opacity="0.55" />
-      <ellipse cx="78" cy="110" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
-      <ellipse cx="146" cy="110" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
-      <path d="M70 92 C64 62 86 44 112 46 C122 30 146 30 150 46 C162 44 170 54 164 62 C176 70 172 92 154 100 C134 112 92 112 70 92 Z" fill="#FFFDF6" stroke="#47321C" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M140 34 q4 -10 10 -2 q6 -9 10 1 q8 -4 6 6" fill="#c8402c" stroke="#47321C" strokeWidth="2.5" strokeLinejoin="round" />
-      <circle cx="148" cy="50" r="3.4" fill="#47321C" />
-      <path d="M160 52 l12 4 l-12 5 z" fill="#E4AF1F" stroke="#47321C" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M88 74 q22 -14 44 4 q-20 16 -44 -4 z" fill="#DEA77F" stroke="#47321C" strokeWidth="3" strokeLinejoin="round" />
-      <ellipse cx="112" cy="114" rx="11" ry="14" fill="#FFFDF6" stroke="#DEA77F" strokeWidth="2" />
-    </svg>
-  );
-}
-
 function FaqIllustration() {
   return (
     <svg viewBox="0 0 160 110" className="hs-card-art" aria-hidden="true" focusable="false">
@@ -464,13 +449,15 @@ export function HelpSupport() {
   return (
     <PageLayout breadcrumbItems={[{ label: "Help & Support" }]}>
       <div className="hs-page">
-        <section className="hs-hero">
+        <section className="hs-hero hs-hero-brand">
           <div className="hs-hero-icon" aria-hidden="true"><FiHeadphones /></div>
           <div className="hs-hero-text">
             <h1 className="hs-title">{t("Help & Support")}</h1>
             <p className="hs-lead">{t("Find answers, learn about the system, and know more about the developers.")}</p>
           </div>
-          <HenIllustration />
+          <div className="hs-hero-logo">
+            <img src={brandLogo} alt={t("PoultryBiz logo")} />
+          </div>
         </section>
 
         <div className="hs-cards">

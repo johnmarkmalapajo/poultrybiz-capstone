@@ -360,7 +360,17 @@
   font-weight: 800; color: #47321C; line-height: 1.3;
 }
 .hs-lead { margin: 0; font-size: 14px; line-height: 1.7; color: #6b6457; max-width: 760px; }
-.hs-hero-art { flex: 0 0 auto; width: 190px; height: auto; opacity: 0.9; }
+/* Landing page: the official PoultryBiz logo on the right, in a soft
+   cream-to-light-yellow tile. object-fit: contain keeps the logo's own
+   proportions (500 x 405) and colours; the PNG's transparent margin is
+   the inner spacing. */
+.hs-hero-logo {
+  position: relative; z-index: 1; flex: 0 0 auto; width: 176px; aspect-ratio: 500 / 405;
+  display: flex; align-items: center; justify-content: center; padding: 4px;
+  border-radius: 18px; background: linear-gradient(160deg, #FFFDF6 0%, #FFF3D1 100%);
+  border: 1px solid #F3DE9E; box-shadow: 0 0 0 4px rgba(228, 175, 31, 0.1);
+}
+.hs-hero-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 /* Three cards: one row on desktop, two on tablet, one on mobile. */
 .hs-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
@@ -572,11 +582,11 @@
   .hs-cards > .hs-card:last-child:nth-child(odd) {
     grid-column: 1 / -1; justify-self: center; width: calc((100% - 20px) / 2);
   }
-  .hs-hero-art { width: 150px; }
+  .hs-hero-logo { width: 150px; }
 }
 @media (max-width: 768px) {
   .hs-hero { padding: 18px; gap: 14px; }
-  .hs-hero-art { display: none; }
+  .hs-hero-logo { width: 124px; border-radius: 14px; }
   .hs-hero-icon { flex-basis: 46px; width: 46px; height: 46px; font-size: 23px; }
   .hs-title { font-size: 19px; }
   .as-intro { flex-direction: column; align-items: flex-start; padding: 18px; }
@@ -594,5 +604,11 @@
 }
 @media (max-width: 480px) {
   .hs-hero { flex-direction: column; align-items: flex-start; }
+  /* Landing page: icon left and logo right on the first row, text below. */
+  .hs-hero-brand {
+    display: grid; grid-template-columns: auto auto; justify-content: space-between; align-items: center;
+  }
+  .hs-hero-brand .hs-hero-text { grid-column: 1 / -1; order: 2; }
+  .hs-hero-brand .hs-hero-logo { width: 112px; justify-self: end; }
   .hs-panel { padding: 16px; }
 }
