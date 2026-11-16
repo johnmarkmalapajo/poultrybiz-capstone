@@ -14,17 +14,13 @@ import logoutIcon from "../assets/logout.svg"
 import userMenuIcon from "../assets/user.svg"
 import userIcon from "../assets/donlogo.png"
 import { useUser } from "../hooks/useUser"
-import { FiX, FiChevronDown } from "react-icons/fi"
+import { FiX } from "react-icons/fi"
 import { logout } from "../api/auth";
 
-// Help & Support group: its own landing page, the existing FAQ page and the
-// two About pages. The group opens by itself while one of these is shown.
-const HELP_LINKS = [
-  { path: "/help-support", label: "Help & Support" },
-  { path: "/faq", label: "FAQ" },
-  { path: "/help-support/about-developer", label: "About the Developer" },
-  { path: "/help-support/about-system", label: "About the System" },
-];
+// Pages reached from the Help & Support landing page (its FAQ, About the
+// Developer and About the System cards). The single Help & Support item
+// stays highlighted on all of them.
+const HELP_PAGES = ["/help-support", "/faq", "/help-support/about-developer", "/help-support/about-system"];
 
 export function openSidebar() {
   window.dispatchEvent(new CustomEvent("open-sidebar"));
@@ -55,16 +51,7 @@ function Sidebar() {
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
-  // One Help & Support page is open -> the group is expanded. The user can
-  // still collapse or expand it by hand; moving to a page in the group
-  // expands it again.
-  const helpRouteActive = HELP_LINKS.some((l) => location.pathname === l.path);
-  const [helpOpen, setHelpOpen] = useState(helpRouteActive);
-  const [helpPathSeen, setHelpPathSeen] = useState(location.pathname);
-  if (helpPathSeen !== location.pathname) {
-    setHelpPathSeen(location.pathname);
-    if (helpRouteActive) setHelpOpen(true);
-  }
+  const helpActive = HELP_PAGES.includes(location.pathname);
 
   const handleLogoutConfirm = async () => {
   try {
@@ -152,35 +139,13 @@ function Sidebar() {
           <li className="divider"></li>
 
           {/* Help & Support: after To Do, before Settings (Owner and
-              Farmer). Expands to its four pages; FAQ is the existing page. */}
-          <li className={`sidebar-group ${helpRouteActive ? "group-active" : ""}`}>
-            <button
-              type="button"
-              className="sidebar-group-toggle"
-              aria-expanded={helpOpen}
-              aria-controls="sidebar-help-links"
-              onClick={() => setHelpOpen((o) => !o)}
-            >
-              <img src={faqIcon} alt="" className="menu-icon" />
-              <span className="sidebar-group-label">{t("Help & Support")}</span>
-              <FiChevronDown className={`sidebar-group-chevron ${helpOpen ? "open" : ""}`} aria-hidden="true" />
-            </button>
-            {helpOpen && (
-              <ul className="sidebar-submenu" id="sidebar-help-links">
-                {HELP_LINKS.map((l) => (
-                  <li key={l.path} className={location.pathname === l.path ? "sub-active" : ""}>
-                    <Link
-                      to={l.path}
-                      className="sidebar-sublink"
-                      aria-current={location.pathname === l.path ? "page" : undefined}
-                      onClick={closeMobile}
-                    >
-                      {t(l.label)}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+              Farmer). One item; its landing page links to FAQ, About the
+              Developer and About the System. */}
+          <li className={helpActive ? "active" : "secondary"}>
+            <Link to="/help-support" className="nav-link" onClick={closeMobile}>
+              <img src={faqIcon} alt="Help & Support" className="menu-icon" />
+              {t("Help & Support")}
+            </Link>
           </li>
 
           <li className={isActive("/settings") ? "active" : "secondary"}>
